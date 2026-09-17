@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, Copy, Mail, MessageCircle, Phone, X } from "lucide-react"
 import {
   ConfidenceBadge,
@@ -23,6 +23,14 @@ export function RequestDetailModal({
   const [templateId, setTemplateId] = useState("")
   const [sendTo, setSendTo] = useState("")
   const [messageBody, setMessageBody] = useState("")
+
+  const sendPanelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (sendMethod) {
+      setTimeout(() => sendPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
+    }
+  }, [sendMethod])
 
   const selectedCarrier = carriers.find((c) => c.id === carrierId)
   const methodTemplates = templates.filter((t) => t.type === sendMethod)
@@ -211,7 +219,7 @@ export function RequestDetailModal({
 
           {/* Send panel — inside scroll area so it never gets clipped */}
           {sendMethod && (
-            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2">
+            <div ref={sendPanelRef} className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
