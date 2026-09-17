@@ -22,7 +22,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
       />
       <PortalTabbar />
       {/* Content shifts with sidebar — both on hover AND when pinned */}
-      <div className={`transition-[padding-left] duration-200 ${expanded ? "md:pl-60" : "md:pl-14"}`}>
+      <div className={`overflow-x-hidden transition-[padding-left] duration-200 ${expanded ? "md:pl-60" : "md:pl-14"}`}>
         <PortalTopbar />
         <main className="px-4 pb-24 pt-6 md:px-8 md:pb-10">{children}</main>
       </div>
