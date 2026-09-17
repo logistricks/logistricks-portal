@@ -404,8 +404,8 @@ export const templateVariables = [
 ] as const
 
 export const currentUser = {
-  name: "Abdulaziz Al-Otaibi",
-  email: "abdulaziz@orbitfreight.com",
+  name: "Abdulaziz",
+  email: "abd.khayyat@gmail.com",
   initials: "AA",
   company: "Orbit Freight Forwarding",
 }
