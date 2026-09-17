@@ -315,30 +315,66 @@ export function RequestDetailModal({
         </div>
 
         {/* Footer action buttons — always visible, pinned at bottom */}
-        <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#111E33]">
+          {request.status === "Sent to Carrier" && (
+            <div className="border-b border-[#FEF3C7] bg-[#FFFBEB] px-4 py-2 dark:border-[#F97316]/20 dark:bg-[#F97316]/5">
+              <p className="text-xs font-medium text-[#92400E] dark:text-[#F97316]">
+                ⏳ Already sent to carrier — send a reminder if no quote received yet.
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-3 p-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => openPanel("Email")}
-              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all hover:scale-[1.01] ${
-                sendMethod === "Email"
-                  ? "bg-[#EA580C] text-white"
-                  : "bg-[#F97316] text-white hover:bg-[#EA580C]"
-              }`}
-            >
-              <Mail className="h-4 w-4" /> Send to Carrier via Email
-            </button>
-            <button
-              type="button"
-              onClick={() => openPanel("WhatsApp")}
-              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] ${
-                sendMethod === "WhatsApp"
-                  ? "bg-[#047857]"
-                  : "bg-[#059669] hover:bg-[#047857]"
-              }`}
-            >
-              <MessageCircle className="h-4 w-4" /> Send via WhatsApp
-            </button>
+            {request.status === "Sent to Carrier" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openPanel("Email")}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-semibold transition-all hover:scale-[1.01] ${
+                    sendMethod === "Email"
+                      ? "border-[#F97316] bg-[#FFF7ED] text-[#EA580C] dark:bg-[#F97316]/10"
+                      : "border-[#F97316]/50 bg-white text-[#F97316] hover:border-[#F97316] hover:bg-[#FFF7ED] dark:bg-transparent dark:hover:bg-[#F97316]/10"
+                  }`}
+                >
+                  <Mail className="h-4 w-4" /> Send Reminder via Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPanel("WhatsApp")}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-semibold transition-all hover:scale-[1.01] ${
+                    sendMethod === "WhatsApp"
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20"
+                      : "border-emerald-500/50 bg-white text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 dark:bg-transparent dark:hover:bg-emerald-900/20"
+                  }`}
+                >
+                  <MessageCircle className="h-4 w-4" /> Send Reminder via WhatsApp
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openPanel("Email")}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all hover:scale-[1.01] ${
+                    sendMethod === "Email"
+                      ? "bg-[#EA580C] text-white"
+                      : "bg-[#F97316] text-white hover:bg-[#EA580C]"
+                  }`}
+                >
+                  <Mail className="h-4 w-4" /> Send to Carrier via Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPanel("WhatsApp")}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] ${
+                    sendMethod === "WhatsApp"
+                      ? "bg-[#047857]"
+                      : "bg-[#059669] hover:bg-[#047857]"
+                  }`}
+                >
+                  <MessageCircle className="h-4 w-4" /> Send via WhatsApp
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { RequestDetailModal } from "@/components/portal/request-detail-modal"
 import { requests, type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
 
 const statusFilters: (RequestStatus | "All")[] = ["Pending", "All", "Sent to Carrier", "Quoted", "Closed"]
-const sourceFilters: (Source | "All Sources")[] = ["All Sources", "Email", "WhatsApp", "Voice Note"]
+const sourceFilters: (Source | "All Sources")[] = ["All Sources", "Email", "WhatsApp"]
 
 export default function RequestsPage() {
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "All">("Pending")
