@@ -8,13 +8,21 @@ import { PortalTopbar } from "@/components/portal/portal-topbar"
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const [pinned, setPinned] = useState(false)
+  const [hovered, setHovered] = useState(false)
+
+  const expanded = pinned || hovered
 
   return (
     <div className="min-h-screen bg-[#F0F4F8] dark:bg-[#0C1424]">
-      <PortalSidebar pinned={pinned} onPin={setPinned} />
+      <PortalSidebar
+        expanded={expanded}
+        pinned={pinned}
+        onPin={setPinned}
+        onHover={setHovered}
+      />
       <PortalTabbar />
-      {/* md:pl-14 = 56px icon rail; md:pl-60 = 240px pinned */}
-      <div className={`transition-[padding-left] duration-200 ${pinned ? "md:pl-60" : "md:pl-14"}`}>
+      {/* Content shifts with sidebar — both on hover AND when pinned */}
+      <div className={`transition-[padding-left] duration-200 ${expanded ? "md:pl-60" : "md:pl-14"}`}>
         <PortalTopbar />
         <main className="px-4 pb-24 pt-6 md:px-8 md:pb-10">{children}</main>
       </div>
