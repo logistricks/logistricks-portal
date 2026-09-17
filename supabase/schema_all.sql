@@ -65,7 +65,7 @@ ON CONFLICT (client_code) DO NOTHING;
 -- ============================================================
 
 -- Role enum
-CREATE TYPE user_role AS ENUM ('admin', 'operator', 'viewer');
+CREATE TYPE IF NOT EXISTS user_role AS ENUM ('admin', 'operator', 'viewer');
 
 CREATE TABLE IF NOT EXISTS profiles (
   id           UUID         PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
