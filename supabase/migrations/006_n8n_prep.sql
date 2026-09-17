@@ -4,7 +4,7 @@
 -- Run AFTER 003_data_tables.sql.
 -- ============================================================
 
-CREATE TYPE IF NOT EXISTS webhook_status AS ENUM (
+CREATE TYPE webhook_status AS ENUM (
   'received', 'processing', 'processed', 'error'
 );
 

@@ -5,11 +5,11 @@
 -- ============================================================
 
 -- ── Enums ───────────────────────────────────────────────────
-CREATE TYPE IF NOT EXISTS template_type   AS ENUM ('Email', 'WhatsApp');
-CREATE TYPE IF NOT EXISTS request_source  AS ENUM ('Email', 'WhatsApp', 'Phone', 'Web');
-CREATE TYPE IF NOT EXISTS request_urgency AS ENUM ('High', 'Medium', 'Low');
-CREATE TYPE IF NOT EXISTS request_status  AS ENUM ('New', 'In Review', 'Quoted', 'Won', 'Lost', 'Archived');
-CREATE TYPE IF NOT EXISTS outreach_method AS ENUM ('Email', 'WhatsApp');
+CREATE TYPE template_type   AS ENUM ('Email', 'WhatsApp');
+CREATE TYPE request_source  AS ENUM ('Email', 'WhatsApp', 'Phone', 'Web');
+CREATE TYPE request_urgency AS ENUM ('High', 'Medium', 'Low');
+CREATE TYPE request_status  AS ENUM ('New', 'In Review', 'Quoted', 'Won', 'Lost', 'Archived');
+CREATE TYPE outreach_method AS ENUM ('Email', 'WhatsApp');
 
 -- ────────────────────────────────────────────────────────────
 -- CARRIERS

@@ -5,7 +5,7 @@
 -- Run AFTER 003_data_tables.sql.
 -- ============================================================
 
-CREATE TYPE IF NOT EXISTS action_type AS ENUM (
+CREATE TYPE action_type AS ENUM (
   'CREATE', 'UPDATE', 'DELETE', 'VIEW', 'SEND'
 );
 
