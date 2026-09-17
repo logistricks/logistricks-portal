@@ -5,7 +5,7 @@ import { PortalTopbar } from "@/components/portal/portal-topbar"
 
 export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#F0F4F8]">
+    <div className="min-h-screen bg-[#F0F4F8] dark:bg-[#0C1424]">
       <PortalSidebar />
       <PortalTabbar />
       <div className="md:pl-60">
