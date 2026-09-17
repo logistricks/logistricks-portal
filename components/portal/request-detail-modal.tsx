@@ -22,6 +22,7 @@ export function RequestDetailModal({
   const [carrierId, setCarrierId] = useState("")
   const [templateId, setTemplateId] = useState("")
   const [sendTo, setSendTo] = useState("")
+  const [messageBody, setMessageBody] = useState("")
 
   const selectedCarrier = carriers.find((c) => c.id === carrierId)
   const methodTemplates = templates.filter((t) => t.type === sendMethod)
@@ -31,12 +32,42 @@ export function RequestDetailModal({
     setCarrierId("")
     setTemplateId("")
     setSendTo("")
+    setMessageBody("")
   }
 
   function onSelectCarrier(id: string) {
     setCarrierId(id)
     const c = carriers.find((x) => x.id === id)
     if (c) setSendTo(sendMethod === "Email" ? c.email : c.whatsapp)
+    if (templateId) {
+      const carrier = carriers.find((x) => x.id === id)
+      setMessageBody(renderTemplateBody(templateId, request, carrier))
+    }
+  }
+
+  function onSelectTemplate(id: string) {
+    setTemplateId(id)
+    if (id) {
+      setMessageBody(renderTemplateBody(id, request, selectedCarrier))
+    } else {
+      setMessageBody("")
+    }
+  }
+
+  function handleSend() {
+    if (!sendTo) return
+    if (sendMethod === "Email") {
+      const t = templates.find((x) => x.id === templateId)
+      const subject = t?.subject ?? ""
+      const href =
+        `mailto:${sendTo}` +
+        `?subject=${encodeURIComponent(subject)}` +
+        `&body=${encodeURIComponent(messageBody)}`
+      window.open(href, "_blank")
+    } else if (sendMethod === "WhatsApp") {
+      const phone = sendTo.replace(/[\s\-\(\)\+]/g, "")
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(messageBody)}`, "_blank")
+    }
   }
 
   const fields: { label: string; value: string | null }[] = [
@@ -55,8 +86,8 @@ export function RequestDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-200 animate-in fade-in zoom-in-95 sm:rounded-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between bg-[#0D1B2A] px-6 py-4">
+        {/* Header — always visible */}
+        <div className="flex shrink-0 items-center justify-between bg-[#0D1B2A] px-6 py-4">
           <div className="flex items-center gap-3">
             <SourceBadge source={request.source} />
             <div>
@@ -74,112 +105,113 @@ export function RequestDetailModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="grid flex-1 grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-cols-5">
-          {/* Left column */}
-          <div className="space-y-6 lg:col-span-3">
-            <section>
-              <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Shipment Details</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {fields.map((f) => (
-                  <FieldPill key={f.label} label={f.label} value={f.value} />
-                ))}
-                <div className="col-span-2 flex flex-wrap items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-[#64748B]">Mode</span>
-                  {request.modes.map((m) => (
-                    <ModeBadge key={m} mode={m} />
-                  ))}
-                  <span className="ml-auto text-xs font-medium uppercase tracking-wide text-[#64748B]">Urgency</span>
-                  <UrgencyBadge urgency={request.urgency} />
-                  <ConfidenceBadge confidence={request.confidence} />
-                </div>
-              </div>
-            </section>
-
-            {request.specialRequirements.length > 0 && (
+        {/* Scrollable body — includes details + send panel */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Main content grid */}
+          <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-5">
+            {/* Left column */}
+            <div className="space-y-6 lg:col-span-3">
               <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Special Requirements</h4>
-                <ol className="space-y-2">
-                  {request.specialRequirements.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex gap-3 rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A]"
-                    >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-xs font-semibold text-[#F97316]">
-                        {i + 1}
-                      </span>
-                      {s}
+                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Shipment Details</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {fields.map((f) => (
+                    <FieldPill key={f.label} label={f.label} value={f.value} />
+                  ))}
+                  <div className="col-span-2 flex flex-wrap items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2">
+                    <span className="text-xs font-medium uppercase tracking-wide text-[#64748B]">Mode</span>
+                    {request.modes.map((m) => (
+                      <ModeBadge key={m} mode={m} />
+                    ))}
+                    <span className="ml-auto text-xs font-medium uppercase tracking-wide text-[#64748B]">Urgency</span>
+                    <UrgencyBadge urgency={request.urgency} />
+                    <ConfidenceBadge confidence={request.confidence} />
+                  </div>
+                </div>
+              </section>
+
+              {request.specialRequirements.length > 0 && (
+                <section>
+                  <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Special Requirements</h4>
+                  <ol className="space-y-2">
+                    {request.specialRequirements.map((s, i) => (
+                      <li
+                        key={i}
+                        className="flex gap-3 rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A]"
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-xs font-semibold text-[#F97316]">
+                          {i + 1}
+                        </span>
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
+              {request.availabilityQuestions.length > 0 && (
+                <section>
+                  <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Availability Questions</h4>
+                  <ul className="space-y-2">
+                    {request.availabilityQuestions.map((q, i) => (
+                      <li key={i} className="flex items-center gap-2.5 text-sm text-[#0F172A]">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-xs font-bold text-[#F97316]">
+                          ?
+                        </span>
+                        {q}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              <section>
+                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Raw Message</h4>
+                <pre className="max-h-36 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[#1E293B] p-4 font-mono text-xs leading-relaxed text-[#E2E8F0]">
+                  {request.rawMessage}
+                </pre>
+              </section>
+            </div>
+
+            {/* Right column */}
+            <div className="space-y-6 lg:col-span-2">
+              <section>
+                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Sender Information</h4>
+                <div className="space-y-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                  <p className="text-sm font-semibold text-[#0F172A]">{request.senderName}</p>
+                  <CopyRow icon={Mail} value={request.senderEmail} />
+                  <CopyRow icon={Phone} value={request.senderPhone} />
+                  <div className="flex items-center gap-2 pt-1">
+                    <SourceBadge source={request.source} />
+                    <span className="text-xs text-[#64748B]">{request.receivedExact}</span>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Request Status</h4>
+                <div className="mb-4">
+                  <StatusBadge status={request.status} />
+                </div>
+                <ol className="relative space-y-4 border-l border-[#E2E8F0] pl-5">
+                  {request.history.map((e) => (
+                    <li key={e.label} className="relative">
+                      <span
+                        className={`absolute -left-[23px] top-0.5 h-3 w-3 rounded-full border-2 border-white ${
+                          e.done ? "bg-[#F97316]" : "bg-[#CBD5E1]"
+                        }`}
+                      />
+                      <p className={`text-sm ${e.done ? "font-medium text-[#0F172A]" : "text-[#94A3B8]"}`}>{e.label}</p>
+                      <p className="text-xs tabular-nums text-[#64748B]">{e.time}</p>
                     </li>
                   ))}
                 </ol>
               </section>
-            )}
-
-            {request.availabilityQuestions.length > 0 && (
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Availability Questions</h4>
-                <ul className="space-y-2">
-                  {request.availabilityQuestions.map((q, i) => (
-                    <li key={i} className="flex items-center gap-2.5 text-sm text-[#0F172A]">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-xs font-bold text-[#F97316]">
-                        ?
-                      </span>
-                      {q}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <section>
-              <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Raw Message</h4>
-              <pre className="max-h-36 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[#1E293B] p-4 font-mono text-xs leading-relaxed text-[#E2E8F0]">
-                {request.rawMessage}
-              </pre>
-            </section>
+            </div>
           </div>
 
-          {/* Right column */}
-          <div className="space-y-6 lg:col-span-2">
-            <section>
-              <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Sender Information</h4>
-              <div className="space-y-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-                <p className="text-sm font-semibold text-[#0F172A]">{request.senderName}</p>
-                <CopyRow icon={Mail} value={request.senderEmail} />
-                <CopyRow icon={Phone} value={request.senderPhone} />
-                <div className="flex items-center gap-2 pt-1">
-                  <SourceBadge source={request.source} />
-                  <span className="text-xs text-[#64748B]">{request.receivedExact}</span>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h4 className="mb-3 text-sm font-bold text-[#0D1B2A]">Request Status</h4>
-              <div className="mb-4">
-                <StatusBadge status={request.status} />
-              </div>
-              <ol className="relative space-y-4 border-l border-[#E2E8F0] pl-5">
-                {request.history.map((e) => (
-                  <li key={e.label} className="relative">
-                    <span
-                      className={`absolute -left-[23px] top-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                        e.done ? "bg-[#F97316]" : "bg-[#CBD5E1]"
-                      }`}
-                    />
-                    <p className={`text-sm ${e.done ? "font-medium text-[#0F172A]" : "text-[#94A3B8]"}`}>{e.label}</p>
-                    <p className="text-xs tabular-nums text-[#64748B]">{e.time}</p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          </div>
-        </div>
-
-        {/* Footer / actions */}
-        <div className="border-t border-[#E2E8F0] bg-white">
+          {/* Send panel — inside scroll area so it never gets clipped */}
           {sendMethod && (
-            <div className="border-b border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2">
+            <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
@@ -206,7 +238,7 @@ export function RequestDetailModal({
                   </label>
                   <select
                     value={templateId}
-                    onChange={(e) => setTemplateId(e.target.value)}
+                    onChange={(e) => onSelectTemplate(e.target.value)}
                     className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
                   >
                     <option value="">Select template...</option>
@@ -230,21 +262,37 @@ export function RequestDetailModal({
                   className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
                 />
               </div>
-              {templateId && (
-                <div className="mt-3 rounded-md border border-[#E2E8F0] bg-white p-3 text-sm text-[#0F172A]">
-                  <p className="whitespace-pre-wrap leading-relaxed">
-                    {renderTemplate(templateId, request, selectedCarrier)}
-                  </p>
-                </div>
-              )}
+              <div className="mt-3">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+                  Message
+                  <span className="ml-1.5 font-normal normal-case text-[#94A3B8]">
+                    — editable before sending
+                  </span>
+                </label>
+                <textarea
+                  value={messageBody}
+                  onChange={(e) => setMessageBody(e.target.value)}
+                  rows={8}
+                  placeholder={
+                    sendMethod === "Email"
+                      ? "Type your message here, or select a template above to pre-fill…"
+                      : "Type your WhatsApp message here, or select a template above to pre-fill…"
+                  }
+                  className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
+                />
+              </div>
               <div className="mt-3 flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:opacity-50"
-                  disabled={!carrierId || !templateId}
+                  onClick={handleSend}
+                  disabled={!carrierId || !sendTo}
+                  className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Check className="h-4 w-4" /> Send Now
+                  {sendMethod === "Email" ? (
+                    <><Mail className="h-4 w-4" /> Open in Email App</>
+                  ) : (
+                    <><MessageCircle className="h-4 w-4" /> Open in WhatsApp</>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -256,6 +304,10 @@ export function RequestDetailModal({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Footer action buttons — always visible, pinned at bottom */}
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white">
           <div className="flex flex-col gap-3 p-4 sm:flex-row">
             <button
               type="button"
@@ -271,7 +323,11 @@ export function RequestDetailModal({
             <button
               type="button"
               onClick={() => openPanel("WhatsApp")}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[#059669] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#047857]"
+              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] ${
+                sendMethod === "WhatsApp"
+                  ? "bg-[#047857]"
+                  : "bg-[#059669] hover:bg-[#047857]"
+              }`}
             >
               <MessageCircle className="h-4 w-4" /> Send via WhatsApp
             </button>
@@ -320,7 +376,7 @@ function CopyRow({ icon: Icon, value }: { icon: typeof Mail; value: string }) {
   )
 }
 
-function renderTemplate(
+function renderTemplateBody(
   templateId: string,
   request: FreightRequest,
   carrier: (typeof carriers)[number] | undefined,
@@ -341,6 +397,5 @@ function renderTemplate(
     contact_name: carrier?.contactName ?? "there",
     carrier_name: carrier?.name ?? "",
   }
-  const body = (t.subject ? `Subject: ${t.subject}\n\n` : "") + t.body
-  return body.replace(/\{\{(\w+)\}\}/g, (_, key) => map[key] ?? `{{${key}}}`)
+  return t.body.replace(/\{\{(\w+)\}\}/g, (_, key) => map[key] ?? `{{${key}}}`)
 }
