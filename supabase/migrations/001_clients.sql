@@ -33,19 +33,9 @@ CREATE TRIGGER clients_updated_at
   BEFORE UPDATE ON clients
   FOR EACH ROW EXECUTE FUNCTION _set_updated_at();
 
--- RLS
+-- RLS enabled here; policy added in 002_profiles.sql after
+-- get_my_client_code() is defined.
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-
--- Users may only read their own client row
--- (service_role key always bypasses RLS)
-CREATE POLICY "clients_select_own"
-  ON clients FOR SELECT
-  USING (client_code = (
-    SELECT p.client_code FROM profiles p WHERE p.id = auth.uid() LIMIT 1
-  ));
-
--- Only admins (via service_role) insert/update clients
--- Regular users cannot mutate this table directly
 
 -- ── Seed ──────────────────────────────────────────────────
 INSERT INTO clients (client_code, company_name, contact_name, contact_email, country, notes)

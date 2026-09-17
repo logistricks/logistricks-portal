@@ -5,7 +5,7 @@
 -- ============================================================
 
 -- Role enum
-CREATE TYPE IF NOT EXISTS user_role AS ENUM ('admin', 'operator', 'viewer');
+CREATE TYPE user_role AS ENUM ('admin', 'operator', 'viewer');
 
 CREATE TABLE IF NOT EXISTS profiles (
   id           UUID         PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -36,8 +36,6 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
 $$;
 
 -- ── Auto-create profile on sign-up ──────────────────────────
--- Pass client_code + full_name in options.data when calling
--- supabase.auth.signUp({ email, password, options:{ data:{ client_code:'DEMO', full_name:'...' }}})
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -61,26 +59,28 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- ── RLS ─────────────────────────────────────────────────────
+-- ── RLS: clients (needs get_my_client_code, defined above) ───
+CREATE POLICY "clients_select_own"
+  ON clients FOR SELECT
+  USING (client_code = get_my_client_code());
+
+-- ── RLS: profiles ────────────────────────────────────────────
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Users can read all profiles in their client
 CREATE POLICY "profiles_select_same_client"
   ON profiles FOR SELECT
   USING (client_code = get_my_client_code());
 
--- Users can update only their own profile
 CREATE POLICY "profiles_update_own"
   ON profiles FOR UPDATE
   USING (id = auth.uid())
   WITH CHECK (id = auth.uid());
 
 -- ── Seed: link Abdulaziz to DEMO ────────────────────────────
--- Replace <YOUR_AUTH_USER_UUID> with the UUID from
--- Supabase Dashboard → Authentication → Users
--- Or run:  SELECT id FROM auth.users WHERE email = 'abd.khayyat@gmail.com';
---
+-- Run separately after this script:
+--   SELECT id FROM auth.users WHERE email = 'abd.khayyat@gmail.com';
+-- Then:
 -- INSERT INTO profiles (id, client_code, full_name, role)
--- VALUES ('<YOUR_AUTH_USER_UUID>', 'DEMO', 'Abdulaziz', 'admin')
+-- VALUES ('<YOUR_UUID>', 'DEMO', 'Abdulaziz', 'admin')
 -- ON CONFLICT (id) DO UPDATE
 --   SET client_code = 'DEMO', full_name = 'Abdulaziz', role = 'admin';
