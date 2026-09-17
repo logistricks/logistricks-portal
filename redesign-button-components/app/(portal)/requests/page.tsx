@@ -1,0 +1,202 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import { FileText, Search } from "lucide-react"
+import { ConfidenceBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
+import { RequestDetailModal } from "@/components/portal/request-detail-modal"
+import { requests, type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
+
+const statusFilters: (RequestStatus | "All")[] = ["Pending", "All", "Sent to Carrier", "Quoted", "Closed"]
+const sourceFilters: (Source | "All Sources")[] = ["All Sources", "Email", "WhatsApp", "Voice Note"]
+
+export default function RequestsPage() {
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | "All">("Pending")
+  const [sourceFilter, setSourceFilter] = useState<Source | "All Sources">("All Sources")
+  const [search, setSearch] = useState("")
+  const [selected, setSelected] = useState<string[]>([])
+  const [active, setActive] = useState<FreightRequest | null>(null)
+
+  const filtered = useMemo(() => {
+    return requests.filter((r) => {
+      if (statusFilter !== "All" && r.status !== statusFilter) return false
+      if (sourceFilter !== "All Sources" && r.source !== sourceFilter) return false
+      if (search) {
+        const q = search.toLowerCase()
+        const hay = `${r.senderName} ${r.cargoType} ${r.originCity} ${r.destinationCity}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      return true
+    })
+  }, [statusFilter, sourceFilter, search])
+
+  function toggle(id: string) {
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  }
+  function toggleAll() {
+    setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <h2 className="text-2xl font-bold text-[#0D1B2A]">Requests</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "All")}
+            className="h-10 rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
+          >
+            {statusFilters.map((s) => (
+              <option key={s} value={s}>
+                {s === "All" ? "All Statuses" : s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as Source | "All Sources")}
+            className="h-10 rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
+          >
+            {sourceFilters.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, cargo, route..."
+              className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 sm:w-64"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Bulk actions */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#F97316]/30 bg-[#FFF7ED] px-4 py-3">
+          <span className="text-sm font-medium text-[#0D1B2A]">{selected.length} requests selected</span>
+          <button className="rounded-md bg-[#F97316] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#EA580C]">
+            Send to Carriers
+          </button>
+          <button className="rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40">
+            Mark as Closed
+          </button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="sticky top-0 bg-[#0D1B2A] text-xs uppercase tracking-wide text-[#94A3B8]">
+              <tr>
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    checked={filtered.length > 0 && selected.length === filtered.length}
+                    onChange={toggleAll}
+                    className="h-4 w-4 accent-[#F97316]"
+                  />
+                </th>
+                <th className="px-4 py-3 font-semibold">Source</th>
+                <th className="px-4 py-3 font-semibold">Sender</th>
+                <th className="px-4 py-3 font-semibold">Route</th>
+                <th className="px-4 py-3 font-semibold">Cargo</th>
+                <th className="px-4 py-3 font-semibold">Received</th>
+                <th className="px-4 py-3 font-semibold">Confidence</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r, i) => (
+                <tr
+                  key={r.id}
+                  className={`border-t border-[#E2E8F0] transition-colors hover:bg-[#FFF7ED] ${
+                    i % 2 === 1 ? "bg-[#F8FAFC]" : "bg-white"
+                  }`}
+                >
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${r.senderName}`}
+                      checked={selected.includes(r.id)}
+                      onChange={() => toggle(r.id)}
+                      className="h-4 w-4 accent-[#F97316]"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <SourceBadge source={r.source} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-[#0F172A]">{r.senderName}</p>
+                    <p className="text-xs text-[#64748B]">
+                      {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-[#0F172A]">
+                    <span className="whitespace-nowrap">
+                      {r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-[#0F172A]">{r.cargoType}</p>
+                    <p className="text-xs text-[#64748B]">{r.equipment}</p>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-[#64748B]" title={r.receivedExact}>
+                    {r.receivedRelative}
+                  </td>
+                  <td className="px-4 py-3">
+                    <ConfidenceBadge confidence={r.confidence} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={r.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => setActive(r)}
+                      className="rounded-md border border-[#F97316] px-3 py-1.5 text-xs font-semibold text-[#F97316] transition-colors hover:bg-[#FFF7ED]"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <FileText className="h-10 w-10 text-[#CBD5E1]" />
+            <p className="text-sm font-medium text-[#64748B]">No requests match your filters</p>
+          </div>
+        )}
+
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B]">
+            <span>
+              Showing 1-{filtered.length} of {filtered.length} requests
+            </span>
+            <div className="flex gap-2">
+              <button className="rounded-md border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8]" disabled>
+                Previous
+              </button>
+              <button className="rounded-md border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8]" disabled>
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {active && <RequestDetailModal request={active} onClose={() => setActive(null)} />}
+    </div>
+  )
+}
