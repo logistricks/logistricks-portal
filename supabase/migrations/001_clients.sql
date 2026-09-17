@@ -29,6 +29,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS clients_updated_at ON clients;
 CREATE TRIGGER clients_updated_at
   BEFORE UPDATE ON clients
   FOR EACH ROW EXECUTE FUNCTION _set_updated_at();
