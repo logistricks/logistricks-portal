@@ -36,7 +36,7 @@ export function RequestDetailModal({
   const availableCarriers = (method: "Email" | "WhatsApp") =>
     carriers.filter((c) => {
       const hasContact = method === "Email" ? !!c.email : !!c.whatsapp
-      const modeMatch = request.modes.some((m) => c.modes.includes(m))
+      const modeMatch = (request.isSea && c.modes.includes("Sea")) || (request.isAir && c.modes.includes("Air")) || (request.isLand && c.modes.includes("Land"))
       return hasContact && modeMatch
     })
 
@@ -209,9 +209,9 @@ export function RequestDetailModal({
                   ))}
                   <div className="col-span-2 flex flex-wrap items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
                     <span className="text-xs font-medium uppercase tracking-wide text-[#64748B]">Mode</span>
-                    {request.modes.map((m) => (
-                      <ModeBadge key={m} mode={m} />
-                    ))}
+                    {request.isSea  && <ModeBadge mode="Sea"  />}
+                    {request.isAir  && <ModeBadge mode="Air"  />}
+                    {request.isLand && <ModeBadge mode="Land" />}
                     <span className="ml-auto text-xs font-medium uppercase tracking-wide text-[#64748B]">Urgency</span>
                     <UrgencyBadge urgency={request.urgency} />
                     <ConfidenceBadge confidence={request.confidence} />
@@ -578,7 +578,7 @@ function renderTemplateBody(
     equipment: request.equipment,
     weight: request.weight,
     incoterm: request.incoterm,
-    mode: request.modes.join(", "),
+    mode: [request.isSea && "Sea", request.isAir && "Air", request.isLand && "Land"].filter(Boolean).join(", "),
     urgency: request.urgency,
     contact_name: carrier?.contactName ?? "there",
     carrier_name: carrier?.name ?? "",

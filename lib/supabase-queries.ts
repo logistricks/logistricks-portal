@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "@/lib/supabase"
-import type { FreightRequest, RequestStatus, Source, Mode, Confidence } from "@/lib/portal-data"
+import type { FreightRequest, RequestStatus, Source, Confidence } from "@/lib/portal-data"
 
 // ─── DB row shape (after migration 007) ────────────────────────────────────
 
@@ -33,7 +33,9 @@ export interface DbFreightRequest {
   preferred_carrier: string | null
   urgency: string
   confidence: string
-  modes: string[]
+  is_sea: boolean
+  is_air: boolean
+  is_land: boolean
   status: string
   is_done: boolean
   special_requirements: string[]
@@ -207,15 +209,6 @@ function normalizeStatus(s: string): RequestStatus {
   return "Pending"
 }
 
-function normalizeModes(modes: string[]): Mode[] {
-  if (!Array.isArray(modes)) return []
-  return modes.map((m) => {
-    const lower = m.toLowerCase()
-    if (lower === "air")                     return "Air" as Mode
-    if (lower === "land" || lower === "road") return "Land" as Mode
-    return "Sea" as Mode // ocean, sea, default
-  })
-}
 
 function buildDefaultHistory(status: string) {
   const done = (label: string, time: string) => ({ label, time, done: true })
@@ -250,7 +243,9 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     weight:            row.weight             ?? "—",
     quantity:          row.quantity           ?? "—",
     dimensions:        row.dimensions         ?? "—",
-    modes:             normalizeModes(row.modes),
+    isSea:             row.is_sea  ?? false,
+    isAir:             row.is_air  ?? false,
+    isLand:            row.is_land ?? false,
     incoterm:          row.incoterm           ?? "—",
     blType:            row.bl_type            ?? "—",
     preferredCarrier:  row.preferred_carrier  ?? "—",

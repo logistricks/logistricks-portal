@@ -13,7 +13,9 @@ export type Carrier = {
   contactRole: string
   email: string
   whatsapp: string
-  modes: Mode[]
+  isSea: boolean
+  isAir: boolean
+  isLand: boolean
   language: Language
   routes: string
   notes?: string
@@ -48,7 +50,9 @@ export type FreightRequest = {
   weight: string
   quantity: string
   dimensions: string
-  modes: Mode[]
+  isSea: boolean
+  isAir: boolean
+  isLand: boolean
   incoterm: string
   blType: string
   preferredCarrier: string
@@ -76,7 +80,9 @@ export const carriers: Carrier[] = [
     contactRole: "Operations Manager",
     email: "ahmed@gulfstarlog.ae",
     whatsapp: "+971 50 123 4567",
-    modes: ["Sea", "Land"],
+    isSea: true,
+    isAir: false,
+    isLand: true,
     language: "Arabic",
     routes: "UAE, Saudi Arabia, Jordan, India",
     notes: "Preferred for GCC road freight. Fast reefer availability.",
@@ -91,7 +97,9 @@ export const carriers: Carrier[] = [
     contactRole: "Cargo Sales",
     email: "sara.m@airarabiacargo.com",
     whatsapp: "+971 54 987 6543",
-    modes: ["Air"],
+    isSea: false,
+    isAir: true,
+    isLand: false,
     language: "English",
     routes: "GCC, Indian Subcontinent, Europe",
     notes: "Strong on time-critical air freight.",
@@ -106,7 +114,9 @@ export const carriers: Carrier[] = [
     contactRole: "Director",
     email: "k.abboud@transarabia.sa",
     whatsapp: "+966 55 222 3344",
-    modes: ["Land"],
+    isSea: false,
+    isAir: false,
+    isLand: true,
     language: "Both",
     routes: "Saudi Arabia, Jordan, UAE, Kuwait",
     active: true,
@@ -120,7 +130,9 @@ export const carriers: Carrier[] = [
     contactRole: "Key Accounts",
     email: "omar.yusuf@medship.jo",
     whatsapp: "+962 79 555 8899",
-    modes: ["Sea"],
+    isSea: true,
+    isAir: false,
+    isLand: false,
     language: "English",
     routes: "Mediterranean, North Europe, Far East",
     active: false,
@@ -145,7 +157,9 @@ export const requests: FreightRequest[] = [
     weight: "5,234 KG per piece",
     quantity: "2 Nos",
     dimensions: "380 x 240 x 252 cm @ 2",
-    modes: ["Sea"],
+    isSea: true,
+    isAir: false,
+    isLand: false,
     incoterm: "FOB",
     blType: "Telex Release",
     preferredCarrier: "Gulf Star Logistics",
@@ -191,7 +205,9 @@ export const requests: FreightRequest[] = [
     weight: "16 TNE",
     quantity: "16 TNE",
     dimensions: "Palletized — 20 pallets",
-    modes: ["Sea"],
+    isSea: true,
+    isAir: false,
+    isLand: false,
     incoterm: "CIF",
     blType: "Original BL",
     preferredCarrier: "—",
@@ -231,7 +247,9 @@ export const requests: FreightRequest[] = [
     weight: "5,234 KG",
     quantity: "2 Nos",
     dimensions: "310 x 210 x 180 cm",
-    modes: ["Air"],
+    isSea: false,
+    isAir: true,
+    isLand: false,
     incoterm: "EXW",
     blType: "AWB",
     preferredCarrier: "Air Arabia Cargo",
@@ -271,7 +289,9 @@ export const requests: FreightRequest[] = [
     weight: "18 TNE per container",
     quantity: "25 Nos",
     dimensions: "Standard 20ft",
-    modes: ["Sea"],
+    isSea: true,
+    isAir: false,
+    isLand: false,
     incoterm: "FOB",
     blType: "Telex Release",
     preferredCarrier: "—",
@@ -311,7 +331,9 @@ export const requests: FreightRequest[] = [
     weight: "12 TNE",
     quantity: "1 Nos",
     dimensions: "Loose loaded",
-    modes: ["Sea"],
+    isSea: true,
+    isAir: false,
+    isLand: false,
     incoterm: "CIF",
     blType: "Telex Release",
     preferredCarrier: "—",
