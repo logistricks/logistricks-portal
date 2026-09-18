@@ -25,8 +25,8 @@ export default function CarriersPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-[#0D1B2A]">Carriers</h2>
-          <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B]">
+          <h2 className="text-2xl font-bold text-[#0D1B2A] dark:text-white">Carriers</h2>
+          <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]">
             {list.length} carriers
           </span>
         </div>
@@ -41,10 +41,10 @@ export default function CarriersPage() {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[#0D1B2A] text-xs uppercase tracking-wide text-[#94A3B8]">
+            <thead className="bg-[#F0F4F8] text-xs uppercase tracking-wide text-[#64748B] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
               <tr>
                 <th className="px-4 py-3 font-semibold">Carrier Name</th>
                 <th className="px-4 py-3 font-semibold">Contact Person</th>
@@ -60,17 +60,17 @@ export default function CarriersPage() {
               {list.map((c, i) => (
                 <tr
                   key={c.id}
-                  className={`border-t border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC] ${
-                    i % 2 === 1 ? "bg-[#F8FAFC]" : "bg-white"
+                  className={`border-t border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC] dark:border-[#1E3A5F] dark:hover:bg-[#1E3A5F]/30 ${
+                    i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0D1B2A]/40" : "bg-white dark:bg-transparent"
                   }`}
                 >
                   <td className="px-4 py-3">
-                    <span className="font-semibold text-[#0D1B2A]">
+                    <span className="font-semibold text-[#0D1B2A] dark:text-white">
                       {c.flag} {c.name}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-[#0F172A]">{c.contactName}</p>
+                    <p className="text-[#0F172A] dark:text-[#E2E8F0]">{c.contactName}</p>
                     <p className="text-xs text-[#64748B]">{c.contactRole}</p>
                   </td>
                   <td className="px-4 py-3">
@@ -86,7 +86,7 @@ export default function CarriersPage() {
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[#0F172A]">{c.language}</td>
+                  <td className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">{c.language}</td>
                   <td className="px-4 py-3">
                     <button
                       role="switch"
@@ -110,14 +110,14 @@ export default function CarriersPage() {
                           setEditing(c)
                           setModalOpen(true)
                         }}
-                        className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316]"
+                        className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         aria-label="Delete"
                         onClick={() => setConfirmDelete(c)}
-                        className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -149,16 +149,16 @@ export default function CarriersPage() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
-            <h3 className="text-lg font-bold text-[#0D1B2A]">Delete carrier?</h3>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
+            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Delete carrier?</h3>
             <p className="mt-2 text-sm text-[#64748B]">
-              Are you sure you want to delete <span className="font-medium text-[#0F172A]">{confirmDelete.name}</span>?
+              Are you sure you want to delete <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{confirmDelete.name}</span>?
               This cannot be undone.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40"
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
               >
                 Cancel
               </button>
@@ -184,11 +184,11 @@ function CopyCell({ value, href }: { value: string; href?: string }) {
   return (
     <div className="flex items-center gap-2">
       {href ? (
-        <a href={href} className="truncate text-[#0F172A] hover:text-[#F97316] hover:underline">
+        <a href={href} className="truncate text-[#0F172A] hover:text-[#F97316] hover:underline dark:text-[#E2E8F0]">
           {value}
         </a>
       ) : (
-        <span className="truncate text-[#0F172A]">{value}</span>
+        <span className="truncate text-[#0F172A] dark:text-[#E2E8F0]">{value}</span>
       )}
       <button
         aria-label="Copy"

@@ -41,15 +41,15 @@ export default function TemplatesPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold text-[#0D1B2A]">Message Templates</h2>
+        <h2 className="text-2xl font-bold text-[#0D1B2A] dark:text-white">Message Templates</h2>
         <div className="flex items-center gap-3">
-          <div className="flex rounded-lg border border-[#E2E8F0] bg-white p-0.5">
+          <div className="flex rounded-lg border border-[#E2E8F0] bg-white p-0.5 dark:border-[#1E3A5F] dark:bg-[#111E33]">
             {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  tab === t ? "bg-[#F97316] text-white" : "text-[#64748B] hover:text-[#0D1B2A]"
+                  tab === t ? "bg-[#F97316] text-white" : "text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-white"
                 }`}
               >
                 {t}
@@ -69,48 +69,50 @@ export default function TemplatesPage() {
         {filtered.map((t) => (
           <article
             key={t.id}
-            className="flex flex-col rounded-lg border border-[#E2E8F0] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-shadow hover:shadow-md"
+            className="flex flex-col rounded-lg border border-[#E2E8F0] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-shadow hover:shadow-md dark:border-[#1E3A5F] dark:bg-[#111E33]"
           >
             <div className="flex items-start justify-between">
               <span
                 className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${
-                  t.type === "Email" ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600"
+                  t.type === "Email"
+                    ? "bg-blue-50 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300"
+                    : "bg-green-50 text-green-600 dark:bg-green-500/20 dark:text-green-300"
                 }`}
               >
                 {t.type === "Email" ? <Mail className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
               </span>
               {t.isDefault && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-xs font-medium text-[#F97316]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-xs font-medium text-[#F97316] dark:bg-[#F97316]/10">
                   <Star className="h-3 w-3 fill-[#F97316]" /> Default
                 </span>
               )}
             </div>
 
-            <h3 className="mt-3 font-semibold text-[#0D1B2A]">{t.name}</h3>
+            <h3 className="mt-3 font-semibold text-[#0D1B2A] dark:text-white">{t.name}</h3>
             {t.subject ? <p className="mt-0.5 truncate text-xs text-[#64748B]">{t.subject}</p> : null}
             <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-[#64748B]">{t.body}</p>
 
-            <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3">
+            <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
               <span className="text-xs text-[#94A3B8]">Updated {t.updatedRelative}</span>
               <div className="flex items-center gap-1">
                 <button
                   aria-label="Edit"
                   onClick={() => setEditing(t)}
-                  className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316]"
+                  className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
                   aria-label="Duplicate"
                   onClick={() => setList((l) => [...l, { ...t, id: `t${Date.now()}`, name: `${t.name} (Copy)`, isDefault: false }])}
-                  className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316]"
+                  className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
                 >
                   <Copy className="h-4 w-4" />
                 </button>
                 <button
                   aria-label="Delete"
                   onClick={() => setList((l) => l.filter((x) => x.id !== t.id))}
-                  className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -122,7 +124,7 @@ export default function TemplatesPage() {
         {/* Add card */}
         <button
           onClick={() => setEditing(emptyTemplate(tab === "WhatsApp" ? "WhatsApp" : "Email"))}
-          className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#CBD5E1] bg-white/50 p-5 text-[#64748B] transition-colors hover:border-[#F97316] hover:text-[#F97316]"
+          className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#CBD5E1] bg-white/50 p-5 text-[#64748B] transition-colors hover:border-[#F97316] hover:text-[#F97316] dark:border-[#1E3A5F] dark:bg-[#111E33]/50 dark:hover:border-[#F97316]"
         >
           <Plus className="h-8 w-8" />
           <span className="text-sm font-medium">Create New Template</span>

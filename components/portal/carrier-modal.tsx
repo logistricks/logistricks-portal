@@ -43,7 +43,7 @@ export function CarrierModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-200 animate-in fade-in zoom-in-95 sm:rounded-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33] sm:rounded-2xl">
         <div className="flex items-center justify-between bg-[#0D1B2A] px-6 py-4">
           <h3 className="font-semibold text-white">{carrier ? "Edit Carrier" : "Add New Carrier"}</h3>
           <button
@@ -76,10 +76,10 @@ export function CarrierModal({
             <Field label="WhatsApp Number" placeholder="+971 50 000 0000" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} />
 
             <div className="sm:col-span-2">
-              <p className="mb-1.5 text-sm font-medium text-[#0F172A]">Modes</p>
+              <p className="mb-1.5 text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Modes</p>
               <div className="flex gap-4">
                 {allModes.map((m) => (
-                  <label key={m} className="flex items-center gap-2 text-sm text-[#0F172A]">
+                  <label key={m} className="flex items-center gap-2 text-sm text-[#0F172A] dark:text-[#E2E8F0]">
                     <input
                       type="checkbox"
                       checked={form.modes.includes(m)}
@@ -93,21 +93,21 @@ export function CarrierModal({
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-[#0F172A]">Routes / Lanes</label>
+              <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Routes / Lanes</label>
               <textarea
                 value={form.routes}
                 onChange={(e) => set("routes", e.target.value)}
                 placeholder="e.g. Jordan, UAE, Saudi Arabia, Europe"
                 rows={2}
-                className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
+                className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <p className="mb-1.5 text-sm font-medium text-[#0F172A]">Language Preference</p>
+              <p className="mb-1.5 text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Language Preference</p>
               <div className="flex gap-4">
                 {languages.map((l) => (
-                  <label key={l} className="flex items-center gap-2 text-sm text-[#0F172A]">
+                  <label key={l} className="flex items-center gap-2 text-sm text-[#0F172A] dark:text-[#E2E8F0]">
                     <input
                       type="radio"
                       name="language"
@@ -122,13 +122,13 @@ export function CarrierModal({
             </div>
 
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-[#0F172A]">Notes</label>
+              <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Notes</label>
               <textarea
                 value={form.notes}
                 onChange={(e) => set("notes", e.target.value)}
                 rows={2}
                 placeholder="Optional"
-                className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
+                className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
               />
             </div>
 
@@ -146,15 +146,15 @@ export function CarrierModal({
                   }`}
                 />
               </button>
-              <span className="text-sm font-medium text-[#0F172A]">Active</span>
+              <span className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Active</span>
             </label>
           </div>
 
-          <div className="flex items-center justify-end gap-3 border-t border-[#E2E8F0] p-4">
+          <div className="flex items-center justify-end gap-3 border-t border-[#E2E8F0] p-4 dark:border-[#1E3A5F]">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40"
+              className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
             >
               Cancel
             </button>
@@ -188,13 +188,13 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="mb-1.5 block text-sm font-medium text-[#0F172A]">{label}</label>
+      <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{label}</label>
       <input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20"
+        className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
       />
     </div>
   )
