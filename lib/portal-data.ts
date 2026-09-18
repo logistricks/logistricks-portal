@@ -13,9 +13,7 @@ export type Carrier = {
   contactRole: string
   email: string
   whatsapp: string
-  isSea: boolean
-  isAir: boolean
-  isLand: boolean
+  modes: Mode[]
   language: Language
   routes: string
   notes?: string
@@ -80,9 +78,7 @@ export const carriers: Carrier[] = [
     contactRole: "Operations Manager",
     email: "ahmed@gulfstarlog.ae",
     whatsapp: "+971 50 123 4567",
-    isSea: true,
-    isAir: false,
-    isLand: true,
+    modes: ["Sea", "Land"],
     language: "Arabic",
     routes: "UAE, Saudi Arabia, Jordan, India",
     notes: "Preferred for GCC road freight. Fast reefer availability.",
@@ -97,9 +93,7 @@ export const carriers: Carrier[] = [
     contactRole: "Cargo Sales",
     email: "sara.m@airarabiacargo.com",
     whatsapp: "+971 54 987 6543",
-    isSea: false,
-    isAir: true,
-    isLand: false,
+    modes: ["Air"],
     language: "English",
     routes: "GCC, Indian Subcontinent, Europe",
     notes: "Strong on time-critical air freight.",
@@ -114,9 +108,7 @@ export const carriers: Carrier[] = [
     contactRole: "Director",
     email: "k.abboud@transarabia.sa",
     whatsapp: "+966 55 222 3344",
-    isSea: false,
-    isAir: false,
-    isLand: true,
+    modes: ["Land"],
     language: "Both",
     routes: "Saudi Arabia, Jordan, UAE, Kuwait",
     active: true,
@@ -130,9 +122,7 @@ export const carriers: Carrier[] = [
     contactRole: "Key Accounts",
     email: "omar.yusuf@medship.jo",
     whatsapp: "+962 79 555 8899",
-    isSea: true,
-    isAir: false,
-    isLand: false,
+    modes: ["Sea"],
     language: "English",
     routes: "Mediterranean, North Europe, Far East",
     active: false,
