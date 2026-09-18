@@ -59,6 +59,8 @@ export type FreightRequest = {
   receivedExact: string
   specialRequirements: string[]
   availabilityQuestions: string[]
+  missingFields: string[]
+  suggestedReply: string | null
   rawMessage: string
   history: StatusEvent[]
 }
@@ -159,6 +161,8 @@ export const requests: FreightRequest[] = [
       "Confirm earliest vessel cut-off from Aqaba this week.",
       "Is telex release available for this lane?",
     ],
+    missingFields: [],
+    suggestedReply: null,
     rawMessage:
       "Hi team,\n\nPlease send me your best all-in rate for 2 x 40ft HC of electronics, Amman (FOB) to Dubai. Total 2 pieces, approx 5,234 KG each. Dimensions 380 x 240 x 252 cm. Need telex release. Cargo is fragile, please advise on packing.\n\nBest regards,\nFadi Tamimi\nOrbit Trading",
     history: [
@@ -196,6 +200,8 @@ export const requests: FreightRequest[] = [
     receivedExact: "Today, 06:40",
     specialRequirements: ["Food-grade container required.", "Fumigation certificate needed for Australian customs."],
     availabilityQuestions: ["Confirm AQIS-compliant container availability."],
+    missingFields: [],
+    suggestedReply: null,
     rawMessage:
       "Salam, need CIF rate Aqaba to Fremantle for 16 TNE spices, 1x20ft, food grade container. Fumigation cert required. When is next sailing?",
     history: [
@@ -233,6 +239,8 @@ export const requests: FreightRequest[] = [
     receivedExact: "Yesterday, 15:20",
     specialRequirements: ["DGR handling — engine contains residual fuel.", "Dedicated ULD, no consolidation."],
     availabilityQuestions: ["Confirm next available freighter DEL-AMM.", "Provide DGR surcharge breakdown."],
+    missingFields: [],
+    suggestedReply: null,
     rawMessage:
       "Dear team,\n\nUrgent — please quote air freight for 2 aircraft engines, 5,234 KG total, DEL to Amman, EXW. DGR handling required. Need earliest freighter.\n\nRegards,\nRania Khalil",
     history: [
@@ -270,6 +278,8 @@ export const requests: FreightRequest[] = [
     receivedExact: "Today, 04:30",
     specialRequirements: ["Rate needed for full 25-container project shipment."],
     availabilityQuestions: ["Confirm equipment availability for 25 x 20ft at Jeddah.", "Provide free time at destination."],
+    missingFields: [],
+    suggestedReply: null,
     rawMessage:
       "Hello, need FOB rate Jeddah to Hamburg, 25 x 20ft general cargo, telex release. Project shipment over 3 weeks. Please advise space and rates.",
     history: [
@@ -307,6 +317,8 @@ export const requests: FreightRequest[] = [
     receivedExact: "Today, 09:05",
     specialRequirements: [],
     availabilityQuestions: ["Confirm cargo readiness date — not stated in voice note.", "Verify exact commodity for customs."],
+    missingFields: ["cargo_readiness_date"],
+    suggestedReply: "Hi Yousef, thanks for reaching out. Could you please confirm the cargo readiness date and exact commodity for customs purposes?",
     rawMessage: "[Voice note — 0:42] Transcribed: Need a price from China to Aqaba, one 40 foot container of furniture, CIF. Call me back.",
     history: [
       { label: "Received", time: "Today, 09:05", done: true },

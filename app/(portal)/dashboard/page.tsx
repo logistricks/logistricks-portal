@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowUpRight,
   Clock,
@@ -13,7 +13,10 @@ import {
   Zap,
 } from "lucide-react"
 import { SourceBadge, StatusBadge } from "@/components/portal/badges"
-import { currentUser, dashboardStats, requests } from "@/lib/portal-data"
+import { currentUser } from "@/lib/portal-data"
+import { type FreightRequest } from "@/lib/portal-data"
+import { fetchRequests, fetchDashboardStats, type DashboardStats } from "@/lib/supabase-queries"
+import { createClient } from "@/lib/supabase"
 
 // ─── Static demo data ─────────────────────────────────────────────────────
 
@@ -29,12 +32,7 @@ const weekActivity = [
   { day: "Today", count: 5 },
 ]
 
-const pipeline = [
-  { stage: "Received", count: 8, color: "#475569" },
-  { stage: "Pending", count: 5, color: "#F97316" },
-  { stage: "Sent to Carrier", count: 2, color: "#3B82F6" },
-  { stage: "Quoted", count: 1, color: "#22C55E" },
-]
+// Pipeline is computed from live stats inside the component (see DashboardPage)
 
 const activities = [
   {
@@ -202,12 +200,26 @@ function ActivityDot({ type }: { type: string }) {
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState("Today")
+  const [stats, setStats]   = useState<DashboardStats | null>(null)
+  const [recent, setRecent] = useState<FreightRequest[]>([])
 
-  const total = dashboardStats.total
-  const pending = dashboardStats.pending
-  const sentCount = requests.filter((r) => r.status === "Sent to Carrier").length
-  const quotedCount = requests.filter((r) => r.status === "Quoted").length
-  const recent = requests.slice(0, 5)
+  useEffect(() => {
+    const supabase = createClient()
+    fetchDashboardStats(supabase).then(setStats)
+    fetchRequests(supabase).then((rows) => setRecent(rows.slice(0, 5)))
+  }, [])
+
+  const total       = stats?.total         ?? 0
+  const pending     = stats?.pending       ?? 0
+  const sentCount   = stats?.sentToCarrier ?? 0
+  const quotedCount = stats?.quoted        ?? 0
+
+  const pipeline = [
+    { stage: "Received",        count: total,       color: "#475569" },
+    { stage: "Pending",         count: pending,     color: "#F97316" },
+    { stage: "Sent to Carrier", count: sentCount,   color: "#3B82F6" },
+    { stage: "Quoted",          count: quotedCount, color: "#22C55E" },
+  ]
 
   return (
     <div className="space-y-5">
@@ -247,7 +259,7 @@ export default function DashboardPage() {
         <KPICard
           label="Total Requests"
           value={total}
-          sub="+3 from yesterday"
+          sub={stats?.todayDelta ?? "Loading…"}
           trend="up"
           color="#F97316"
           icon={Inbox}

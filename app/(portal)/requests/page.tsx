@@ -1,21 +1,62 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { FileText, Search } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
 import { ConfidenceBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
-import { requests, type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
+import { type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
+import { fetchRequests, subscribeToRequests } from "@/lib/supabase-queries"
+import { createClient } from "@/lib/supabase"
 
 const statusFilters: (RequestStatus | "All")[] = ["Pending", "All", "Sent to Carrier", "Quoted", "Closed"]
 const sourceFilters: (Source | "All Sources")[] = ["All Sources", "Email", "WhatsApp"]
 
 export default function RequestsPage() {
+  const [requests, setRequests]     = useState<FreightRequest[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "All">("Pending")
   const [sourceFilter, setSourceFilter] = useState<Source | "All Sources">("All Sources")
-  const [search, setSearch] = useState("")
-  const [selected, setSelected] = useState<string[]>([])
-  const [active, setActive] = useState<FreightRequest | null>(null)
+  const [search, setSearch]         = useState("")
+  const [selected, setSelected]     = useState<string[]>([])
+  const [active, setActive]         = useState<FreightRequest | null>(null)
 
+  // ── Fetch + subscribe ────────────────────────────────────────
+  const load = useCallback(async () => {
+    setLoading(true)
+    const supabase = createClient()
+    const data = await fetchRequests(supabase)
+    setRequests(data)
+    setLastUpdated(new Date())
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    load()
+
+    const supabase = createClient()
+    const unsubscribe = subscribeToRequests(
+      supabase,
+      // INSERT — prepend to list, show live badge
+      (newRow) => {
+        setRequests((prev) => [newRow, ...prev])
+        setLastUpdated(new Date())
+      },
+      // UPDATE — replace the matching row in place
+      (updatedRow) => {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)),
+        )
+        // Reflect update inside open modal too
+        setActive((prev) => (prev?.id === updatedRow.id ? updatedRow : prev))
+      },
+    )
+
+    return unsubscribe
+  }, [load])
+
+  // ── Filter ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return requests.filter((r) => {
       if (statusFilter !== "All" && r.status !== statusFilter) return false
@@ -27,8 +68,9 @@ export default function RequestsPage() {
       }
       return true
     })
-  }, [statusFilter, sourceFilter, search])
+  }, [requests, statusFilter, sourceFilter, search])
 
+  // ── Selection ────────────────────────────────────────────────
   function toggle(id: string, e: React.MouseEvent) {
     e.stopPropagation()
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -37,14 +79,44 @@ export default function RequestsPage() {
     setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
   }
 
+  // ── Loading skeleton ─────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
+            style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+            Requests
+          </h2>
+        </div>
+        <div className="flex items-center justify-center gap-2 py-24 text-[#94A3B8]">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading requests…</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
-          style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
-          Requests
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
+            style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+            Requests
+          </h2>
+          {lastUpdated && (
+            <button
+              onClick={load}
+              title={`Last synced ${lastUpdated.toLocaleTimeString()}`}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2A40]"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span className="hidden sm:inline">Live</span>
+            </button>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={statusFilter}
@@ -52,9 +124,7 @@ export default function RequestsPage() {
             className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
           >
             {statusFilters.map((s) => (
-              <option key={s} value={s}>
-                {s === "All" ? "All Statuses" : s}
-              </option>
+              <option key={s} value={s}>{s === "All" ? "All Statuses" : s}</option>
             ))}
           </select>
           <select
@@ -62,11 +132,7 @@ export default function RequestsPage() {
             onChange={(e) => setSourceFilter(e.target.value as Source | "All Sources")}
             className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
           >
-            {sourceFilters.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            {sourceFilters.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
@@ -182,7 +248,9 @@ export default function RequestsPage() {
         {filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <FileText className="h-10 w-10 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">No requests match your filters</p>
+            <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
+              {requests.length === 0 ? "No requests yet — send a test email to n8n to see one appear here." : "No requests match your filters"}
+            </p>
           </div>
         )}
 
@@ -203,7 +271,12 @@ export default function RequestsPage() {
         )}
       </div>
 
-      {active && <RequestDetailModal request={active} onClose={() => setActive(null)} />}
+      {active && (
+        <RequestDetailModal
+          request={active}
+          onClose={() => setActive(null)}
+        />
+      )}
     </div>
   )
 }
