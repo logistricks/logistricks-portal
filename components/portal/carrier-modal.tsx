@@ -197,7 +197,7 @@ export function CarrierModal({
                 role="switch"
                 aria-checked={form.active}
                 onClick={() => set("active", !form.active)}
-                className={`relative h-6 w-11 rounded-full transition-colors ${form.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
+                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${form.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
               >
                 <span
                   className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${

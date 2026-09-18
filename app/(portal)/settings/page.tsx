@@ -12,8 +12,6 @@ import {
   Send,
   Settings2,
   Square,
-  ToggleLeft,
-  ToggleRight,
   Trash2,
   X,
 } from "lucide-react"
@@ -55,18 +53,24 @@ function ChannelRow({
         {secondary && <p className="text-xs text-[#475569]">{secondary}</p>}
       </div>
       <button
+        type="button"
         onClick={onToggle}
         disabled={busy}
+        aria-pressed={active}
         title={active ? "Deactivate" : "Activate"}
-        className="flex items-center gap-1.5 text-xs text-[#475569] transition-colors hover:text-[#64748B] disabled:opacity-40 dark:hover:text-[#94A3B8]"
+        className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${
+          active ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"
+        }`}
       >
-        {busy
-          ? <Loader2 className="h-4 w-4 animate-spin" />
-          : active
-            ? <ToggleRight className="h-5 w-5 text-green-400" />
-            : <ToggleLeft  className="h-5 w-5" />
-        }
-        <span className="hidden sm:inline">{active ? "Active" : "Inactive"}</span>
+        {busy ? (
+          <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
+        ) : (
+          <span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              active ? "translate-x-[22px]" : "translate-x-0.5"
+            }`}
+          />
+        )}
       </button>
       <button
         onClick={onDelete}
@@ -132,7 +136,7 @@ function ToggleRow({
           onClick={onToggle}
           disabled={busy}
           aria-pressed={checked}
-          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+          className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${
             checked ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"
           }`}
         >
