@@ -2,23 +2,95 @@ export type Source = "Email" | "WhatsApp" | "Voice Note"
 export type Confidence = "High" | "Medium" | "Low"
 export type RequestStatus = "Pending" | "Sent to Carrier" | "Quoted" | "Closed"
 export type Mode = "Sea" | "Air" | "Land"
-export type Language = "Arabic" | "English" | "Both"
 
-export type Carrier = {
-  id: string
-  name: string
-  country: string
-  flag: string
-  contactName: string
-  contactRole: string
+// ──────────────────────────────────────────────────────────────
+// Carrier types (Supabase-backed)
+// lang: 1=Arabic  2=English  -1=Both
+// is_cc rows share the same carrier_id as the main contact row
+// ──────────────────────────────────────────────────────────────
+export type CarrierRow = {
+  id: number
+  client_code: string
+  carrier_id: number
+  carrier_name: string
+  person_name: string
+  role: string
   email: string
-  whatsapp: string
-  modes: Mode[]
-  language: Language
+  number: string
+  is_sea: boolean
+  is_air: boolean
+  is_land: boolean
+  lang: number
   routes: string
-  notes?: string
+  is_cc: boolean
   active: boolean
-  ccEmails?: string[]
+}
+
+/** UI-level carrier — main contact row with CC emails merged in */
+export type Carrier = {
+  row_id: number       // PK of the main (is_cc=false) row
+  carrier_id: number   // logical ID within client
+  carrier_name: string
+  person_name: string
+  role: string
+  email: string
+  number: string
+  is_sea: boolean
+  is_air: boolean
+  is_land: boolean
+  lang: number
+  routes: string
+  active: boolean
+  cc_emails: string[]  // from is_cc=true rows
+}
+
+export function langLabel(lang: number): string {
+  if (lang === 1) return "Arabic"
+  if (lang === 2) return "English"
+  return "Both"
+}
+
+export function langValue(label: string): number {
+  if (label === "Arabic") return 1
+  if (label === "English") return 2
+  return -1
+}
+
+export function modesFromCarrier(c: Pick<Carrier, "is_sea" | "is_air" | "is_land">): Mode[] {
+  const modes: Mode[] = []
+  if (c.is_sea) modes.push("Sea")
+  if (c.is_air) modes.push("Air")
+  if (c.is_land) modes.push("Land")
+  return modes
+}
+
+// ──────────────────────────────────────────────────────────────
+// Template types (Supabase-backed)
+// ──────────────────────────────────────────────────────────────
+export type TemplateRow = {
+  id: number
+  client_code: string
+  template_id: number
+  template_name: string
+  type: "Email" | "WhatsApp"
+  subject: string | null
+  body: string
+  linked_carrier_ids: number[]
+  is_default: boolean
+  updated_at: string
+}
+
+/** UI-level template */
+export type Template = {
+  row_id: number
+  template_id: number
+  template_name: string
+  type: "Email" | "WhatsApp"
+  subject: string | null
+  body: string
+  linked_carrier_ids: number[]
+  is_default: boolean
+  updated_at: string
 }
 
 export type ShipmentField = {
@@ -66,71 +138,6 @@ export type FreightRequest = {
   history: StatusEvent[]
 }
 
-export const carriers: Carrier[] = [
-  {
-    id: "c1",
-    name: "Gulf Star Logistics",
-    country: "UAE",
-    flag: "🇦🇪",
-    contactName: "Ahmed Al-Rashidi",
-    contactRole: "Operations Manager",
-    email: "ahmed@gulfstarlog.ae",
-    whatsapp: "+971 50 123 4567",
-    modes: ["Sea", "Land"],
-    language: "Arabic",
-    routes: "UAE, Saudi Arabia, Jordan, India",
-    notes: "Preferred for GCC road freight. Fast reefer availability.",
-    active: true,
-    ccEmails: [],
-  },
-  {
-    id: "c2",
-    name: "Air Arabia Cargo",
-    country: "UAE",
-    flag: "🇦🇪",
-    contactName: "Sara Al-Mansouri",
-    contactRole: "Cargo Sales",
-    email: "sara.m@airarabiacargo.com",
-    whatsapp: "+971 54 987 6543",
-    modes: ["Air"],
-    language: "English",
-    routes: "GCC, Indian Subcontinent, Europe",
-    notes: "Strong on time-critical air freight.",
-    active: true,
-    ccEmails: [],
-  },
-  {
-    id: "c3",
-    name: "Trans Arabia Freight",
-    country: "Saudi Arabia",
-    flag: "🇸🇦",
-    contactName: "Khaled Abboud",
-    contactRole: "Director",
-    email: "k.abboud@transarabia.sa",
-    whatsapp: "+966 55 222 3344",
-    modes: ["Land"],
-    language: "Both",
-    routes: "Saudi Arabia, Jordan, UAE, Kuwait",
-    active: true,
-    ccEmails: [],
-  },
-  {
-    id: "c4",
-    name: "Mediterranean Shipping",
-    country: "Jordan",
-    flag: "🇯🇴",
-    contactName: "Omar Yusuf",
-    contactRole: "Key Accounts",
-    email: "omar.yusuf@medship.jo",
-    whatsapp: "+962 79 555 8899",
-    modes: ["Sea"],
-    language: "English",
-    routes: "Mediterranean, North Europe, Far East",
-    active: false,
-    ccEmails: [],
-  },
-]
-
 export const requests: FreightRequest[] = [
   {
     id: "r1",
@@ -140,10 +147,10 @@ export const requests: FreightRequest[] = [
     senderPhone: "+962 79 111 2233",
     originCity: "Amman",
     originCountry: "Jordan",
-    originFlag: "🇯🇴",
+    originFlag: "\u{1F1EF}\u{1F1F4}",
     destinationCity: "Dubai",
     destinationCountry: "UAE",
-    destinationFlag: "🇦🇪",
+    destinationFlag: "\u{1F1E6}\u{1F1EA}",
     cargoType: "Electronics",
     equipment: "2 x 40ft HC",
     weight: "5,234 KG per piece",
@@ -168,13 +175,12 @@ export const requests: FreightRequest[] = [
     ],
     missingFields: [],
     suggestedReply: null,
-    rawMessage:
-      "Hi team,\n\nPlease send me your best all-in rate for 2 x 40ft HC of electronics, Amman (FOB) to Dubai. Total 2 pieces, approx 5,234 KG each. Dimensions 380 x 240 x 252 cm. Need telex release. Cargo is fragile, please advise on packing.\n\nBest regards,\nFadi Tamimi\nOrbit Trading",
+    rawMessage: "Hi team,\n\nPlease send me your best all-in rate for 2 x 40ft HC of electronics, Amman (FOB) to Dubai.",
     history: [
       { label: "Received", time: "Today, 08:12", done: true },
       { label: "Parsed by AI", time: "Today, 08:12", done: true },
-      { label: "Sent to Carrier", time: "—", done: false },
-      { label: "Quoted", time: "—", done: false },
+      { label: "Sent to Carrier", time: "\u2014", done: false },
+      { label: "Quoted", time: "\u2014", done: false },
     ],
   },
   {
@@ -185,19 +191,19 @@ export const requests: FreightRequest[] = [
     senderPhone: "+971 52 777 1200",
     originCity: "Aqaba",
     originCountry: "Jordan",
-    originFlag: "🇯🇴",
+    originFlag: "\u{1F1EF}\u{1F1F4}",
     destinationCity: "Fremantle",
     destinationCountry: "Australia",
-    destinationFlag: "🇦🇺",
+    destinationFlag: "\u{1F1E6}\u{1F1FA}",
     cargoType: "Spices",
     equipment: "1 x 20ft",
     weight: "16 TNE",
     quantity: "16 TNE",
-    dimensions: "Palletized — 20 pallets",
+    dimensions: "Palletized \u2014 20 pallets",
     modes: ["Sea"],
     incoterm: "CIF",
     blType: "Original BL",
-    preferredCarrier: "—",
+    preferredCarrier: "\u2014",
     urgency: "Standard",
     confidence: "High",
     status: "Pending",
@@ -207,13 +213,12 @@ export const requests: FreightRequest[] = [
     availabilityQuestions: ["Confirm AQIS-compliant container availability."],
     missingFields: [],
     suggestedReply: null,
-    rawMessage:
-      "Salam, need CIF rate Aqaba to Fremantle for 16 TNE spices, 1x20ft, food grade container. Fumigation cert required. When is next sailing?",
+    rawMessage: "Salam, need CIF rate Aqaba to Fremantle for 16 TNE spices.",
     history: [
       { label: "Received", time: "Today, 06:40", done: true },
       { label: "Parsed by AI", time: "Today, 06:40", done: true },
-      { label: "Sent to Carrier", time: "—", done: false },
-      { label: "Quoted", time: "—", done: false },
+      { label: "Sent to Carrier", time: "\u2014", done: false },
+      { label: "Quoted", time: "\u2014", done: false },
     ],
   },
   {
@@ -224,10 +229,10 @@ export const requests: FreightRequest[] = [
     senderPhone: "+962 78 444 5566",
     originCity: "Delhi (DEL)",
     originCountry: "India",
-    originFlag: "🇮🇳",
+    originFlag: "\u{1F1EE}\u{1F1F3}",
     destinationCity: "Amman",
     destinationCountry: "Jordan",
-    destinationFlag: "🇯🇴",
+    destinationFlag: "\u{1F1EF}\u{1F1F4}",
     cargoType: "Aircraft Engine",
     equipment: "Air ULD",
     weight: "5,234 KG",
@@ -242,17 +247,16 @@ export const requests: FreightRequest[] = [
     status: "Sent to Carrier",
     receivedRelative: "Yesterday",
     receivedExact: "Yesterday, 15:20",
-    specialRequirements: ["DGR handling — engine contains residual fuel.", "Dedicated ULD, no consolidation."],
-    availabilityQuestions: ["Confirm next available freighter DEL-AMM.", "Provide DGR surcharge breakdown."],
+    specialRequirements: ["DGR handling \u2014 engine contains residual fuel.", "Dedicated ULD, no consolidation."],
+    availabilityQuestions: ["Confirm next available freighter DEL-AMM."],
     missingFields: [],
     suggestedReply: null,
-    rawMessage:
-      "Dear team,\n\nUrgent — please quote air freight for 2 aircraft engines, 5,234 KG total, DEL to Amman, EXW. DGR handling required. Need earliest freighter.\n\nRegards,\nRania Khalil",
+    rawMessage: "Dear team, urgent air freight for 2 aircraft engines.",
     history: [
       { label: "Received", time: "Yesterday, 15:20", done: true },
       { label: "Parsed by AI", time: "Yesterday, 15:20", done: true },
       { label: "Sent to Carrier", time: "Yesterday, 16:05", done: true },
-      { label: "Quoted", time: "—", done: false },
+      { label: "Quoted", time: "\u2014", done: false },
     ],
   },
   {
@@ -263,10 +267,10 @@ export const requests: FreightRequest[] = [
     senderPhone: "+966 56 333 9911",
     originCity: "Jeddah",
     originCountry: "Saudi Arabia",
-    originFlag: "🇸🇦",
+    originFlag: "\u{1F1F8}\u{1F1E6}",
     destinationCity: "Hamburg",
     destinationCountry: "Germany",
-    destinationFlag: "🇩🇪",
+    destinationFlag: "\u{1F1E9}\u{1F1EA}",
     cargoType: "General Cargo",
     equipment: "25 x 20ft",
     weight: "18 TNE per container",
@@ -275,23 +279,22 @@ export const requests: FreightRequest[] = [
     modes: ["Sea"],
     incoterm: "FOB",
     blType: "Telex Release",
-    preferredCarrier: "—",
+    preferredCarrier: "\u2014",
     urgency: "Standard",
     confidence: "Medium",
     status: "Pending",
     receivedRelative: "6 hours ago",
     receivedExact: "Today, 04:30",
     specialRequirements: ["Rate needed for full 25-container project shipment."],
-    availabilityQuestions: ["Confirm equipment availability for 25 x 20ft at Jeddah.", "Provide free time at destination."],
+    availabilityQuestions: ["Confirm equipment availability for 25 x 20ft at Jeddah."],
     missingFields: [],
     suggestedReply: null,
-    rawMessage:
-      "Hello, need FOB rate Jeddah to Hamburg, 25 x 20ft general cargo, telex release. Project shipment over 3 weeks. Please advise space and rates.",
+    rawMessage: "Hello, need FOB rate Jeddah to Hamburg, 25 x 20ft.",
     history: [
       { label: "Received", time: "Today, 04:30", done: true },
       { label: "Parsed by AI", time: "Today, 04:31", done: true },
-      { label: "Sent to Carrier", time: "—", done: false },
-      { label: "Quoted", time: "—", done: false },
+      { label: "Sent to Carrier", time: "\u2014", done: false },
+      { label: "Quoted", time: "\u2014", done: false },
     ],
   },
   {
@@ -302,10 +305,10 @@ export const requests: FreightRequest[] = [
     senderPhone: "+962 77 888 1010",
     originCity: "Shanghai",
     originCountry: "China",
-    originFlag: "🇨🇳",
+    originFlag: "\u{1F1E8}\u{1F1F3}",
     destinationCity: "Aqaba",
     destinationCountry: "Jordan",
-    destinationFlag: "🇯🇴",
+    destinationFlag: "\u{1F1EF}\u{1F1F4}",
     cargoType: "Furniture",
     equipment: "1 x 40ft HC",
     weight: "12 TNE",
@@ -314,62 +317,23 @@ export const requests: FreightRequest[] = [
     modes: ["Sea"],
     incoterm: "CIF",
     blType: "Telex Release",
-    preferredCarrier: "—",
+    preferredCarrier: "\u2014",
     urgency: "Standard",
     confidence: "Low",
     status: "Pending",
     receivedRelative: "1 hour ago",
     receivedExact: "Today, 09:05",
     specialRequirements: [],
-    availabilityQuestions: ["Confirm cargo readiness date — not stated in voice note.", "Verify exact commodity for customs."],
+    availabilityQuestions: ["Confirm cargo readiness date."],
     missingFields: ["cargo_readiness_date"],
-    suggestedReply: "Hi Yousef, thanks for reaching out. Could you please confirm the cargo readiness date and exact commodity for customs purposes?",
-    rawMessage: "[Voice note — 0:42] Transcribed: Need a price from China to Aqaba, one 40 foot container of furniture, CIF. Call me back.",
+    suggestedReply: "Hi Yousef, thanks for reaching out. Could you please confirm the cargo readiness date?",
+    rawMessage: "[Voice note \u2014 0:42] Need a price from China to Aqaba, one 40 foot container of furniture, CIF.",
     history: [
       { label: "Received", time: "Today, 09:05", done: true },
       { label: "Parsed by AI", time: "Today, 09:06", done: true },
-      { label: "Sent to Carrier", time: "—", done: false },
-      { label: "Quoted", time: "—", done: false },
+      { label: "Sent to Carrier", time: "\u2014", done: false },
+      { label: "Quoted", time: "\u2014", done: false },
     ],
-  },
-]
-
-export type Template = {
-  id: string
-  name: string
-  type: "Email" | "WhatsApp"
-  subject?: string
-  body: string
-  linkedCarrierIds: string[]
-  isDefault: boolean
-}
-
-export const templates: Template[] = [
-  {
-    id: "t1",
-    name: "Standard Rate Request",
-    type: "Email",
-    subject: "Rate Request: {{origin_city}} → {{destination_city}} ({{mode}})",
-    body: "Dear {{contact_name}},\n\nWe have a shipment enquiry and would appreciate your best all-in rate:\n\nOrigin: {{origin_city}}, {{origin_country}}\nDestination: {{destination_city}}, {{destination_country}}\nCargo: {{cargo_type}}\nEquipment: {{equipment}}\nWeight: {{weight}}\nIncoterm: {{incoterm}}\n\nPlease share rates, transit time and validity at your earliest.\n\nBest regards,\nLogistricks Operations",
-    linkedCarrierIds: ["c1", "c2", "c3", "c4"],
-    isDefault: true,
-  },
-  {
-    id: "t2",
-    name: "Urgent Air Freight",
-    type: "Email",
-    subject: "URGENT Air Rate: {{origin_city}} → {{destination_city}}",
-    body: "Dear {{contact_name}},\n\nWe have an urgent air freight requirement:\n\n{{origin_city}} → {{destination_city}}\nCargo: {{cargo_type}} — {{weight}}\nUrgency: {{urgency}}\n\nPlease revert with earliest freighter availability and all-in rate.\n\nRegards,\nLogistricks Operations",
-    linkedCarrierIds: ["c2"],
-    isDefault: false,
-  },
-  {
-    id: "t3",
-    name: "WhatsApp Rate Request",
-    type: "WhatsApp",
-    body: "Hi {{contact_name}} 👋\nNeed your best rate:\n*{{origin_city}} → {{destination_city}}*\n{{cargo_type}} | {{equipment}}\n{{weight}} | {{incoterm}}\nPls share rate + transit time. Thanks!",
-    linkedCarrierIds: ["c1", "c3"],
-    isDefault: true,
   },
 ]
 
@@ -398,7 +362,7 @@ export const templateVariables = [
       ["carrier_name", "Carrier Company Name"],
       ["contact_name", "Contact Person Name"],
       ["carrier_email", "Carrier Email"],
-      ["carrier_whatsapp", "Carrier WhatsApp"],
+      ["carrier_phone", "Carrier Phone"],
     ],
   },
   {
