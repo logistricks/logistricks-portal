@@ -1,40 +1,11 @@
 "use client"
 
 import { Moon, Sun } from "lucide-react"
-import { useEffect, useState } from "react"
+import { usePortalTheme } from "@/components/portal/portal-theme-provider"
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem("portal-theme")
-    // Portal defaults to dark; only go light if user explicitly chose light
-    const isDark = saved !== "light"
-    apply(isDark)
-    setDark(isDark)
-  }, [])
-
-  function apply(isDark: boolean) {
-    const html = document.documentElement
-    if (isDark) {
-      html.classList.add("dark")
-      html.classList.remove("light")
-    } else {
-      html.classList.add("light")
-      html.classList.remove("dark")
-    }
-  }
-
-  function toggle() {
-    const next = !dark
-    setDark(next)
-    apply(next)
-    localStorage.setItem("portal-theme", next ? "dark" : "light")
-  }
-
-  if (!mounted) return null
+  const { theme, toggle } = usePortalTheme()
+  const dark = theme === "dark"
 
   return (
     <button
