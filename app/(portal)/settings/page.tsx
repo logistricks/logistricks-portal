@@ -66,8 +66,8 @@ function ChannelRow({
           <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
         ) : (
           <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              active ? "translate-x-[22px]" : "translate-x-0.5"
+            className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              active ? "translate-x-5" : "translate-x-0"
             }`}
           />
         )}
@@ -144,8 +144,8 @@ function ToggleRow({
             <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
           ) : (
             <span
-              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                checked ? "translate-x-[22px]" : "translate-x-0.5"
+              className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                checked ? "translate-x-5" : "translate-x-0"
               }`}
             />
           )}
@@ -345,15 +345,21 @@ export default function SettingsPage() {
 
   // ── Automation actions ───────────────────────────────────
   async function toggleAutoSend() {
+    if (!clientCode) { setError("Session not initialised — refresh the page"); return }
     setAutoSendBusy(true); setError(null)
     const next = !autoSend
-    const { error } = await supabase.from("clients").update({ allow_auto_send_to_carrier: next }).eq("client_code", clientCode)
-    if (error) setError(error.message)
-    else setAutoSend(next)
+    const { data, error } = await supabase.from("clients")
+      .update({ allow_auto_send_to_carrier: next })
+      .eq("client_code", clientCode)
+      .select("allow_auto_send_to_carrier")
+    if (error) { setError(error.message); setAutoSendBusy(false); return }
+    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setAutoSendBusy(false); return }
+    setAutoSend(next)
     setAutoSendBusy(false)
   }
 
   async function toggleRequireCritical() {
+    if (!clientCode) { setError("Session not initialised — refresh the page"); return }
     setError(null)
     const next = !requireCritical
     if (next && criticalFields.length === 0) {
@@ -362,22 +368,27 @@ export default function SettingsPage() {
       return
     }
     setRequireCritBusy(true)
-    const { error } = await supabase.from("clients").update({ require_critical_data: next }).eq("client_code", clientCode)
-    if (error) setError(error.message)
-    else setRequireCritical(next)
+    const { data, error } = await supabase.from("clients")
+      .update({ require_critical_data: next })
+      .eq("client_code", clientCode)
+      .select("require_critical_data")
+    if (error) { setError(error.message); setRequireCritBusy(false); return }
+    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setRequireCritBusy(false); return }
+    setRequireCritical(next)
     setRequireCritBusy(false)
   }
 
   async function saveCriticalFields(fields: string[]) {
+    if (!clientCode) { setError("Session not initialised — refresh the page"); setShowPicker(false); return }
     setRequireCritBusy(true); setError(null)
-    const { error } = await supabase.from("clients")
+    const { data, error } = await supabase.from("clients")
       .update({ require_critical_data: true, critical_fields: fields })
       .eq("client_code", clientCode)
-    if (error) setError(error.message)
-    else {
-      setCriticalFields(fields)
-      setRequireCritical(true)
-    }
+      .select("require_critical_data")
+    if (error) { setError(error.message); setShowPicker(false); setRequireCritBusy(false); return }
+    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setShowPicker(false); setRequireCritBusy(false); return }
+    setCriticalFields(fields)
+    setRequireCritical(true)
     setShowPicker(false)
     setRequireCritBusy(false)
   }
