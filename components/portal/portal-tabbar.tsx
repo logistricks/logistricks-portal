@@ -16,7 +16,7 @@ export function PortalTabbar() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[#E2E8F0] bg-[#0D1B2A] md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[#E2E8F0] bg-white dark:bg-[#0D1B2A] md:hidden">
       {nav.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/")
         const Icon = item.icon

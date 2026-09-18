@@ -28,7 +28,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   return (
     <PortalThemeContext.Provider value={{ theme, toggle }}>
-      <div className={`min-h-screen bg-[#0C1424] ${theme}`}>
+      <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#F0F4F8]"} ${theme}`}>
         <PortalSidebar
           expanded={expanded}
           pinned={pinned}
