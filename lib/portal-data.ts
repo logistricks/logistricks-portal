@@ -57,6 +57,7 @@ export type FreightRequest = {
   status: RequestStatus
   receivedRelative: string
   receivedExact: string
+  receivedIso: string        // raw ISO timestamp for date-range filtering
   specialRequirements: string[]
   availabilityQuestions: string[]
   missingFields: string[]
@@ -153,6 +154,7 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "2 hours ago",
     receivedExact: "Today, 08:12",
+    receivedIso: new Date().toISOString(),
     specialRequirements: [
       "Goods are fragile — request extra dunnage and corner protection.",
       "Provide temperature-controlled storage if transit exceeds 5 days.",
@@ -198,6 +200,7 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "4 hours ago",
     receivedExact: "Today, 06:40",
+    receivedIso: new Date().toISOString(),
     specialRequirements: ["Food-grade container required.", "Fumigation certificate needed for Australian customs."],
     availabilityQuestions: ["Confirm AQIS-compliant container availability."],
     missingFields: [],
@@ -237,6 +240,7 @@ export const requests: FreightRequest[] = [
     status: "Sent to Carrier",
     receivedRelative: "Yesterday",
     receivedExact: "Yesterday, 15:20",
+    receivedIso: new Date(Date.now() - 86_400_000).toISOString(),
     specialRequirements: ["DGR handling — engine contains residual fuel.", "Dedicated ULD, no consolidation."],
     availabilityQuestions: ["Confirm next available freighter DEL-AMM.", "Provide DGR surcharge breakdown."],
     missingFields: [],
@@ -276,6 +280,7 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "6 hours ago",
     receivedExact: "Today, 04:30",
+    receivedIso: new Date().toISOString(),
     specialRequirements: ["Rate needed for full 25-container project shipment."],
     availabilityQuestions: ["Confirm equipment availability for 25 x 20ft at Jeddah.", "Provide free time at destination."],
     missingFields: [],
@@ -315,6 +320,7 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "1 hour ago",
     receivedExact: "Today, 09:05",
+    receivedIso: new Date().toISOString(),
     specialRequirements: [],
     availabilityQuestions: ["Confirm cargo readiness date — not stated in voice note.", "Verify exact commodity for customs."],
     missingFields: ["cargo_readiness_date"],

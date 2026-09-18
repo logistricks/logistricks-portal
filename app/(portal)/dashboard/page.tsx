@@ -11,63 +11,85 @@ import {
   Send,
   TrendingUp,
   Zap,
+  Mic,
 } from "lucide-react"
 import { SourceBadge, StatusBadge } from "@/components/portal/badges"
-import { currentUser } from "@/lib/portal-data"
 import { type FreightRequest } from "@/lib/portal-data"
-import { fetchRequests, fetchDashboardStats, type DashboardStats } from "@/lib/supabase-queries"
+import { fetchRequests, fetchDashboardStats, subscribeToRequests, type DashboardStats } from "@/lib/supabase-queries"
 import { createClient } from "@/lib/supabase"
 
-// ─── Static demo data ─────────────────────────────────────────────────────
+// ─── Period helpers ────────────────────────────────────────────────────────
 
-const periods = ["Today", "Yesterday", "This Week", "This Month"]
+type Period = "Today" | "Yesterday" | "This Week" | "This Month"
+const periods: Period[] = ["Today", "Yesterday", "This Week", "This Month"]
 
-const weekActivity = [
-  { day: "Mon", count: 3 },
-  { day: "Tue", count: 5 },
-  { day: "Wed", count: 4 },
-  { day: "Thu", count: 8 },
-  { day: "Fri", count: 6 },
-  { day: "Sat", count: 2 },
-  { day: "Today", count: 5 },
-]
+function periodBounds(period: Period): { from: Date; to: Date } {
+  const now  = new Date()
+  const sod  = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x }
 
-// Pipeline is computed from live stats inside the component (see DashboardPage)
+  if (period === "Today") {
+    return { from: sod(now), to: now }
+  }
+  if (period === "Yesterday") {
+    const y = sod(now); y.setDate(y.getDate() - 1)
+    const e = new Date(y); e.setHours(23,59,59,999)
+    return { from: y, to: e }
+  }
+  if (period === "This Week") {
+    const w = sod(now)
+    w.setDate(w.getDate() - ((w.getDay() + 6) % 7)) // Monday
+    return { from: w, to: now }
+  }
+  // This Month
+  const m = sod(now); m.setDate(1)
+  return { from: m, to: now }
+}
 
-const activities = [
-  {
-    time: "09:06 AM",
-    label: "Voice note parsed from Yousef Haddad",
-    sub: "Shanghai → Aqaba · Furniture · 40ft HC",
-    type: "ai",
-  },
-  {
-    time: "08:12 AM",
-    label: "Rate request from Fadi Tamimi",
-    sub: "Amman → Dubai · Electronics · 2×40ft HC",
-    type: "email",
-  },
-  {
-    time: "06:40 AM",
-    label: "WhatsApp inquiry — Gulf Cargo Co",
-    sub: "Aqaba → Fremantle · Spices · 20ft",
-    type: "whatsapp",
-  },
-  {
-    time: "Yest. 4:05 PM",
-    label: "Sent to Air Arabia Cargo",
-    sub: "DEL → Amman · Aircraft Engine · Urgent",
-    type: "sent",
-  },
-  {
-    time: "Yest. 3:20 PM",
-    label: "Urgent air freight from Rania Khalil",
-    sub: "Delhi → Amman · 2 engines · DGR",
-    type: "email",
-  },
-]
+function inPeriod(isoDate: string, period: Period): boolean {
+  const d = new Date(isoDate)
+  const { from, to } = periodBounds(period)
+  return d >= from && d <= to
+}
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Weekly chart data from requests ──────────────────────────────────────
+
+function buildWeekActivity(requests: FreightRequest[]): { day: string; count: number }[] {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  const today = new Date(); today.setHours(0,0,0,0)
+  const todayDay = today.getDay() // 0=Sun … 6=Sat
+  const mondayOffset = (todayDay + 6) % 7  // days since Mon
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() - (mondayOffset - i))
+    const nextD = new Date(d); nextD.setDate(d.getDate() + 1)
+    const count = requests.filter(r => {
+      const rd = new Date(r.receivedIso)
+      return rd >= d && rd < nextD
+    }).length
+    const label = i === mondayOffset ? "Today" : days[i]
+    return { day: label, count }
+  })
+}
+
+// ─── Activity feed from requests ──────────────────────────────────────────
+
+function requestToActivity(r: FreightRequest) {
+  const sourceType = r.source === "WhatsApp" ? "whatsapp"
+                   : r.source === "Voice Note" ? "ai"
+                   : "email"
+  const label = r.source === "Voice Note"
+    ? `Voice note parsed from ${r.senderName}`
+    : r.source === "WhatsApp"
+    ? `WhatsApp inquiry — ${r.senderName}`
+    : `Rate request from ${r.senderName}`
+
+  const sub = `${r.originCity} → ${r.destinationCity} · ${r.cargoType} · ${r.equipment}`
+
+  return { time: r.receivedExact.replace("Today, ", ""), label, sub, type: sourceType }
+}
+
+// ─── Greeting ─────────────────────────────────────────────────────────────
 
 function greeting() {
   const h = new Date().getHours()
@@ -77,6 +99,8 @@ function greeting() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────
+
+const GLOW = "transition-all duration-200 hover:shadow-[0_0_0_2px_rgba(249,115,22,0.18),0_4px_18px_rgba(249,115,22,0.09)] hover:border-[rgba(249,115,22,0.30)]"
 
 function KPICard({
   label,
@@ -94,7 +118,7 @@ function KPICard({
   icon: React.ElementType
 }) {
   return (
-    <div className="relative overflow-hidden rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
+    <div className={`relative overflow-hidden rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] ${GLOW}`}>
       {/* Top accent bar */}
       <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ backgroundColor: color }} />
       <div className="p-5">
@@ -111,19 +135,14 @@ function KPICard({
             </p>
             <p
               className={`mt-1.5 flex items-center gap-0.5 text-xs font-medium ${
-                trend === "up"
-                  ? "text-emerald-500"
-                  : "text-[#64748B] dark:text-[#475569]"
+                trend === "up" ? "text-emerald-500" : "text-[#64748B] dark:text-[#475569]"
               }`}
             >
               {trend === "up" && <ArrowUpRight className="h-3.5 w-3.5" />}
               {sub}
             </p>
           </div>
-          <div
-            className="shrink-0 rounded p-2.5"
-            style={{ backgroundColor: color + "1a" }}
-          >
+          <div className="shrink-0 rounded p-2.5" style={{ backgroundColor: color + "1a" }}>
             <Icon className="h-5 w-5" style={{ color }} />
           </div>
         </div>
@@ -137,15 +156,12 @@ function BarChart({ data }: { data: { day: string; count: number }[] }) {
   return (
     <div className="flex items-end gap-2" style={{ height: 120 }}>
       {data.map((d) => {
-        const pct = (d.count / max) * 100
+        const pct     = (d.count / max) * 100
         const isToday = d.day === "Today"
         return (
-          <div
-            key={d.day}
-            className="group relative flex flex-1 flex-col items-center gap-1.5"
-          >
+          <div key={d.day} className="group relative flex flex-1 flex-col items-center gap-1.5">
             {/* Hover tooltip */}
-            <div className="pointer-events-none absolute bottom-full mb-2 flex -translate-x-1/2 left-1/2 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100">
               <span className="whitespace-nowrap rounded bg-[#0D1B2A] px-2 py-1 text-[11px] font-bold text-white dark:bg-[#E2E8F0] dark:text-[#0D1B2A]">
                 {d.count} req
               </span>
@@ -162,13 +178,7 @@ function BarChart({ data }: { data: { day: string; count: number }[] }) {
               />
             </div>
             {/* Day label */}
-            <span
-              className={`text-[10px] font-semibold ${
-                isToday
-                  ? "text-[#F97316]"
-                  : "text-[#94A3B8] dark:text-[#475569]"
-              }`}
-            >
+            <span className={`text-[10px] font-semibold ${isToday ? "text-[#F97316]" : "text-[#94A3B8] dark:text-[#475569]"}`}>
               {d.day}
             </span>
           </div>
@@ -180,17 +190,16 @@ function BarChart({ data }: { data: { day: string; count: number }[] }) {
 
 function ActivityDot({ type }: { type: string }) {
   const map: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
-    email: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-500", icon: Mail },
+    email:    { bg: "bg-blue-100 dark:bg-blue-900/30",    text: "text-blue-500",    icon: Mail },
     whatsapp: { bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-500", icon: MessageCircle },
-    ai: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-500", icon: Zap },
-    sent: { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-500", icon: Send },
+    ai:       { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-500",  icon: Zap },
+    sent:     { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-500",  icon: Send },
+    voice:    { bg: "bg-pink-100 dark:bg-pink-900/30",    text: "text-pink-500",    icon: Mic },
   }
   const s = map[type] ?? map.email
   const Icon = s.icon
   return (
-    <div
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${s.bg}`}
-    >
+    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${s.bg}`}>
       <Icon className={`h-3.5 w-3.5 ${s.text}`} />
     </div>
   )
@@ -199,27 +208,74 @@ function ActivityDot({ type }: { type: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [period, setPeriod] = useState("Today")
-  const [stats, setStats]   = useState<DashboardStats | null>(null)
-  const [recent, setRecent] = useState<FreightRequest[]>([])
+  const [period, setPeriod]     = useState<Period>("Today")
+  const [stats, setStats]       = useState<DashboardStats | null>(null)
+  const [allRequests, setAllRequests] = useState<FreightRequest[]>([])
+  const [username, setUsername] = useState<string>("")
 
+  // Read username from sessionStorage
+  useEffect(() => {
+    try { setUsername(sessionStorage.getItem("portal_username") ?? "") } catch { /* ok */ }
+  }, [])
+
+  // Fetch data + subscribe to realtime
   useEffect(() => {
     const supabase = createClient()
     fetchDashboardStats(supabase).then(setStats)
-    fetchRequests(supabase).then((rows) => setRecent(rows.slice(0, 5)))
+    fetchRequests(supabase).then(setAllRequests)
+
+    const unsub = subscribeToRequests(
+      supabase,
+      (newRow) => {
+        setAllRequests((prev) => [newRow, ...prev])
+        // Bump stats optimistically
+        setStats((prev) => prev
+          ? {
+              ...prev,
+              total: prev.total + 1,
+              pending: newRow.status === "Pending" ? prev.pending + 1 : prev.pending,
+              email:   newRow.source === "Email"   ? prev.email   + 1 : prev.email,
+              whatsapp:newRow.source === "WhatsApp"? prev.whatsapp+ 1 : prev.whatsapp,
+            }
+          : prev,
+        )
+      },
+      (updRow) => {
+        setAllRequests((prev) => prev.map((r) => r.id === updRow.id ? updRow : r))
+      },
+    )
+
+    return unsub
   }, [])
 
-  const total       = stats?.total         ?? 0
-  const pending     = stats?.pending       ?? 0
-  const sentCount   = stats?.sentToCarrier ?? 0
-  const quotedCount = stats?.quoted        ?? 0
+  // Period-filtered views
+  const filtered   = allRequests.filter((r) => inPeriod(r.receivedIso, period))
+  const recentList = filtered.slice(0, 6)
+  const activities = allRequests.slice(0, 6).map(requestToActivity)
+
+  // KPIs — respect selected period for counts
+  const periodTotal   = filtered.length
+  const periodPending = filtered.filter((r) => r.status === "Pending").length
+  const periodSent    = filtered.filter((r) => r.status === "Sent to Carrier").length
+  const periodQuoted  = filtered.filter((r) => r.status === "Quoted").length
+
+  // For all-time pipeline (pipeline funnel always shows full picture)
+  const totalAll    = stats?.total         ?? 0
+  const pendingAll  = stats?.pending       ?? 0
+  const sentAll     = stats?.sentToCarrier ?? 0
+  const quotedAll   = stats?.quoted        ?? 0
 
   const pipeline = [
-    { stage: "Received",        count: total,       color: "#475569" },
-    { stage: "Pending",         count: pending,     color: "#F97316" },
-    { stage: "Sent to Carrier", count: sentCount,   color: "#3B82F6" },
-    { stage: "Quoted",          count: quotedCount, color: "#22C55E" },
+    { stage: "Received",        count: totalAll,   color: "#475569" },
+    { stage: "Pending",         count: pendingAll,  color: "#F97316" },
+    { stage: "Sent to Carrier", count: sentAll,     color: "#3B82F6" },
+    { stage: "Quoted",          count: quotedAll,   color: "#22C55E" },
   ]
+
+  const weekData  = buildWeekActivity(allRequests)
+  const weekTotal = weekData.reduce((s, d) => s + d.count, 0)
+
+  const kpiSub = period === "Today" ? (stats?.todayDelta ?? "Loading…") : `${periodTotal} requests`
 
   return (
     <div className="space-y-5">
@@ -230,12 +286,13 @@ export default function DashboardPage() {
             className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
             style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
           >
-            {greeting()}, {currentUser.name.split(" ")[0]}
+            {greeting()}{username ? `, ${username}` : ""}
           </h2>
           <p className="mt-0.5 text-sm text-[#64748B] dark:text-[#475569]">
             Here's what's happening with your freight operations.
           </p>
         </div>
+        {/* Period selector */}
         <div className="flex flex-wrap gap-1.5">
           {periods.map((p) => (
             <button
@@ -258,29 +315,29 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <KPICard
           label="Total Requests"
-          value={total}
-          sub={stats?.todayDelta ?? "Loading…"}
+          value={periodTotal}
+          sub={kpiSub}
           trend="up"
           color="#F97316"
           icon={Inbox}
         />
         <KPICard
           label="Pending Action"
-          value={pending}
+          value={periodPending}
           sub="Awaiting carrier outreach"
           color="#F97316"
           icon={Clock}
         />
         <KPICard
           label="Sent to Carrier"
-          value={sentCount}
+          value={periodSent}
           sub="Awaiting quotes"
           color="#3B82F6"
           icon={Send}
         />
         <KPICard
           label="Quoted"
-          value={quotedCount}
+          value={periodQuoted}
           sub="Ready to close"
           color="#22C55E"
           icon={TrendingUp}
@@ -290,38 +347,30 @@ export default function DashboardPage() {
       {/* ── Chart + Pipeline ── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
         {/* Bar chart */}
-        <div className="rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-3">
+        <div className={`rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-3 ${GLOW}`}>
           <div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4 dark:border-[#1E3A5F]">
             <div>
-              <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">
-                Weekly Activity
-              </h3>
-              <p className="text-xs text-[#64748B] dark:text-[#475569]">
-                Requests received per day
-              </p>
+              <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">Weekly Activity</h3>
+              <p className="text-xs text-[#64748B] dark:text-[#475569]">Requests received per day</p>
             </div>
             <span className="rounded bg-[#FFF7ED] px-2.5 py-1 text-xs font-semibold text-[#F97316] dark:bg-[#F97316]/10">
-              33 total this week
+              {weekTotal} total this week
             </span>
           </div>
           <div className="p-5">
-              <BarChart data={weekActivity} />
+            <BarChart data={weekData} />
           </div>
         </div>
 
         {/* Pipeline funnel */}
-        <div className="rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-2">
+        <div className={`rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-2 ${GLOW}`}>
           <div className="border-b border-[#E2E8F0] px-5 py-4 dark:border-[#1E3A5F]">
-            <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">
-              Request Pipeline
-            </h3>
-            <p className="text-xs text-[#64748B] dark:text-[#475569]">
-              Conversion through stages
-            </p>
+            <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">Request Pipeline</h3>
+            <p className="text-xs text-[#64748B] dark:text-[#475569]">All-time conversion through stages</p>
           </div>
           <div className="space-y-4 p-5">
             {pipeline.map((p) => {
-              const pct = Math.round((p.count / pipeline[0].count) * 100)
+              const pct = pipeline[0].count > 0 ? Math.round((p.count / pipeline[0].count) * 100) : 0
               return (
                 <div key={p.stage}>
                   <div className="mb-1.5 flex items-center justify-between">
@@ -329,10 +378,7 @@ export default function DashboardPage() {
                       {p.stage}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span
-                        className="text-[11px] font-bold tabular-nums"
-                        style={{ color: p.color }}
-                      >
+                      <span className="text-[11px] font-bold tabular-nums" style={{ color: p.color }}>
                         {pct}%
                       </span>
                       <span className="text-sm font-black tabular-nums text-[#0D1B2A] dark:text-[#E2E8F0]">
@@ -356,80 +402,77 @@ export default function DashboardPage() {
       {/* ── Activity + Recent Requests ── */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
         {/* Activity feed */}
-        <div className="rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-2">
+        <div className={`rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-2 ${GLOW}`}>
           <div className="border-b border-[#E2E8F0] px-5 py-4 dark:border-[#1E3A5F]">
-            <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">
-              Activity Feed
-            </h3>
-            <p className="text-xs text-[#64748B] dark:text-[#475569]">
-              Latest events — today &amp; yesterday
-            </p>
+            <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">Activity Feed</h3>
+            <p className="text-xs text-[#64748B] dark:text-[#475569]">Latest events from your requests</p>
           </div>
-          <ul className="divide-y divide-[#F1F5F9] dark:divide-[#1A2A40]">
-            {activities.map((a, i) => (
-              <li key={i} className="flex items-start gap-3 px-4 py-3">
-                <ActivityDot type={a.type} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
-                    {a.label}
-                  </p>
-                  <p className="truncate text-xs text-[#64748B] dark:text-[#94A3B8]">
-                    {a.sub}
-                  </p>
-                </div>
-                <span className="shrink-0 text-[11px] tabular-nums text-[#94A3B8] dark:text-[#475569]">
-                  {a.time}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {activities.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-[#94A3B8]">No activity yet.</p>
+          ) : (
+            <ul className="divide-y divide-[#F1F5F9] dark:divide-[#1A2A40]">
+              {activities.map((a, i) => (
+                <li key={i} className="flex items-start gap-3 px-4 py-3">
+                  <ActivityDot type={a.type} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{a.label}</p>
+                    <p className="truncate text-xs text-[#64748B] dark:text-[#94A3B8]">{a.sub}</p>
+                  </div>
+                  <span className="shrink-0 text-[11px] tabular-nums text-[#94A3B8] dark:text-[#475569]">
+                    {a.time}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Recent requests */}
-        <div className="rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-3">
+        <div className={`rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33] lg:col-span-3 ${GLOW}`}>
           <div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4 dark:border-[#1E3A5F]">
             <div>
-              <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">
-                Recent Requests
-              </h3>
+              <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">Recent Requests</h3>
               <p className="text-xs text-[#64748B] dark:text-[#475569]">
-                Latest incoming freight enquiries
+                {period === "Today" ? "Today's incoming enquiries" : `${period} incoming enquiries`}
               </p>
             </div>
-            <Link
-              href="/requests"
-              className="text-xs font-semibold text-[#F97316] hover:underline"
-            >
+            <Link href="/requests" className="text-xs font-semibold text-[#F97316] hover:underline">
               View All →
             </Link>
           </div>
-          <ul className="divide-y divide-[#F1F5F9] dark:divide-[#1A2A40]">
-            {recent.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href="/requests"
-                  className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[#FFF7ED] dark:hover:bg-[#1A2A40]"
-                >
-                  <SourceBadge source={r.source} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
-                      {r.senderName}
-                    </p>
-                    <p className="truncate text-xs text-[#64748B] dark:text-[#94A3B8]">
-                      {r.originCity} → {r.destinationCity} ·{" "}
-                      <span className="font-medium">{r.cargoType}</span>
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <StatusBadge status={r.status} />
-                    <span className="text-[11px] tabular-nums text-[#94A3B8] dark:text-[#475569]">
-                      {r.receivedRelative}
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {recentList.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-[#94A3B8]">
+              No requests in this period.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[#F1F5F9] dark:divide-[#1A2A40]">
+              {recentList.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href="/requests"
+                    className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[#FFF7ED] dark:hover:bg-[#1A2A40]"
+                  >
+                    <SourceBadge source={r.source} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
+                        {r.senderName}
+                      </p>
+                      <p className="truncate text-xs text-[#64748B] dark:text-[#94A3B8]">
+                        {r.originCity} → {r.destinationCity} ·{" "}
+                        <span className="font-medium">{r.cargoType}</span>
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <StatusBadge status={r.status} />
+                      <span className="text-[11px] tabular-nums text-[#94A3B8] dark:text-[#475569]">
+                        {r.receivedRelative}
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

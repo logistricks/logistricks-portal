@@ -3,36 +3,45 @@
 import { usePathname } from "next/navigation"
 import { Bell } from "lucide-react"
 import { useEffect, useState } from "react"
-import { currentUser } from "@/lib/portal-data"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 
 const titles: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/requests": "Requests",
-  "/carriers": "Carriers",
+  "/requests":  "Requests",
+  "/carriers":  "Carriers",
   "/templates": "Templates",
-  "/activity": "Activity Log",
-  "/settings": "Settings",
+  "/activity":  "Activity Log",
+  "/settings":  "Settings",
 }
 
 function titleFor(pathname: string) {
-  const key = Object.keys(titles).find((k) => pathname === k || pathname.startsWith(k + "/"))
+  const key = Object.keys(titles).find(
+    (k) => pathname === k || pathname.startsWith(k + "/"),
+  )
   return key ? titles[key] : "Operations Portal"
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
 }
 
 export function PortalTopbar() {
   const pathname = usePathname()
-  const [now, setNow] = useState<string>("")
+  const [now, setNow]           = useState<string>("")
+  const [displayName, setDisplayName] = useState<string>("")
 
+  // Clock — updates every minute
   useEffect(() => {
     const update = () =>
       setNow(
         new Date().toLocaleString("en-GB", {
           weekday: "short",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
+          day:     "numeric",
+          month:   "short",
+          hour:    "2-digit",
+          minute:  "2-digit",
         }),
       )
     update()
@@ -40,9 +49,23 @@ export function PortalTopbar() {
     return () => clearInterval(id)
   }, [])
 
+  // Username from sessionStorage (set on login)
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("portal_username") ?? ""
+      setDisplayName(stored)
+    } catch {
+      setDisplayName("")
+    }
+  }, [])
+
+  const avatarInitials = displayName ? initials(displayName) : "—"
+
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] md:px-8">
-      <h1 className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#E2E8F0]">{titleFor(pathname)}</h1>
+      <h1 className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#E2E8F0]">
+        {titleFor(pathname)}
+      </h1>
       <div className="flex items-center gap-2">
         <span className="hidden text-xs tabular-nums text-[#94A3B8] sm:block">{now}</span>
         <ThemeToggle />
@@ -56,9 +79,13 @@ export function PortalTopbar() {
         </button>
         <div className="flex items-center gap-2.5 pl-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#0D1B2A] text-xs font-bold text-white dark:bg-[#1E3A5F]">
-            {currentUser.initials}
+            {avatarInitials}
           </div>
-          <span className="hidden text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0] lg:block">{currentUser.name}</span>
+          {displayName && (
+            <span className="hidden text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0] lg:block">
+              {displayName}
+            </span>
+          )}
         </div>
       </div>
     </header>

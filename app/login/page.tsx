@@ -7,43 +7,71 @@ import { supabase } from "@/lib/supabase"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [clientCode, setClientCode] = useState("")
+  const [username, setUsername]     = useState("")
+  const [password, setPassword]     = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading]  = useState(false)
+  const [error, setError]      = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const clientCodeClean = clientCode.trim().toUpperCase()
+    const usernameClean   = username.trim().toLowerCase()
 
-    if (authError) {
-      setError("Invalid email or password. Please try again.")
+    if (!clientCodeClean || !usernameClean || !password) {
+      setError("Please fill in all fields.")
       setLoading(false)
       return
     }
 
-    // Verify profile + client_code exist
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("client_code, role, is_active")
-      .single()
+    // Step 1 — look up auth_email via portal_users (anon-readable)
+    const { data: portalUser, error: lookupError } = await supabase
+      .from("portal_users")
+      .select("auth_email, is_active")
+      .eq("username", usernameClean)
+      .eq("client_code", clientCodeClean)
+      .maybeSingle()
 
-    if (profileError || !profile?.client_code) {
-      await supabase.auth.signOut()
-      setError("Your account isn't linked to a client yet. Contact your administrator.")
+    if (lookupError) {
+      setError("Something went wrong. Please try again.")
       setLoading(false)
       return
     }
 
-    if (!profile.is_active) {
-      await supabase.auth.signOut()
+    if (!portalUser) {
+      setError("No account found for that username and client code.")
+      setLoading(false)
+      return
+    }
+
+    if (!portalUser.is_active) {
       setError("Your account has been deactivated. Contact your administrator.")
       setLoading(false)
       return
+    }
+
+    // Step 2 — authenticate with Supabase using the resolved email
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email:    portalUser.auth_email,
+      password,
+    })
+
+    if (authError) {
+      setError("Incorrect password. Please try again.")
+      setLoading(false)
+      return
+    }
+
+    // Step 3 — store display context in sessionStorage
+    try {
+      sessionStorage.setItem("portal_username",    usernameClean)
+      sessionStorage.setItem("portal_client_code", clientCodeClean)
+    } catch {
+      // sessionStorage unavailable — continue anyway
     }
 
     router.push("/dashboard")
@@ -55,16 +83,35 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-10 text-center">
           <div className="inline-flex items-baseline gap-0">
-            <span className="text-[32px] font-black leading-none tracking-tight text-[#0D1B2A]" style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>Logis</span>
-            <span className="text-[32px] font-black leading-none tracking-tight text-[#F97316]" style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>tricks</span>
+            <span
+              className="text-[32px] font-black leading-none tracking-tight text-[#0D1B2A]"
+              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}
+            >
+              Logis
+            </span>
+            <span
+              className="text-[32px] font-black leading-none tracking-tight text-[#F97316]"
+              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}
+            >
+              tricks
+            </span>
           </div>
-          <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-[#94A3B8]">Operations Portal</p>
+          <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-[#94A3B8]">
+            Operations Portal
+          </p>
         </div>
 
         <div className="rounded border border-[#D1D9E0] bg-white shadow-[0_4px_20px_rgba(13,27,42,0.08),0_1px_4px_rgba(13,27,42,0.04)]">
           <div className="border-b border-[#E8EDF2] px-8 py-5">
-            <h1 className="text-[17px] font-bold tracking-tight text-[#0D1B2A]" style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>Sign in to your account</h1>
-            <p className="mt-0.5 text-sm text-[#64748B]">Enter your credentials to access the portal</p>
+            <h1
+              className="text-[17px] font-bold tracking-tight text-[#0D1B2A]"
+              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}
+            >
+              Sign in to your account
+            </h1>
+            <p className="mt-0.5 text-sm text-[#64748B]">
+              Enter your client code, username, and password
+            </p>
           </div>
 
           <div className="px-8 py-6">
@@ -76,24 +123,54 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Client Code */}
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#475569]" htmlFor="email">
-                  Email address
+                <label
+                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#475569]"
+                  htmlFor="client-code"
+                >
+                  Client Code
                 </label>
                 <input
-                  id="email"
-                  type="email"
+                  id="client-code"
+                  type="text"
                   required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
+                  maxLength={15}
+                  autoComplete="organization"
+                  value={clientCode}
+                  onChange={(e) => setClientCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. DEMO"
+                  className="w-full rounded border border-[#D1D9E0] bg-white px-4 py-2.5 text-sm font-mono uppercase tracking-widest text-[#0D1B2A] outline-none transition-all placeholder:text-[#94A3B8] placeholder:normal-case placeholder:tracking-normal focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)]"
+                />
+              </div>
+
+              {/* Username */}
+              <div>
+                <label
+                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#475569]"
+                  htmlFor="username"
+                >
+                  Username
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  required
+                  maxLength={15}
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  placeholder="yourname"
                   className="w-full rounded border border-[#D1D9E0] bg-white px-4 py-2.5 text-sm text-[#0D1B2A] outline-none transition-all placeholder:text-[#94A3B8] focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)]"
                 />
               </div>
 
+              {/* Password */}
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#475569]" htmlFor="password">
+                <label
+                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#475569]"
+                  htmlFor="password"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -113,7 +190,11 @@ export default function LoginPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] transition-colors hover:text-[#64748B]"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>

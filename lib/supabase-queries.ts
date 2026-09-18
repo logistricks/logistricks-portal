@@ -259,6 +259,7 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     status:            normalizeStatus(row.status),
     receivedRelative:  formatRelative(receivedAt),
     receivedExact:     formatExact(receivedAt),
+    receivedIso:       row.received_at,
     specialRequirements:  Array.isArray(row.special_requirements)  ? row.special_requirements  as string[] : [],
     availabilityQuestions:Array.isArray(row.availability_questions) ? row.availability_questions as string[] : [],
     missingFields:     Array.isArray(row.missing_fields)           ? row.missing_fields           as string[] : [],
