@@ -10,8 +10,8 @@ export function ThemeToggle() {
   useEffect(() => {
     setMounted(true)
     const saved = localStorage.getItem("portal-theme")
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    const isDark = saved === "dark" || (!saved && prefersDark)
+    // Portal defaults to dark; only go light if user explicitly chose light
+    const isDark = saved !== "light"
     apply(isDark)
     setDark(isDark)
   }, [])
