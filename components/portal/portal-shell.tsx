@@ -13,7 +13,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const expanded = pinned || hovered
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] dark:bg-[#0C1424]">
+    <div className="min-h-screen bg-[#0C1424]">
       <PortalSidebar
         expanded={expanded}
         pinned={pinned}

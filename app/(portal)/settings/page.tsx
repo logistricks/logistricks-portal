@@ -2,165 +2,216 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase"
-import { Mail, Plus, Trash2, ToggleLeft, ToggleRight, Loader2 } from "lucide-react"
+import { Mail, MessageCircle, Plus, Trash2, ToggleLeft, ToggleRight, Loader2 } from "lucide-react"
 
-type ReceiverEmail = {
-  id: string
-  r_mail: string
+// ── Types ──────────────────────────────────────────────────────────────────────
+type ReceiverEmail = { id: string; r_mail: string; active: boolean; label: string | null }
+type WhatsappNumber = { id: string; number: string; active: boolean; label: string | null }
+
+// ── Reusable channel row component ─────────────────────────────────────────────
+function ChannelRow({
+  primary,
+  secondary,
+  active,
+  busy,
+  onToggle,
+  onDelete,
+}: {
+  primary: string
+  secondary?: string | null
   active: boolean
-  label: string | null
+  busy: boolean
+  onToggle: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className={`h-2 w-2 rounded-full shrink-0 ${active ? "bg-green-400" : "bg-[#334155]"}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[#E2E8F0] truncate">{primary}</p>
+        {secondary && <p className="text-xs text-[#475569]">{secondary}</p>}
+      </div>
+      <button
+        onClick={onToggle}
+        disabled={busy}
+        title={active ? "Deactivate" : "Activate"}
+        className="flex items-center gap-1.5 text-xs text-[#475569] hover:text-[#94A3B8] transition-colors disabled:opacity-40"
+      >
+        {busy
+          ? <Loader2 className="h-4 w-4 animate-spin" />
+          : active
+            ? <ToggleRight className="h-5 w-5 text-green-400" />
+            : <ToggleLeft  className="h-5 w-5" />
+        }
+        <span className="hidden sm:inline">{active ? "Active" : "Inactive"}</span>
+      </button>
+      <button
+        onClick={onDelete}
+        disabled={busy}
+        title="Remove"
+        className="flex h-7 w-7 items-center justify-center rounded text-[#334155] hover:bg-red-900/30 hover:text-red-400 transition-colors disabled:opacity-40"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
 }
 
-export default function SettingsPage() {
-  const [clientCode, setClientCode]   = useState<string>("")
-  const [emails, setEmails]           = useState<ReceiverEmail[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [saving, setSaving]           = useState<string | null>(null) // id of row being saved
-  const [newMail, setNewMail]         = useState("")
-  const [newLabel, setNewLabel]       = useState("")
-  const [adding, setAdding]           = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+// ── Section wrapper ────────────────────────────────────────────────────────────
+function Section({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-[#F97316]">{icon}</span>
+        <h2 className="text-xs font-semibold text-[#64748B] uppercase tracking-widest">{title}</h2>
+      </div>
+      <p className="text-xs text-[#475569] mb-4">{description}</p>
+      {children}
+    </section>
+  )
+}
 
+// ── Page ───────────────────────────────────────────────────────────────────────
+export default function SettingsPage() {
+  const [clientCode, setClientCode] = useState<string>("")
   const supabase = createClient()
 
-  // ── Bootstrap ─────────────────────────────────────────────
+  // ── Emails state ────────────────────────────────────────
+  const [emails, setEmails]       = useState<ReceiverEmail[]>([])
+  const [emailsLoading, setEmailsLoading] = useState(true)
+  const [emailBusy, setEmailBusy] = useState<string | null>(null)
+  const [newMail, setNewMail]     = useState("")
+  const [newMailLabel, setNewMailLabel] = useState("")
+  const [addingMail, setAddingMail] = useState(false)
+
+  // ── WhatsApp state ──────────────────────────────────────
+  const [numbers, setNumbers]       = useState<WhatsappNumber[]>([])
+  const [numsLoading, setNumsLoading] = useState(true)
+  const [numBusy, setNumBusy]       = useState<string | null>(null)
+  const [newNum, setNewNum]         = useState("")
+  const [newNumLabel, setNewNumLabel] = useState("")
+  const [addingNum, setAddingNum]   = useState(false)
+
+  const [error, setError] = useState<string | null>(null)
+
+  // ── Load ────────────────────────────────────────────────
   useEffect(() => {
-    async function load() {
-      try {
-        const cc = sessionStorage.getItem("portal_client_code") ?? ""
-        setClientCode(cc)
+    const cc = sessionStorage.getItem("portal_client_code") ?? ""
+    setClientCode(cc)
 
-        const { data, error } = await supabase
-          .from("client_receiver_emails")
-          .select("id, r_mail, active, label")
-          .eq("client_code", cc)
-          .order("created_at")
+    supabase.from("client_receiver_emails")
+      .select("id, r_mail, active, label")
+      .eq("client_code", cc).order("created_at")
+      .then(({ data }) => { setEmails(data ?? []); setEmailsLoading(false) })
 
-        if (error) throw error
-        setEmails(data ?? [])
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    supabase.from("client_whatsapp_numbers")
+      .select("id, number, active, label")
+      .eq("client_code", cc).order("created_at")
+      .then(({ data }) => { setNumbers(data ?? []); setNumsLoading(false) })
   }, [])
 
-  // ── Toggle active flag ────────────────────────────────────
-  async function toggleActive(row: ReceiverEmail) {
-    setSaving(row.id)
-    setError(null)
+  // ── Email actions ───────────────────────────────────────
+  async function toggleEmail(row: ReceiverEmail) {
+    setEmailBusy(row.id); setError(null)
     const next = !row.active
-    const { error } = await supabase
-      .from("client_receiver_emails")
-      .update({ active: next })
-      .eq("id", row.id)
-    if (error) { setError(error.message) }
-    else { setEmails(prev => prev.map(e => e.id === row.id ? { ...e, active: next } : e)) }
-    setSaving(null)
+    const { error } = await supabase.from("client_receiver_emails").update({ active: next }).eq("id", row.id)
+    if (error) setError(error.message)
+    else setEmails(p => p.map(e => e.id === row.id ? { ...e, active: next } : e))
+    setEmailBusy(null)
   }
-
-  // ── Delete ────────────────────────────────────────────────
   async function deleteEmail(id: string) {
-    setSaving(id)
-    setError(null)
-    const { error } = await supabase
-      .from("client_receiver_emails")
-      .delete()
-      .eq("id", id)
-    if (error) { setError(error.message) }
-    else { setEmails(prev => prev.filter(e => e.id !== id)) }
-    setSaving(null)
+    setEmailBusy(id); setError(null)
+    const { error } = await supabase.from("client_receiver_emails").delete().eq("id", id)
+    if (error) setError(error.message)
+    else setEmails(p => p.filter(e => e.id !== id))
+    setEmailBusy(null)
   }
-
-  // ── Add new ───────────────────────────────────────────────
   async function addEmail() {
     if (!newMail.trim()) return
-    setAdding(true)
-    setError(null)
-    const { data, error } = await supabase
-      .from("client_receiver_emails")
-      .insert({ client_code: clientCode, r_mail: newMail.trim(), label: newLabel.trim() || null, active: true })
-      .select("id, r_mail, active, label")
-      .single()
-    if (error) { setError(error.message) }
-    else { setEmails(prev => [...prev, data]); setNewMail(""); setNewLabel("") }
-    setAdding(false)
+    setAddingMail(true); setError(null)
+    const { data, error } = await supabase.from("client_receiver_emails")
+      .insert({ client_code: clientCode, r_mail: newMail.trim(), label: newMailLabel.trim() || null, active: true })
+      .select("id, r_mail, active, label").single()
+    if (error) setError(error.message)
+    else { setEmails(p => [...p, data]); setNewMail(""); setNewMailLabel("") }
+    setAddingMail(false)
   }
 
+  // ── WhatsApp actions ────────────────────────────────────
+  async function toggleNumber(row: WhatsappNumber) {
+    setNumBusy(row.id); setError(null)
+    const next = !row.active
+    const { error } = await supabase.from("client_whatsapp_numbers").update({ active: next }).eq("id", row.id)
+    if (error) setError(error.message)
+    else setNumbers(p => p.map(n => n.id === row.id ? { ...n, active: next } : n))
+    setNumBusy(null)
+  }
+  async function deleteNumber(id: string) {
+    setNumBusy(id); setError(null)
+    const { error } = await supabase.from("client_whatsapp_numbers").delete().eq("id", id)
+    if (error) setError(error.message)
+    else setNumbers(p => p.filter(n => n.id !== id))
+    setNumBusy(null)
+  }
+  async function addNumber() {
+    if (!newNum.trim()) return
+    setAddingNum(true); setError(null)
+    const { data, error } = await supabase.from("client_whatsapp_numbers")
+      .insert({ client_code: clientCode, number: newNum.trim(), label: newNumLabel.trim() || null, active: true })
+      .select("id, number, active, label").single()
+    if (error) setError(error.message)
+    else { setNumbers(p => [...p, data]); setNewNum(""); setNewNumLabel("") }
+    setAddingNum(false)
+  }
+
+  // ── Render ──────────────────────────────────────────────
   return (
     <div className="p-6 max-w-2xl">
       <h1 className="text-xl font-bold text-white mb-1">Settings</h1>
       <p className="text-sm text-[#475569] mb-8">Manage your organisation's configuration</p>
 
+      {error && (
+        <p className="mb-6 rounded bg-red-900/30 px-3 py-2 text-xs text-red-400">{error}</p>
+      )}
+
       {/* ── Receiver Emails ── */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Mail className="h-4 w-4 text-[#F97316]" />
-          <h2 className="text-sm font-semibold text-[#E2E8F0] uppercase tracking-wider">
-            Receiver Emails
-          </h2>
-        </div>
-        <p className="text-xs text-[#475569] mb-4">
-          Inbound addresses n8n monitors for this client. Only <span className="text-green-400 font-medium">active</span> addresses
-          are processed. Deactivating an address stops new requests from that mailbox without deleting history.
-        </p>
-
-        {error && (
-          <p className="mb-3 rounded bg-red-900/30 px-3 py-2 text-xs text-red-400">{error}</p>
-        )}
-
-        {loading ? (
+      <Section
+        icon={<Mail className="h-4 w-4" />}
+        title="Receiver Emails"
+        description="Inbound addresses n8n monitors for this client. Only active addresses are processed. Deactivating stops new requests from that mailbox without deleting history."
+      >
+        {emailsLoading ? (
           <div className="flex items-center gap-2 text-[#475569] text-sm py-4">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
         ) : (
           <div className="rounded-lg border border-white/5 bg-[#0D1B2A] divide-y divide-white/5">
             {emails.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-[#475569]">No receiver emails configured.</p>
+              <p className="px-4 py-6 text-center text-sm text-[#334155]">No email addresses configured.</p>
             )}
-
             {emails.map(row => (
-              <div key={row.id} className="flex items-center gap-3 px-4 py-3">
-                {/* Status dot */}
-                <span className={`h-2 w-2 rounded-full shrink-0 ${row.active ? "bg-green-400" : "bg-[#475569]"}`} />
-
-                {/* Email + label */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#E2E8F0] truncate">{row.r_mail}</p>
-                  {row.label && <p className="text-xs text-[#475569]">{row.label}</p>}
-                </div>
-
-                {/* Toggle */}
-                <button
-                  onClick={() => toggleActive(row)}
-                  disabled={saving === row.id}
-                  title={row.active ? "Deactivate" : "Activate"}
-                  className="flex items-center gap-1 text-xs text-[#475569] hover:text-[#94A3B8] transition-colors disabled:opacity-40"
-                >
-                  {saving === row.id
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : row.active
-                      ? <ToggleRight className="h-5 w-5 text-green-400" />
-                      : <ToggleLeft  className="h-5 w-5" />
-                  }
-                  <span className="hidden sm:inline">{row.active ? "Active" : "Inactive"}</span>
-                </button>
-
-                {/* Delete */}
-                <button
-                  onClick={() => deleteEmail(row.id)}
-                  disabled={saving === row.id}
-                  title="Remove"
-                  className="flex h-7 w-7 items-center justify-center rounded text-[#475569] hover:bg-red-900/30 hover:text-red-400 transition-colors disabled:opacity-40"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <ChannelRow
+                key={row.id}
+                primary={row.r_mail}
+                secondary={row.label}
+                active={row.active}
+                busy={emailBusy === row.id}
+                onToggle={() => toggleEmail(row)}
+                onDelete={() => deleteEmail(row.id)}
+              />
             ))}
-
-            {/* Add row */}
             <div className="flex items-center gap-2 px-4 py-3 bg-[#0a1628]">
-              <Plus className="h-4 w-4 text-[#475569] shrink-0" />
+              <Plus className="h-4 w-4 text-[#334155] shrink-0" />
               <input
                 type="email"
                 placeholder="new@intake.logistricks.com"
@@ -172,22 +223,78 @@ export default function SettingsPage() {
               <input
                 type="text"
                 placeholder="Label (optional)"
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
+                value={newMailLabel}
+                onChange={e => setNewMailLabel(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addEmail()}
                 className="w-28 bg-transparent text-sm text-[#E2E8F0] placeholder:text-[#334155] outline-none"
               />
               <button
                 onClick={addEmail}
-                disabled={adding || !newMail.trim()}
+                disabled={addingMail || !newMail.trim()}
                 className="flex items-center gap-1 rounded bg-[#F97316] px-3 py-1.5 text-xs font-semibold text-white transition-opacity disabled:opacity-40 hover:bg-[#ea6a05]"
               >
-                {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+                {addingMail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
               </button>
             </div>
           </div>
         )}
-      </section>
+      </Section>
+
+      {/* ── WhatsApp Numbers ── */}
+      <Section
+        icon={<MessageCircle className="h-4 w-4" />}
+        title="WhatsApp Numbers"
+        description="Sender numbers n8n listens to for inbound WhatsApp rate replies. Only active numbers are processed. Use E.164 format (+96612345678)."
+      >
+        {numsLoading ? (
+          <div className="flex items-center gap-2 text-[#475569] text-sm py-4">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : (
+          <div className="rounded-lg border border-white/5 bg-[#0D1B2A] divide-y divide-white/5">
+            {numbers.length === 0 && (
+              <p className="px-4 py-6 text-center text-sm text-[#334155]">No WhatsApp numbers configured.</p>
+            )}
+            {numbers.map(row => (
+              <ChannelRow
+                key={row.id}
+                primary={row.number}
+                secondary={row.label}
+                active={row.active}
+                busy={numBusy === row.id}
+                onToggle={() => toggleNumber(row)}
+                onDelete={() => deleteNumber(row.id)}
+              />
+            ))}
+            <div className="flex items-center gap-2 px-4 py-3 bg-[#0a1628]">
+              <Plus className="h-4 w-4 text-[#334155] shrink-0" />
+              <input
+                type="tel"
+                placeholder="+96612345678"
+                value={newNum}
+                onChange={e => setNewNum(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addNumber()}
+                className="flex-1 min-w-0 bg-transparent text-sm text-[#E2E8F0] placeholder:text-[#334155] outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Label (optional)"
+                value={newNumLabel}
+                onChange={e => setNewNumLabel(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addNumber()}
+                className="w-28 bg-transparent text-sm text-[#E2E8F0] placeholder:text-[#334155] outline-none"
+              />
+              <button
+                onClick={addNumber}
+                disabled={addingNum || !newNum.trim()}
+                className="flex items-center gap-1 rounded bg-[#F97316] px-3 py-1.5 text-xs font-semibold text-white transition-opacity disabled:opacity-40 hover:bg-[#ea6a05]"
+              >
+                {addingNum ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Section>
     </div>
   )
 }
