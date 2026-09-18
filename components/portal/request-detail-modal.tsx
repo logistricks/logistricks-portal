@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AlertTriangle, Check, Copy, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase"
 import {
   ConfidenceBadge,
   ModeBadge,

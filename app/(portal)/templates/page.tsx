@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Copy, Loader2, Mail, MessageCircle, Pencil, Plus, Star, Trash2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase"
 import { TemplateEditor } from "@/components/portal/template-editor"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 

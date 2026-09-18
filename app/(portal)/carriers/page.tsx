@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Check, Copy, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase"
 import { ModeBadge } from "@/components/portal/badges"
 import { CarrierModal } from "@/components/portal/carrier-modal"
 import { type Carrier, type CarrierRow, langLabel, modesFromCarrier } from "@/lib/portal-data"

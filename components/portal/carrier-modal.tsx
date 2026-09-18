@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Loader2, Plus, X } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase"
 import { type Carrier, langLabel, langValue } from "@/lib/portal-data"
 
 const langOptions = ["Arabic", "English", "Both"] as const

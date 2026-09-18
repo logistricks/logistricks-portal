@@ -19,7 +19,7 @@ import {
   Underline,
   X,
 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase"
 import { templateVariables, type Carrier, type CarrierRow, type Template } from "@/lib/portal-data"
 
 function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
