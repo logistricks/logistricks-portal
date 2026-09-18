@@ -152,7 +152,7 @@ export function CarrierModal({
 
       onSave()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err))
+      const e = err as Record<string,unknown>; const msg = e?.message ? String(e.message) + (e.details ? ` (${e.details})` : e.hint ? ` (${e.hint})` : "") : err instanceof Error ? err.message : String(err); setError(msg)
       setSaving(false)
     }
   }
