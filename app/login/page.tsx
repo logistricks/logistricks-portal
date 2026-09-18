@@ -28,40 +28,30 @@ export default function LoginPage() {
       return
     }
 
-    // Step 1 — look up auth_email via portal_users (anon-readable)
-    const { data: portalUser, error: lookupError } = await supabase
-      .from("portal_users")
-      .select("auth_email, is_active")
-      .eq("username", usernameClean)
-      .eq("client_code", clientCodeClean)
-      .maybeSingle()
-
-    if (lookupError) {
-      setError("Something went wrong. Please try again.")
-      setLoading(false)
-      return
-    }
-
-    if (!portalUser) {
-      setError("No account found for that username and client code.")
-      setLoading(false)
-      return
-    }
-
-    if (!portalUser.is_active) {
-      setError("Your account has been deactivated. Contact your administrator.")
-      setLoading(false)
-      return
-    }
-
-    // Step 2 — authenticate with Supabase using the resolved email
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email:    portalUser.auth_email,
-      password,
+    // Step 1 — verify credentials + SHA-256 password hash server-side
+    const res = await fetch("/api/auth/login", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ clientCode: clientCodeClean, username: usernameClean, password }),
     })
 
-    if (authError) {
-      setError("Incorrect password. Please try again.")
+    const loginData = await res.json()
+
+    if (!res.ok) {
+      setError(loginData.error ?? "Something went wrong. Please try again.")
+      setLoading(false)
+      return
+    }
+
+    // Step 2 — exchange the magic-link token for a real Supabase session
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: loginData.email,
+      token: loginData.token,
+      type:  "magiclink",
+    })
+
+    if (verifyError) {
+      setError("Session creation failed. Please try again.")
       setLoading(false)
       return
     }
