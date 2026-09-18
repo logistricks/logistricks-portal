@@ -18,6 +18,7 @@ export type Carrier = {
   routes: string
   notes?: string
   active: boolean
+  ccEmails?: string[]
 }
 
 export type ShipmentField = {
@@ -48,9 +49,7 @@ export type FreightRequest = {
   weight: string
   quantity: string
   dimensions: string
-  isSea: boolean
-  isAir: boolean
-  isLand: boolean
+  modes: Mode[]
   incoterm: string
   blType: string
   preferredCarrier: string
@@ -59,7 +58,6 @@ export type FreightRequest = {
   status: RequestStatus
   receivedRelative: string
   receivedExact: string
-  receivedIso: string        // raw ISO timestamp for date-range filtering
   specialRequirements: string[]
   availabilityQuestions: string[]
   missingFields: string[]
@@ -83,6 +81,7 @@ export const carriers: Carrier[] = [
     routes: "UAE, Saudi Arabia, Jordan, India",
     notes: "Preferred for GCC road freight. Fast reefer availability.",
     active: true,
+    ccEmails: [],
   },
   {
     id: "c2",
@@ -98,6 +97,7 @@ export const carriers: Carrier[] = [
     routes: "GCC, Indian Subcontinent, Europe",
     notes: "Strong on time-critical air freight.",
     active: true,
+    ccEmails: [],
   },
   {
     id: "c3",
@@ -112,6 +112,7 @@ export const carriers: Carrier[] = [
     language: "Both",
     routes: "Saudi Arabia, Jordan, UAE, Kuwait",
     active: true,
+    ccEmails: [],
   },
   {
     id: "c4",
@@ -126,6 +127,7 @@ export const carriers: Carrier[] = [
     language: "English",
     routes: "Mediterranean, North Europe, Far East",
     active: false,
+    ccEmails: [],
   },
 ]
 
@@ -147,9 +149,7 @@ export const requests: FreightRequest[] = [
     weight: "5,234 KG per piece",
     quantity: "2 Nos",
     dimensions: "380 x 240 x 252 cm @ 2",
-    isSea: true,
-    isAir: false,
-    isLand: false,
+    modes: ["Sea"],
     incoterm: "FOB",
     blType: "Telex Release",
     preferredCarrier: "Gulf Star Logistics",
@@ -158,7 +158,6 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "2 hours ago",
     receivedExact: "Today, 08:12",
-    receivedIso: new Date().toISOString(),
     specialRequirements: [
       "Goods are fragile — request extra dunnage and corner protection.",
       "Provide temperature-controlled storage if transit exceeds 5 days.",
@@ -195,9 +194,7 @@ export const requests: FreightRequest[] = [
     weight: "16 TNE",
     quantity: "16 TNE",
     dimensions: "Palletized — 20 pallets",
-    isSea: true,
-    isAir: false,
-    isLand: false,
+    modes: ["Sea"],
     incoterm: "CIF",
     blType: "Original BL",
     preferredCarrier: "—",
@@ -206,7 +203,6 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "4 hours ago",
     receivedExact: "Today, 06:40",
-    receivedIso: new Date().toISOString(),
     specialRequirements: ["Food-grade container required.", "Fumigation certificate needed for Australian customs."],
     availabilityQuestions: ["Confirm AQIS-compliant container availability."],
     missingFields: [],
@@ -237,9 +233,7 @@ export const requests: FreightRequest[] = [
     weight: "5,234 KG",
     quantity: "2 Nos",
     dimensions: "310 x 210 x 180 cm",
-    isSea: false,
-    isAir: true,
-    isLand: false,
+    modes: ["Air"],
     incoterm: "EXW",
     blType: "AWB",
     preferredCarrier: "Air Arabia Cargo",
@@ -248,7 +242,6 @@ export const requests: FreightRequest[] = [
     status: "Sent to Carrier",
     receivedRelative: "Yesterday",
     receivedExact: "Yesterday, 15:20",
-    receivedIso: new Date(Date.now() - 86_400_000).toISOString(),
     specialRequirements: ["DGR handling — engine contains residual fuel.", "Dedicated ULD, no consolidation."],
     availabilityQuestions: ["Confirm next available freighter DEL-AMM.", "Provide DGR surcharge breakdown."],
     missingFields: [],
@@ -279,9 +272,7 @@ export const requests: FreightRequest[] = [
     weight: "18 TNE per container",
     quantity: "25 Nos",
     dimensions: "Standard 20ft",
-    isSea: true,
-    isAir: false,
-    isLand: false,
+    modes: ["Sea"],
     incoterm: "FOB",
     blType: "Telex Release",
     preferredCarrier: "—",
@@ -290,7 +281,6 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "6 hours ago",
     receivedExact: "Today, 04:30",
-    receivedIso: new Date().toISOString(),
     specialRequirements: ["Rate needed for full 25-container project shipment."],
     availabilityQuestions: ["Confirm equipment availability for 25 x 20ft at Jeddah.", "Provide free time at destination."],
     missingFields: [],
@@ -321,9 +311,7 @@ export const requests: FreightRequest[] = [
     weight: "12 TNE",
     quantity: "1 Nos",
     dimensions: "Loose loaded",
-    isSea: true,
-    isAir: false,
-    isLand: false,
+    modes: ["Sea"],
     incoterm: "CIF",
     blType: "Telex Release",
     preferredCarrier: "—",
@@ -332,7 +320,6 @@ export const requests: FreightRequest[] = [
     status: "Pending",
     receivedRelative: "1 hour ago",
     receivedExact: "Today, 09:05",
-    receivedIso: new Date().toISOString(),
     specialRequirements: [],
     availabilityQuestions: ["Confirm cargo readiness date — not stated in voice note.", "Verify exact commodity for customs."],
     missingFields: ["cargo_readiness_date"],

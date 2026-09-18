@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Check, Copy, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
+import { AlertTriangle, Check, Copy, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
 import {
   ConfidenceBadge,
   ModeBadge,
@@ -11,18 +11,33 @@ import {
 } from "@/components/portal/badges"
 import { carriers, templates, type FreightRequest } from "@/lib/portal-data"
 
+// Map field keys (from critical_fields in DB) → request values + display labels
+const FIELD_MAP: Record<string, { getValue: (r: FreightRequest) => string | null; label: string }> = {
+  cargo_type: { getValue: (r) => r.cargoType,  label: "Cargo type" },
+  weight:     { getValue: (r) => r.weight,     label: "Weight / tonnage" },
+  dimensions: { getValue: (r) => r.dimensions, label: "Dimensions" },
+  equipment:  { getValue: (r) => r.equipment,  label: "Equipment / container type" },
+  incoterm:   { getValue: (r) => r.incoterm,   label: "Incoterm" },
+  bl_type:    { getValue: (r) => r.blType,     label: "BL type" },
+}
+
 export function RequestDetailModal({
   request,
   onClose,
+  requireCriticalData = false,
+  criticalFields = [],
 }: {
   request: FreightRequest
   onClose: () => void
+  requireCriticalData?: boolean
+  criticalFields?: string[]
 }) {
-  const [sendMethod, setSendMethod] = useState<"Email" | "WhatsApp" | "Reply" | null>(null)
-  const [carrierId, setCarrierId] = useState("")
+  const [sendMethod, setSendMethod] = useState<"Email" | "Reply" | null>(null)
+  const [carrierId, setCarrierId]   = useState("")
   const [templateId, setTemplateId] = useState("")
-  const [sendTo, setSendTo] = useState("")
+  const [sendTo, setSendTo]         = useState("")
   const [messageBody, setMessageBody] = useState("")
+  const [onlyCritical, setOnlyCritical] = useState(requireCriticalData)
 
   const sendPanelRef = useRef<HTMLDivElement>(null)
 
@@ -32,13 +47,15 @@ export function RequestDetailModal({
     }
   }, [sendMethod])
 
-  // Carriers filtered by mode + contact type
-  const availableCarriers = (method: "Email" | "WhatsApp") =>
-    carriers.filter((c) => {
-      const hasContact = method === "Email" ? !!c.email : !!c.whatsapp
-      const modeMatch = (request.isSea && c.modes.includes("Sea")) || (request.isAir && c.modes.includes("Air")) || (request.isLand && c.modes.includes("Land"))
-      return hasContact && modeMatch
-    })
+  // Carriers filtered by mode (Email only)
+  const availableCarriersForEmail = carriers.filter((c) => {
+    if (!c.email) return false
+    return (
+      (request.isSea  && c.modes.includes("Sea")) ||
+      (request.isAir  && c.modes.includes("Air")) ||
+      (request.isLand && c.modes.includes("Land"))
+    )
+  })
 
   // For reminders: lock to the carrier already sent to
   const sentToCarrier =
@@ -47,19 +64,37 @@ export function RequestDetailModal({
       : null
 
   const selectedCarrier = carriers.find((c) => c.id === carrierId)
-  const methodTemplates = templates.filter((t) => t.type === sendMethod && sendMethod !== "Reply")
+  const methodTemplates  = templates.filter((t) => t.type === "Email")
+  const isReminder       = request.status === "Sent to Carrier"
 
-  const isReminder = request.status === "Sent to Carrier"
+  // ── Critical-field gate ──────────────────────────────────────
+  const criticalMissingLabels = criticalFields
+    .filter((key) => {
+      const entry = FIELD_MAP[key]
+      if (!entry) return false
+      const val = entry.getValue(request)
+      return !val || val === "—"
+    })
+    .map((key) => FIELD_MAP[key]?.label ?? key)
 
-  // Build missing-fields reply body
-  function buildReplyBody(): string {
-    const missingFields: string[] = []
-    if (!request.cargoType || request.cargoType === "—") missingFields.push("Cargo type")
-    if (!request.weight || request.weight === "—") missingFields.push("Weight / tonnage")
-    if (!request.dimensions || request.dimensions === "—") missingFields.push("Dimensions")
-    if (!request.equipment || request.equipment === "—") missingFields.push("Equipment / container type")
-    if (!request.incoterm || request.incoterm === "—") missingFields.push("Incoterm")
-    if (!request.blType || request.blType === "—") missingFields.push("BL type")
+  const isCriticalBlocked = requireCriticalData && criticalMissingLabels.length > 0
+
+  // ── Build missing-fields reply body ─────────────────────────
+  function buildReplyBody(onlyCrit: boolean): string {
+    const allMissingEntries = Object.entries(FIELD_MAP)
+      .filter(([, entry]) => {
+        const val = entry.getValue(request)
+        return !val || val === "—"
+      })
+
+    let missingFields: string[]
+    if (onlyCrit && criticalFields.length > 0) {
+      missingFields = allMissingEntries
+        .filter(([key]) => criticalFields.includes(key))
+        .map(([, entry]) => entry.label)
+    } else {
+      missingFields = allMissingEntries.map(([, entry]) => entry.label)
+    }
 
     const lines: string[] = []
     lines.push(`Hi ${request.senderName},`)
@@ -73,7 +108,8 @@ export function RequestDetailModal({
       missingFields.forEach((f) => lines.push(`  • ${f}`))
       lines.push("")
     }
-    if (request.availabilityQuestions.length > 0) {
+    // Include availability questions only when NOT in onlyCritical mode
+    if (!onlyCrit && request.availabilityQuestions.length > 0) {
       lines.push("We also need to verify:")
       request.availabilityQuestions.forEach((q) => lines.push(`  • ${q}`))
       lines.push("")
@@ -85,27 +121,31 @@ export function RequestDetailModal({
     return lines.join("\n")
   }
 
-  // Count missing fields for badge
-  const missingCount = [
-    request.cargoType,
-    request.weight,
-    request.dimensions,
-    request.equipment,
-    request.incoterm,
-    request.blType,
-  ].filter((v) => !v || v === "—").length + request.availabilityQuestions.length
+  // Rebuild reply body when onlyCritical toggle changes (only if Reply panel is open)
+  useEffect(() => {
+    if (sendMethod === "Reply") {
+      setMessageBody(buildReplyBody(onlyCritical))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onlyCritical])
 
-  function openPanel(method: "Email" | "WhatsApp" | "Reply") {
+  // Count missing fields for badge on the Reply button
+  const missingCount = Object.values(FIELD_MAP).filter((e) => {
+    const val = e.getValue(request)
+    return !val || val === "—"
+  }).length + request.availabilityQuestions.length
+
+  function openPanel(method: "Email" | "Reply") {
     setSendMethod(method)
     setTemplateId("")
     if (method === "Reply") {
       const contact = request.source === "Email" ? request.senderEmail : request.senderPhone
       setSendTo(contact)
-      setMessageBody(buildReplyBody())
+      setMessageBody(buildReplyBody(onlyCritical))
       setCarrierId("")
     } else if (isReminder && sentToCarrier) {
       setCarrierId(sentToCarrier.id)
-      setSendTo(method === "Email" ? sentToCarrier.email : sentToCarrier.whatsapp)
+      setSendTo(sentToCarrier.email)
       setMessageBody("")
     } else {
       setCarrierId("")
@@ -117,7 +157,7 @@ export function RequestDetailModal({
   function onSelectCarrier(id: string) {
     setCarrierId(id)
     const c = carriers.find((x) => x.id === id)
-    if (c) setSendTo(sendMethod === "Email" ? c.email : c.whatsapp)
+    if (c) setSendTo(c.email)
     if (templateId) {
       const carrier = carriers.find((x) => x.id === id)
       setMessageBody(renderTemplateBody(templateId, request, carrier))
@@ -154,9 +194,6 @@ export function RequestDetailModal({
         `?subject=${encodeURIComponent(subject)}` +
         `&body=${encodeURIComponent(messageBody)}`
       window.open(href, "_blank")
-    } else if (sendMethod === "WhatsApp") {
-      const phone = sendTo.replace(/[\s\-\(\)\+]/g, "")
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(messageBody)}`, "_blank")
     }
   }
 
@@ -195,7 +232,7 @@ export function RequestDetailModal({
           </button>
         </div>
 
-        {/* Scrollable body — includes details + send panel */}
+        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
           {/* Main content grid */}
           <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-5">
@@ -327,6 +364,29 @@ export function RequestDetailModal({
                       className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
                     />
                   </div>
+
+                  {/* Only-critical toggle */}
+                  {criticalFields.length > 0 && (
+                    <div className="mb-3">
+                      <label className="flex cursor-pointer items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={onlyCritical}
+                          onChange={(e) => setOnlyCritical(e.target.checked)}
+                          className="h-4 w-4 accent-[#F97316]"
+                        />
+                        <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">
+                          Only ask for critical missing data
+                        </span>
+                        {onlyCritical && (
+                          <span className="rounded-full bg-[#FFF7ED] px-2 py-0.5 text-[11px] font-semibold text-[#F97316]">
+                            {criticalFields.join(", ").replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  )}
+
                   <div className="mb-3">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       Message
@@ -362,7 +422,7 @@ export function RequestDetailModal({
                   </div>
                 </>
               ) : (
-                /* ── Send to carrier panel (Email / WhatsApp / Reminder) ── */
+                /* ── Send to carrier panel (Email only) ── */
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {/* Carrier selector — locked for reminders */}
@@ -383,7 +443,7 @@ export function RequestDetailModal({
                           className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
                         >
                           <option value="">Select carrier...</option>
-                          {availableCarriers(sendMethod as "Email" | "WhatsApp").map((c) => (
+                          {availableCarriersForEmail.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name} — {c.contactName}
                             </option>
@@ -417,7 +477,7 @@ export function RequestDetailModal({
                     <input
                       value={sendTo}
                       onChange={(e) => setSendTo(e.target.value)}
-                      placeholder={sendMethod === "Email" ? "carrier@example.com" : "+971 50 000 0000"}
+                      placeholder="carrier@example.com"
                       className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
                     />
                   </div>
@@ -432,11 +492,7 @@ export function RequestDetailModal({
                       value={messageBody}
                       onChange={(e) => setMessageBody(e.target.value)}
                       rows={8}
-                      placeholder={
-                        sendMethod === "Email"
-                          ? "Type your message here, or select a template above to pre-fill…"
-                          : "Type your WhatsApp message here, or select a template above to pre-fill…"
-                      }
+                      placeholder="Type your message here, or select a template above to pre-fill…"
                       className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
                     />
                   </div>
@@ -447,11 +503,8 @@ export function RequestDetailModal({
                       disabled={!carrierId || !sendTo}
                       className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {sendMethod === "Email" ? (
-                        <><Mail className="h-4 w-4" /> {isReminder ? "Send Reminder via Email" : "Open in Email App"}</>
-                      ) : (
-                        <><MessageCircle className="h-4 w-4" /> {isReminder ? "Send Reminder via WhatsApp" : "Open in WhatsApp"}</>
-                      )}
+                      <Mail className="h-4 w-4" />
+                      {isReminder ? "Send Reminder via Email" : "Open in Email App"}
                     </button>
                     <button
                       type="button"
@@ -470,30 +523,35 @@ export function RequestDetailModal({
         {/* Footer action buttons — always visible, pinned at bottom */}
         <div className="shrink-0 border-t border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
           <div className="flex flex-col gap-3 p-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => openPanel("Email")}
-              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all hover:scale-[1.01] ${
-                sendMethod === "Email"
-                  ? "bg-[#EA580C] text-white"
-                  : "bg-[#F97316] text-white hover:bg-[#EA580C]"
-              }`}
-            >
-              <Mail className="h-4 w-4" />
-              {isReminder ? "Send Reminder via Email" : "Send to Carrier via Email"}
-            </button>
-            <button
-              type="button"
-              onClick={() => openPanel("WhatsApp")}
-              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] ${
-                sendMethod === "WhatsApp"
-                  ? "bg-[#047857]"
-                  : "bg-[#059669] hover:bg-[#047857]"
-              }`}
-            >
-              <MessageCircle className="h-4 w-4" />
-              {isReminder ? "Send Reminder via WhatsApp" : "Send via WhatsApp"}
-            </button>
+            {/* Send to Carrier via Email */}
+            <div className="flex flex-1 flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => !isCriticalBlocked && openPanel("Email")}
+                disabled={isCriticalBlocked}
+                title={isCriticalBlocked ? `Missing critical data: ${criticalMissingLabels.join(", ")}` : undefined}
+                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
+                  isCriticalBlocked
+                    ? "cursor-not-allowed bg-[#F97316]/40 text-white"
+                    : sendMethod === "Email"
+                    ? "bg-[#EA580C] text-white hover:scale-[1.01]"
+                    : "bg-[#F97316] text-white hover:scale-[1.01] hover:bg-[#EA580C]"
+                }`}
+              >
+                <Mail className="h-4 w-4" />
+                {isReminder ? "Send Reminder via Email" : "Send to Carrier via Email"}
+                {isCriticalBlocked && <Lock className="h-3.5 w-3.5 opacity-70" />}
+              </button>
+              {/* Critical data warning */}
+              {isCriticalBlocked && (
+                <div className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-400">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    Missing critical data: <span className="font-semibold">{criticalMissingLabels.join(", ")}</span>. Reply to the sender to collect it first.
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Reply to sender — divider row */}

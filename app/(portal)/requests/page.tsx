@@ -22,6 +22,10 @@ export default function RequestsPage() {
   const [selected, setSelected]     = useState<string[]>([])
   const [active, setActive]         = useState<FreightRequest | null>(null)
 
+  // ── Client automation flags ──────────────────────────────────
+  const [requireCriticalData, setRequireCriticalData] = useState(false)
+  const [criticalFields, setCriticalFields]           = useState<string[]>([])
+
   // ── Fetch + subscribe ────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true)
@@ -55,6 +59,29 @@ export default function RequestsPage() {
 
     return unsubscribe
   }, [load])
+
+  // ── Load client automation flags ─────────────────────────────
+  useEffect(() => {
+    async function loadClientFlags() {
+      try {
+        const code = sessionStorage.getItem("portal_client_code")
+        if (!code) return
+        const supabase = createClient()
+        const { data } = await supabase
+          .from("clients")
+          .select("require_critical_data, critical_fields")
+          .eq("client_code", code)
+          .single()
+        if (data) {
+          setRequireCriticalData(data.require_critical_data ?? false)
+          setCriticalFields(data.critical_fields ?? [])
+        }
+      } catch {
+        // flags remain at defaults
+      }
+    }
+    loadClientFlags()
+  }, [])
 
   // ── Filter ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -275,6 +302,8 @@ export default function RequestsPage() {
         <RequestDetailModal
           request={active}
           onClose={() => setActive(null)}
+          requireCriticalData={requireCriticalData}
+          criticalFields={criticalFields}
         />
       )}
     </div>

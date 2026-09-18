@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { X } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import type { Carrier, Language, Mode } from "@/lib/portal-data"
 
 const allModes: Mode[] = ["Sea", "Air", "Land"]
@@ -31,14 +31,28 @@ export function CarrierModal({
       routes: "",
       notes: "",
       active: true,
+      ccEmails: [],
     },
   )
+
+  const [ccEmailInput, setCcEmailInput] = useState("")
 
   function set<K extends keyof Carrier>(key: K, value: Carrier[K]) {
     setForm((f) => ({ ...f, [key]: value }))
   }
   function toggleMode(m: Mode) {
     setForm((f) => ({ ...f, modes: f.modes.includes(m) ? f.modes.filter((x) => x !== m) : [...f.modes, m] }))
+  }
+  function addCcEmail() {
+    const email = ccEmailInput.trim()
+    if (!email) return
+    const current = form.ccEmails ?? []
+    if (current.includes(email)) { setCcEmailInput(""); return }
+    set("ccEmails", [...current, email])
+    setCcEmailInput("")
+  }
+  function removeCcEmail(index: number) {
+    set("ccEmails", (form.ccEmails ?? []).filter((_, i) => i !== index))
   }
 
   return (
@@ -74,6 +88,51 @@ export function CarrierModal({
             />
             <Field label="Email Address" type="email" value={form.email} onChange={(v) => set("email", v)} />
             <Field label="WhatsApp Number" placeholder="+971 50 000 0000" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} />
+
+            {/* CC Emails */}
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
+                CC Emails
+                <span className="ml-1.5 font-normal text-[#94A3B8]">— copied on every carrier email</span>
+              </label>
+              <div className="space-y-2">
+                {(form.ccEmails ?? []).map((email, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="flex-1 truncate rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm text-[#0F172A] dark:border-[#1E3A5F] dark:bg-[#0D1B2A]/60 dark:text-[#E2E8F0]">
+                      {email}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeCcEmail(i)}
+                      aria-label="Remove CC email"
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-[#E2E8F0] text-[#94A3B8] transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-500 dark:border-[#1E3A5F] dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="cc@example.com"
+                    value={ccEmailInput}
+                    onChange={(e) => setCcEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); addCcEmail() }
+                    }}
+                    className="h-10 flex-1 rounded-md border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCcEmail}
+                    disabled={!ccEmailInput.trim()}
+                    className="flex h-10 items-center gap-1.5 rounded-md border border-[#E2E8F0] px-3 text-sm font-medium text-[#64748B] transition-colors hover:border-[#F97316]/40 hover:text-[#F97316] disabled:opacity-40 dark:border-[#1E3A5F] dark:text-[#94A3B8]"
+                  >
+                    <Plus className="h-4 w-4" /> Add
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="sm:col-span-2">
               <p className="mb-1.5 text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Modes</p>
