@@ -3,19 +3,14 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Activity, Building2, FileText, LayoutDashboard, LogOut, Mail, Pin, PinOff, Settings } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-import { currentUser, requests } from "@/lib/portal-data"
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase"
 
-const pendingCount = requests.filter((r) => r.status === "Pending").length
-
-const nav = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Requests", href: "/requests", icon: FileText, badge: pendingCount },
-  { label: "Carriers", href: "/carriers", icon: Building2 },
-  { label: "Templates", href: "/templates", icon: Mail },
-  { label: "Activity Log", href: "/activity", icon: Activity },
-  { label: "Settings", href: "/settings", icon: Settings },
-]
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
 
 export function PortalSidebar({
   expanded,
@@ -29,12 +24,71 @@ export function PortalSidebar({
   onHover: (v: boolean) => void
 }) {
   const pathname = usePathname()
-  const router = useRouter()
+  const router   = useRouter()
+
+  const [pendingCount, setPendingCount] = useState<number>(0)
+  const [displayName, setDisplayName]   = useState<string>("")
+  const [userEmail, setUserEmail]       = useState<string>("")
+
+  // ── Username from sessionStorage ─────────────────────────────
+  useEffect(() => {
+    try {
+      setDisplayName(sessionStorage.getItem("portal_username") ?? "")
+    } catch { /* */ }
+  }, [])
+
+  // ── Auth email from Supabase session ─────────────────────────
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.email) setUserEmail(data.user.email)
+    })
+  }, [])
+
+  // ── Live pending count ────────────────────────────────────────
+  useEffect(() => {
+    const supabase = createClient()
+
+    async function fetchPending() {
+      const { count } = await supabase
+        .from("freight_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Pending")
+      setPendingCount(count ?? 0)
+    }
+
+    fetchPending()
+
+    // Keep badge in sync with realtime inserts/updates
+    const channel = supabase
+      .channel("sidebar_pending")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "freight_requests" },
+        () => { fetchPending() },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  const nav = [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Requests",  href: "/requests",  icon: FileText, badge: pendingCount },
+    { label: "Carriers",  href: "/carriers",  icon: Building2 },
+    { label: "Templates", href: "/templates", icon: Mail },
+    { label: "Activity Log", href: "/activity", icon: Activity },
+    { label: "Settings",  href: "/settings",  icon: Settings },
+  ]
 
   async function handleLogout() {
+    const supabase = createClient()
     await supabase.auth.signOut()
+    try { sessionStorage.clear() } catch { /* */ }
     router.push("/login")
   }
+
+  const avatarInitials = displayName ? initials(displayName) : "—"
 
   return (
     <aside
@@ -136,12 +190,12 @@ export function PortalSidebar({
       <div className="shrink-0 border-t border-white/5 p-2">
         {expanded ? (
           <div className="flex items-center gap-3 rounded px-2 py-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#1E3A5F] text-sm font-semibold text-white">
-              {currentUser.initials}
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#1E3A5F] text-xs font-bold text-white">
+              {avatarInitials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-[#E2E8F0]">{currentUser.name}</p>
-              <p className="truncate text-xs text-[#475569]">{currentUser.email}</p>
+              <p className="truncate text-sm font-semibold text-[#E2E8F0]">{displayName || "—"}</p>
+              <p className="truncate text-xs text-[#475569]">{userEmail}</p>
             </div>
             <button
               onClick={handleLogout}
@@ -155,10 +209,10 @@ export function PortalSidebar({
           <div className="flex w-full justify-center py-1">
             <button
               onClick={handleLogout}
-              title={`${currentUser.name} — Log out`}
-              className="flex h-8 w-8 items-center justify-center rounded bg-[#1E3A5F] text-sm font-semibold text-white transition-colors hover:bg-[#F97316]/20 hover:text-red-400"
+              title={`${displayName} — Log out`}
+              className="flex h-8 w-8 items-center justify-center rounded bg-[#1E3A5F] text-xs font-bold text-white transition-colors hover:bg-[#F97316]/20 hover:text-red-400"
             >
-              {currentUser.initials}
+              {avatarInitials}
             </button>
           </div>
         )}
