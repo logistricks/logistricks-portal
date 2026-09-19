@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
-import { ConfidenceBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
+import { AogBadge, ConfidenceBadge, DgrBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
 import { Select } from "@/components/portal/select"
 import { type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
@@ -75,7 +75,7 @@ export default function RequestsPage() {
 
   // ── Filters ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    return requests.filter((r) => {
+    const base = requests.filter((r) => {
       if (statusFilter !== "All" && r.status !== statusFilter) return false
       if (sourceFilter !== "All Sources" && r.source !== sourceFilter) return false
       if (search) {
@@ -84,6 +84,13 @@ export default function RequestsPage() {
         if (!hay.includes(q)) return false
       }
       return true
+    })
+    // AOG always first, then DGR-only, then the rest — within each tier sort by received date
+    return base.sort((a, b) => {
+      const scoreA = (a.aog ? 2 : 0) + (a.dgr ? 1 : 0)
+      const scoreB = (b.aog ? 2 : 0) + (b.dgr ? 1 : 0)
+      if (scoreB !== scoreA) return scoreB - scoreA
+      return 0 // preserve server order (newest first)
     })
   }, [requests, statusFilter, sourceFilter, search])
 
@@ -182,6 +189,7 @@ export default function RequestsPage() {
                 <th className="px-4 py-3 font-semibold">Cargo</th>
                 <th className="px-4 py-3 font-semibold">Received</th>
                 <th className="px-4 py-3 font-semibold">Confidence</th>
+                <th className="px-4 py-3 font-semibold">Flags</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
@@ -190,7 +198,7 @@ export default function RequestsPage() {
               {filtered.map((r, i) => (
                 <tr key={r.id} onClick={() => setActive(r)}
                   className={`cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[#FFF7ED] dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${
-                    i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-white dark:bg-[#111E33]"
+                    r.aog ? "bg-red-50/60 dark:bg-red-950/20 border-l-2 border-l-red-500" : i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-white dark:bg-[#111E33]"
                   }`}>
                   <td className="px-4 py-3">
                     <input type="checkbox" aria-label={`Select ${r.senderName}`}
@@ -215,6 +223,12 @@ export default function RequestsPage() {
                     {r.receivedRelative}
                   </td>
                   <td className="px-4 py-3"><ConfidenceBadge confidence={r.confidence} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {r.aog && <AogBadge />}
+                      {r.dgr && <DgrBadge />}
+                    </div>
+                  </td>
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                   <td className="px-4 py-3">
                     <button onClick={(e) => { e.stopPropagation(); setActive(r) }}
@@ -251,7 +265,14 @@ export default function RequestsPage() {
       </div>
 
       {active && (
-        <RequestDetailModal request={active} onClose={() => setActive(null)} />
+        <RequestDetailModal
+          request={active}
+          onClose={() => setActive(null)}
+          onFlagChange={(id, aog, dgr) => {
+            setRequests((prev) => prev.map((r) => r.id === id ? { ...r, aog, dgr } : r))
+            setActive((prev) => prev && prev.id === id ? { ...prev, aog, dgr } : prev)
+          }}
+        />
       )}
     </div>
   )

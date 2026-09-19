@@ -138,6 +138,8 @@ export type FreightRequest = {
   missingFields: string[]
   suggestedReply: string | null
   rawMessage: string
+  aog: boolean
+  dgr: boolean
   history: StatusEvent[]
 }
 

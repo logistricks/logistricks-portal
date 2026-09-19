@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react"
 import { AlertTriangle, Check, Copy, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import {
+  AogBadge,
   ConfidenceBadge,
+  DgrBadge,
   ModeBadge,
   SourceBadge,
   StatusBadge,
@@ -77,11 +79,15 @@ const FIELD_MAP: Record<string, { getValue: (r: FreightRequest) => string | null
 export function RequestDetailModal({
   request,
   onClose,
+  role,
+  onFlagChange,
   requireCriticalData = false,
   criticalFields = [],
 }: {
   request: FreightRequest
   onClose: () => void
+  role?: "admin" | "operator" | "viewer"
+  onFlagChange?: (id: string, aog: boolean, dgr: boolean) => void
   requireCriticalData?: boolean
   criticalFields?: string[]
 }) {
@@ -95,6 +101,12 @@ export function RequestDetailModal({
   const [sendTo, setSendTo]         = useState("")
   const [messageBody, setMessageBody] = useState("")
   const [onlyCritical, setOnlyCritical] = useState(requireCriticalData)
+
+  // AOG / DGR flag state – initialized from props, updated locally after PATCH
+  const [aogLocal, setAogLocal]           = useState(request.aog)
+  const [dgrLocal, setDgrLocal]           = useState(request.dgr)
+  const [flagSaving, setFlagSaving]       = useState(false)
+  const [effectiveRole, setEffectiveRole] = useState<string | undefined>(role)
 
   const sendPanelRef = useRef<HTMLDivElement>(null)
 
@@ -122,6 +134,38 @@ export function RequestDetailModal({
       setTimeout(() => sendPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
     }
   }, [sendMethod])
+
+  useEffect(() => {
+    if (!effectiveRole) {
+      try {
+        const r = sessionStorage.getItem("portal_role")
+        if (r) setEffectiveRole(r)
+      } catch { /* */ }
+    }
+  }, [effectiveRole])
+
+  const canEditFlags = effectiveRole === "admin" || effectiveRole === "operator"
+
+  async function toggleFlag(flag: "aog" | "dgr") {
+    if (flagSaving) return
+    setFlagSaving(true)
+    const newAog = flag === "aog" ? !aogLocal : aogLocal
+    const newDgr = flag === "dgr" ? !dgrLocal : dgrLocal
+    try {
+      const res = await fetch("/api/requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: request.id, ...(flag === "aog" ? { aog: newAog } : { dgr: newDgr }) }),
+      })
+      if (res.ok) {
+        if (flag === "aog") setAogLocal(newAog)
+        else setDgrLocal(newDgr)
+        onFlagChange?.(request.id, newAog, newDgr)
+      }
+    } catch { /* */ } finally {
+      setFlagSaving(false)
+    }
+  }
 
   // Carriers filtered by mode (Email only), active only
   const availableCarriersForEmail = carriers.filter((c) => {
@@ -419,6 +463,60 @@ export function RequestDetailModal({
                     </li>
                   ))}
                 </ol>
+              </section>
+
+              {/* AOG / DGR Flags */}
+              <section>
+                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Special Flags</h4>
+                <div className="space-y-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <AogBadge />
+                      <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Aircraft on Ground</span>
+                    </div>
+                    {canEditFlags ? (
+                      <button
+                        type="button"
+                        disabled={flagSaving}
+                        onClick={() => toggleFlag("aog")}
+                        aria-pressed={aogLocal}
+                        aria-label="Toggle AOG flag"
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:opacity-50 ${
+                          aogLocal ? "bg-red-600" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"
+                        }`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${aogLocal ? "translate-x-6" : "translate-x-1"}`} />
+                      </button>
+                    ) : (
+                      <span className={`text-xs font-bold ${aogLocal ? "text-red-600" : "text-[#94A3B8]"}`}>{aogLocal ? "YES" : "NO"}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <DgrBadge />
+                      <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Dangerous Goods</span>
+                    </div>
+                    {canEditFlags ? (
+                      <button
+                        type="button"
+                        disabled={flagSaving}
+                        onClick={() => toggleFlag("dgr")}
+                        aria-pressed={dgrLocal}
+                        aria-label="Toggle DGR flag"
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 disabled:opacity-50 ${
+                          dgrLocal ? "bg-orange-500" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"
+                        }`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${dgrLocal ? "translate-x-6" : "translate-x-1"}`} />
+                      </button>
+                    ) : (
+                      <span className={`text-xs font-bold ${dgrLocal ? "text-orange-500" : "text-[#94A3B8]"}`}>{dgrLocal ? "YES" : "NO"}</span>
+                    )}
+                  </div>
+                  {canEditFlags && (
+                    <p className="text-[11px] text-[#94A3B8]">Auto-detected from keywords. Toggle to override.</p>
+                  )}
+                </div>
               </section>
             </div>
           </div>

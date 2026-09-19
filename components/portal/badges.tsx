@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, Mic } from "lucide-react"
+import { Mail, MessageCircle, Mic, Plane, TriangleAlert } from "lucide-react"
 import type { Confidence, Mode, RequestStatus, Source } from "@/lib/portal-data"
 
 export function SourceBadge({ source }: { source: Source }) {
@@ -61,6 +61,24 @@ export function UrgencyBadge({ urgency }: { urgency: "Standard" | "Urgent" }) {
       }`}
     >
       {urgency}
+    </span>
+  )
+}
+
+export function AogBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+      <Plane className="h-3 w-3" aria-hidden="true" />
+      AOG
+    </span>
+  )
+}
+
+export function DgrBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+      <TriangleAlert className="h-3 w-3" aria-hidden="true" />
+      DGR
     </span>
   )
 }

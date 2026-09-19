@@ -56,3 +56,42 @@ export async function GET(req: NextRequest) {
   const requests = (data as DbFreightRequest[]).map(mapDbToRequest)
   return NextResponse.json(requests)
 }
+
+export async function PATCH(req: NextRequest) {
+  const sessionCookie = req.cookies.get("portal_session")?.value
+  if (!sessionCookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const session = getSession(sessionCookie)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = await req.json().catch(() => ({}))
+  const { id, aog, dgr } = body as { id?: string; aog?: boolean; dgr?: boolean }
+
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
+
+  const patch: Record<string, unknown> = {}
+  if (typeof aog === "boolean") patch.aog = aog
+  if (typeof dgr === "boolean") patch.dgr = dgr
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: "No valid fields provided" }, { status: 400 })
+  }
+
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  )
+
+  const { error } = await admin
+    .from("freight_requests")
+    .update(patch)
+    .eq("id", id)
+    .eq("client_code", session.clientCode)
+
+  if (error) {
+    console.error("[api/requests PATCH]", error.message)
+    return NextResponse.json({ error: "Database error" }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
+}

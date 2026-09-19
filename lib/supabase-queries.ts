@@ -42,6 +42,8 @@ export interface DbFreightRequest {
   availability_questions: string[]
   missing_fields: string[]
   suggested_reply: string | null
+  aog: boolean
+  dgr: boolean
   history: { label: string; time: string; done: boolean }[]
   created_at: string
   updated_at: string
@@ -262,6 +264,8 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     missingFields:     Array.isArray(row.missing_fields)           ? row.missing_fields           as string[] : [],
     suggestedReply:    row.suggested_reply ?? null,
     rawMessage:        row.raw_message     ?? "",
+    aog:               row.aog             ?? false,
+    dgr:               row.dgr             ?? false,
     history:           Array.isArray(row.history) && row.history.length > 0
                          ? row.history as FreightRequest["history"]
                          : buildDefaultHistory(row.status),
