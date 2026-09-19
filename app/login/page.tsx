@@ -45,7 +45,10 @@ export default function LoginPage() {
       }
 
       // Store display name for sidebar avatar (non-sensitive)
-      try { sessionStorage.setItem("portal_username", username.trim()) } catch { /* */ }
+      try {
+        sessionStorage.setItem("portal_username", username.trim())
+        sessionStorage.setItem("portal_client_code", clientCode.trim())
+      } catch { /* */ }
 
       // Cookie is set by the server (HTTP-only) — just navigate
       router.push("/dashboard")

@@ -262,10 +262,23 @@ export default function SettingsPage() {
 
   // ── Load ────────────────────────────────────────────────
   useEffect(() => {
-    const cc = sessionStorage.getItem("portal_client_code") ?? ""
-    setClientCode(cc)
+    async function init() {
+      // Try sessionStorage first (set at login); fall back to /api/me for existing sessions
+      let cc = ""
+      try { cc = sessionStorage.getItem("portal_client_code") ?? "" } catch { /* */ }
+      if (!cc) {
+        try {
+          const res = await fetch("/api/me")
+          if (res.ok) {
+            const data = await res.json()
+            cc = data.clientCode ?? ""
+            try { sessionStorage.setItem("portal_client_code", cc) } catch { /* */ }
+          }
+        } catch { /* */ }
+      }
+      setClientCode(cc)
 
-    supabase.from("client_receiver_emails")
+      supabase.from("client_receiver_emails")
       .select("id, r_mail, active, label")
       .eq("client_code", cc).order("created_at")
       .then(({ data }) => { setEmails(data ?? []); setEmailsLoading(false) })
@@ -287,6 +300,8 @@ export default function SettingsPage() {
         }
         setFlagsLoading(false)
       })
+    }
+    init()
   }, [])
 
   // ── Email actions ────────────────────────────────────────
