@@ -1,7 +1,8 @@
 /**
  * app/api/users/route.ts
  * CRUD for portal_users — scoped to the caller's client_code.
- * Only admin-role users may modify other users.
+ * Roles: admin | operator | viewer
+ * DELETE soft-deletes (is_active = false) — never hard-deletes.
  */
 
 import { NextResponse, type NextRequest } from "next/server"
@@ -9,7 +10,7 @@ import { createClient }                    from "@supabase/supabase-js"
 import { createHash, createHmac }          from "crypto"
 import { logActivity }                     from "@/lib/log-activity"
 
-// ── Auth helpers (same pattern as all other API routes) ──────────────────────
+// ── Auth helpers ─────────────────────────────────────────────────────────────
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
@@ -44,19 +45,33 @@ function auth(req: NextRequest): { username: string; clientCode: string } | null
   return getSession(cookie)
 }
 
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password).digest("hex")
+function hashPassword(p: string): string {
+  return createHash("sha256").update(p).digest("hex")
 }
 
-// ── GET — list all users for this client ────────────────────────────────────
+function validRole(r: unknown): r is "admin" | "operator" | "viewer" {
+  return r === "admin" || r === "operator" || r === "viewer"
+}
+
+// ── GET — list all users for this client (admin only) ────────────────────────
 
 export async function GET(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data, error } = await admin()
+  const db = admin()
+  const { data: caller } = await db
     .from("portal_users")
-    .select("id, username, display_name, auth_email, role, is_active, created_at")
+    .select("role")
+    .eq("client_code", session.clientCode)
+    .eq("username", session.username)
+    .maybeSingle()
+  if (caller?.role !== "admin")
+    return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 })
+
+  const { data, error } = await db
+    .from("portal_users")
+    .select("id, username, display_name, auth_email, role, is_active, allowed_carriers, allowed_modes, created_at")
     .eq("client_code", session.clientCode)
     .order("created_at", { ascending: true })
 
@@ -71,8 +86,6 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const db = admin()
-
-  // Only admins may create users
   const { data: caller } = await db
     .from("portal_users")
     .select("role")
@@ -85,11 +98,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
 
-  const username: string     = (body.username ?? "").toLowerCase().trim()
-  const password: string     = body.password ?? ""
-  const display_name: string = body.display_name?.trim() ?? ""
-  const auth_email: string   = body.auth_email?.trim() ?? ""
-  const role: string         = body.role === "admin" ? "admin" : "operator"
+  const username: string          = (body.username ?? "").toLowerCase().trim()
+  const password: string          = body.password ?? ""
+  const display_name: string      = body.display_name?.trim() ?? ""
+  const auth_email: string        = body.auth_email?.trim() ?? ""
+  const role                      = validRole(body.role) ? body.role : "operator"
+  const allowed_carriers: string[] = Array.isArray(body.allowed_carriers) ? body.allowed_carriers : []
+  const allowed_modes: string[]    = Array.isArray(body.allowed_modes)    ? body.allowed_modes    : []
 
   if (!username || username.length > 15)
     return NextResponse.json({ error: "username required (max 15 chars)" }, { status: 400 })
@@ -97,13 +112,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "password must be at least 6 characters" }, { status: 400 })
 
   const { error } = await db.from("portal_users").insert({
-    client_code:   session.clientCode,
+    client_code:      session.clientCode,
     username,
-    display_name:  display_name || username,
+    display_name:     display_name || username,
     auth_email,
     role,
-    is_active:     true,
-    password_hash: hashPassword(password),
+    is_active:        true,
+    allowed_carriers,
+    allowed_modes,
+    password_hash:    hashPassword(password),
   })
 
   if (error) {
@@ -123,15 +140,13 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true }, { status: 201 })
 }
 
-// ── PATCH — update display_name / role / is_active / password ───────────────
+// ── PATCH — update user fields ───────────────────────────────────────────────
 
 export async function PATCH(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const db = admin()
-
-  // Fetch caller role
   const { data: caller } = await db
     .from("portal_users")
     .select("role")
@@ -146,34 +161,36 @@ export async function PATCH(req: NextRequest) {
 
   const targetUsername: string = body.username
 
-  // Non-admins can only update their own password
   if (!isAdmin && targetUsername !== session.username)
     return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 })
 
   const patch: Record<string, unknown> = {}
-  if (isAdmin && body.display_name !== undefined) patch.display_name = body.display_name
-  if (isAdmin && body.role         !== undefined) patch.role         = body.role === "admin" ? "admin" : "operator"
-  if (isAdmin && body.is_active    !== undefined) patch.is_active    = body.is_active
+  if (isAdmin && body.display_name      !== undefined) patch.display_name      = body.display_name
+  if (isAdmin && body.auth_email        !== undefined) patch.auth_email        = body.auth_email
+  if (isAdmin && validRole(body.role))                 patch.role              = body.role
+  if (isAdmin && body.is_active         !== undefined) patch.is_active         = body.is_active
+  if (isAdmin && Array.isArray(body.allowed_carriers)) patch.allowed_carriers  = body.allowed_carriers
+  if (isAdmin && Array.isArray(body.allowed_modes))    patch.allowed_modes     = body.allowed_modes
 
   if (body.password !== undefined) {
-    if (body.password.length < 6)
+    if ((body.password as string).length < 6)
       return NextResponse.json({ error: "password must be at least 6 characters" }, { status: 400 })
-    patch.password_hash = hashPassword(body.password)
+    patch.password_hash = hashPassword(body.password as string)
   }
 
   if (Object.keys(patch).length === 0)
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
 
-  // Guard: cannot demote or deactivate yourself
+  // Self-protection guards
   if (targetUsername === session.username) {
-    if (patch.role === "operator")
+    if (patch.role === "operator" || patch.role === "viewer")
       return NextResponse.json({ error: "Cannot change your own role" }, { status: 400 })
     if (patch.is_active === false)
       return NextResponse.json({ error: "Cannot deactivate your own account" }, { status: 400 })
   }
 
-  // Guard: cannot remove the last active admin
-  if (patch.is_active === false || patch.role === "operator") {
+  // Last-admin guard
+  if (patch.is_active === false || patch.role === "operator" || patch.role === "viewer") {
     const { count } = await db
       .from("portal_users")
       .select("id", { count: "exact", head: true })
@@ -204,7 +221,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true })
 }
 
-// ── DELETE — remove a user (cannot delete self or last admin) ───────────────
+// ── DELETE — soft-delete (deactivate); never hard-deletes ────────────────────
 
 export async function DELETE(req: NextRequest) {
   const session = auth(req)
@@ -226,9 +243,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "username required" }, { status: 400 })
 
   if (targetUsername === session.username)
-    return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 })
+    return NextResponse.json({ error: "Cannot deactivate your own account" }, { status: 400 })
 
-  // Guard: last active admin
+  // Last-admin guard
   const { data: targetUser } = await db
     .from("portal_users")
     .select("role, is_active, display_name")
@@ -244,12 +261,13 @@ export async function DELETE(req: NextRequest) {
       .eq("role", "admin")
       .eq("is_active", true)
     if ((count ?? 0) <= 1)
-      return NextResponse.json({ error: "Cannot delete the last active admin" }, { status: 400 })
+      return NextResponse.json({ error: "Cannot deactivate the last active admin" }, { status: 400 })
   }
 
+  // Soft-delete: deactivate only, never hard-delete
   const { error } = await db
     .from("portal_users")
-    .delete()
+    .update({ is_active: false })
     .eq("client_code", session.clientCode)
     .eq("username", targetUsername)
 
@@ -257,9 +275,9 @@ export async function DELETE(req: NextRequest) {
 
   await logActivity({
     clientCode:  session.clientCode,
-    eventType:   "user_deleted",
+    eventType:   "user_deactivated",
     actor:       session.username,
-    description: `Deleted user "${targetUsername}"`,
+    description: `Deactivated user "${targetUsername}"`,
     meta: { username: targetUsername },
   })
 
