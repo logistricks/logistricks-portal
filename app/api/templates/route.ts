@@ -235,6 +235,35 @@ export async function PATCH(req: NextRequest) {
   const patch: Record<string, unknown> = {}
   if (body.active !== undefined) patch.active = body.active
 
+  // is_reply_template: only one per client — unset all others first
+  if (body.is_reply_template !== undefined) {
+    const db = admin()
+    if (body.is_reply_template) {
+      // Unset any existing reply template for this client
+      await db
+        .from("templates")
+        .update({ is_reply_template: false })
+        .eq("client_code", session.clientCode)
+        .eq("is_reply_template", true)
+      // Set the new one
+      const { error } = await db
+        .from("templates")
+        .update({ is_reply_template: true })
+        .eq("client_code", session.clientCode)
+        .eq("template_id", body.template_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else {
+      // Just unset this one
+      const { error } = await db
+        .from("templates")
+        .update({ is_reply_template: false })
+        .eq("client_code", session.clientCode)
+        .eq("template_id", body.template_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true })
+  }
+
   if (Object.keys(patch).length === 0)
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
 

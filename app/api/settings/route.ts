@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await admin()
     .from("clients")
-    .select("allow_auto_send_to_carrier, require_critical_data, critical_fields")
+    .select("allow_auto_send_to_carrier, require_critical_data, critical_fields, auto_reply_enabled, auto_reply_delay_min")
     .eq("client_code", session.clientCode)
     .single()
 
@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}))
-  const allowed = ["allow_auto_send_to_carrier", "require_critical_data", "critical_fields"]
+  const allowed = ["allow_auto_send_to_carrier", "require_critical_data", "critical_fields", "auto_reply_enabled", "auto_reply_delay_min"]
   const patch: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) patch[key] = body[key]

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Check, Copy, Loader2, Mail, MessageCircle, Pencil, Plus, Star, Trash2 } from "lucide-react"
+import { Check, Copy, Loader2, Mail, MessageCircle, MessageSquareReply, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { TemplateEditor } from "@/components/portal/template-editor"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 
@@ -18,6 +18,7 @@ function rowToTemplate(row: TemplateRow): Template {
     body:               row.body,
     linked_carrier_ids: row.linked_carrier_ids,
     is_default:         row.is_default,
+    is_reply_template:  row.is_reply_template,
     active:             row.active,
     updated_at:         row.updated_at,
   }
@@ -122,6 +123,22 @@ export default function TemplatesPage() {
     }
   }
 
+  async function handleSetReplyTemplate(t: Template) {
+    // Optimistic: mark this one, unmark all others
+    setList((l) => l.map((x) => ({ ...x, is_reply_template: x.template_id === t.template_id ? !t.is_reply_template : false })))
+    try {
+      const res = await fetch("/api/templates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: t.template_id, is_reply_template: !t.is_reply_template }),
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setList((l) => l.map((x) => ({ ...x, is_reply_template: x.template_id === t.template_id ? t.is_reply_template : x.is_reply_template })))
+    }
+  }
+
   function openNew(type: "Email" | "WhatsApp" = "Email") {
     setEditing({
       row_id:             0,
@@ -132,6 +149,7 @@ export default function TemplatesPage() {
       body:               "",
       linked_carrier_ids: [],
       is_default:         false,
+      is_reply_template:  false,
       active:             true,
       updated_at:         new Date().toISOString(),
     })
@@ -190,11 +208,18 @@ export default function TemplatesPage() {
                 >
                   {t.type === "Email" ? <Mail className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
                 </span>
-                {t.is_default && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-xs font-medium text-[#F97316] dark:bg-[#F97316]/10">
-                    <Star className="h-3 w-3 fill-[#F97316]" /> Default
-                  </span>
-                )}
+                <div className="flex flex-col items-end gap-1">
+                  {t.is_default && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-xs font-medium text-[#F97316] dark:bg-[#F97316]/10">
+                      <Star className="h-3 w-3 fill-[#F97316]" /> Default
+                    </span>
+                  )}
+                  {t.is_reply_template && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-blue-500/20 dark:text-blue-300">
+                      <MessageSquareReply className="h-3 w-3" /> Auto-reply
+                    </span>
+                  )}
+                </div>
               </div>
 
               <h3 className="mt-3 font-semibold text-[#0D1B2A] dark:text-white">{t.template_name}</h3>
@@ -223,6 +248,14 @@ export default function TemplatesPage() {
                     <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${t.active ? "translate-x-4" : "translate-x-0"}`} />
                   </button>
                   <div className="flex items-center gap-1">
+                  <button
+                    aria-label={t.is_reply_template ? "Remove as auto-reply template" : "Set as auto-reply template"}
+                    title={t.is_reply_template ? "Remove as auto-reply template" : "Set as auto-reply template"}
+                    onClick={() => handleSetReplyTemplate(t)}
+                    className={`rounded-md p-1.5 transition-colors ${t.is_reply_template ? "bg-blue-50 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300" : "text-[#64748B] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-500/10"}`}
+                  >
+                    <MessageSquareReply className="h-4 w-4" />
+                  </button>
                   <button
                     aria-label="Edit"
                     onClick={() => { setEditing(t); setEditorOpen(true) }}

@@ -172,6 +172,11 @@ export default function SettingsPage() {
   const [requireCritBusy, setRequireCritBusy] = useState(false)
   const [showPicker, setShowPicker]           = useState(false)
 
+  // ── Auto-reply ───────────────────────────────────────────
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false)
+  const [autoReplyDelay, setAutoReplyDelay]     = useState(0)
+  const [autoReplyBusy, setAutoReplyBusy]       = useState(false)
+
   const [error, setError] = useState<string | null>(null)
 
   // ── Load ─────────────────────────────────────────────────
@@ -193,6 +198,8 @@ export default function SettingsPage() {
           setAutoSend(data.allow_auto_send_to_carrier ?? false)
           setRequireCritical(data.require_critical_data ?? false)
           setCriticalFields(data.critical_fields ?? [])
+          setAutoReplyEnabled(data.auto_reply_enabled ?? false)
+          setAutoReplyDelay(data.auto_reply_delay_min ?? 0)
         }
         setFlagsLoading(false)
       })
@@ -310,6 +317,30 @@ export default function SettingsPage() {
   }
 
   // ── Render ────────────────────────────────────────────────
+  async function toggleAutoReply() {
+    setAutoReplyBusy(true); setError(null)
+    const next = !autoReplyEnabled
+    setAutoReplyEnabled(next)
+    const res = await fetch("/api/settings", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_reply_enabled: next }),
+    })
+    if (!res.ok) { setError((await res.json()).error ?? "Failed"); setAutoReplyEnabled(!next) }
+    setAutoReplyBusy(false)
+  }
+
+  async function saveAutoReplyDelay(val: number) {
+    setAutoReplyBusy(true); setError(null)
+    const clamped = Math.min(60, Math.max(0, val))
+    setAutoReplyDelay(clamped)
+    const res = await fetch("/api/settings", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_reply_delay_min: clamped }),
+    })
+    if (!res.ok) setError((await res.json()).error ?? "Failed")
+    setAutoReplyBusy(false)
+  }
+
   return (
     <div className="p-6 max-w-2xl">
       <h1 className="mb-1 text-xl font-bold text-[#0D1B2A] dark:text-white">Settings</h1>
@@ -428,6 +459,43 @@ export default function SettingsPage() {
                   )}
                 </div>
               )} />
+          </div>
+        )}
+      </Section>
+
+      {/* ── Auto-Reply ── */}
+      <Section icon={<MessageCircle className="h-4 w-4" />} title="Auto-Reply"
+        description="Automatically acknowledge senders when a request arrives, using a reply template from your Templates library.">
+        {flagsLoading ? (
+          <div className="flex items-center gap-2 py-4 text-sm text-[#475569]"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+        ) : (
+          <div className="space-y-4">
+            <ToggleRow
+              label="Enable auto-reply"
+              description="Sends an automatic acknowledgement email to the sender when a new request is received. Select the template to use in the Templates library."
+              checked={autoReplyEnabled} busy={autoReplyBusy} onToggle={toggleAutoReply} />
+            {autoReplyEnabled && (
+              <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] p-3 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+                  Reply delay (minutes)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={0} max={60} step={1}
+                    value={autoReplyDelay}
+                    onChange={(e) => setAutoReplyDelay(Number(e.target.value))}
+                    onBlur={(e) => saveAutoReplyDelay(Number(e.target.value))}
+                    className="h-9 w-24 rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0F1E33] dark:text-[#E2E8F0]"
+                  />
+                  <span className="text-sm text-[#64748B]">0 = instant</span>
+                  {autoReplyBusy && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#F97316]" />}
+                </div>
+                <p className="mt-2 text-xs text-[#94A3B8]">
+                  0–60 minutes. The n8n Wait node applies this delay before sending.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </Section>
