@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, Building2, FileText, LayoutDashboard, LogOut, Mail, Pin, PinOff, Settings } from "lucide-react"
+import { Activity, Building2, FileText, LayoutDashboard, LogOut, Mail, Pin, PinOff, Settings, Users } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 function initials(name: string): string {
@@ -60,6 +60,7 @@ export function PortalSidebar({
     { label: "Carriers",  href: "/carriers",  icon: Building2 },
     { label: "Templates", href: "/templates", icon: Mail },
     { label: "Activity Log", href: "/activity", icon: Activity },
+    { label: "Users",        href: "/users",    icon: Users },
     { label: "Settings",  href: "/settings",  icon: Settings },
   ]
 

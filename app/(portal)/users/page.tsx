@@ -1,0 +1,625 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import {
+  Check,
+  KeyRound,
+  Loader2,
+  Pencil,
+  Plus,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+  UserMinus,
+  Users,
+  X,
+} from "lucide-react"
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type User = {
+  id: string
+  username: string
+  display_name: string
+  auth_email: string
+  role: "admin" | "operator"
+  is_active: boolean
+  created_at: string
+}
+
+type Modal =
+  | { kind: "add" }
+  | { kind: "edit"; user: User }
+  | { kind: "password"; user: User }
+  | { kind: "confirmDelete"; user: User }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+function RoleBadge({ role }: { role: "admin" | "operator" }) {
+  return role === "admin" ? (
+    <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold bg-[#F97316]/15 text-[#F97316]">
+      <ShieldCheck className="h-3 w-3" />
+      Admin
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold bg-[var(--badge-bg)] text-[var(--badge-fg)]">
+      <Shield className="h-3 w-3" />
+      Operator
+    </span>
+  )
+}
+
+// ── Toggle switch ─────────────────────────────────────────────────────────────
+
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean
+  onChange: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F97316] disabled:cursor-not-allowed disabled:opacity-40 ${
+        checked ? "bg-[#F97316]" : "bg-[var(--toggle-off)]"
+      }`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-[18px]" : "translate-x-[3px]"
+        }`}
+      />
+    </button>
+  )
+}
+
+// ── Add / Edit User Modal ────────────────────────────────────────────────────
+
+function UserFormModal({
+  mode,
+  user,
+  currentUsername,
+  onClose,
+  onSaved,
+}: {
+  mode: "add" | "edit"
+  user?: User
+  currentUsername: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [username, setUsername]       = useState(user?.username ?? "")
+  const [displayName, setDisplayName] = useState(user?.display_name ?? "")
+  const [authEmail, setAuthEmail]     = useState(user?.auth_email ?? "")
+  const [role, setRole]               = useState<"admin" | "operator">(user?.role ?? "operator")
+  const [password, setPassword]       = useState("")
+  const [saving, setSaving]           = useState(false)
+  const [error, setError]             = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    setSaving(true)
+    try {
+      if (mode === "add") {
+        const res = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, display_name: displayName, auth_email: authEmail, role, password }),
+        })
+        const data = await res.json()
+        if (!res.ok) { setError(data.error ?? `Error ${res.status}`); return }
+      } else {
+        const body: Record<string, unknown> = { username: user!.username, display_name: displayName, auth_email: authEmail, role }
+        if (password) body.password = password
+        const res = await fetch("/api/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        const data = await res.json()
+        if (!res.ok) { setError(data.error ?? `Error ${res.status}`); return }
+      }
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isSelf = user?.username === currentUsername
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-[var(--modal-bg)] shadow-2xl border border-[var(--border)]">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            {mode === "add" ? "Add User" : "Edit User"}
+          </h2>
+          <button onClick={onClose} className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          {mode === "add" && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Username <span className="text-red-400">*</span></label>
+              <input
+                value={username}
+                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 15))}
+                required
+                placeholder="e.g. john_doe"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+              />
+              <p className="mt-1 text-[11px] text-[var(--text-muted)]">Lowercase letters, numbers, underscores — max 15 chars</p>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Display Name</label>
+            <input
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              placeholder="Full name or nickname"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Email (optional)</label>
+            <input
+              value={authEmail}
+              onChange={e => setAuthEmail(e.target.value)}
+              type="email"
+              placeholder="user@example.com"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Role</label>
+            <div className="flex gap-3">
+              {(["operator", "admin"] as const).map(r => (
+                <label
+                  key={r}
+                  className={`flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors ${
+                    role === r
+                      ? "border-[#F97316] bg-[#F97316]/10"
+                      : "border-[var(--border)] hover:bg-[var(--hover-bg)]"
+                  } ${isSelf && r !== user?.role ? "cursor-not-allowed opacity-50" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={r}
+                    checked={role === r}
+                    onChange={() => !isSelf && setRole(r)}
+                    disabled={isSelf}
+                    className="hidden"
+                  />
+                  {r === "admin" ? <ShieldCheck className="h-4 w-4 text-[#F97316]" /> : <Shield className="h-4 w-4 text-[var(--text-muted)]" />}
+                  <div>
+                    <p className={`text-xs font-semibold ${role === r ? "text-[#F97316]" : "text-[var(--text-primary)]"}`}>
+                      {r === "admin" ? "Admin" : "Operator"}
+                    </p>
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      {r === "admin" ? "Full access" : "Standard access"}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {isSelf && <p className="mt-1 text-[11px] text-[var(--text-muted)]">You cannot change your own role.</p>}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">
+              {mode === "add" ? <>Password <span className="text-red-400">*</span></> : "New Password (leave blank to keep current)"}
+            </label>
+            <input
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              type="password"
+              required={mode === "add"}
+              placeholder={mode === "add" ? "Min 6 characters" : "Leave blank to keep current"}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+            />
+          </div>
+
+          {error && (
+            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA6C0A] disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {mode === "add" ? "Create User" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Confirm Delete Modal ──────────────────────────────────────────────────────
+
+function ConfirmDeleteModal({
+  user,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  user: User
+  onClose: () => void
+  onConfirm: () => void
+  loading: boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-xl bg-[var(--modal-bg)] shadow-2xl border border-[var(--border)] p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/15">
+            <Trash2 className="h-4 w-4 text-red-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-[var(--text-primary)]">Delete user?</p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              <span className="font-medium text-[var(--text-primary)]">{user.display_name || user.username}</span> will be permanently removed and will no longer be able to log in.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+          >
+            {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export default function UsersPage() {
+  const [list, setList]           = useState<User[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState("")
+  const [modal, setModal]         = useState<Modal | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [toastMsg, setToastMsg]   = useState("")
+  const [currentUsername, setCurrentUsername] = useState("")
+
+  // Grab session username from sessionStorage for guard checks
+  useEffect(() => {
+    try {
+      setCurrentUsername(sessionStorage.getItem("portal_username") ?? "")
+    } catch { /* */ }
+  }, [])
+
+  function showToast(msg: string) {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(""), 3000)
+  }
+
+  async function load() {
+    setLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/users")
+      if (!res.ok) throw new Error(`Failed to load users (${res.status})`)
+      setList(await res.json())
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  // Active toggle
+  async function handleToggleActive(user: User) {
+    if (user.username === currentUsername) {
+      setError("You cannot deactivate your own account.")
+      return
+    }
+    const newActive = !user.is_active
+    // Optimistic
+    setList(l => l.map(u => u.username === user.username ? { ...u, is_active: newActive } : u))
+    const res = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: user.username, is_active: newActive }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? `Error ${res.status}`)
+      // Revert
+      setList(l => l.map(u => u.username === user.username ? { ...u, is_active: user.is_active } : u))
+    }
+  }
+
+  // Delete
+  async function executeDelete(user: User) {
+    setDeleteLoading(true)
+    try {
+      const res = await fetch(`/api/users?username=${encodeURIComponent(user.username)}`, { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error ?? `Delete failed (${res.status})`); return }
+      setList(l => l.filter(u => u.username !== user.username))
+      setModal(null)
+      showToast(`User "${user.display_name || user.username}" deleted.`)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  function onSaved() {
+    setModal(null)
+    load()
+    showToast(modal?.kind === "add" ? "User created." : "Changes saved.")
+  }
+
+  return (
+    <>
+      {/* CSS tokens */}
+      <style>{`
+        :root {
+          --text-primary:   #1E293B;
+          --text-muted:     #64748B;
+          --border:         #E2E8F0;
+          --hover-bg:       #F8FAFC;
+          --modal-bg:       #FFFFFF;
+          --input-bg:       #FFFFFF;
+          --card-bg:        #FFFFFF;
+          --page-bg:        #F1F5F9;
+          --toggle-off:     #CBD5E1;
+          --badge-bg:       #E2E8F0;
+          --badge-fg:       #475569;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root:not([data-theme="light"]) {
+            --text-primary:   #E2E8F0;
+            --text-muted:     #94A3B8;
+            --border:         #1E3A5F;
+            --hover-bg:       #1E3A5F;
+            --modal-bg:       #0F2033;
+            --input-bg:       #0D1B2A;
+            --card-bg:        #0F2033;
+            --page-bg:        #0D1B2A;
+            --toggle-off:     #334155;
+            --badge-bg:       #1E3A5F;
+            --badge-fg:       #94A3B8;
+          }
+        }
+        :root[data-theme="dark"] {
+          --text-primary:   #E2E8F0;
+          --text-muted:     #94A3B8;
+          --border:         #1E3A5F;
+          --hover-bg:       #1E3A5F;
+          --modal-bg:       #0F2033;
+          --input-bg:       #0D1B2A;
+          --card-bg:        #0F2033;
+          --page-bg:        #0D1B2A;
+          --toggle-off:     #334155;
+          --badge-bg:       #1E3A5F;
+          --badge-fg:       #94A3B8;
+        }
+      `}</style>
+
+      <div className="min-h-full bg-[var(--page-bg)] p-6">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F97316]/10">
+              <Users className="h-5 w-5 text-[#F97316]" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">Users</h1>
+              <p className="text-sm text-[var(--text-muted)]">Manage who has access to this portal</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setModal({ kind: "add" })}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#EA6C0A] transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Add User
+          </button>
+        </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mb-4 flex items-center justify-between rounded-lg bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-400">{error}</p>
+            <button onClick={() => setError("")} className="text-red-400 hover:text-red-300">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-7 w-7 animate-spin text-[#F97316]" />
+          </div>
+        ) : list.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] py-20 text-center">
+            <Users className="mb-3 h-10 w-10 text-[var(--text-muted)]" />
+            <p className="text-sm font-medium text-[var(--text-primary)]">No users yet</p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Add your first user to get started.</p>
+          </div>
+        ) : (
+          /* User table */
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card-bg)] shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">User</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Role</th>
+                  <th className="hidden px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)] md:table-cell">Email</th>
+                  <th className="px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Active</th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {list.map(user => {
+                  const isSelf = user.username === currentUsername
+                  return (
+                    <tr
+                      key={user.username}
+                      className={`transition-colors hover:bg-[var(--hover-bg)] ${!user.is_active ? "opacity-50" : ""}`}
+                    >
+                      {/* Avatar + name */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F97316]/15 text-xs font-bold text-[#F97316]">
+                            {initials(user.display_name || user.username)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-[var(--text-primary)]">
+                              {user.display_name || user.username}
+                              {isSelf && (
+                                <span className="ml-2 inline-flex items-center gap-0.5 rounded bg-[#F97316]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#F97316]">
+                                  <UserCheck className="h-2.5 w-2.5" />
+                                  You
+                                </span>
+                              )}
+                            </p>
+                            <p className="truncate text-xs text-[var(--text-muted)]">@{user.username}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Role */}
+                      <td className="px-5 py-4">
+                        <RoleBadge role={user.role} />
+                      </td>
+
+                      {/* Email */}
+                      <td className="hidden px-5 py-4 text-[var(--text-muted)] md:table-cell">
+                        {user.auth_email || <span className="text-[var(--border)]">—</span>}
+                      </td>
+
+                      {/* Active toggle */}
+                      <td className="px-5 py-4 text-center">
+                        <Toggle
+                          checked={user.is_active}
+                          onChange={() => handleToggleActive(user)}
+                          disabled={isSelf}
+                        />
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setModal({ kind: "edit", user })}
+                            title="Edit user"
+                            className="rounded p-1.5 text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          {!isSelf && (
+                            <button
+                              onClick={() => setModal({ kind: "confirmDelete", user })}
+                              title="Delete user"
+                              className="rounded p-1.5 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+
+            {/* Footer count */}
+            <div className="border-t border-[var(--border)] px-5 py-3">
+              <p className="text-xs text-[var(--text-muted)]">
+                {list.filter(u => u.is_active).length} of {list.length} user{list.length !== 1 ? "s" : ""} active
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      {modal?.kind === "add" && (
+        <UserFormModal
+          mode="add"
+          currentUsername={currentUsername}
+          onClose={() => setModal(null)}
+          onSaved={onSaved}
+        />
+      )}
+      {modal?.kind === "edit" && (
+        <UserFormModal
+          mode="edit"
+          user={modal.user}
+          currentUsername={currentUsername}
+          onClose={() => setModal(null)}
+          onSaved={onSaved}
+        />
+      )}
+      {modal?.kind === "confirmDelete" && (
+        <ConfirmDeleteModal
+          user={modal.user}
+          loading={deleteLoading}
+          onClose={() => setModal(null)}
+          onConfirm={() => executeDelete(modal.user)}
+        />
+      )}
+
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-lg bg-[#0D1B2A] px-4 py-2.5 text-sm font-medium text-white shadow-xl">
+          <Check className="h-4 w-4 text-green-400" />
+          {toastMsg}
+        </div>
+      )}
+    </>
+  )
+}
