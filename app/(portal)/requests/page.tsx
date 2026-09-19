@@ -1,15 +1,22 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+/**
+ * app/(portal)/requests/page.tsx
+ *
+ * Fetches freight requests from /api/requests (server-side, service role).
+ * Realtime subscription is replaced with 30-second polling + manual refresh,
+ * because Supabase realtime requires auth that we no longer use client-side.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
 import { ConfidenceBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
 import { type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
-import { fetchRequests, subscribeToRequests } from "@/lib/supabase-queries"
-import { createClient } from "@/lib/supabase"
 
 const statusFilters: (RequestStatus | "All")[] = ["Pending", "All", "Sent to Carrier", "Quoted", "Closed"]
 const sourceFilters: (Source | "All Sources")[] = ["All Sources", "Email", "WhatsApp"]
+
+const POLL_INTERVAL = 30_000 // 30 s
 
 export default function RequestsPage() {
   const [requests, setRequests]     = useState<FreightRequest[]>([])
@@ -18,75 +25,43 @@ export default function RequestsPage() {
 
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "All">("Pending")
   const [sourceFilter, setSourceFilter] = useState<Source | "All Sources">("All Sources")
-  const [search, setSearch]         = useState("")
-  const [selected, setSelected]     = useState<string[]>([])
-  const [active, setActive]         = useState<FreightRequest | null>(null)
+  const [search, setSearch]             = useState("")
+  const [selected, setSelected]         = useState<string[]>([])
+  const [active, setActive]             = useState<FreightRequest | null>(null)
 
-  // ── Client automation flags ──────────────────────────────────
-  const [requireCriticalData, setRequireCriticalData] = useState(false)
-  const [criticalFields, setCriticalFields]           = useState<string[]>([])
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Fetch + subscribe ────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true)
-    const supabase = createClient()
-    const clientCode = (() => { try { return sessionStorage.getItem("portal_client_code") ?? "" } catch { return "" } })()
-    const data = await fetchRequests(supabase, clientCode)
-    setRequests(data)
-    setLastUpdated(new Date())
-    setLoading(false)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const res = await fetch("/api/requests")
+      if (!res.ok) throw new Error("fetch failed")
+      const data: FreightRequest[] = await res.json()
+      setRequests(data)
+      setLastUpdated(new Date())
+      // Reflect updates inside open modal
+      setActive((prev) => {
+        if (!prev) return prev
+        const updated = data.find((r) => r.id === prev.id)
+        return updated ?? prev
+      })
+    } catch {
+      // keep stale data on poll failure
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
     load()
-
-    const supabase = createClient()
-    const clientCode = (() => { try { return sessionStorage.getItem("portal_client_code") ?? "" } catch { return "" } })()
-    const unsubscribe = subscribeToRequests(
-      supabase,
-      // INSERT — prepend to list, show live badge
-      (newRow) => {
-        setRequests((prev) => [newRow, ...prev])
-        setLastUpdated(new Date())
-      },
-      // UPDATE — replace the matching row in place
-      (updatedRow) => {
-        setRequests((prev) =>
-          prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)),
-        )
-        // Reflect update inside open modal too
-        setActive((prev) => (prev?.id === updatedRow.id ? updatedRow : prev))
-      },
-      clientCode,
-    )
-
-    return unsubscribe
+    // Poll silently every 30 s for new/updated rows
+    pollRef.current = setInterval(() => load(true), POLL_INTERVAL)
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
   }, [load])
 
-  // ── Load client automation flags ─────────────────────────────
-  useEffect(() => {
-    async function loadClientFlags() {
-      try {
-        const code = sessionStorage.getItem("portal_client_code")
-        if (!code) return
-        const supabase = createClient()
-        const { data } = await supabase
-          .from("clients")
-          .select("require_critical_data, critical_fields")
-          .eq("client_code", code)
-          .single()
-        if (data) {
-          setRequireCriticalData(data.require_critical_data ?? false)
-          setCriticalFields(data.critical_fields ?? [])
-        }
-      } catch {
-        // flags remain at defaults
-      }
-    }
-    loadClientFlags()
-  }, [])
-
-  // ── Filter ───────────────────────────────────────────────────
+  // ── Filters ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return requests.filter((r) => {
       if (statusFilter !== "All" && r.status !== statusFilter) return false
@@ -100,7 +75,7 @@ export default function RequestsPage() {
     })
   }, [requests, statusFilter, sourceFilter, search])
 
-  // ── Selection ────────────────────────────────────────────────
+  // ── Selection ─────────────────────────────────────────────────
   function toggle(id: string, e: React.MouseEvent) {
     e.stopPropagation()
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -109,13 +84,12 @@ export default function RequestsPage() {
     setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
   }
 
-  // ── Loading skeleton ─────────────────────────────────────────
   if (loading) {
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
-            style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
             Requests
           </h2>
         </div>
@@ -133,45 +107,36 @@ export default function RequestsPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
-            style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
             Requests
           </h2>
           {lastUpdated && (
-            <button
-              onClick={load}
+            <button onClick={() => load()}
               title={`Last synced ${lastUpdated.toLocaleTimeString()}`}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2A40]"
-            >
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2A40]">
               <RefreshCw className="h-3 w-3" />
               <span className="hidden sm:inline">Live</span>
             </button>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={statusFilter}
+          <select value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "All")}
-            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-          >
+            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
             {statusFilters.map((s) => (
               <option key={s} value={s}>{s === "All" ? "All Statuses" : s}</option>
             ))}
           </select>
-          <select
-            value={sourceFilter}
+          <select value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value as Source | "All Sources")}
-            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-          >
+            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
             {sourceFilters.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, cargo, route..."
-              className="h-9 w-full rounded border border-[#D1D9E0] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] sm:w-64"
-            />
+              className="h-9 w-full rounded border border-[#D1D9E0] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] sm:w-64" />
           </div>
         </div>
       </div>
@@ -196,14 +161,10 @@ export default function RequestsPage() {
             <thead className="bg-[#0D1B2A] text-[11px] uppercase tracking-[0.08em] text-[#94A3B8]">
               <tr>
                 <th className="w-10 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all"
+                  <input type="checkbox" aria-label="Select all"
                     checked={filtered.length > 0 && selected.length === filtered.length}
-                    onChange={toggleAll}
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-4 w-4 accent-[#F97316]"
-                  />
+                    onChange={toggleAll} onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4 accent-[#F97316]" />
                 </th>
                 <th className="px-4 py-3 font-semibold">Source</th>
                 <th className="px-4 py-3 font-semibold">Sender</th>
@@ -217,26 +178,16 @@ export default function RequestsPage() {
             </thead>
             <tbody>
               {filtered.map((r, i) => (
-                <tr
-                  key={r.id}
-                  onClick={() => setActive(r)}
+                <tr key={r.id} onClick={() => setActive(r)}
                   className={`cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[#FFF7ED] dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${
                     i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-white dark:bg-[#111E33]"
-                  }`}
-                >
+                  }`}>
                   <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${r.senderName}`}
-                      checked={selected.includes(r.id)}
-                      onChange={() => {}}
-                      onClick={(e) => toggle(r.id, e)}
-                      className="h-4 w-4 accent-[#F97316]"
-                    />
+                    <input type="checkbox" aria-label={`Select ${r.senderName}`}
+                      checked={selected.includes(r.id)} onChange={() => {}}
+                      onClick={(e) => toggle(r.id, e)} className="h-4 w-4 accent-[#F97316]" />
                   </td>
-                  <td className="px-4 py-3">
-                    <SourceBadge source={r.source} />
-                  </td>
+                  <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{r.senderName}</p>
                     <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
@@ -244,9 +195,7 @@ export default function RequestsPage() {
                     </p>
                   </td>
                   <td className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">
-                    <span className="whitespace-nowrap">
-                      {r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}
-                    </span>
+                    <span className="whitespace-nowrap">{r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}</span>
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-[#0F172A] dark:text-[#E2E8F0]">{r.cargoType}</p>
@@ -255,17 +204,11 @@ export default function RequestsPage() {
                   <td className="px-4 py-3 tabular-nums text-[#64748B] dark:text-[#94A3B8]" title={r.receivedExact}>
                     {r.receivedRelative}
                   </td>
+                  <td className="px-4 py-3"><ConfidenceBadge confidence={r.confidence} /></td>
+                  <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                   <td className="px-4 py-3">
-                    <ConfidenceBadge confidence={r.confidence} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setActive(r) }}
-                      className="rounded border border-[#F97316] px-3 py-1.5 text-xs font-bold text-[#F97316] transition-colors hover:bg-[#FFF7ED] dark:hover:bg-[#1A1200]"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); setActive(r) }}
+                      className="rounded border border-[#F97316] px-3 py-1.5 text-xs font-bold text-[#F97316] transition-colors hover:bg-[#FFF7ED] dark:hover:bg-[#1A1200]">
                       View Details
                     </button>
                   </td>
@@ -279,35 +222,26 @@ export default function RequestsPage() {
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <FileText className="h-10 w-10 text-[#CBD5E1]" />
             <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
-              {requests.length === 0 ? "No requests yet — send a test email to n8n to see one appear here." : "No requests match your filters"}
+              {requests.length === 0
+                ? "No requests yet — send a test email to n8n to see one appear here."
+                : "No requests match your filters"}
             </p>
           </div>
         )}
 
         {filtered.length > 0 && (
           <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B] dark:border-[#1E3A5F] dark:text-[#94A3B8]">
-            <span>
-              Showing 1–{filtered.length} of {filtered.length} requests
-            </span>
+            <span>Showing 1–{filtered.length} of {filtered.length} requests</span>
             <div className="flex gap-2">
-              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8] dark:border-[#1E3A5F]" disabled>
-                Previous
-              </button>
-              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8] dark:border-[#1E3A5F]" disabled>
-                Next
-              </button>
+              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8] dark:border-[#1E3A5F]" disabled>Previous</button>
+              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8] dark:border-[#1E3A5F]" disabled>Next</button>
             </div>
           </div>
         )}
       </div>
 
       {active && (
-        <RequestDetailModal
-          request={active}
-          onClose={() => setActive(null)}
-          requireCriticalData={requireCriticalData}
-          criticalFields={criticalFields}
-        />
+        <RequestDetailModal request={active} onClose={() => setActive(null)} />
       )}
     </div>
   )

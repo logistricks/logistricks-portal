@@ -3,8 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Activity, Building2, FileText, LayoutDashboard, LogOut, Mail, Pin, PinOff, Settings } from "lucide-react"
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase"
+import { useEffect, useRef, useState } from "react"
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -28,7 +27,7 @@ export function PortalSidebar({
 
   const [pendingCount, setPendingCount] = useState<number>(0)
   const [displayName, setDisplayName]   = useState<string>("")
-  const [userEmail, setUserEmail]       = useState<string>("")
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Username from sessionStorage ─────────────────────────────
   useEffect(() => {
@@ -37,39 +36,22 @@ export function PortalSidebar({
     } catch { /* */ }
   }, [])
 
-  // ── Auth email from Supabase session ─────────────────────────
+  // ── Pending count — poll /api/stats every 30 s ────────────────
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user?.email) setUserEmail(data.user.email)
-    })
-  }, [])
-
-  // ── Live pending count ────────────────────────────────────────
-  useEffect(() => {
-    const supabase = createClient()
-
     async function fetchPending() {
-      const { count } = await supabase
-        .from("freight_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Pending")
-      setPendingCount(count ?? 0)
+      try {
+        const res = await fetch("/api/stats")
+        if (!res.ok) return
+        const data = await res.json()
+        setPendingCount(data.pending ?? 0)
+      } catch { /* keep stale */ }
     }
 
     fetchPending()
-
-    // Keep badge in sync with realtime inserts/updates
-    const channel = supabase
-      .channel("sidebar_pending")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "freight_requests" },
-        () => { fetchPending() },
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    pollRef.current = setInterval(fetchPending, 30_000)
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
   }, [])
 
   const nav = [
@@ -82,9 +64,10 @@ export function PortalSidebar({
   ]
 
   async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    try { sessionStorage.clear() } catch { /* */ }
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      sessionStorage.clear()
+    } catch { /* */ }
     router.push("/login")
   }
 
@@ -195,7 +178,6 @@ export function PortalSidebar({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-[#E2E8F0]">{displayName || "—"}</p>
-              <p className="truncate text-xs text-[#475569]">{userEmail}</p>
             </div>
             <button
               onClick={handleLogout}
