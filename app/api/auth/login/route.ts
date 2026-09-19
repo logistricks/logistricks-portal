@@ -2,13 +2,14 @@ import { NextResponse } from "next/server"
 import { createClient }  from "@supabase/supabase-js"
 import { createHash }    from "crypto"
 
-const adminClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-)
-
 export async function POST(req: Request) {
+  // Instantiate inside the handler so env vars are read at request time, not build time
+  const adminClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  )
+
   const { clientCode, username, password } = await req.json()
 
   if (!clientCode || !username || !password) {
@@ -46,19 +47,18 @@ export async function POST(req: Request) {
     )
   }
 
-  // 2 — create a short-lived magic-link so the browser gets a real Supabase session
-  //     (needed so existing RLS policies that use auth.email() still work)
+  // 2 — generate a magic-link token so the browser gets a real Supabase session
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: "magiclink",
     email: portalUser.auth_email,
   })
 
   if (linkError || !linkData?.properties?.action_link) {
-    // No auth.users row exists yet — auto-create it (random password, never used)
+    // No auth.users row yet — auto-create it (random password, never used for login)
     const { error: createErr } = await adminClient.auth.admin.createUser({
-      email:           portalUser.auth_email,
-      password:        crypto.randomUUID(),
-      email_confirm:   true,
+      email:         portalUser.auth_email,
+      password:      crypto.randomUUID(),
+      email_confirm: true,
     })
     if (createErr) {
       return NextResponse.json(
@@ -66,7 +66,6 @@ export async function POST(req: Request) {
         { status: 500 },
       )
     }
-    // Retry once
     const { data: retry, error: retryErr } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
       email: portalUser.auth_email,
