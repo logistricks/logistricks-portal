@@ -3,7 +3,6 @@ import { createClient }  from "@supabase/supabase-js"
 import { createHash }    from "crypto"
 
 export async function POST(req: Request) {
-  // Instantiate inside the handler so env vars are read at request time, not build time
   const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -18,7 +17,7 @@ export async function POST(req: Request) {
 
   const passwordHash = createHash("sha256").update(password).digest("hex")
 
-  // 1 — look up portal_users using service role (bypasses RLS)
+  // 1 — verify credentials against portal_users (service role bypasses RLS)
   const { data: portalUser, error } = await adminClient
     .from("portal_users")
     .select("auth_email, is_active, password_hash")
@@ -47,14 +46,19 @@ export async function POST(req: Request) {
     )
   }
 
-  // 2 — generate a magic-link token so the browser gets a real Supabase session
-  const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-    type: "magiclink",
-    email: portalUser.auth_email,
-  })
+  // 2 — generate a magic-link; auto-create auth.users entry if missing
+  async function generateToken(email: string) {
+    const { data, error } = await adminClient.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    })
+    return { data, error }
+  }
 
-  if (linkError || !linkData?.properties?.action_link) {
-    // No auth.users row yet — auto-create it (random password, never used for login)
+  let { data: linkData, error: linkError } = await generateToken(portalUser.auth_email)
+
+  if (linkError) {
+    // No auth.users row — create one with a random password (never used for login)
     const { error: createErr } = await adminClient.auth.admin.createUser({
       email:         portalUser.auth_email,
       password:      crypto.randomUUID(),
@@ -62,24 +66,25 @@ export async function POST(req: Request) {
     })
     if (createErr) {
       return NextResponse.json(
-        { error: "Session creation failed. Please contact your administrator." },
+        { error: "Session creation failed. Contact your administrator." },
         { status: 500 },
       )
     }
-    const { data: retry, error: retryErr } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
-      email: portalUser.auth_email,
-    })
-    if (retryErr || !retry?.properties?.action_link) {
-      return NextResponse.json(
-        { error: "Session creation failed. Please try again." },
-        { status: 500 },
-      )
-    }
-    const token = new URL(retry.properties.action_link).searchParams.get("token")
-    return NextResponse.json({ email: portalUser.auth_email, token })
+    const retry = await generateToken(portalUser.auth_email)
+    linkData  = retry.data
+    linkError = retry.error
   }
 
-  const token = new URL(linkData.properties.action_link).searchParams.get("token")
-  return NextResponse.json({ email: portalUser.auth_email, token })
+  if (linkError || !linkData?.properties?.hashed_token) {
+    return NextResponse.json(
+      { error: "Session creation failed. Please try again." },
+      { status: 500 },
+    )
+  }
+
+  // Return hashed_token — client uses verifyOtp({ token_hash }) which works with PKCE
+  return NextResponse.json({
+    email:      portalUser.auth_email,
+    token_hash: linkData.properties.hashed_token,
+  })
 }

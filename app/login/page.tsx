@@ -29,25 +29,29 @@ export default function LoginPage() {
     }
 
     // Step 1 — verify credentials + SHA-256 password hash server-side
-    const res = await fetch("/api/auth/login", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ clientCode: clientCodeClean, username: usernameClean, password }),
-    })
-
-    const loginData = await res.json()
-
-    if (!res.ok) {
-      setError(loginData.error ?? "Something went wrong. Please try again.")
+    let loginData: { email?: string; token_hash?: string; error?: string }
+    try {
+      const res = await fetch("/api/auth/login", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ clientCode: clientCodeClean, username: usernameClean, password }),
+      })
+      loginData = await res.json()
+      if (!res.ok) {
+        setError(loginData.error ?? "Something went wrong. Please try again.")
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError("Network error. Please try again.")
       setLoading(false)
       return
     }
 
-    // Step 2 — exchange the magic-link token for a real Supabase session
+    // Step 2 — exchange hashed token for a real Supabase session (PKCE-compatible)
     const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: loginData.email,
-      token: loginData.token,
-      type:  "magiclink",
+      token_hash: loginData.token_hash!,
+      type: "magiclink",
     })
 
     if (verifyError) {
@@ -56,7 +60,7 @@ export default function LoginPage() {
       return
     }
 
-    // Step 3 — store display context in sessionStorage
+    // Step 3 — store display context
     try {
       sessionStorage.setItem("portal_username",    usernameClean)
       sessionStorage.setItem("portal_client_code", clientCodeClean)
