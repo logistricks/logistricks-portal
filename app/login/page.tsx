@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const clientCodeClean = clientCode.trim().toUpperCase()
+    const clientCodeClean = clientCode.trim()
     const usernameClean   = username.trim().toLowerCase()
 
     if (!clientCodeClean || !usernameClean || !password) {
