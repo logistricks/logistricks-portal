@@ -128,6 +128,7 @@ export type FreightRequest = {
   urgency: "Standard" | "Urgent"
   confidence: Confidence
   status: RequestStatus
+  receivedIso: string
   receivedRelative: string
   receivedExact: string
   specialRequirements: string[]

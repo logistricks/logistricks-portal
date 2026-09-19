@@ -30,7 +30,8 @@ export default function RequestsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const data = await fetchRequests(supabase)
+    const clientCode = (() => { try { return sessionStorage.getItem("portal_client_code") ?? "" } catch { return "" } })()
+    const data = await fetchRequests(supabase, clientCode)
     setRequests(data)
     setLastUpdated(new Date())
     setLoading(false)
@@ -40,6 +41,7 @@ export default function RequestsPage() {
     load()
 
     const supabase = createClient()
+    const clientCode = (() => { try { return sessionStorage.getItem("portal_client_code") ?? "" } catch { return "" } })()
     const unsubscribe = subscribeToRequests(
       supabase,
       // INSERT — prepend to list, show live badge
@@ -55,6 +57,7 @@ export default function RequestsPage() {
         // Reflect update inside open modal too
         setActive((prev) => (prev?.id === updatedRow.id ? updatedRow : prev))
       },
+      clientCode,
     )
 
     return unsubscribe

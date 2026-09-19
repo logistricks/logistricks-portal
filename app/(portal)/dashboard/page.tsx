@@ -221,8 +221,9 @@ export default function DashboardPage() {
   // Fetch data + subscribe to realtime
   useEffect(() => {
     const supabase = createClient()
-    fetchDashboardStats(supabase).then(setStats)
-    fetchRequests(supabase).then(setAllRequests)
+    const clientCode = (() => { try { return sessionStorage.getItem("portal_client_code") ?? "" } catch { return "" } })()
+    fetchDashboardStats(supabase, clientCode).then(setStats)
+    fetchRequests(supabase, clientCode).then(setAllRequests)
 
     const unsub = subscribeToRequests(
       supabase,
@@ -243,6 +244,7 @@ export default function DashboardPage() {
       (updRow) => {
         setAllRequests((prev) => prev.map((r) => r.id === updRow.id ? updRow : r))
       },
+      clientCode,
     )
 
     return unsub

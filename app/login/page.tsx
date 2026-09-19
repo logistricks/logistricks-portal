@@ -67,26 +67,13 @@ export default function LoginPage() {
       return
     }
 
-    // Step 3 — authenticate with Supabase using the hashed password
-    //           (Supabase Auth stores the hash; admin sets auth password = sha256 of plaintext)
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email:    portalUser.auth_email,
-      password: hash,
-    })
-
-    if (authError) {
-      setError("Authentication failed. Please contact your administrator.")
-      setLoading(false)
-      return
-    }
-
-    // Step 4 — store display context
+    // Step 3 — set session cookie and redirect
+    const sessionData = btoa(JSON.stringify({ username: usernameClean, clientCode: clientCodeClean }))
+    document.cookie = `portal_session=${sessionData};path=/;max-age=28800`
     try {
       sessionStorage.setItem("portal_username",    usernameClean)
       sessionStorage.setItem("portal_client_code", clientCodeClean)
-    } catch {
-      // sessionStorage unavailable — continue anyway
-    }
+    } catch {}
 
     router.push("/dashboard")
   }

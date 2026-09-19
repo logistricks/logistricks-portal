@@ -254,6 +254,7 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     urgency:           normalizeUrgency(row.urgency),
     confidence:        normalizeConfidence(row.confidence),
     status:            normalizeStatus(row.status),
+    receivedIso:       receivedAt.toISOString(),
     receivedRelative:  formatRelative(receivedAt),
     receivedExact:     formatExact(receivedAt),
     specialRequirements:  Array.isArray(row.special_requirements)  ? row.special_requirements  as string[] : [],
@@ -272,11 +273,10 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
 type SupabaseClient = ReturnType<typeof createClient>
 
 /** Fetch all freight_requests, newest first. */
-export async function fetchRequests(supabase: SupabaseClient): Promise<FreightRequest[]> {
-  const { data, error } = await supabase
-    .from("freight_requests")
-    .select("*")
-    .order("received_at", { ascending: false })
+export async function fetchRequests(supabase: SupabaseClient, clientCode?: string): Promise<FreightRequest[]> {
+  let query = supabase.from("freight_requests").select("*").order("received_at", { ascending: false })
+  if (clientCode) query = query.eq("client_code", clientCode)
+  const { data, error } = await query
 
   if (error) {
     console.error("[supabase] fetchRequests:", error.message)
@@ -287,11 +287,10 @@ export async function fetchRequests(supabase: SupabaseClient): Promise<FreightRe
 }
 
 /** Fetch aggregate dashboard stats. */
-export async function fetchDashboardStats(supabase: SupabaseClient): Promise<DashboardStats> {
-  const { data, error } = await supabase
-    .from("freight_requests")
-    .select("status, source, received_at")
-    .order("received_at", { ascending: false })
+export async function fetchDashboardStats(supabase: SupabaseClient, clientCode?: string): Promise<DashboardStats> {
+  let statsQuery = supabase.from("freight_requests").select("status, source, received_at").order("received_at", { ascending: false })
+  if (clientCode) statsQuery = statsQuery.eq("client_code", clientCode)
+  const { data, error } = await statsQuery
 
   if (error || !data) {
     console.error("[supabase] fetchDashboardStats:", error?.message)
@@ -330,17 +329,19 @@ export function subscribeToRequests(
   supabase: SupabaseClient,
   onInsert: (row: FreightRequest) => void,
   onUpdate?: (row: FreightRequest) => void,
+  clientCode?: string,
 ): () => void {
+  const filter = clientCode ? `client_code=eq.${clientCode}` : undefined
   const channel = supabase
     .channel("freight_requests_realtime")
     .on(
       "postgres_changes",
-      { event: "INSERT", schema: "public", table: "freight_requests" },
+      { event: "INSERT", schema: "public", table: "freight_requests", ...(filter ? { filter } : {}) },
       (payload) => onInsert(mapDbToRequest(payload.new as DbFreightRequest)),
     )
     .on(
       "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "freight_requests" },
+      { event: "UPDATE", schema: "public", table: "freight_requests", ...(filter ? { filter } : {}) },
       (payload) => onUpdate?.(mapDbToRequest(payload.new as DbFreightRequest)),
     )
     .subscribe()
