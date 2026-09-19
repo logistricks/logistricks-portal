@@ -13,7 +13,7 @@ function getSession(cookie: string): { username: string; clientCode: string } | 
     const dotIndex = cookie.lastIndexOf(".")
     if (dotIndex === -1) return null
     const payload = cookie.slice(0, dotIndex)
-    const sig = cookie.slice(dotIndex + 1)
+    const sig     = cookie.slice(dotIndex + 1)
     const expected = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
       .update(payload)
       .digest("base64url")
@@ -46,13 +46,17 @@ export async function GET(req: NextRequest) {
     .eq("client_code", session.clientCode)
     .order("received_at", { ascending: false })
 
+  const empty = {
+    total: 0, email: 0, whatsapp: 0,
+    pending: 0, sentToCarrier: 0, quoted: 0,
+    todayCount: 0, todayDelta: "+0 from yesterday",
+    dailyCounts: [] as { date: string; shortDate: string; count: number; isToday: boolean }[],
+    weekTotal: 0,
+  }
+
   if (error || !data) {
     console.error("[api/stats]", error?.message)
-    return NextResponse.json({
-      total: 0, email: 0, whatsapp: 0,
-      pending: 0, sentToCarrier: 0, quoted: 0,
-      todayCount: 0, todayDelta: "+0 from yesterday",
-    })
+    return NextResponse.json(empty)
   }
 
   const today = new Date()
@@ -65,8 +69,32 @@ export async function GET(req: NextRequest) {
     const d = new Date(r.received_at)
     return d >= yesterday && d < today
   }).length
-  const delta    = todayCount - yesterdayCount
+  const delta     = todayCount - yesterdayCount
   const todayDelta = delta >= 0 ? `+${delta} from yesterday` : `${delta} from yesterday`
+
+  // Last 7 days daily counts (index 0 = 6 days ago, index 6 = today)
+  const dailyCounts = Array.from({ length: 7 }, (_, i) => {
+    const start = new Date(today)
+    start.setDate(today.getDate() - (6 - i))
+    const end = new Date(start)
+    end.setDate(start.getDate() + 1)
+
+    const count = data.filter((r) => {
+      const t = new Date(r.received_at)
+      return t >= start && t < end
+    }).length
+
+    const isToday = i === 6
+    const date = isToday
+      ? "Today"
+      : start.toLocaleDateString("en-GB", { weekday: "short" })
+
+    const shortDate = start.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+
+    return { date, shortDate, count, isToday }
+  })
+
+  const weekTotal = dailyCounts.reduce((sum, d) => sum + d.count, 0)
 
   return NextResponse.json({
     total:         data.length,
@@ -77,5 +105,7 @@ export async function GET(req: NextRequest) {
     quoted:        data.filter((r) => r.status === "Quoted").length,
     todayCount,
     todayDelta,
+    dailyCounts,
+    weekTotal,
   })
 }
