@@ -36,7 +36,9 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ clientCode: clientCodeClean, username: usernameClean, password }),
       })
-      loginData = await res.json()
+      let rawText = ""
+      try { rawText = await res.text() } catch {}
+      try { loginData = JSON.parse(rawText) } catch { setError("Server error — check Vercel function logs."); setLoading(false); return }
       if (!res.ok) {
         setError(loginData.error ?? "Something went wrong. Please try again.")
         setLoading(false)
