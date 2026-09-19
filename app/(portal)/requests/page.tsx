@@ -11,10 +11,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
 import { ConfidenceBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
+import { Select } from "@/components/portal/select"
 import { type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
 
-const statusFilters: (RequestStatus | "All")[] = ["Pending", "All", "Sent to Carrier", "Quoted", "Closed"]
-const sourceFilters: (Source | "All Sources")[] = ["All Sources", "Email", "WhatsApp"]
+const statusOptions = [
+  { value: "Pending" as const,           label: "Pending" },
+  { value: "All" as const,               label: "All Statuses" },
+  { value: "Sent to Carrier" as const,   label: "Sent to Carrier" },
+  { value: "Quoted" as const,            label: "Quoted" },
+  { value: "Closed" as const,            label: "Closed" },
+]
+
+const sourceOptions = [
+  { value: "All Sources" as const, label: "All Sources" },
+  { value: "Email" as const,       label: "Email" },
+  { value: "WhatsApp" as const,    label: "WhatsApp" },
+]
 
 const POLL_INTERVAL = 30_000 // 30 s
 
@@ -120,18 +132,16 @@ export default function RequestsPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as RequestStatus | "All")}
-            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
-            {statusFilters.map((s) => (
-              <option key={s} value={s}>{s === "All" ? "All Statuses" : s}</option>
-            ))}
-          </select>
-          <select value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value as Source | "All Sources")}
-            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
-            {sourceFilters.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <Select
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as RequestStatus | "All")}
+            options={statusOptions}
+          />
+          <Select
+            value={sourceFilter}
+            onChange={(v) => setSourceFilter(v as Source | "All Sources")}
+            options={sourceOptions}
+          />
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
             <input value={search} onChange={(e) => setSearch(e.target.value)}

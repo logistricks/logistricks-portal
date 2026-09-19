@@ -1,69 +1,71 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Check, Copy, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
-import { createClient } from "@/lib/supabase"
 import { ModeBadge } from "@/components/portal/badges"
 import { CarrierModal } from "@/components/portal/carrier-modal"
-import { type Carrier, type CarrierRow, langLabel, modesFromCarrier } from "@/lib/portal-data"
+import { type Carrier, langLabel, modesFromCarrier } from "@/lib/portal-data"
 
 export default function CarriersPage() {
-  const supabase = createClient()
-  const [clientCode, setClientCode] = useState<string | null>(null)
-  const [list, setList] = useState<Carrier[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<Carrier | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [list, setList]               = useState<Carrier[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
+  const [editing, setEditing]         = useState<Carrier | null>(null)
+  const [modalOpen, setModalOpen]     = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Carrier | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  useEffect(() => {
-    const cc = sessionStorage.getItem("portal_client_code")
-    if (!cc) { setError("Session not initialised — refresh the page"); setLoading(false); return }
-    setClientCode(cc)
-    loadCarriers(cc)
-  }, [])
-
-  async function loadCarriers(cc: string) {
+  const loadCarriers = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from("carriers")
-      .select("*")
-      .eq("client_code", cc)
-      .order("carrier_id", { ascending: true })
-    if (error) { setError(error.message); setLoading(false); return }
-    setList(groupCarrierRows(data ?? []))
-    setLoading(false)
-  }
+    try {
+      const res = await fetch("/api/carriers")
+      if (res.status === 401) { setError("Session expired — please log in again."); return }
+      if (!res.ok) throw new Error(await res.text())
+      setList(await res.json())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load carriers")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadCarriers() }, [loadCarriers])
 
   async function handleSave() {
-    if (clientCode) await loadCarriers(clientCode)
+    await loadCarriers()
     setModalOpen(false)
     setEditing(null)
   }
 
   async function toggleActive(carrier: Carrier) {
     const next = !carrier.active
-    // Update the main row
-    const { error } = await supabase
-      .from("carriers")
-      .update({ active: next })
-      .eq("id", carrier.row_id)
-    if (error) { setError(error.message); return }
+    // Optimistic update
     setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, active: next } : c))
+    const res = await fetch("/api/carriers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ row_id: carrier.row_id, active: next }),
+    })
+    if (!res.ok) {
+      // Revert on error
+      setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, active: !next } : c))
+      setError("Failed to update carrier status")
+    }
   }
 
   async function handleDelete(carrier: Carrier) {
-    if (!clientCode) return
     setDeleteLoading(true)
-    const { error } = await supabase
-      .from("carriers")
-      .delete()
-      .eq("client_code", clientCode)
-      .eq("carrier_id", carrier.carrier_id)
-    if (error) { setError(error.message); setDeleteLoading(false); return }
+    const res = await fetch("/api/carriers", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ carrier_id: carrier.carrier_id }),
+    })
+    if (!res.ok) {
+      setError("Failed to delete carrier")
+      setDeleteLoading(false)
+      return
+    }
     setList((l) => l.filter((c) => c.carrier_id !== carrier.carrier_id))
     setConfirmDelete(null)
     setDeleteLoading(false)
@@ -82,8 +84,7 @@ export default function CarriersPage() {
         </div>
         <button
           onClick={() => { setEditing(null); setModalOpen(true) }}
-          disabled={!clientCode}
-          className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#EA580C] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#EA580C]"
         >
           <Plus className="h-4 w-4" /> Add Carrier
         </button>
@@ -133,24 +134,17 @@ export default function CarriersPage() {
                       <p className="text-[#0F172A] dark:text-[#E2E8F0]">{c.person_name}</p>
                       {c.role && <p className="text-xs text-[#64748B]">{c.role}</p>}
                     </td>
-                    <td className="px-4 py-3">
-                      <CopyCell value={c.email} href={`mailto:${c.email}`} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <CopyCell value={c.number} />
-                    </td>
+                    <td className="px-4 py-3"><CopyCell value={c.email} href={`mailto:${c.email}`} /></td>
+                    <td className="px-4 py-3"><CopyCell value={c.number} /></td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {modesFromCarrier(c).map((m) => (
-                          <ModeBadge key={m} mode={m} />
-                        ))}
+                        {modesFromCarrier(c).map((m) => <ModeBadge key={m} mode={m} />)}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">{langLabel(c.lang)}</td>
                     <td className="px-4 py-3">
                       <button
-                        role="switch"
-                        aria-checked={c.active}
+                        role="switch" aria-checked={c.active}
                         aria-label={`Toggle ${c.carrier_name}`}
                         onClick={() => toggleActive(c)}
                         className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${c.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
@@ -160,18 +154,12 @@ export default function CarriersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button
-                          aria-label="Edit"
-                          onClick={() => { setEditing(c); setModalOpen(true) }}
-                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
-                        >
+                        <button aria-label="Edit" onClick={() => { setEditing(c); setModalOpen(true) }}
+                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button
-                          aria-label="Delete"
-                          onClick={() => setConfirmDelete(c)}
-                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
-                        >
+                        <button aria-label="Delete" onClick={() => setConfirmDelete(c)}
+                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -190,10 +178,9 @@ export default function CarriersPage() {
         )}
       </div>
 
-      {modalOpen && clientCode && (
+      {modalOpen && (
         <CarrierModal
           carrier={editing}
-          clientCode={clientCode}
           onClose={() => { setModalOpen(false); setEditing(null) }}
           onSave={handleSave}
         />
@@ -209,18 +196,12 @@ export default function CarriersPage() {
               This also removes all CC entries and cannot be undone.
             </p>
             <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                disabled={deleteLoading}
-                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
-              >
+              <button onClick={() => setConfirmDelete(null)} disabled={deleteLoading}
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]">
                 Cancel
               </button>
-              <button
-                onClick={() => handleDelete(confirmDelete)}
-                disabled={deleteLoading}
-                className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-              >
+              <button onClick={() => handleDelete(confirmDelete)} disabled={deleteLoading}
+                className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
                 {deleteLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                 Delete
               </button>
@@ -232,58 +213,18 @@ export default function CarriersPage() {
   )
 }
 
-function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
-  const map = new Map<number, Carrier>()
-  for (const row of rows) {
-    if (!row.is_cc) {
-      map.set(row.carrier_id, {
-        row_id: row.id,
-        carrier_id: row.carrier_id,
-        carrier_name: row.carrier_name,
-        person_name: row.person_name,
-        role: row.role,
-        email: row.email,
-        number: row.number,
-        is_sea: row.is_sea,
-        is_air: row.is_air,
-        is_land: row.is_land,
-        lang: row.lang,
-        routes: row.routes,
-        active: row.active,
-        cc_emails: [],
-      })
-    }
-  }
-  for (const row of rows) {
-    if (row.is_cc && row.email) {
-      const carrier = map.get(row.carrier_id)
-      if (carrier) carrier.cc_emails.push(row.email)
-    }
-  }
-  return Array.from(map.values())
-}
-
 function CopyCell({ value, href }: { value: string; href?: string }) {
   const [copied, setCopied] = useState(false)
   if (!value) return <span className="text-[#94A3B8]">—</span>
   return (
     <div className="flex items-center gap-2">
-      {href ? (
-        <a href={href} className="truncate text-[#0F172A] hover:text-[#F97316] hover:underline dark:text-[#E2E8F0]">
-          {value}
-        </a>
-      ) : (
-        <span className="truncate text-[#0F172A] dark:text-[#E2E8F0]">{value}</span>
-      )}
-      <button
-        aria-label="Copy"
-        onClick={() => {
-          navigator.clipboard?.writeText(value)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        }}
-        className="text-[#94A3B8] transition-colors hover:text-[#F97316]"
-      >
+      {href
+        ? <a href={href} className="truncate text-[#0F172A] hover:text-[#F97316] hover:underline dark:text-[#E2E8F0]">{value}</a>
+        : <span className="truncate text-[#0F172A] dark:text-[#E2E8F0]">{value}</span>
+      }
+      <button aria-label="Copy"
+        onClick={() => { navigator.clipboard?.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+        className="text-[#94A3B8] transition-colors hover:text-[#F97316]">
         {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
     </div>

@@ -1,27 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Copy, Loader2, Mail, MessageCircle, Pencil, Plus, Star, Trash2 } from "lucide-react"
-import { createClient } from "@/lib/supabase"
 import { TemplateEditor } from "@/components/portal/template-editor"
-import { type Template, type TemplateRow } from "@/lib/portal-data"
+import { type Template } from "@/lib/portal-data"
 
 type Tab = "All" | "Email" | "WhatsApp"
 const tabs: Tab[] = ["All", "Email", "WhatsApp"]
-
-function rowToTemplate(row: TemplateRow): Template {
-  return {
-    row_id: row.id,
-    template_id: row.template_id,
-    template_name: row.template_name,
-    type: row.type,
-    subject: row.subject,
-    body: row.body,
-    linked_carrier_ids: row.linked_carrier_ids,
-    is_default: row.is_default,
-    updated_at: row.updated_at,
-  }
-}
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -34,8 +19,6 @@ function relativeTime(iso: string): string {
 }
 
 export default function TemplatesPage() {
-  const supabase = createClient()
-  const [clientCode, setClientCode] = useState<string | null>(null)
   const [list, setList] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,25 +26,25 @@ export default function TemplatesPage() {
   const [editing, setEditing] = useState<Template | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
 
-  useEffect(() => {
-    const cc = sessionStorage.getItem("portal_client_code")
-    if (!cc) { setError("Session not initialised — refresh the page"); setLoading(false); return }
-    setClientCode(cc)
-    loadTemplates(cc)
-  }, [])
-
-  async function loadTemplates(cc: string) {
+  const loadTemplates = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from("templates")
-      .select("*")
-      .eq("client_code", cc)
-      .order("template_id", { ascending: true })
-    if (error) { setError(error.message); setLoading(false); return }
-    setList((data ?? []).map(rowToTemplate))
-    setLoading(false)
-  }
+    try {
+      const res = await fetch("/api/templates")
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Request failed (${res.status})`)
+      }
+      const data: Template[] = await res.json()
+      setList(data)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadTemplates() }, [loadTemplates])
 
   const filtered = useMemo(
     () => (tab === "All" ? list : list.filter((t) => t.type === tab)),
@@ -69,46 +52,45 @@ export default function TemplatesPage() {
   )
 
   async function handleSave() {
-    if (clientCode) await loadTemplates(clientCode)
+    await loadTemplates()
     setEditorOpen(false)
     setEditing(null)
   }
 
   async function handleDuplicate(t: Template) {
-    if (!clientCode) return
-    // Get next template_id
-    const { data: maxRow } = await supabase
-      .from("templates")
-      .select("template_id")
-      .eq("client_code", clientCode)
-      .order("template_id", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    const nextId = (maxRow?.template_id ?? 0) + 1
-
-    const { error } = await supabase.from("templates").insert({
-      client_code: clientCode,
-      template_id: nextId,
-      template_name: `${t.template_name} (Copy)`,
-      type: t.type,
-      subject: t.subject,
-      body: t.body,
-      linked_carrier_ids: t.linked_carrier_ids,
-      is_default: false,
-    })
-    if (error) { setError(error.message); return }
-    await loadTemplates(clientCode)
+    setError(null)
+    try {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "duplicate", template: t }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Request failed (${res.status})`)
+      }
+      await loadTemplates()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   async function handleDelete(t: Template) {
-    if (!clientCode) return
-    const { error } = await supabase
-      .from("templates")
-      .delete()
-      .eq("client_code", clientCode)
-      .eq("template_id", t.template_id)
-    if (error) { setError(error.message); return }
-    setList((l) => l.filter((x) => x.template_id !== t.template_id))
+    setError(null)
+    try {
+      const res = await fetch("/api/templates", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: t.template_id }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Request failed (${res.status})`)
+      }
+      setList((l) => l.filter((x) => x.template_id !== t.template_id))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   function openNew(type: "Email" | "WhatsApp" = "Email") {
@@ -146,8 +128,7 @@ export default function TemplatesPage() {
           </div>
           <button
             onClick={() => openNew(tab === "WhatsApp" ? "WhatsApp" : "Email")}
-            disabled={!clientCode}
-            className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#EA580C] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#EA580C]"
           >
             <Plus className="h-4 w-4" /> New Template
           </button>
@@ -233,10 +214,9 @@ export default function TemplatesPage() {
         <p className="py-8 text-center text-sm text-[#64748B]">No {tab.toLowerCase()} templates yet.</p>
       )}
 
-      {editorOpen && clientCode && editing && (
+      {editorOpen && editing && (
         <TemplateEditor
           template={editing}
-          clientCode={clientCode}
           onClose={() => { setEditorOpen(false); setEditing(null) }}
           onSave={handleSave}
         />

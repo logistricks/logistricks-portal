@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   AlignCenter,
   AlignLeft,
@@ -19,47 +19,17 @@ import {
   Underline,
   X,
 } from "lucide-react"
-import { createClient } from "@/lib/supabase"
-import { templateVariables, type Carrier, type CarrierRow, type Template } from "@/lib/portal-data"
-
-function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
-  const map = new Map<number, Carrier>()
-  for (const row of rows) {
-    if (!row.is_cc) {
-      map.set(row.carrier_id, {
-        row_id: row.id,
-        carrier_id: row.carrier_id,
-        carrier_name: row.carrier_name,
-        person_name: row.person_name,
-        role: row.role,
-        email: row.email,
-        number: row.number,
-        is_sea: row.is_sea,
-        is_air: row.is_air,
-        is_land: row.is_land,
-        lang: row.lang,
-        routes: row.routes,
-        active: row.active,
-        cc_emails: [],
-      })
-    }
-  }
-  return Array.from(map.values())
-}
+import { templateVariables, type Carrier, type Template } from "@/lib/portal-data"
 
 export function TemplateEditor({
   template,
-  clientCode,
   onClose,
   onSave,
 }: {
   template: Template
-  clientCode: string
   onClose: () => void
   onSave: () => void
 }) {
-  const supabase = createClient()
-
   const [templateName, setTemplateName] = useState(template.template_name)
   const [type] = useState<"Email" | "WhatsApp">(template.type)
   const [subject, setSubject] = useState(template.subject ?? "")
@@ -74,14 +44,18 @@ export function TemplateEditor({
 
   const isEmail = type === "Email"
 
-  useEffect(() => {
-    supabase
-      .from("carriers")
-      .select("*")
-      .eq("client_code", clientCode)
-      .order("carrier_id", { ascending: true })
-      .then(({ data }) => setCarriers(groupCarrierRows(data ?? [])))
-  }, [clientCode])
+  const loadCarriers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/carriers")
+      if (!res.ok) return
+      const data: Carrier[] = await res.json()
+      setCarriers(data)
+    } catch {
+      // non-critical
+    }
+  }, [])
+
+  useEffect(() => { loadCarriers() }, [loadCarriers])
 
   function insertVar(name: string) {
     const el = bodyRef.current
@@ -111,62 +85,43 @@ export function TemplateEditor({
     setError(null)
     setSaving(true)
     try {
-      if (template.row_id > 0) {
-        // UPDATE
-        const { error: err } = await supabase
-          .from("templates")
-          .update({
-            template_name: templateName,
-            subject: isEmail ? subject || null : null,
-            body,
-            linked_carrier_ids: linkedCarrierIds,
-            is_default: isDefault,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", template.row_id)
-        if (err) throw err
+      const payload =
+        template.row_id > 0
+          ? {
+              action: "update" as const,
+              template: {
+                row_id: template.row_id,
+                template_id: template.template_id,
+                template_name: templateName,
+                type,
+                subject: isEmail ? subject || null : null,
+                body,
+                linked_carrier_ids: linkedCarrierIds,
+                is_default: isDefault,
+              },
+            }
+          : {
+              action: "insert" as const,
+              template: {
+                row_id: 0,
+                template_id: 0,
+                template_name: templateName,
+                type,
+                subject: isEmail ? subject || null : null,
+                body,
+                linked_carrier_ids: linkedCarrierIds,
+                is_default: isDefault,
+              },
+            }
 
-        // If set as default, unset others of same type
-        if (isDefault) {
-          await supabase
-            .from("templates")
-            .update({ is_default: false })
-            .eq("client_code", clientCode)
-            .eq("type", type)
-            .neq("id", template.row_id)
-        }
-      } else {
-        // INSERT — get next template_id
-        const { data: maxRow } = await supabase
-          .from("templates")
-          .select("template_id")
-          .eq("client_code", clientCode)
-          .order("template_id", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        const nextId = (maxRow?.template_id ?? 0) + 1
-
-        const { error: err } = await supabase.from("templates").insert({
-          client_code: clientCode,
-          template_id: nextId,
-          template_name: templateName,
-          type,
-          subject: isEmail ? subject || null : null,
-          body,
-          linked_carrier_ids: linkedCarrierIds,
-          is_default: isDefault,
-        })
-        if (err) throw err
-
-        // If set as default, unset others
-        if (isDefault) {
-          await supabase
-            .from("templates")
-            .update({ is_default: false })
-            .eq("client_code", clientCode)
-            .eq("type", type)
-            .neq("template_id", nextId)
-        }
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? `Request failed (${res.status})`)
       }
       onSave()
     } catch (err: unknown) {
