@@ -1,0 +1,284 @@
+"use client"
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  Activity,
+  ArrowDownUp,
+  Loader2,
+  RefreshCw,
+  Truck,
+  FileText,
+  Mail,
+} from "lucide-react"
+
+type Category = "All" | "Requests" | "Carriers" | "Templates"
+type Range    = "today" | "7d" | "30d" | "all"
+
+interface ActivityRow {
+  id:          number
+  event_type:  string
+  actor:       string
+  description: string
+  request_id:  string | null
+  meta:        Record<string, unknown>
+  created_at:  string
+  category:    Category | "Other"
+}
+
+const CATEGORIES: Category[] = ["All", "Requests", "Carriers", "Templates"]
+const RANGES: { label: string; value: Range }[] = [
+  { label: "Today",    value: "today" },
+  { label: "7 days",  value: "7d"    },
+  { label: "30 days", value: "30d"   },
+  { label: "All time", value: "all"  },
+]
+
+interface BadgeConfig {
+  label: string
+  bg:    string
+  text:  string
+}
+
+const EVENT_BADGE: Record<string, BadgeConfig> = {
+  request_received:       { label: "Request",          bg: "bg-blue-50 dark:bg-blue-500/10",    text: "text-blue-600 dark:text-blue-300"    },
+  request_status_changed: { label: "Status Change",    bg: "bg-purple-50 dark:bg-purple-500/10", text: "text-purple-600 dark:text-purple-300" },
+  carrier_added:          { label: "Carrier Added",    bg: "bg-emerald-50 dark:bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-300" },
+  carrier_updated:        { label: "Carrier Updated",  bg: "bg-yellow-50 dark:bg-yellow-500/10",  text: "text-yellow-700 dark:text-yellow-300"  },
+  carrier_deleted:        { label: "Carrier Deleted",  bg: "bg-red-50 dark:bg-red-500/10",       text: "text-red-600 dark:text-red-300"       },
+  template_created:       { label: "Template Created", bg: "bg-emerald-50 dark:bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-300" },
+  template_updated:       { label: "Template Updated", bg: "bg-yellow-50 dark:bg-yellow-500/10",  text: "text-yellow-700 dark:text-yellow-300"  },
+  template_deleted:       { label: "Template Deleted", bg: "bg-red-50 dark:bg-red-500/10",       text: "text-red-600 dark:text-red-300"       },
+}
+
+const DEFAULT_BADGE: BadgeConfig = {
+  label: "Event",
+  bg:    "bg-[#F0F4F8] dark:bg-[#1E3A5F]",
+  text:  "text-[#64748B] dark:text-[#94A3B8]",
+}
+
+function CategoryIcon({ category }: { category: string }) {
+  if (category === "Carriers")  return <Truck    className="h-3.5 w-3.5" />
+  if (category === "Templates") return <Mail     className="h-3.5 w-3.5" />
+  if (category === "Requests")  return <FileText className="h-3.5 w-3.5" />
+  return <Activity className="h-3.5 w-3.5" />
+}
+
+function formatTime(iso: string): { relative: string; exact: string } {
+  const date = new Date(iso)
+  const diff  = Date.now() - date.getTime()
+  const mins  = Math.floor(diff / 60_000)
+  const hours = Math.floor(diff / 3_600_000)
+  const days  = Math.floor(diff / 86_400_000)
+
+  let relative: string
+  if (mins < 1)    relative = "Just now"
+  else if (mins < 60)  relative = `${mins}m ago`
+  else if (hours < 24) relative = `${hours}h ago`
+  else if (days === 1) relative = "Yesterday"
+  else relative = `${days}d ago`
+
+  const timeStr = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+  const today     = new Date(); today.setHours(0,0,0,0)
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1)
+
+  let exact: string
+  if (date >= today)          exact = `Today, ${timeStr}`
+  else if (date >= yesterday) exact = `Yesterday, ${timeStr}`
+  else exact = date.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + `, ${timeStr}`
+
+  return { relative, exact }
+}
+
+function ActorBadge({ actor }: { actor: string }) {
+  const isSystem = actor === "system" || actor === "n8n"
+  return (
+    <span
+      className={`inline-block rounded px-1.5 py-0.5 font-mono text-[11px] font-medium ${
+        isSystem
+          ? "bg-[#F0F4F8] text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]"
+          : "bg-[#FFF7ED] text-[#F97316] dark:bg-[#F97316]/10"
+      }`}
+    >
+      {actor}
+    </span>
+  )
+}
+
+export default function ActivityPage() {
+  const [rows, setRows]               = useState<ActivityRow[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [category, setCategory]       = useState<Category>("All")
+  const [range, setRange]             = useState<Range>("7d")
+  const [sortAsc, setSortAsc]         = useState(false)
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams({ category, range })
+      const res = await fetch(`/api/activity?${params}`)
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const data: ActivityRow[] = await res.json()
+      setRows(data)
+      setLastUpdated(new Date())
+    } catch (e) {
+      if (!silent) setError((e as Error).message)
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [category, range])
+
+  useEffect(() => { load() }, [load])
+
+  const sorted = useMemo(
+    () => (sortAsc ? [...rows].reverse() : rows),
+    [rows, sortAsc],
+  )
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-[#0D1B2A] dark:text-white">Activity Log</h2>
+          {!loading && (
+            <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]">
+              {sorted.length} events
+            </span>
+          )}
+          {lastUpdated && (
+            <button
+              onClick={() => load()}
+              title={`Last synced ${lastUpdated.toLocaleTimeString()}`}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2A40]"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-[#E2E8F0] bg-white p-0.5 dark:border-[#1E3A5F] dark:bg-[#111E33]">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  category === c
+                    ? "bg-[#F97316] text-white"
+                    : "text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-white"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value as Range)}
+            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
+          >
+            {RANGES.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+          {error}
+        </p>
+      )}
+
+      <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-[#F97316]" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-[#F0F4F8] text-xs uppercase tracking-wide text-[#64748B] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Event</th>
+                  <th className="px-4 py-3 font-semibold">Description</th>
+                  <th className="px-4 py-3 font-semibold">Actor</th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      onClick={() => setSortAsc((v) => !v)}
+                      className="inline-flex items-center gap-1 hover:text-[#F97316]"
+                    >
+                      Time
+                      <ArrowDownUp className="h-3 w-3" />
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((row, i) => {
+                  const badge = EVENT_BADGE[row.event_type] ?? DEFAULT_BADGE
+                  const { relative, exact } = formatTime(row.created_at)
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`border-t border-[#E2E8F0] transition-colors dark:border-[#1E3A5F] ${
+                        i % 2 === 1
+                          ? "bg-[#F8FAFC] dark:bg-[#0D1B2A]/40"
+                          : "bg-white dark:bg-transparent"
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.bg} ${badge.text}`}
+                        >
+                          <CategoryIcon category={row.category} />
+                          {badge.label}
+                        </span>
+                      </td>
+
+                      <td className="max-w-[340px] px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">
+                        <p className="truncate">{row.description}</p>
+                        {row.request_id && (
+                          <p className="mt-0.5 font-mono text-[10px] text-[#94A3B8]">
+                            req:{row.request_id.slice(0, 8)}…
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <ActorBadge actor={row.actor} />
+                      </td>
+
+                      <td
+                        className="whitespace-nowrap px-4 py-3 tabular-nums text-[#64748B] dark:text-[#94A3B8]"
+                        title={exact}
+                      >
+                        {relative}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!loading && sorted.length === 0 && !error && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <Activity className="h-10 w-10 text-[#CBD5E1]" />
+            <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
+              No activity yet for this period.
+            </p>
+            <p className="text-xs text-[#94A3B8]">
+              Events appear here when carriers and templates are added, edited, or deleted.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

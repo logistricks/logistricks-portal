@@ -2,12 +2,12 @@
  * app/api/carriers/route.ts
  * CRUD for the carriers table — scoped to the caller's client_code via session cookie.
  */
+
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
-import type { Carrier, CarrierRow } from "@/lib/portal-data"
+import { logActivity } from "@/lib/log-activity"
 
-// ── Session helper ─────────────────────────────────────────────────────────────
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
     const dotIndex = cookie.lastIndexOf(".")
@@ -21,7 +21,9 @@ function getSession(cookie: string): { username: string; clientCode: string } | 
     if (!data.username || !data.clientCode || !data.exp) return null
     if (Date.now() > data.exp) return null
     return { username: data.username, clientCode: data.clientCode }
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 function admin() {
@@ -32,127 +34,200 @@ function admin() {
   )
 }
 
-function groupRows(rows: CarrierRow[]): Carrier[] {
-  const map = new Map<number, Carrier>()
-  for (const row of rows) {
-    if (!row.is_cc) {
-      map.set(row.carrier_id, {
-        row_id: row.id, carrier_id: row.carrier_id, carrier_name: row.carrier_name,
-        person_name: row.person_name, role: row.role, email: row.email, number: row.number,
-        is_sea: row.is_sea, is_air: row.is_air, is_land: row.is_land,
-        lang: row.lang, routes: row.routes, active: row.active, cc_emails: [],
-      })
-    }
-  }
-  for (const row of rows) {
-    if (row.is_cc && row.email) {
-      map.get(row.carrier_id)?.cc_emails.push(row.email)
-    }
-  }
-  return Array.from(map.values())
-}
-
-function auth(req: NextRequest) {
+function auth(req: NextRequest): { username: string; clientCode: string } | null {
   const cookie = req.cookies.get("portal_session")?.value
   if (!cookie) return null
   return getSession(cookie)
 }
 
-// ── GET — list ─────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data, error } = await admin()
-    .from("carriers").select("*")
+    .from("carriers")
+    .select("*")
     .eq("client_code", session.clientCode)
     .order("carrier_id", { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(groupRows((data ?? []) as CarrierRow[]))
+  return NextResponse.json(data ?? [])
 }
 
-// ── POST — create or update ────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { carrier, ccEmails = [] }: { carrier: Carrier & { row_id: number }; ccEmails: string[] } = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+
   const db = admin()
-  const cc = session.clientCode
 
-  if (carrier.row_id) {
-    // UPDATE main row
-    const { error } = await db.from("carriers").update({
-      carrier_name: carrier.carrier_name, person_name: carrier.person_name,
-      role: carrier.role, email: carrier.email, number: carrier.number,
-      is_sea: carrier.is_sea, is_air: carrier.is_air, is_land: carrier.is_land,
-      lang: carrier.lang, routes: carrier.routes, active: carrier.active,
-    }).eq("id", carrier.row_id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const { data: maxRow } = await db
+    .from("carriers")
+    .select("carrier_id")
+    .eq("client_code", session.clientCode)
+    .eq("is_cc", false)
+    .order("carrier_id", { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-    // Re-sync CC rows
-    await db.from("carriers").delete().eq("client_code", cc).eq("carrier_id", carrier.carrier_id).eq("is_cc", true)
-    if (ccEmails.length > 0) {
-      const { error: ccErr } = await db.from("carriers").insert(
-        ccEmails.map((e) => ({
-          client_code: cc, carrier_id: carrier.carrier_id, carrier_name: carrier.carrier_name,
-          email: e, is_cc: true, active: carrier.active,
-          is_sea: carrier.is_sea, is_air: carrier.is_air, is_land: carrier.is_land, lang: carrier.lang,
-        }))
-      )
-      if (ccErr) return NextResponse.json({ error: ccErr.message }, { status: 500 })
-    }
-  } else {
-    // INSERT
-    const { data: maxRow } = await db.from("carriers").select("carrier_id")
-      .eq("client_code", cc).order("carrier_id", { ascending: false }).limit(1).maybeSingle()
-    const nextId = (maxRow?.carrier_id ?? 0) + 1
+  const nextId = (maxRow?.carrier_id ?? 0) + 1
 
-    const { error } = await db.from("carriers").insert({
-      client_code: cc, carrier_id: nextId, carrier_name: carrier.carrier_name,
-      person_name: carrier.person_name, role: carrier.role, email: carrier.email,
-      number: carrier.number, is_sea: carrier.is_sea, is_air: carrier.is_air,
-      is_land: carrier.is_land, lang: carrier.lang, routes: carrier.routes,
-      is_cc: false, active: carrier.active,
-    })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const { error: mainErr } = await db.from("carriers").insert({
+    client_code:  session.clientCode,
+    carrier_id:   nextId,
+    carrier_name: body.carrier_name,
+    person_name:  body.person_name  ?? "",
+    role:         body.role         ?? "",
+    email:        body.email        ?? "",
+    number:       body.number       ?? "",
+    is_sea:       body.is_sea       ?? false,
+    is_air:       body.is_air       ?? false,
+    is_land:      body.is_land      ?? false,
+    lang:         body.lang         ?? -1,
+    routes:       body.routes       ?? "",
+    active:       body.active       ?? true,
+    is_cc:        false,
+  })
+  if (mainErr) return NextResponse.json({ error: mainErr.message }, { status: 500 })
 
-    if (ccEmails.length > 0) {
-      const { error: ccErr } = await db.from("carriers").insert(
-        ccEmails.map((e) => ({
-          client_code: cc, carrier_id: nextId, carrier_name: carrier.carrier_name,
-          email: e, is_cc: true, active: carrier.active,
-          is_sea: carrier.is_sea, is_air: carrier.is_air, is_land: carrier.is_land, lang: carrier.lang,
-        }))
-      )
-      if (ccErr) return NextResponse.json({ error: ccErr.message }, { status: 500 })
-    }
+  const ccEmails: string[] = body.cc_emails ?? []
+  if (ccEmails.length > 0) {
+    const ccRows = ccEmails.map((email: string) => ({
+      client_code:  session.clientCode,
+      carrier_id:   nextId,
+      carrier_name: body.carrier_name,
+      person_name:  "",
+      role:         "",
+      email,
+      number:       "",
+      is_sea:       false,
+      is_air:       false,
+      is_land:      false,
+      lang:         -1,
+      routes:       "",
+      active:       true,
+      is_cc:        true,
+    }))
+    const { error: ccErr } = await db.from("carriers").insert(ccRows)
+    if (ccErr) return NextResponse.json({ error: ccErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  await logActivity({
+    clientCode:  session.clientCode,
+    eventType:   "carrier_added",
+    actor:       session.username,
+    description: `Added carrier "${body.carrier_name}"`,
+    meta: { carrier_id: nextId, carrier_name: body.carrier_name },
+  })
+
+  return NextResponse.json({ ok: true, carrier_id: nextId }, { status: 201 })
 }
 
-// ── PATCH — toggle active ──────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { row_id, active }: { row_id: number; active: boolean } = await req.json()
-  const { error } = await admin().from("carriers").update({ active })
-    .eq("id", row_id).eq("client_code", session.clientCode)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const body = await req.json().catch(() => null)
+  if (!body?.carrier_id) return NextResponse.json({ error: "carrier_id required" }, { status: 400 })
+
+  const db       = admin()
+  const carrierId: number = body.carrier_id
+
+  const patch: Record<string, unknown> = {}
+  const fields = ["carrier_name","person_name","role","email","number","is_sea","is_air","is_land","lang","routes","active"] as const
+  for (const f of fields) {
+    if (body[f] !== undefined) patch[f] = body[f]
+  }
+
+  if (Object.keys(patch).length > 0) {
+    const { error } = await db
+      .from("carriers")
+      .update(patch)
+      .eq("client_code", session.clientCode)
+      .eq("carrier_id", carrierId)
+      .eq("is_cc", false)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (Array.isArray(body.cc_emails)) {
+    const ccEmails: string[] = body.cc_emails
+
+    await db
+      .from("carriers")
+      .delete()
+      .eq("client_code", session.clientCode)
+      .eq("carrier_id", carrierId)
+      .eq("is_cc", true)
+
+    if (ccEmails.length > 0) {
+      const carrierName = body.carrier_name ?? ""
+      const ccRows = ccEmails.map((email: string) => ({
+        client_code:  session.clientCode,
+        carrier_id:   carrierId,
+        carrier_name: carrierName,
+        person_name:  "",
+        role:         "",
+        email,
+        number:       "",
+        is_sea:       false,
+        is_air:       false,
+        is_land:      false,
+        lang:         -1,
+        routes:       "",
+        active:       true,
+        is_cc:        true,
+      }))
+      const { error: ccErr } = await db.from("carriers").insert(ccRows)
+      if (ccErr) return NextResponse.json({ error: ccErr.message }, { status: 500 })
+    }
+  }
+
+  await logActivity({
+    clientCode:  session.clientCode,
+    eventType:   "carrier_updated",
+    actor:       session.username,
+    description: `Updated carrier "${body.carrier_name ?? carrierId}"`,
+    meta: { carrier_id: carrierId },
+  })
+
   return NextResponse.json({ ok: true })
 }
 
-// ── DELETE — remove carrier and all its rows ───────────────────────────────────
 export async function DELETE(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { carrier_id }: { carrier_id: number } = await req.json()
-  const { error } = await admin().from("carriers").delete()
-    .eq("client_code", session.clientCode).eq("carrier_id", carrier_id)
+  const url       = new URL(req.url)
+  const carrierId = Number(url.searchParams.get("carrier_id"))
+  if (!carrierId) return NextResponse.json({ error: "carrier_id required" }, { status: 400 })
+
+  const db = admin()
+
+  const { data: nameRow } = await db
+    .from("carriers")
+    .select("carrier_name")
+    .eq("client_code", session.clientCode)
+    .eq("carrier_id", carrierId)
+    .eq("is_cc", false)
+    .maybeSingle()
+
+  const { error } = await db
+    .from("carriers")
+    .delete()
+    .eq("client_code", session.clientCode)
+    .eq("carrier_id", carrierId)
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await logActivity({
+    clientCode:  session.clientCode,
+    eventType:   "carrier_deleted",
+    actor:       session.username,
+    description: `Deleted carrier "${nameRow?.carrier_name ?? carrierId}"`,
+    meta: { carrier_id: carrierId },
+  })
+
   return NextResponse.json({ ok: true })
 }

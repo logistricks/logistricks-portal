@@ -1,15 +1,29 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Copy, Loader2, Mail, MessageCircle, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { TemplateEditor } from "@/components/portal/template-editor"
-import { type Template } from "@/lib/portal-data"
+import { type Template, type TemplateRow } from "@/lib/portal-data"
 
 type Tab = "All" | "Email" | "WhatsApp"
 const tabs: Tab[] = ["All", "Email", "WhatsApp"]
 
+function rowToTemplate(row: TemplateRow): Template {
+  return {
+    row_id:             row.id,
+    template_id:        row.template_id,
+    template_name:      row.template_name,
+    type:               row.type,
+    subject:            row.subject,
+    body:               row.body,
+    linked_carrier_ids: row.linked_carrier_ids,
+    is_default:         row.is_default,
+    updated_at:         row.updated_at,
+  }
+}
+
 function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
+  const diff    = Date.now() - new Date(iso).getTime()
   const minutes = Math.floor(diff / 60000)
   if (minutes < 1) return "just now"
   if (minutes < 60) return `${minutes}m ago`
@@ -19,32 +33,29 @@ function relativeTime(iso: string): string {
 }
 
 export default function TemplatesPage() {
-  const [list, setList] = useState<Template[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>("All")
-  const [editing, setEditing] = useState<Template | null>(null)
+  const [list, setList]           = useState<Template[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
+  const [tab, setTab]             = useState<Tab>("All")
+  const [editing, setEditing]     = useState<Template | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
 
-  const loadTemplates = useCallback(async () => {
+  async function loadTemplates() {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch("/api/templates")
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? `Request failed (${res.status})`)
-      }
-      const data: Template[] = await res.json()
-      setList(data)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err))
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const rows: TemplateRow[] = await res.json()
+      setList(rows.map(rowToTemplate))
+    } catch (e) {
+      setError((e as Error).message)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }
 
-  useEffect(() => { loadTemplates() }, [loadTemplates])
+  useEffect(() => { loadTemplates() }, [])
 
   const filtered = useMemo(
     () => (tab === "All" ? list : list.filter((t) => t.type === tab)),
@@ -58,52 +69,32 @@ export default function TemplatesPage() {
   }
 
   async function handleDuplicate(t: Template) {
-    setError(null)
-    try {
-      const res = await fetch("/api/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "duplicate", template: t }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? `Request failed (${res.status})`)
-      }
-      await loadTemplates()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
+    const res = await fetch("/api/templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "duplicate", template_id: t.template_id }),
+    })
+    if (!res.ok) { setError(`Duplicate failed (${res.status})`); return }
+    await loadTemplates()
   }
 
   async function handleDelete(t: Template) {
-    setError(null)
-    try {
-      const res = await fetch("/api/templates", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: t.template_id }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? `Request failed (${res.status})`)
-      }
-      setList((l) => l.filter((x) => x.template_id !== t.template_id))
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
+    const res = await fetch(`/api/templates?template_id=${t.template_id}`, { method: "DELETE" })
+    if (!res.ok) { setError(`Delete failed (${res.status})`); return }
+    setList((l) => l.filter((x) => x.template_id !== t.template_id))
   }
 
   function openNew(type: "Email" | "WhatsApp" = "Email") {
     setEditing({
-      row_id: 0,
-      template_id: 0,
-      template_name: "",
+      row_id:             0,
+      template_id:        0,
+      template_name:      "",
       type,
-      subject: type === "Email" ? "" : null,
-      body: "",
+      subject:            type === "Email" ? "" : null,
+      body:               "",
       linked_carrier_ids: [],
-      is_default: false,
-      updated_at: new Date().toISOString(),
+      is_default:         false,
+      updated_at:         new Date().toISOString(),
     })
     setEditorOpen(true)
   }
