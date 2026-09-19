@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Copy, Loader2, Mail, MessageCircle, Pencil, Plus, Star, Trash2 } from "lucide-react"
+import { Check, Copy, Loader2, Mail, MessageCircle, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { TemplateEditor } from "@/components/portal/template-editor"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 
@@ -18,6 +18,7 @@ function rowToTemplate(row: TemplateRow): Template {
     body:               row.body,
     linked_carrier_ids: row.linked_carrier_ids,
     is_default:         row.is_default,
+    active:             row.active,
     updated_at:         row.updated_at,
   }
 }
@@ -38,7 +39,10 @@ export default function TemplatesPage() {
   const [error, setError]         = useState<string | null>(null)
   const [tab, setTab]             = useState<Tab>("All")
   const [editing, setEditing]     = useState<Template | null>(null)
-  const [editorOpen, setEditorOpen] = useState(false)
+  const [editorOpen, setEditorOpen]     = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Template | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [inUseTemplate, setInUseTemplate] = useState<Template | null>(null)
 
   async function loadTemplates() {
     setLoading(true)
@@ -79,9 +83,43 @@ export default function TemplatesPage() {
   }
 
   async function handleDelete(t: Template) {
-    const res = await fetch(`/api/templates?template_id=${t.template_id}`, { method: "DELETE" })
-    if (!res.ok) { setError(`Delete failed (${res.status})`); return }
-    setList((l) => l.filter((x) => x.template_id !== t.template_id))
+    setConfirmDelete(t)
+  }
+
+  async function executeDelete(t: Template) {
+    setDeleteLoading(true)
+    try {
+      const res = await fetch(`/api/templates?template_id=${t.template_id}`, { method: "DELETE" })
+      if (res.status === 409) {
+        const body = await res.json().catch(() => ({}))
+        setConfirmDelete(null)
+        setInUseTemplate({ ...t, template_name: body.name ?? t.template_name })
+        return
+      }
+      if (!res.ok) { setError(`Delete failed (${res.status})`); return }
+      setList((l) => l.filter((x) => x.template_id !== t.template_id))
+      setConfirmDelete(null)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  async function handleDeactivateTemplate(t: Template) {
+    setInUseTemplate(null)
+    setList((l) => l.map((x) => x.template_id === t.template_id ? { ...x, active: false } : x))
+    try {
+      const res = await fetch("/api/templates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: t.template_id, active: false }),
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setList((l) => l.map((x) => x.template_id === t.template_id ? { ...x, active: t.active } : x))
+    }
   }
 
   function openNew(type: "Email" | "WhatsApp" = "Email") {
@@ -94,6 +132,7 @@ export default function TemplatesPage() {
       body:               "",
       linked_carrier_ids: [],
       is_default:         false,
+      active:             true,
       updated_at:         new Date().toISOString(),
     })
     setEditorOpen(true)
@@ -164,7 +203,26 @@ export default function TemplatesPage() {
 
               <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
                 <span className="text-xs text-[#94A3B8]">Updated {relativeTime(t.updated_at)}</span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    role="switch"
+                    aria-checked={t.active}
+                    aria-label={`Toggle ${t.template_name}`}
+                    onClick={async () => {
+                      const next = !t.active
+                      setList((l) => l.map((x) => x.template_id === t.template_id ? { ...x, active: next } : x))
+                      const res = await fetch("/api/templates", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ template_id: t.template_id, active: next }),
+                      })
+                      if (!res.ok) setList((l) => l.map((x) => x.template_id === t.template_id ? { ...x, active: t.active } : x))
+                    }}
+                    className={`relative h-5 w-9 overflow-hidden rounded-full transition-colors ${t.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
+                  >
+                    <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${t.active ? "translate-x-4" : "translate-x-0"}`} />
+                  </button>
+                  <div className="flex items-center gap-1">
                   <button
                     aria-label="Edit"
                     onClick={() => { setEditing(t); setEditorOpen(true) }}
@@ -187,6 +245,7 @@ export default function TemplatesPage() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+                </div>
               </div>
             </article>
           ))}
@@ -203,6 +262,63 @@ export default function TemplatesPage() {
 
       {!loading && filtered.length === 0 && !error && (
         <p className="py-8 text-center text-sm text-[#64748B]">No {tab.toLowerCase()} templates yet.</p>
+      )}
+
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
+            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Delete template?</h3>
+            <p className="mt-2 text-sm text-[#64748B]">
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{confirmDelete.template_name}</span>?
+              This cannot be undone.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleteLoading}
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeDelete(confirmDelete)}
+                disabled={deleteLoading}
+                className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inUseTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
+            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Cannot delete template</h3>
+            <p className="mt-2 text-sm text-[#64748B]">
+              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{inUseTemplate.template_name}</span>{" "}
+              has been used in one or more requests and cannot be deleted. You can deactivate it instead to hide it from future use.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setInUseTemplate(null)}
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeactivateTemplate(inUseTemplate)}
+                className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA580C]"
+              >
+                Deactivate Instead
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {editorOpen && editing && (

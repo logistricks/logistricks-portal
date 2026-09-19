@@ -62,6 +62,7 @@ export default function CarriersPage() {
   const [modalOpen, setModalOpen]     = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Carrier | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [inUseCarrier, setInUseCarrier]   = useState<Carrier | null>(null)
 
   async function loadCarriers() {
     setLoading(true)
@@ -106,6 +107,12 @@ export default function CarriersPage() {
     setDeleteLoading(true)
     try {
       const res = await fetch(`/api/carriers?carrier_id=${carrier.carrier_id}`, { method: "DELETE" })
+      if (res.status === 409) {
+        const body = await res.json().catch(() => ({}))
+        setConfirmDelete(null)
+        setInUseCarrier({ ...carrier, carrier_name: body.name ?? carrier.carrier_name })
+        return
+      }
       if (!res.ok) throw new Error(`Server error ${res.status}`)
       setList((l) => l.filter((c) => c.carrier_id !== carrier.carrier_id))
       setConfirmDelete(null)
@@ -113,6 +120,22 @@ export default function CarriersPage() {
       setError((e as Error).message)
     } finally {
       setDeleteLoading(false)
+    }
+  }
+
+  async function handleDeactivateCarrier(carrier: Carrier) {
+    setInUseCarrier(null)
+    setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, active: false } : c))
+    try {
+      const res = await fetch("/api/carriers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carrier_id: carrier.carrier_id, active: false }),
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, active: carrier.active } : c))
     }
   }
 
@@ -242,6 +265,32 @@ export default function CarriersPage() {
           onClose={() => { setModalOpen(false); setEditing(null) }}
           onSave={handleSave}
         />
+      )}
+
+      {inUseCarrier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
+            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Cannot delete carrier</h3>
+            <p className="mt-2 text-sm text-[#64748B]">
+              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{inUseCarrier.carrier_name}</span>{" "}
+              has been used in one or more requests and cannot be deleted. You can deactivate it instead to hide it from future use.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setInUseCarrier(null)}
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeactivateCarrier(inUseCarrier)}
+                className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA580C]"
+              >
+                Deactivate Instead
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {confirmDelete && (

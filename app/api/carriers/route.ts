@@ -213,6 +213,23 @@ export async function DELETE(req: NextRequest) {
     .eq("is_cc", false)
     .maybeSingle()
 
+  // Check if carrier has been used in outgoing requests
+  // request_carriers table is created in Phase 7/8 — until then this check is a no-op
+  let inUse = false
+  const { count: usageCount, error: usageErr } = await db
+    .from("request_carriers")
+    .select("carrier_id", { count: "exact", head: true })
+    .eq("client_code", session.clientCode)
+    .eq("carrier_id", carrierId)
+  if (!usageErr) inUse = (usageCount ?? 0) > 0
+
+  if (inUse) {
+    return NextResponse.json(
+      { error: "in_use", name: nameRow?.carrier_name ?? String(carrierId) },
+      { status: 409 },
+    )
+  }
+
   const { error } = await db
     .from("carriers")
     .delete()

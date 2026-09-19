@@ -77,6 +77,7 @@ export type TemplateRow = {
   body: string
   linked_carrier_ids: number[]
   is_default: boolean
+  active: boolean
   updated_at: string
 }
 
@@ -90,6 +91,7 @@ export type Template = {
   body: string
   linked_carrier_ids: number[]
   is_default: boolean
+  active: boolean
   updated_at: string
 }
 

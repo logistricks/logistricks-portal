@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
         body:               body.body,
         linked_carrier_ids: body.linked_carrier_ids ?? [],
         is_default:         body.is_default ?? false,
+        active:             body.active       ?? true,
         updated_at:         new Date().toISOString(),
       })
       .eq("client_code", session.clientCode)
@@ -187,6 +188,23 @@ export async function DELETE(req: NextRequest) {
     .eq("client_code", session.clientCode)
     .eq("template_id", templateId)
     .maybeSingle()
+
+  // Check if template has been used in outgoing requests
+  // request_templates table is created in Phase 7/8 — until then this check is a no-op
+  let inUse = false
+  const { count: usageCount, error: usageErr } = await db
+    .from("request_templates")
+    .select("template_id", { count: "exact", head: true })
+    .eq("client_code", session.clientCode)
+    .eq("template_id", templateId)
+  if (!usageErr) inUse = (usageCount ?? 0) > 0
+
+  if (inUse) {
+    return NextResponse.json(
+      { error: "in_use", name: nameRow?.template_name ?? String(templateId) },
+      { status: 409 },
+    )
+  }
 
   const { error } = await db
     .from("templates")
