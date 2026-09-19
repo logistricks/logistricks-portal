@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell } from "lucide-react"
+import { Bell, Plane, Ship, Truck } from "lucide-react"
 import { useEffect, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 
@@ -28,12 +28,34 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
+/* Small icon badge positioned around the L logo */
+function IconBadge({
+  icon,
+  animClass,
+  style,
+}: {
+  icon: React.ReactNode
+  animClass: string
+  style: React.CSSProperties
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#F97316] shadow-md ${animClass}`}
+      style={style}
+    >
+      {icon}
+    </div>
+  )
+}
+
 export function PortalTopbar() {
   const pathname = usePathname()
-  const [now, setNow]               = useState<string>("")
+  const [now, setNow]                 = useState<string>("")
   const [displayName, setDisplayName] = useState<string>("")
-  const [animated, setAnimated]     = useState(false)
+  const [animated, setAnimated]       = useState(false)
 
+  /* Live clock */
   useEffect(() => {
     const update = () =>
       setNow(
@@ -50,6 +72,7 @@ export function PortalTopbar() {
     return () => clearInterval(id)
   }, [])
 
+  /* Display name from session */
   useEffect(() => {
     try {
       setDisplayName(sessionStorage.getItem("portal_username") ?? "")
@@ -58,37 +81,36 @@ export function PortalTopbar() {
     }
   }, [])
 
-  // One-time intro animation on first portal visit
+  /* Animate on every mount / refresh — no localStorage gate */
   useEffect(() => {
-    try {
-      if (!localStorage.getItem("portal_intro_animated")) {
-        setAnimated(true)
-        localStorage.setItem("portal_intro_animated", "1")
-        const t = setTimeout(() => setAnimated(false), 5000)
-        return () => clearTimeout(t)
-      }
-    } catch { /* */ }
+    setAnimated(true)
   }, [])
 
   const avatarInitials = displayName ? initials(displayName) : "—"
 
   return (
     <>
-      {/* Sliding vehicles — fixed so they cross full viewport width */}
-      {animated && (
-        <>
-          <span
-            aria-hidden="true"
-            className="pointer-events-none fixed z-[999] text-2xl"
-            style={{ top: "13px", animation: "lt-truck 2.2s cubic-bezier(0.4,0,0.2,1) 0.2s both" }}
-          >🚚</span>
-          <span
-            aria-hidden="true"
-            className="pointer-events-none fixed z-[999] text-2xl"
-            style={{ top: "13px", right: 0, animation: "lt-ship 2.2s cubic-bezier(0.4,0,0.2,1) 0.7s both" }}
-          >🛳️</span>
-        </>
-      )}
+      {/* Always-present keyframe CSS */}
+      <style>{`
+        @keyframes lt-fly-ship {
+          0%   { transform: translate(-220px, 220px) scale(7); opacity: 0; }
+          12%  { opacity: 1; }
+          100% { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+        @keyframes lt-fly-truck {
+          0%   { transform: translate(220px, 220px) scale(7); opacity: 0; }
+          12%  { opacity: 1; }
+          100% { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+        @keyframes lt-fly-plane {
+          0%   { transform: translate(220px, -220px) scale(7); opacity: 0; }
+          12%  { opacity: 1; }
+          100% { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+        .lt-ship-anim  { animation: lt-fly-ship  5s cubic-bezier(0.12, 0.95, 0.35, 1) 0s    both; }
+        .lt-truck-anim { animation: lt-fly-truck 5s cubic-bezier(0.12, 0.95, 0.35, 1) 0.8s  both; }
+        .lt-plane-anim { animation: lt-fly-plane 5s cubic-bezier(0.12, 0.95, 0.35, 1) 1.6s  both; }
+      `}</style>
 
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] md:px-8">
         {/* Left: current page label */}
@@ -98,28 +120,39 @@ export function PortalTopbar() {
 
         {/* Center: Logistricks wordmark */}
         <div className="absolute left-1/2 -translate-x-1/2">
-          <Link href="/dashboard" className="flex items-center gap-2.5 select-none group">
-            {/* Icon with orbiting airplane on first load */}
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-[#0D1B2A] dark:bg-[#F97316]/10">
-              {animated && (
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute text-[14px]"
-                  style={{
-                    top: "50%",
-                    left: "50%",
-                    marginTop: "-9px",
-                    marginLeft: "-9px",
-                    animation: "lt-airplane 2.4s ease-in-out 0s both",
-                    transformOrigin: "9px 9px",
-                  }}
-                >✈️</span>
-              )}
+          <Link href="/dashboard" className="flex items-center gap-2.5 select-none">
+            {/* L badge + icon satellites */}
+            <div
+              className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-[#0D1B2A] dark:bg-[#F97316]/10"
+              style={{ overflow: "visible" }}
+            >
               <span
-                className="text-[22px] font-black leading-none text-[#F97316]"
+                className="relative z-10 text-[22px] font-black leading-none text-[#F97316]"
                 style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
               >L</span>
+
+              {/* Ship — bottom-left */}
+              <IconBadge
+                animClass={animated ? "lt-ship-anim" : "opacity-0"}
+                style={{ bottom: "-11px", left: "-12px" }}
+                icon={<Ship className="h-[10px] w-[10px] text-white" strokeWidth={2} />}
+              />
+
+              {/* Truck — bottom-right */}
+              <IconBadge
+                animClass={animated ? "lt-truck-anim" : "opacity-0"}
+                style={{ bottom: "-11px", right: "-12px" }}
+                icon={<Truck className="h-[10px] w-[10px] text-white" strokeWidth={2} />}
+              />
+
+              {/* Plane — top-right */}
+              <IconBadge
+                animClass={animated ? "lt-plane-anim" : "opacity-0"}
+                style={{ top: "-11px", right: "-12px" }}
+                icon={<Plane className="h-[10px] w-[10px] text-white" strokeWidth={2} />}
+              />
             </div>
+
             <span
               className="hidden text-[17px] font-black tracking-tight text-[#0D1B2A] dark:text-white sm:inline"
               style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
@@ -153,30 +186,6 @@ export function PortalTopbar() {
           </div>
         </div>
       </header>
-
-      {/* Keyframe animations — injected only while animated */}
-      {animated && (
-        <style>{`
-          @keyframes lt-airplane {
-            0%   { transform: rotate(0deg)   translateX(30px) rotate(0deg);    opacity: 0; }
-            8%   { opacity: 1; }
-            92%  { opacity: 1; }
-            100% { transform: rotate(360deg) translateX(30px) rotate(-360deg); opacity: 0; }
-          }
-          @keyframes lt-truck {
-            0%   { transform: translateX(-80px); opacity: 0; }
-            8%   { opacity: 1; }
-            92%  { opacity: 1; }
-            100% { transform: translateX(110vw); opacity: 0; }
-          }
-          @keyframes lt-ship {
-            0%   { transform: translateX(80px);   opacity: 0; }
-            8%   { opacity: 1; }
-            92%  { opacity: 1; }
-            100% { transform: translateX(-110vw); opacity: 0; }
-          }
-        `}</style>
-      )}
     </>
   )
 }
