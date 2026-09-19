@@ -224,3 +224,26 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ ok: true })
 }
+
+export async function PATCH(req: NextRequest) {
+  const session = auth(req)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = await req.json().catch(() => null)
+  if (!body?.template_id) return NextResponse.json({ error: "template_id required" }, { status: 400 })
+
+  const patch: Record<string, unknown> = {}
+  if (body.active !== undefined) patch.active = body.active
+
+  if (Object.keys(patch).length === 0)
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
+
+  const { error } = await admin()
+    .from("templates")
+    .update(patch)
+    .eq("client_code", session.clientCode)
+    .eq("template_id", body.template_id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
