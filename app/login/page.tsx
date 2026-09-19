@@ -94,7 +94,7 @@ export default function LoginPage() {
                 id="clientCode"
                 type="text"
                 autoComplete="organization"
-                placeholder="e.g. demo1"
+                placeholder=""
                 value={clientCode}
                 onChange={(e) => setClientCode(e.target.value)}
                 required
