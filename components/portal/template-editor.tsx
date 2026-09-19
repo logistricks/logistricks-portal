@@ -48,8 +48,8 @@ export function TemplateEditor({
     try {
       const res = await fetch("/api/carriers")
       if (!res.ok) return
-      const data: Carrier[] = await res.json()
-      setCarriers(data)
+      const rows: Array<Carrier & { is_cc?: boolean }> = await res.json()
+      setCarriers(rows.filter((c) => !c.is_cc))
     } catch {
       // non-critical
     }
@@ -85,34 +85,16 @@ export function TemplateEditor({
     setError(null)
     setSaving(true)
     try {
-      const payload =
-        template.row_id > 0
-          ? {
-              action: "update" as const,
-              template: {
-                row_id: template.row_id,
-                template_id: template.template_id,
-                template_name: templateName,
-                type,
-                subject: isEmail ? subject || null : null,
-                body,
-                linked_carrier_ids: linkedCarrierIds,
-                is_default: isDefault,
-              },
-            }
-          : {
-              action: "insert" as const,
-              template: {
-                row_id: 0,
-                template_id: 0,
-                template_name: templateName,
-                type,
-                subject: isEmail ? subject || null : null,
-                body,
-                linked_carrier_ids: linkedCarrierIds,
-                is_default: isDefault,
-              },
-            }
+      // API expects flat fields: row_id > 0 → update, row_id === 0 → insert
+      const payload = {
+        row_id:             template.row_id,
+        template_name:      templateName,
+        type,
+        subject:            isEmail ? subject || null : null,
+        body,
+        linked_carrier_ids: linkedCarrierIds,
+        is_default:         isDefault,
+      }
 
       const res = await fetch("/api/templates", {
         method: "POST",
