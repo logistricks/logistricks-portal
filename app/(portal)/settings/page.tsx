@@ -1,9 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import {
   AlertTriangle,
   CheckSquare,
+  ChevronRight,
   Loader2,
   Mail,
   MessageCircle,
@@ -504,6 +506,18 @@ export default function SettingsPage() {
         <CriticalFieldsPicker initial={criticalFields}
           onSave={saveCriticalFields} onCancel={() => setShowPicker(false)} />
       )}
+
+      {/* ── Email Sources ── */}
+      <Section icon={<Mail className="h-4 w-4" />} title="Email Sources"
+        description="IMAP mailboxes and Microsoft 365 accounts to monitor for incoming freight requests.">
+        <Link
+          href="/settings/email-sources"
+          className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm text-[#0F172A] hover:border-[#F97316] hover:bg-[#FFF7ED] dark:border-[#1E3A5F] dark:bg-[#0A1628] dark:text-white dark:hover:border-[#F97316] dark:hover:bg-[#1A1000]"
+        >
+          <span className="font-medium">Manage email sources</span>
+          <ChevronRight className="h-4 w-4 text-[#94A3B8]" />
+        </Link>
+      </Section>
     </div>
   )
 }

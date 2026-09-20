@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell } from "lucide-react"
 import { useEffect, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
+import { NotificationBell } from "@/components/portal/notification-bell"
 
 const titles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -88,14 +88,7 @@ export function PortalTopbar() {
       <div className="flex items-center gap-2">
         <span className="hidden text-xs tabular-nums text-[#94A3B8] sm:block">{now}</span>
         <ThemeToggle />
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="relative flex h-9 w-9 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F0F4F8] hover:text-[#0F172A] dark:text-[#94A3B8] dark:hover:bg-[#1E3A5F] dark:hover:text-white"
-        >
-          <Bell className="h-[18px] w-[18px]" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-        </button>
+        <NotificationBell />
         <div className="flex items-center gap-2.5 pl-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#0D1B2A] text-xs font-bold text-white dark:bg-[#1E3A5F]">
             {avatarInitials}
