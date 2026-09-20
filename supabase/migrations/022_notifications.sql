@@ -4,7 +4,7 @@
 -- ─── Notifications ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.notifications (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_code  TEXT        NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
+  client_code  CITEXT      NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
   type         TEXT        NOT NULL DEFAULT 'new_request',
   title        TEXT        NOT NULL,
   body         TEXT,
@@ -43,7 +43,7 @@ CREATE TRIGGER trigger_notify_on_request_insert
 -- ─── Push subscriptions (Web Push / VAPID) ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_code  TEXT        NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
+  client_code  CITEXT      NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
   endpoint     TEXT        NOT NULL UNIQUE,
   p256dh       TEXT        NOT NULL,
   auth         TEXT        NOT NULL,

@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS public.email_sources (
   id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_code      TEXT        NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
+  client_code      CITEXT      NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
   name             TEXT        NOT NULL,
   provider         TEXT        NOT NULL DEFAULT 'imap',
   -- Generic IMAP
