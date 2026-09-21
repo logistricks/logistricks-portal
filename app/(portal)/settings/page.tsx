@@ -277,12 +277,10 @@ export default function SettingsPage() {
       .eq("client_code", cc).order("created_at")
       .then(({ data }) => { setNumbers(data ?? []); setNumsLoading(false) })
 
-    supabase.from("clients")
-      .select("allow_auto_send_to_carrier, require_critical_data, critical_fields, auto_reply_enabled")
-      .eq("client_code", cc)
-      .single()
-      .then(({ data }) => {
-        if (data) {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.error) {
           setAutoSend(data.allow_auto_send_to_carrier ?? false)
           setRequireCritical(data.require_critical_data ?? false)
           setCriticalFields(data.critical_fields ?? [])
@@ -290,6 +288,7 @@ export default function SettingsPage() {
         }
         setFlagsLoading(false)
       })
+      .catch(() => setFlagsLoading(false))
   }, [])
 
   // ── Email actions ────────────────────────────────────────
@@ -347,34 +346,36 @@ export default function SettingsPage() {
   }
 
   // ── Automation actions ───────────────────────────────────
+  async function patchSettings(fields: Record<string, unknown>): Promise<string | null> {
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    })
+    const json = await res.json()
+    if (!res.ok || json.error) return json.error ?? "Save failed"
+    return null
+  }
+
   async function toggleAutoReply() {
-    if (!clientCode) { setError("Session not initialised — refresh the page"); return }
     setAutoReplyBusy(true); setError(null)
     const next = !autoReply
-    const { error } = await supabase.from("clients")
-      .update({ auto_reply_enabled: next })
-      .eq("client_code", clientCode)
-    if (error) { setError(error.message); setAutoReplyBusy(false); return }
+    const err = await patchSettings({ auto_reply_enabled: next })
+    if (err) { setError(err); setAutoReplyBusy(false); return }
     setAutoReply(next)
     setAutoReplyBusy(false)
   }
 
   async function toggleAutoSend() {
-    if (!clientCode) { setError("Session not initialised — refresh the page"); return }
     setAutoSendBusy(true); setError(null)
     const next = !autoSend
-    const { data, error } = await supabase.from("clients")
-      .update({ allow_auto_send_to_carrier: next })
-      .eq("client_code", clientCode)
-      .select("allow_auto_send_to_carrier")
-    if (error) { setError(error.message); setAutoSendBusy(false); return }
-    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setAutoSendBusy(false); return }
+    const err = await patchSettings({ allow_auto_send_to_carrier: next })
+    if (err) { setError(err); setAutoSendBusy(false); return }
     setAutoSend(next)
     setAutoSendBusy(false)
   }
 
   async function toggleRequireCritical() {
-    if (!clientCode) { setError("Session not initialised — refresh the page"); return }
     setError(null)
     const next = !requireCritical
     if (next && criticalFields.length === 0) {
@@ -383,25 +384,16 @@ export default function SettingsPage() {
       return
     }
     setRequireCritBusy(true)
-    const { data, error } = await supabase.from("clients")
-      .update({ require_critical_data: next })
-      .eq("client_code", clientCode)
-      .select("require_critical_data")
-    if (error) { setError(error.message); setRequireCritBusy(false); return }
-    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setRequireCritBusy(false); return }
+    const err = await patchSettings({ require_critical_data: next })
+    if (err) { setError(err); setRequireCritBusy(false); return }
     setRequireCritical(next)
     setRequireCritBusy(false)
   }
 
   async function saveCriticalFields(fields: string[]) {
-    if (!clientCode) { setError("Session not initialised — refresh the page"); setShowPicker(false); return }
     setRequireCritBusy(true); setError(null)
-    const { data, error } = await supabase.from("clients")
-      .update({ require_critical_data: true, critical_fields: fields })
-      .eq("client_code", clientCode)
-      .select("require_critical_data")
-    if (error) { setError(error.message); setShowPicker(false); setRequireCritBusy(false); return }
-    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setShowPicker(false); setRequireCritBusy(false); return }
+    const err = await patchSettings({ require_critical_data: true, critical_fields: fields })
+    if (err) { setError(err); setShowPicker(false); setRequireCritBusy(false); return }
     setCriticalFields(fields)
     setRequireCritical(true)
     setShowPicker(false)
