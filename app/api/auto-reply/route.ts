@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   const admin = adminClient()
   const { data: clientRow, error: clientErr } = await admin
     .from("clients")
-    .select("auto_reply_enabled")
+    .select("auto_reply_enabled, require_critical_data, auto_reply_missing_enabled")
     .eq("client_code", client_code)
     .single()
 
@@ -155,12 +155,26 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // ── Determine which template flag to use ─────────────────────────────────
+  const missingFieldsRaw = body.missing_fields as string | undefined
+  const missingFieldsParsed = missingFieldsRaw ? parseField(missingFieldsRaw) : ""
+  // missingFields is non-empty if there are actual field names in the value
+  const hasMissingFields = missingFieldsParsed.trim().length > 0
+
+  const useMissingTemplate =
+    clientRow.require_critical_data &&
+    clientRow.auto_reply_missing_enabled &&
+    hasMissingFields
+
+  const templateFlag = useMissingTemplate ? "is_missing_reply_template" : "is_reply_template"
+  const templateLabel = useMissingTemplate ? "Missing-data auto-reply" : "Auto-Reply"
+
   // ── Fetch the flagged auto-reply template ────────────────────────────────
   const { data: templates, error: tErr } = await admin
     .from("templates")
     .select("template_id, template_name, type, subject, body, is_default")
     .eq("client_code", client_code)
-    .eq("is_reply_template", true)
+    .eq(templateFlag, true)
     .order("template_id", { ascending: true })
     .limit(1)
 
@@ -169,7 +183,7 @@ export async function POST(req: NextRequest) {
   if (!templates || templates.length === 0) {
     return NextResponse.json({
       skipped: true,
-      reason: "No Auto-Reply template configured for this client",
+      reason: `No ${templateLabel} template configured for this client`,
     })
   }
 

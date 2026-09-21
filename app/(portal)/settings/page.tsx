@@ -258,6 +258,8 @@ export default function SettingsPage() {
   const [autoSendBusy, setAutoSendBusy]     = useState(false)
   const [requireCritBusy, setRequireCritBusy] = useState(false)
   const [autoReplyBusy, setAutoReplyBusy]   = useState(false)
+  const [autoReplyMissing, setAutoReplyMissing] = useState(false)
+  const [autoReplyMissingBusy, setAutoReplyMissingBusy] = useState(false)
   const [showPicker, setShowPicker]         = useState(false)
 
   const [error, setError] = useState<string | null>(null)
@@ -285,6 +287,7 @@ export default function SettingsPage() {
           setRequireCritical(data.require_critical_data ?? false)
           setCriticalFields(data.critical_fields ?? [])
           setAutoReply(data.auto_reply_enabled ?? false)
+          setAutoReplyMissing(data.auto_reply_missing_enabled ?? false)
         }
         setFlagsLoading(false)
       })
@@ -364,6 +367,15 @@ export default function SettingsPage() {
     if (err) { setError(err); setAutoReplyBusy(false); return }
     setAutoReply(next)
     setAutoReplyBusy(false)
+  }
+
+  async function toggleAutoReplyMissing() {
+    setAutoReplyMissingBusy(true); setError(null)
+    const next = !autoReplyMissing
+    const err = await patchSettings({ auto_reply_missing_enabled: next })
+    if (err) { setError(err); setAutoReplyMissingBusy(false); return }
+    setAutoReplyMissing(next)
+    setAutoReplyMissingBusy(false)
   }
 
   async function toggleAutoSend() {
@@ -545,6 +557,15 @@ export default function SettingsPage() {
               checked={autoReply}
               busy={autoReplyBusy}
               onToggle={toggleAutoReply}
+            />
+
+            {/* Auto reply missing data toggle */}
+            <ToggleRow
+              label="Auto-reply when critical data is missing"
+              description="When enabled and 'Block sending if critical data is missing' is also on, the system sends the missing-data auto-reply template instead of the standard acknowledgement when required fields are absent. Requires an Auto-Reply Missing template to be configured."
+              checked={autoReplyMissing}
+              busy={autoReplyMissingBusy}
+              onToggle={toggleAutoReplyMissing}
             />
 
             {/* Auto send toggle */}

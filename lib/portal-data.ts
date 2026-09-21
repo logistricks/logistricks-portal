@@ -78,6 +78,7 @@ export type TemplateRow = {
   linked_carrier_ids: number[]
   is_default: boolean
   is_reply_template: boolean
+  is_missing_reply_template: boolean
   active: boolean
   updated_at: string
 }
@@ -93,6 +94,7 @@ export type Template = {
   linked_carrier_ids: number[]
   is_default: boolean
   is_reply_template: boolean
+  is_missing_reply_template: boolean
   active: boolean
   updated_at: string
 }

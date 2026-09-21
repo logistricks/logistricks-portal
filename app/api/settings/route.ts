@@ -10,6 +10,7 @@
  *   require_critical_data       boolean
  *   critical_fields             string[]
  *   auto_reply_enabled          boolean
+ *   auto_reply_missing_enabled   boolean
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
@@ -49,6 +50,7 @@ const ALLOWED_FIELDS = new Set([
   "require_critical_data",
   "critical_fields",
   "auto_reply_enabled",
+  "auto_reply_missing_enabled",
 ])
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await adminClient()
     .from("clients")
-    .select("allow_auto_send_to_carrier, require_critical_data, critical_fields, auto_reply_enabled")
+    .select("allow_auto_send_to_carrier, require_critical_data, critical_fields, auto_reply_enabled, auto_reply_missing_enabled")
     .eq("client_code", session.clientCode)
     .single()
 

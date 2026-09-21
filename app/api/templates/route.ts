@@ -264,6 +264,32 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  // is_missing_reply_template: only one per client — unset all others first
+  if (body.is_missing_reply_template !== undefined) {
+    const db = admin()
+    if (body.is_missing_reply_template) {
+      await db
+        .from("templates")
+        .update({ is_missing_reply_template: false })
+        .eq("client_code", session.clientCode)
+        .eq("is_missing_reply_template", true)
+      const { error } = await db
+        .from("templates")
+        .update({ is_missing_reply_template: true })
+        .eq("client_code", session.clientCode)
+        .eq("template_id", body.template_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else {
+      const { error } = await db
+        .from("templates")
+        .update({ is_missing_reply_template: false })
+        .eq("client_code", session.clientCode)
+        .eq("template_id", body.template_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true })
+  }
+
   if (Object.keys(patch).length === 0)
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
 
