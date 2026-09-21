@@ -53,6 +53,43 @@ function parseField(value: unknown): string {
   return s
 }
 
+// ── Missing-fields label map ──────────────────────────────────────────────────
+
+const FIELD_LABELS: Record<string, string> = {
+  cargo_type:  "Cargo Type",
+  weight:      "Weight / Tonnage",
+  dimensions:  "Dimensions",
+  equipment:   "Equipment / Container",
+  incoterm:    "Incoterm",
+  bl_type:     "BL Type",
+}
+
+/**
+ * Parse the missing_fields value from n8n.
+ * Handles: JS array, JSON array string, comma-separated key string.
+ * Maps raw keys (e.g. "weight") to human-readable labels.
+ */
+function parseMissingFields(value: unknown): string {
+  if (value == null) return ""
+  // Already a JS array (parsed by req.json())
+  if (Array.isArray(value)) {
+    return value.map((k) => FIELD_LABELS[String(k)] ?? String(k)).join(", ")
+  }
+  const s = String(value).trim()
+  if (!s) return ""
+  // JSON array string  e.g. '["weight","dimensions"]'
+  if (s.startsWith("[")) {
+    try {
+      const arr = JSON.parse(s)
+      if (Array.isArray(arr)) {
+        return arr.map((k: unknown) => FIELD_LABELS[String(k)] ?? String(k)).join(", ")
+      }
+    } catch { /* fall through */ }
+  }
+  // Comma-separated keys  e.g. "weight,dimensions,bl_type"
+  return s.split(",").map((k) => FIELD_LABELS[k.trim()] ?? k.trim()).join(", ")
+}
+
 /** Replace every {{key}} token in text with the corresponding value. */
 function substituteVars(text: string, vars: VarMap): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "")
@@ -222,7 +259,7 @@ export async function POST(req: NextRequest) {
     preferred_carrier:    parseField(body.preferred_carrier),
     special_requirements: parseField(body.special_requirements),
     availability_questions: parseField(body.availability_questions),
-    missing_fields:       parseField(body.missing_fields),
+    missing_fields:       parseMissingFields(body.missing_fields),
   }
 
   // ── Substitute & render ───────────────────────────────────────────────────
