@@ -138,8 +138,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "sender_email required" }, { status: 400 })
   }
 
-  // ── Fetch default Auto-Reply template ─────────────────────────────────────
+  // ── Check auto_reply_enabled flag ────────────────────────────────────────
   const admin = adminClient()
+  const { data: clientRow, error: clientErr } = await admin
+    .from("clients")
+    .select("auto_reply_enabled")
+    .eq("client_code", client_code)
+    .single()
+
+  if (clientErr) return NextResponse.json({ error: clientErr.message }, { status: 500 })
+
+  if (!clientRow?.auto_reply_enabled) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "Auto-reply is disabled for this client",
+    })
+  }
+
+  // ── Fetch default Auto-Reply template ─────────────────────────────────────
   const { data: templates, error: tErr } = await admin
     .from("templates")
     .select("template_id, template_name, type, subject, body, is_default")
