@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "sender_email required" }, { status: 400 })
   }
 
-  // ── Check auto_reply_enabled flag ────────────────────────────────────────
+  // ── Fetch client flags ───────────────────────────────────────────────────
   const admin = adminClient()
   const { data: clientRow, error: clientErr } = await admin
     .from("clients")
@@ -148,23 +148,26 @@ export async function POST(req: NextRequest) {
 
   if (clientErr) return NextResponse.json({ error: clientErr.message }, { status: 500 })
 
-  if (!clientRow?.auto_reply_enabled) {
-    return NextResponse.json({
-      skipped: true,
-      reason: "Auto-reply is disabled for this client",
-    })
-  }
-
-  // ── Determine which template flag to use ─────────────────────────────────
+  // ── Determine which template to use ──────────────────────────────────────
+  // Missing-data path: fires independently of auto_reply_enabled
   const missingFieldsRaw = body.missing_fields as string | undefined
   const missingFieldsParsed = missingFieldsRaw ? parseField(missingFieldsRaw) : ""
-  // missingFields is non-empty if there are actual field names in the value
   const hasMissingFields = missingFieldsParsed.trim().length > 0
 
   const useMissingTemplate =
-    clientRow.require_critical_data &&
-    clientRow.auto_reply_missing_enabled &&
+    clientRow?.require_critical_data &&
+    clientRow?.auto_reply_missing_enabled &&
     hasMissingFields
+
+  // Standard auto-reply path: only when auto_reply_enabled is on
+  const useStandardTemplate = clientRow?.auto_reply_enabled && !useMissingTemplate
+
+  if (!useMissingTemplate && !useStandardTemplate) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "No applicable auto-reply path enabled for this client",
+    })
+  }
 
   const templateFlag = useMissingTemplate ? "is_missing_reply_template" : "is_reply_template"
   const templateLabel = useMissingTemplate ? "Missing-data auto-reply" : "Auto-Reply"
