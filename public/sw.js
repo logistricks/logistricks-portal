@@ -34,7 +34,17 @@ self.addEventListener("push", (e) => {
   }
 
   e.waitUntil(
-    self.registration.showNotification(payload.title || "Logistricks", options)
+    Promise.all([
+      self.registration.showNotification(payload.title || "Logistricks", options),
+      // Broadcast to all open portal tabs so they can show an in-app toast
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clients) =>
+          clients.forEach((c) =>
+            c.postMessage({ type: "PUSH_RECEIVED", payload })
+          )
+        ),
+    ])
   )
 })
 

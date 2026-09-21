@@ -12,10 +12,12 @@ interface Toast {
   title: string
   message?: string
   duration?: number
+  url?: string
 }
 
 interface ToastCtxValue {
   toast:   (opts: Omit<Toast, "id">) => void
+  notification: (title: string, message?: string, url?: string) => void
   success: (title: string, message?: string) => void
   error:   (title: string, message?: string) => void
   warning: (title: string, message?: string) => void
@@ -52,13 +54,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   )
 
+  const notification = useCallback(
+    (title: string, message?: string, url?: string) =>
+      toast({ variant: "info", title, message, duration: 300_000, url }),
+    [toast],
+  )
   const success = useCallback((title: string, message?: string) => toast({ variant: "success", title, message }), [toast])
   const error   = useCallback((title: string, message?: string) => toast({ variant: "error",   title, message, duration: 7000 }), [toast])
   const warning = useCallback((title: string, message?: string) => toast({ variant: "warning", title, message }), [toast])
   const info    = useCallback((title: string, message?: string) => toast({ variant: "info",    title, message }), [toast])
 
   return (
-    <ToastCtx.Provider value={{ toast, success, error, warning, info }}>
+    <ToastCtx.Provider value={{ toast, notification, success, error, warning, info }}>
       {children}
       <div
         aria-live="polite"
@@ -81,7 +88,7 @@ const styles: Record<ToastVariant, { bar: string; icon: React.ElementType; cls: 
   info:    { bar: "bg-[#3B82F6]",   icon: Info,          cls: "text-[#3B82F6]"  },
 }
 
-function ToastItem({ id, variant, title, message, onDismiss }: Toast & { onDismiss: (id: string) => void }) {
+function ToastItem({ id, variant, title, message, url, onDismiss }: Toast & { onDismiss: (id: string) => void }) {
   const s = styles[variant]
   const Icon = s.icon
   return (
@@ -93,12 +100,17 @@ function ToastItem({ id, variant, title, message, onDismiss }: Toast & { onDismi
       <div className={`w-1 shrink-0 ${s.bar}`} />
       <div className="flex flex-1 items-start gap-3 px-3.5 py-3">
         <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${s.cls}`} />
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => { if (url) window.location.href = url; onDismiss(id) }}
+          className={`min-w-0 flex-1 text-left ${url ? "cursor-pointer" : "cursor-default"}`}
+        >
           <p className="text-sm font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">{title}</p>
           {message && (
             <p className="mt-0.5 text-xs text-[#64748B] dark:text-[#94A3B8]">{message}</p>
           )}
-        </div>
+          {url && <p className="mt-1 text-[10px] text-[#94A3B8]">Tap to open →</p>}
+        </button>
         <button
           type="button"
           onClick={() => onDismiss(id)}

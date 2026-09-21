@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Bell, BellOff, Package, CheckCheck, X } from "lucide-react"
+import { useToast } from "@/components/ui/toast"
 
 interface Notification {
   id: string
@@ -59,6 +60,24 @@ export function NotificationBell() {
     window.addEventListener("focus", onFocus)
     return () => { clearInterval(id); window.removeEventListener("focus", onFocus) }
   }, [fetchNotifications])
+
+  // ─── In-app toast on push ──────────────────────────────────────────────────
+  const { notification: showNotification } = useToast()
+  useEffect(() => {
+    if (!navigator.serviceWorker) return
+    function onMessage(event: MessageEvent) {
+      if (event.data?.type !== "PUSH_RECEIVED") return
+      const { payload } = event.data as { payload: { title?: string; body?: string; url?: string } }
+      showNotification(
+        payload.title ?? "New Notification",
+        payload.body ?? undefined,
+        payload.url ?? "/requests",
+      )
+      fetchNotifications()
+    }
+    navigator.serviceWorker.addEventListener("message", onMessage)
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage)
+  }, [showNotification, fetchNotifications])
 
   // ─── Close on outside click ────────────────────────────────────────────────
   useEffect(() => {
