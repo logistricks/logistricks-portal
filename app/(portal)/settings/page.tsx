@@ -559,15 +559,6 @@ export default function SettingsPage() {
               onToggle={toggleAutoReply}
             />
 
-            {/* Auto reply missing data toggle */}
-            <ToggleRow
-              label="Auto-reply when critical data is missing"
-              description="When enabled and 'Block sending if critical data is missing' is also on, the system sends the missing-data auto-reply template instead of the standard acknowledgement when required fields are absent. Requires an Auto-Reply Missing template to be configured."
-              checked={autoReplyMissing}
-              busy={autoReplyMissingBusy}
-              onToggle={toggleAutoReplyMissing}
-            />
-
             {/* Auto send toggle */}
             <ToggleRow
               label="Allow auto send to carrier"
@@ -617,6 +608,33 @@ export default function SettingsPage() {
                     ) : (
                       <p className="text-xs text-[#94A3B8]">No fields selected. Click Edit to choose.</p>
                     )}
+
+                    {/* Nested: auto-reply when missing */}
+                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#0F172A] dark:text-[#E2E8F0]">Auto-reply when critical data is missing</p>
+                        <p className="text-xs text-[#475569] mt-0.5">Sends the missing-data auto-reply template instead of the standard acknowledgement when required fields are absent. Requires an Auto-Reply Missing template.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={toggleAutoReplyMissing}
+                        disabled={autoReplyMissingBusy}
+                        aria-pressed={autoReplyMissing}
+                        className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${
+                          autoReplyMissing ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"
+                        }`}
+                      >
+                        {autoReplyMissingBusy ? (
+                          <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
+                        ) : (
+                          <span
+                            className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                              autoReplyMissing ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )
               }
