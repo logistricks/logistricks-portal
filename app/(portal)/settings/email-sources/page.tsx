@@ -419,7 +419,7 @@ export default function EmailSourcesPage() {
               onChange={(e) => set("active", e.target.checked)}
               className="h-4 w-4 rounded border-[#E2E8F0] accent-[#F97316]"
             />
-            <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Active (n8n polls this mailbox)</span>
+            <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Active (this mailbox will be monitored)</span>
           </label>
 
           {error && <p className="mt-3 text-xs text-[#EF4444]">{error}</p>}

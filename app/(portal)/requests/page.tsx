@@ -247,7 +247,7 @@ export default function RequestsPage() {
             <FileText className="h-10 w-10 text-[#CBD5E1]" />
             <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
               {requests.length === 0
-                ? "No requests yet — send a test email to n8n to see one appear here."
+                ? "No requests yet — send a test email to see one appear here."
                 : "No requests match your filters"}
             </p>
           </div>

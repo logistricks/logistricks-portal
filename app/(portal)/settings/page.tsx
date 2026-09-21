@@ -354,7 +354,7 @@ export default function SettingsPage() {
 
       {/* ── Receiver Emails ── */}
       <Section icon={<Mail className="h-4 w-4" />} title="Receiver Emails"
-        description="Inbound addresses n8n monitors for this client. Only active addresses are processed. Deactivating stops new requests from that mailbox without deleting history.">
+        description="Inbound addresses monitored for this client. Only active addresses are processed. Deactivating stops new requests from that mailbox without deleting history.">
         {emailsLoading ? (
           <div className="flex items-center gap-2 py-4 text-sm text-[#475569]"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
         ) : (
@@ -388,7 +388,7 @@ export default function SettingsPage() {
 
       {/* ── WhatsApp Numbers ── */}
       <Section icon={<MessageCircle className="h-4 w-4" />} title="WhatsApp Numbers"
-        description="Sender numbers n8n listens to for inbound WhatsApp rate replies. Only active numbers are processed. Use E.164 format (+96612345678).">
+        description="Sender numbers monitored for inbound WhatsApp rate replies. Only active numbers are processed. Use E.164 format (+96612345678).">
         {numsLoading ? (
           <div className="flex items-center gap-2 py-4 text-sm text-[#475569]"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
         ) : (
@@ -494,7 +494,7 @@ export default function SettingsPage() {
                   {autoReplyBusy && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#F97316]" />}
                 </div>
                 <p className="mt-2 text-xs text-[#94A3B8]">
-                  0–60 minutes. The n8n Wait node applies this delay before sending.
+                  0–60 minutes. This delay is applied before the auto-reply is sent.
                 </p>
               </div>
             )}
