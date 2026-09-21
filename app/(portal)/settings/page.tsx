@@ -351,12 +351,10 @@ export default function SettingsPage() {
     if (!clientCode) { setError("Session not initialised — refresh the page"); return }
     setAutoReplyBusy(true); setError(null)
     const next = !autoReply
-    const { data, error } = await supabase.from("clients")
+    const { error } = await supabase.from("clients")
       .update({ auto_reply_enabled: next })
       .eq("client_code", clientCode)
-      .select("auto_reply_enabled")
     if (error) { setError(error.message); setAutoReplyBusy(false); return }
-    if (!data || data.length === 0) { setError("Save failed — client record not found or permission denied"); setAutoReplyBusy(false); return }
     setAutoReply(next)
     setAutoReplyBusy(false)
   }
