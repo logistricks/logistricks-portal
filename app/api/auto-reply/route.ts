@@ -149,23 +149,19 @@ export async function POST(req: NextRequest) {
   if (clientErr) return NextResponse.json({ error: clientErr.message }, { status: 500 })
 
   // ── Determine which template to use ──────────────────────────────────────
-  // Missing-data path: fires independently of auto_reply_enabled
-  const missingFieldsRaw = body.missing_fields as string | undefined
-  const missingFieldsParsed = missingFieldsRaw ? parseField(missingFieldsRaw) : ""
-  const hasMissingFields = missingFieldsParsed.trim().length > 0
+  // Missing-data path: fires when auto_reply_missing_enabled is on,
+  // independently of auto_reply_enabled and missing_fields content.
+  // (The toggle is already gated on require_critical_data in the UI.)
+  const useMissingTemplate = Boolean(clientRow?.auto_reply_missing_enabled)
 
-  const useMissingTemplate =
-    clientRow?.require_critical_data &&
-    clientRow?.auto_reply_missing_enabled &&
-    hasMissingFields
-
-  // Standard auto-reply path: only when auto_reply_enabled is on
-  const useStandardTemplate = clientRow?.auto_reply_enabled && !useMissingTemplate
+  // Standard auto-reply path: only when auto_reply_enabled is on and not
+  // overridden by the missing-data path.
+  const useStandardTemplate = Boolean(clientRow?.auto_reply_enabled) && !useMissingTemplate
 
   if (!useMissingTemplate && !useStandardTemplate) {
     return NextResponse.json({
       skipped: true,
-      reason: "No applicable auto-reply path enabled for this client",
+      reason: "Auto-reply is disabled for this client",
     })
   }
 
