@@ -724,13 +724,23 @@ export function RequestDetailModal({
   )
 }
 
+function parseArrayField(value: string | null | undefined): string {
+  if (!value) return ""
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) return parsed.join("\n")
+  } catch { /* not JSON */ }
+  return value
+}
+
 function FieldPill({ label, value }: { label: string; value: string | null }) {
-  const missing = !value || value === "—"
+  const display = parseArrayField(value)
+  const missing = !display || display === "—"
   return (
     <div className={`rounded-md border px-3 py-2 ${missing ? "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30" : "border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#111E33]"}`}>
       <p className="text-[11px] font-medium uppercase tracking-wide text-[#64748B]">{label}</p>
-      <p className={`text-sm font-medium ${missing ? "text-red-600 dark:text-red-400" : "text-[#0D1B2A] dark:text-[#E2E8F0]"}`}>
-        {missing ? "Missing" : value}
+      <p className={`whitespace-pre-line text-sm font-medium ${missing ? "text-red-600 dark:text-red-400" : "text-[#0D1B2A] dark:text-[#E2E8F0]"}`}>
+        {missing ? "Missing" : display}
       </p>
     </div>
   )

@@ -30,6 +30,16 @@ const sourceOptions = [
 
 const POLL_INTERVAL = 30_000 // 30 s
 
+
+function parseArrayField(value: string | null | undefined): string {
+  if (!value) return ""
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) return parsed.join("\n")
+  } catch { /* not JSON */ }
+  return value
+}
+
 export default function RequestsPage() {
   const [requests, setRequests]     = useState<FreightRequest[]>([])
   const [loading, setLoading]       = useState(true)
@@ -217,7 +227,7 @@ export default function RequestsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-[#0F172A] dark:text-[#E2E8F0]">{r.cargoType}</p>
-                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">{r.equipment}</p>
+                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8] whitespace-pre-line">{parseArrayField(r.equipment)}</p>
                   </td>
                   <td className="px-4 py-3 tabular-nums text-[#64748B] dark:text-[#94A3B8]" title={r.receivedExact}>
                     {r.receivedRelative}
