@@ -155,14 +155,13 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // ── Fetch default Auto-Reply template ─────────────────────────────────────
+  // ── Fetch the flagged auto-reply template ────────────────────────────────
   const { data: templates, error: tErr } = await admin
     .from("templates")
     .select("template_id, template_name, type, subject, body, is_default")
     .eq("client_code", client_code)
-    .ilike("type", "auto-reply")         // matches "Auto-Reply", "auto-reply", etc.
-    .order("is_default", { ascending: false })
-    .order("template_id",  { ascending: true })
+    .eq("is_reply_template", true)
+    .order("template_id", { ascending: true })
     .limit(1)
 
   if (tErr) return NextResponse.json({ error: tErr.message }, { status: 500 })
