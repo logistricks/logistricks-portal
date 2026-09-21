@@ -1,63 +1,63 @@
 /**
  * app/api/notifications/subscribe/route.ts
  *
- * POST — save a Web Push subscription for this client
- *        Body: { endpoint, p256dh, auth }
+ * POST   — upsert a push subscription for this user's device.
+ * DELETE — remove this device's push subscription.
  *
- * DELETE — remove a push subscription
- *          Body: { endpoint }
+ * Subscriptions are keyed by endpoint (globally unique per browser/device),
+ * and also tied to user_id so each person's devices are tracked separately.
  */
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { getSession, adminClient } from "@/lib/api-session"
 
-export async function POST(req: NextRequest) {
-  const cookie = req.cookies.get("portal_session")?.value
-  if (!cookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const session = getSession(cookie)
+export async function POST(req: Request) {
+  const jar     = await cookies()
+  const cookie  = jar.get("portal_session")?.value
+  const session = cookie ? getSession(cookie) : null
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { endpoint?: string; p256dh?: string; auth?: string }
-  try { body = await req.json() } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
-
-  const { endpoint, p256dh, auth } = body
-  if (!endpoint || !p256dh || !auth) {
-    return NextResponse.json({ error: "endpoint, p256dh and auth are required" }, { status: 400 })
+  const body = await req.json().catch(() => null)
+  if (!body?.endpoint || !body?.p256dh || !body?.auth) {
+    return NextResponse.json({ error: "Missing subscription fields" }, { status: 400 })
   }
 
-  const admin = adminClient()
-  const { error } = await admin
+  const db = adminClient()
+  const { error } = await db
     .from("push_subscriptions")
     .upsert(
-      { client_code: session.clientCode, endpoint, p256dh, auth },
+      {
+        endpoint:    body.endpoint,
+        p256dh:      body.p256dh,
+        auth:        body.auth,
+        client_code: session.clientCode,
+        user_id:     session.userId,
+      },
       { onConflict: "endpoint" },
     )
 
-  if (error) {
-    console.error("[api/notifications/subscribe POST]", error.message)
-    return NextResponse.json({ error: "Database error" }, { status: 500 })
-  }
-
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(req: NextRequest) {
-  const cookie = req.cookies.get("portal_session")?.value
-  if (!cookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const session = getSession(cookie)
+export async function DELETE(req: Request) {
+  const jar     = await cookies()
+  const cookie  = jar.get("portal_session")?.value
+  const session = cookie ? getSession(cookie) : null
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { endpoint?: string }
-  try { body = await req.json() } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+  const body = await req.json().catch(() => null)
+  if (!body?.endpoint) {
+    return NextResponse.json({ error: "Missing endpoint" }, { status: 400 })
+  }
 
-  if (!body.endpoint) return NextResponse.json({ error: "endpoint required" }, { status: 400 })
-
-  const admin = adminClient()
-  const { error } = await admin
+  const db = adminClient()
+  // Delete only the subscription that belongs to this user's device
+  await db
     .from("push_subscriptions")
     .delete()
     .eq("endpoint", body.endpoint)
-    .eq("client_code", session.clientCode)
+    .eq("user_id", session.userId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

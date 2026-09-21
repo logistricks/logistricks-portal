@@ -4,6 +4,9 @@
  * Verifies username + clientCode + password against portal_users using the
  * service role key (bypasses RLS). On success sets a HMAC-signed HTTP-only
  * cookie — the browser never sees the raw payload, and JS cannot read it.
+ *
+ * Session payload now includes userId (portal_users.id) so that
+ * per-user features (push subscriptions, read state) work correctly.
  */
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
@@ -20,9 +23,9 @@ function signSession(data: object): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const username: string = (body.username ?? "").toLowerCase().trim()
+    const username:   string = (body.username   ?? "").toLowerCase().trim()
     const clientCode: string = (body.clientCode ?? "").trim()
-    const password: string = body.password ?? ""
+    const password:   string = body.password ?? ""
 
     if (!username || !clientCode || !password) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
@@ -30,7 +33,6 @@ export async function POST(req: Request) {
 
     const hash = createHash("sha256").update(password).digest("hex")
 
-    // Use service role — bypasses RLS, stays server-side only
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
 
     const { data: user, error } = await admin
       .from("portal_users")
-      .select("is_active, password_hash")
+      .select("id, is_active, password_hash")
       .eq("username", username)
       .eq("client_code", clientCode)
       .maybeSingle()
@@ -50,19 +52,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
+    // Update last_login_at (best-effort, don't fail login if it errors)
+    try {
+      await admin
+        .from("portal_users")
+        .update({ last_login_at: new Date().toISOString() })
+        .eq("id", user.id)
+    } catch { /* ignore */ }
+
     const token = signSession({
       username,
       clientCode,
-      exp: Date.now() + 8 * 60 * 60 * 1000, // 8 h
+      userId: user.id,          // ← per-user identity
+      exp: Date.now() + 8 * 60 * 60 * 1000,
     })
 
     const res = NextResponse.json({ ok: true })
     res.cookies.set("portal_session", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure:   process.env.NODE_ENV === "production",
       sameSite: "strict",
-      path: "/",
-      maxAge: 28800, // 8 hours in seconds
+      path:     "/",
+      maxAge:   28800,
     })
     return res
   } catch (err) {
