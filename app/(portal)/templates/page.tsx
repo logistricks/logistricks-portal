@@ -126,33 +126,47 @@ export default function TemplatesPage() {
 
   async function handleSetReplyTemplate(t: Template) {
     // Optimistic: mark this one, unmark all others
-    setList((l) => l.map((x) => ({ ...x, is_reply_template: x.template_id === t.template_id ? !t.is_reply_template : false })))
+    const nextReply = !t.is_reply_template
+    setList((l) => l.map((x) =>
+      x.template_id === t.template_id
+        ? { ...x, is_reply_template: nextReply, is_missing_reply_template: nextReply ? false : x.is_missing_reply_template }
+        : { ...x, is_reply_template: false }
+    ))
     try {
       const res = await fetch("/api/templates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: t.template_id, is_reply_template: !t.is_reply_template }),
+        body: JSON.stringify({ template_id: t.template_id, is_reply_template: nextReply }),
       })
       if (!res.ok) throw new Error(`Server error ${res.status}`)
     } catch (e) {
       setError((e as Error).message)
-      setList((l) => l.map((x) => ({ ...x, is_reply_template: x.template_id === t.template_id ? t.is_reply_template : x.is_reply_template })))
+      setList((l) => l.map((x) =>
+        x.template_id === t.template_id ? { ...x, is_reply_template: t.is_reply_template, is_missing_reply_template: t.is_missing_reply_template } : x
+      ))
     }
   }
 
   async function handleSetMissingReplyTemplate(t: Template) {
     // Optimistic: mark this one, unmark all others
-    setList((l) => l.map((x) => ({ ...x, is_missing_reply_template: x.template_id === t.template_id ? !t.is_missing_reply_template : false })))
+    const nextMissing = !t.is_missing_reply_template
+    setList((l) => l.map((x) =>
+      x.template_id === t.template_id
+        ? { ...x, is_missing_reply_template: nextMissing, is_reply_template: nextMissing ? false : x.is_reply_template }
+        : { ...x, is_missing_reply_template: false }
+    ))
     try {
       const res = await fetch("/api/templates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: t.template_id, is_missing_reply_template: !t.is_missing_reply_template }),
+        body: JSON.stringify({ template_id: t.template_id, is_missing_reply_template: nextMissing }),
       })
       if (!res.ok) throw new Error(`Server error ${res.status}`)
     } catch (e) {
       setError((e as Error).message)
-      setList((l) => l.map((x) => ({ ...x, is_missing_reply_template: x.template_id === t.template_id ? t.is_missing_reply_template : x.is_missing_reply_template })))
+      setList((l) => l.map((x) =>
+        x.template_id === t.template_id ? { ...x, is_missing_reply_template: t.is_missing_reply_template, is_reply_template: t.is_reply_template } : x
+      ))
     }
   }
 

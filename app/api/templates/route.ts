@@ -245,10 +245,10 @@ export async function PATCH(req: NextRequest) {
         .update({ is_reply_template: false })
         .eq("client_code", session.clientCode)
         .eq("is_reply_template", true)
-      // Set the new one
+      // Set the new one (and clear the mutually-exclusive missing flag)
       const { error } = await db
         .from("templates")
-        .update({ is_reply_template: true })
+        .update({ is_reply_template: true, is_missing_reply_template: false })
         .eq("client_code", session.clientCode)
         .eq("template_id", body.template_id)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -275,7 +275,7 @@ export async function PATCH(req: NextRequest) {
         .eq("is_missing_reply_template", true)
       const { error } = await db
         .from("templates")
-        .update({ is_missing_reply_template: true })
+        .update({ is_missing_reply_template: true, is_reply_template: false })
         .eq("client_code", session.clientCode)
         .eq("template_id", body.template_id)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
