@@ -36,7 +36,8 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
-  const [pushState, setPushState] = useState<"idle" | "requesting" | "enabled" | "denied" | "unsupported">("idle")
+  const [pushState, setPushState] = useState<"idle" | "requesting" | "enabled" | "denied" | "unsupported" | "error">("idle")
+  const [pushError, setPushError] = useState<string | null>(null)
   const trayRef = useRef<HTMLDivElement>(null)
 
   const unread = notifications.filter((n) => !n.read_at).length
@@ -122,7 +123,8 @@ export function NotificationBell() {
       setPushState("enabled")
     } catch (err) {
       console.error("Push subscription failed:", err)
-      setPushState("idle")
+      setPushError(err instanceof Error ? err.message : "Subscription failed")
+      setPushState("error")
     }
   }
 
@@ -222,6 +224,17 @@ export function NotificationBell() {
                   <BellOff className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
                   <span><span className="font-medium text-[#22C55E]">Push enabled</span> — tap to disable</span>
                 </button>
+              ) : pushState === "error" ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-[#EF4444] truncate">{pushError ?? "Push setup failed"}</p>
+                  <button
+                    type="button"
+                    onClick={() => { setPushState("idle"); setPushError(null) }}
+                    className="shrink-0 text-xs font-medium text-[#F97316] hover:text-[#EA6E0D]"
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : pushState === "denied" ? (
                 <p className="text-xs text-[#EF4444]">Push blocked in browser settings</p>
               ) : (
