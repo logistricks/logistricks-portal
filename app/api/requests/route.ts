@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
+import { logActivity } from "@/lib/log-activity"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
@@ -99,6 +100,30 @@ export async function PATCH(req: NextRequest) {
   if (error) {
     console.error("[api/requests PATCH]", error.message)
     return NextResponse.json({ error: "Database error" }, { status: 500 })
+  }
+
+  // ── Activity log ──────────────────────────────────────────────────────────
+  if (patch.status) {
+    void logActivity({
+      clientCode:  session.clientCode,
+      eventType:   "request_status_changed",
+      actor:       session.username,
+      description: `Request status changed to "${patch.status}"`,
+      requestId:   id,
+      meta:        { new_status: patch.status },
+    })
+  } else {
+    const flags = Object.entries(patch)
+      .map(([k, v]) => `${k.toUpperCase()} ${v ? "on" : "off"}`)
+      .join(", ")
+    void logActivity({
+      clientCode:  session.clientCode,
+      eventType:   "request_status_changed",
+      actor:       session.username,
+      description: `Request flags updated: ${flags}`,
+      requestId:   id,
+      meta:        patch,
+    })
   }
 
   return NextResponse.json({ ok: true })
