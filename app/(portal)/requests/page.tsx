@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
+import { useToast } from "@/components/ui/toast"
 import { AogBadge, ConfidenceBadge, DgrBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
 import { Select } from "@/components/portal/select"
@@ -50,6 +51,9 @@ export default function RequestsPage() {
   const [search, setSearch]             = useState("")
   const [selected, setSelected]         = useState<string[]>([])
   const [active, setActive]             = useState<FreightRequest | null>(null)
+
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const { success, error: toastError } = useToast()
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -113,6 +117,37 @@ export default function RequestsPage() {
     setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
   }
 
+  async function bulkUpdateStatus(newStatus: string) {
+    if (bulkBusy || selected.length === 0) return
+    setBulkBusy(true)
+    try {
+      const results = await Promise.all(
+        selected.map((id) =>
+          fetch("/api/requests", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, status: newStatus }),
+          }).then((r) => r.ok),
+        ),
+      )
+      const failed = results.filter((ok) => !ok).length
+      if (failed > 0) {
+        toastError(`${failed} update(s) failed`, "Some requests could not be updated.")
+      } else {
+        success(
+          `${selected.length} request${selected.length > 1 ? "s" : ""} updated`,
+          `Marked as "${newStatus}"`,
+        )
+      }
+      setSelected([])
+      await load(true)
+    } catch {
+      toastError("Update failed", "Could not reach the server.")
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-5">
@@ -172,10 +207,18 @@ export default function RequestsPage() {
       {selected.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded border border-[#F97316]/30 bg-[#FFF7ED] px-4 py-3 dark:bg-[#1A1200]">
           <span className="text-sm font-medium text-[#0D1B2A] dark:text-[#E2E8F0]">{selected.length} requests selected</span>
-          <button className="rounded bg-[#F97316] px-3 py-1.5 text-sm font-bold text-white hover:bg-[#EA580C]">
+          <button
+            onClick={() => bulkUpdateStatus("Sent to Carrier")}
+            disabled={bulkBusy}
+            className="flex items-center gap-1.5 rounded bg-[#F97316] px-3 py-1.5 text-sm font-bold text-white hover:bg-[#EA580C] disabled:opacity-50">
+            {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Send to Carriers
           </button>
-          <button className="rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-bold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]">
+          <button
+            onClick={() => bulkUpdateStatus("Closed")}
+            disabled={bulkBusy}
+            className="flex items-center gap-1.5 rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-bold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]">
+            {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Mark as Closed
           </button>
         </div>

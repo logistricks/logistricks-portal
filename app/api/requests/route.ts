@@ -65,13 +65,21 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { id, aog, dgr } = body as { id?: string; aog?: boolean; dgr?: boolean }
+  const { id, aog, dgr, status } = body as {
+    id?: string
+    aog?: boolean
+    dgr?: boolean
+    status?: string
+  }
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
+
+  const VALID_STATUSES = new Set(["Pending", "Sent to Carrier", "Quoted", "Closed"])
 
   const patch: Record<string, unknown> = {}
   if (typeof aog === "boolean") patch.aog = aog
   if (typeof dgr === "boolean") patch.dgr = dgr
+  if (typeof status === "string" && VALID_STATUSES.has(status)) patch.status = status
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No valid fields provided" }, { status: 400 })
   }
