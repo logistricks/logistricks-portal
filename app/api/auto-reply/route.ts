@@ -254,5 +254,29 @@ export async function POST(req: NextRequest) {
   const bodyText   = substituteVars(template.body ?? "", vars)
   const html       = wrapHtml(subject, bodyText)
 
+  // ── Log the auto-reply ───────────────────────────────────────────────────
+  const logType = useMissingTemplate ? "missing_fields" : "acknowledgement"
+  void fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/auto-reply-logs`, {
+    method:  "POST",
+    headers: {
+      "Content-Type":    "application/json",
+      "x-portal-secret": process.env.PORTAL_WEBHOOK_SECRET ?? "",
+    },
+    body: JSON.stringify({
+      client_code:  client_code,
+      log_type:     logType,
+      sender_email: sender_email,
+      sender_name:  vars.sender_name || undefined,
+      subject,
+      meta: {
+        origin:      `${vars.origin_city}, ${vars.origin_country}`.replace(/, $/, ""),
+        destination: `${vars.destination_city}, ${vars.destination_country}`.replace(/, $/, ""),
+        cargo_type:  vars.cargo_type  || undefined,
+        missing_fields: logType === "missing_fields" ? vars.missing_fields || undefined : undefined,
+        template_id: template.template_id,
+      },
+    }),
+  }).catch(() => { /* best-effort */ })
+
   return NextResponse.json({ to: sender_email, subject, html })
 }

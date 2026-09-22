@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Activity, Building2, FileText, LayoutDashboard, Mail } from "lucide-react"
+import { Activity, Building2, FileText, LayoutDashboard, Mail, MailCheck } from "lucide-react"
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const nav = [
   { label: "Carriers", href: "/carriers", icon: Building2 },
   { label: "Templates", href: "/templates", icon: Mail },
   { label: "Activity", href: "/activity", icon: Activity },
+  { label: "Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
 ]
 
 export function PortalTabbar() {
