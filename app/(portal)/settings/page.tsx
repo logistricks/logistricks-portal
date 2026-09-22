@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase"
 import {
@@ -12,6 +14,8 @@ import {
   Send,
   Settings2,
   Square,
+  ChevronRight,
+  GitBranch,
   Trash2,
   X,
 } from "lucide-react"
@@ -641,6 +645,21 @@ export default function SettingsPage() {
             />
           </div>
         )}
+      </Section>
+
+      {/* ── Approval Workflow ── */}
+      <Section
+        icon={<GitBranch className="h-4 w-4" />}
+        title="Approval Workflow"
+        description="Configure named approval cycles and step chains used when submitting freight requests for internal review."
+      >
+        <Link
+          href="/settings/approval-cycles"
+          className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-4 py-3 text-sm font-medium text-[#0F172A] hover:border-[#F97316]/40 hover:bg-[#FFF7ED] transition-colors dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0] dark:hover:border-[#F97316]/40"
+        >
+          <span>Manage Approval Cycles</span>
+          <ChevronRight className="h-4 w-4 text-[#94A3B8]" />
+        </Link>
       </Section>
 
       {/* ── Critical fields picker ── */}
