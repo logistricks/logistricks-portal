@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, Building2, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Pin, PinOff, Settings, Users } from "lucide-react"
+import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Pin, PinOff, Settings, Users } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 function initials(name: string): string {
@@ -26,6 +26,7 @@ export function PortalSidebar({
   const router   = useRouter()
 
   const [pendingCount, setPendingCount] = useState<number>(0)
+  const [approvalCount, setApprovalCount] = useState<number>(0)
   const [displayName, setDisplayName]   = useState<string>("")
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -44,6 +45,11 @@ export function PortalSidebar({
         if (!res.ok) return
         const data = await res.json()
         setPendingCount(data.pending ?? 0)
+        // Fetch pending approvals for current user
+        fetch("/api/approval-requests?view=mine")
+          .then(r => r.ok ? r.json() : [])
+          .then((rows: unknown[]) => setApprovalCount(rows.length))
+          .catch(() => {})
       } catch { /* keep stale */ }
     }
 
@@ -59,6 +65,7 @@ export function PortalSidebar({
     { label: "Requests",  href: "/requests",  icon: FileText, badge: pendingCount },
     { label: "Carriers",  href: "/carriers",  icon: Building2 },
     { label: "Templates", href: "/templates", icon: Mail },
+    { label: "Approvals",    href: "/approvals",  icon: CheckSquare, badge: approvalCount },
     { label: "Activity Log", href: "/activity", icon: Activity },
     { label: "Auto Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
     { label: "Users",        href: "/users",    icon: Users },

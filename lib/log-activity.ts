@@ -15,6 +15,10 @@ export type ActivityEventType =
   | "template_created"
   | "template_updated"
   | "template_deleted"
+  | "approval_submitted"
+  | "approval_step_approved"
+  | "approval_step_rejected"
+  | "approval_cycle_completed"
 
 function adminClient() {
   return createClient(

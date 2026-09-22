@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Activity, Building2, FileText, LayoutDashboard, Mail, MailCheck } from "lucide-react"
+import { Building2, CheckSquare, FileText, LayoutDashboard, Mail, MailCheck } from "lucide-react"
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Requests", href: "/requests", icon: FileText },
   { label: "Carriers", href: "/carriers", icon: Building2 },
   { label: "Templates", href: "/templates", icon: Mail },
-  { label: "Activity", href: "/activity", icon: Activity },
+  { label: "Approvals", href: "/approvals", icon: CheckSquare },
   { label: "Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
 ]
 

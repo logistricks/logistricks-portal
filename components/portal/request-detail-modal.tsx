@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AlertTriangle, Check, Copy, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
+import { AlertTriangle, Check, CheckSquare, Copy, Loader2, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import {
   AogBadge,
@@ -101,6 +101,9 @@ export function RequestDetailModal({
   const [sendTo, setSendTo]         = useState("")
   const [messageBody, setMessageBody] = useState("")
   const [onlyCritical, setOnlyCritical] = useState(requireCriticalData)
+  const [submittingApproval, setSubmittingApproval] = useState(false)
+  const [approvalCycleId, setApprovalCycleId] = useState("")
+  const [availableCycles, setAvailableCycles] = useState<Array<{id: string; name: string; is_default: boolean}>>([])
 
   // AOG / DGR flag state – initialized from props, updated locally after PATCH
   const [aogLocal, setAogLocal]           = useState(request.aog)
@@ -120,6 +123,16 @@ export function RequestDetailModal({
       .eq("client_code", clientCode)
       .order("carrier_id", { ascending: true })
       .then(({ data }) => setCarriers(groupCarrierRows(data ?? [])))
+
+    // Load approval cycles
+    fetch("/api/approval-cycles")
+      .then(r => r.ok ? r.json() : [])
+      .then((cycles: Array<{id: string; name: string; is_default: boolean}>) => {
+        setAvailableCycles(cycles)
+        const def = cycles.find(c => c.is_default)
+        if (def) setApprovalCycleId(def.id)
+      })
+      .catch(() => { /* no cycles configured */ })
     supabase
       .from("templates")
       .select("*")
@@ -250,6 +263,24 @@ export function RequestDetailModal({
     const val = e.getValue(request)
     return !val || val === "—"
   }).length + request.availabilityQuestions.length
+
+  async function submitForApproval() {
+    if (!approvalCycleId) return
+    setSubmittingApproval(true)
+    try {
+      const res = await fetch("/api/approval-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ freight_request_id: request.id, cycle_id: approvalCycleId }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      onClose()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to submit for approval")
+    } finally {
+      setSubmittingApproval(false)
+    }
+  }
 
   function openPanel(method: "Email" | "Reply") {
     setSendMethod(method)
@@ -718,6 +749,33 @@ export function RequestDetailModal({
               )}
             </button>
           </div>
+
+          {/* Submit for Approval */}
+          {availableCycles.length > 0 && request.status === "Pending" && (
+            <div className="border-t border-[#E2E8F0] px-4 pb-4 pt-3 dark:border-[#1E3A5F]">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#64748B]">Approval Workflow</p>
+              {availableCycles.length > 1 && (
+                <select
+                  value={approvalCycleId}
+                  onChange={e => setApprovalCycleId(e.target.value)}
+                  className="mb-2 h-9 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
+                >
+                  {availableCycles.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}{c.is_default ? " (default)" : ""}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                onClick={submitForApproval}
+                disabled={submittingApproval || !approvalCycleId}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0D1B2A] transition-all hover:border-[#0D1B2A] hover:scale-[1.01] disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0] dark:hover:border-[#475569]"
+              >
+                {submittingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+                Submit for Approval
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
