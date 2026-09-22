@@ -96,16 +96,16 @@ function substituteVars(text: string, vars: VarMap): string {
 }
 
 /**
- * Wrap a plain-text body in a minimal responsive HTML email shell.
+ * Wrap a plain-text body in a minimal, unbranded HTML email shell.
  * If the body already contains HTML tags, use it directly inside the shell.
  */
-function wrapHtml(subject: string, bodyContent: string): string {
+function wrapHtml(_subject: string, bodyContent: string): string {
   const hasHtml = /<[a-z][\s\S]*>/i.test(bodyContent)
   const inner = hasHtml
     ? bodyContent
     : bodyContent
         .split("\n")
-        .map((l) => `<p style="margin:0 0 12px 0">${l}</p>`)
+        .map((l) => `<p style="margin:0 0 12px 0">${l || "&nbsp;"}</p>`)
         .join("\n")
 
   return `<!DOCTYPE html>
@@ -113,36 +113,9 @@ function wrapHtml(subject: string, bodyContent: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-    <tr>
-      <td align="center" style="padding:32px 16px">
-        <table width="600" cellpadding="0" cellspacing="0" role="presentation"
-               style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">
-          <!-- Header bar -->
-          <tr>
-            <td style="background:#0D1B2A;padding:20px 32px">
-              <span style="color:#F97316;font-size:18px;font-weight:700;letter-spacing:.02em">Logistricks</span>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:32px;font-size:15px;line-height:1.7;color:#0f172a">
-              ${inner}
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;font-size:12px;color:#94a3b8;text-align:center">
-              This is an automated response. Please do not reply directly to this email.
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.7;color:#0f172a">
+  ${inner}
 </body>
 </html>`
 }
