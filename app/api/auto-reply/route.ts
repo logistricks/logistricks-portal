@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
   const admin = adminClient()
   const { data: clientRow, error: clientErr } = await admin
     .from("clients")
-    .select("auto_reply_enabled, require_critical_data, auto_reply_missing_enabled")
+    .select("auto_reply_enabled, require_critical_data, auto_reply_missing_enabled, critical_fields")
     .eq("client_code", client_code)
     .single()
 
@@ -225,6 +225,19 @@ export async function POST(req: NextRequest) {
 
   const template = templates[0]
 
+  // ── Compute missing critical fields from body ───────────────────────────
+  const criticalFields: string[] = Array.isArray(clientRow?.critical_fields)
+    ? (clientRow.critical_fields as string[])
+    : []
+
+  const computedMissingFields = criticalFields
+    .filter((field) => {
+      const val = body[field]
+      return val == null || String(val).trim() === "" || String(val).trim() === "[]"
+    })
+    .map((field) => FIELD_LABELS[field] ?? field)
+    .join(", ")
+
   // ── Build substitution map ────────────────────────────────────────────────
   const receivedRaw  = body.received_date as string | undefined
   const receivedDate = receivedRaw
@@ -259,7 +272,7 @@ export async function POST(req: NextRequest) {
     preferred_carrier:    parseField(body.preferred_carrier),
     special_requirements: parseField(body.special_requirements),
     availability_questions: parseField(body.availability_questions),
-    missing_fields:       parseMissingFields(body.missing_fields),
+    missing_fields:       computedMissingFields || parseMissingFields(body.missing_fields),
   }
 
   // ── Substitute & render ───────────────────────────────────────────────────
