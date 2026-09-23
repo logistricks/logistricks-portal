@@ -19,7 +19,6 @@ import {
   type TemplateRow,
 } from "@/lib/portal-data"
 
-// ── helpers ──────────────────────────────────────────────────
 function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
   const map = new Map<number, Carrier>()
   for (const row of rows) {
@@ -68,7 +67,6 @@ function rowToTemplate(row: TemplateRow): Template {
   }
 }
 
-// Map field keys (from critical_fields in DB) -> request values + display labels
 const FIELD_MAP: Record<string, { getValue: (r: FreightRequest) => string | null; label: string }> = {
   cargo_type: { getValue: (r) => r.cargoType,  label: "Cargo type" },
   weight:     { getValue: (r) => r.weight,     label: "Weight / tonnage" },
@@ -104,16 +102,12 @@ export function RequestDetailModal({
   const [submittingApproval, setSubmittingApproval] = useState(false)
   const [userHasCycle, setUserHasCycle] = useState(false)
   const [showApprovalConfirm, setShowApprovalConfirm] = useState<"Email" | "Reply" | null>(null)
-
-  // AOG / DGR flag state – initialized from props, updated locally after PATCH
   const [aogLocal, setAogLocal]           = useState(request.aog)
   const [dgrLocal, setDgrLocal]           = useState(request.dgr)
   const [flagSaving, setFlagSaving]       = useState(false)
   const [effectiveRole, setEffectiveRole] = useState<string | undefined>(role)
-
   const sendPanelRef = useRef<HTMLDivElement>(null)
 
-  // Load carriers, templates, and cycle membership via API routes (admin client, bypasses RLS)
   useEffect(() => {
     fetch("/api/carriers")
       .then(r => r.ok ? r.json() : [])
@@ -122,17 +116,16 @@ export function RequestDetailModal({
 
     fetch("/api/templates")
       .then(r => r.ok ? r.json() : [])
-      .then((rows: TemplateRow[]) => setTemplates(rows.filter(r => r.type === "Email").map(rowToTemplate)))
+      .then((rows: TemplateRow[]) => setTemplates(rows.filter(row => row.type === "Email").map(rowToTemplate)))
       .catch(() => {})
 
-    // Check if current user has an approval cycle assigned
     fetch("/api/approval-cycles")
       .then(r => r.ok ? r.json() : [])
       .then((cycles: Array<{initiator_usernames: string[]}>) => {
         const username = (() => { try { return sessionStorage.getItem("portal_username") ?? "" } catch { return "" } })()
         setUserHasCycle(cycles.some(c => c.initiator_usernames?.includes(username)))
       })
-      .catch(() => { /* no cycles configured */ })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -173,7 +166,6 @@ export function RequestDetailModal({
     }
   }
 
-  // Carriers filtered by mode (Email only), active only
   const availableCarriersForEmail = carriers.filter((c) => {
     if (!c.email || !c.active) return false
     return (
@@ -183,7 +175,6 @@ export function RequestDetailModal({
     )
   })
 
-  // For reminders: lock to the carrier already sent to
   const sentToCarrier =
     request.status === "Sent to Carrier"
       ? carriers.find((c) => c.carrier_name === request.preferredCarrier) ?? null
@@ -192,7 +183,6 @@ export function RequestDetailModal({
   const selectedCarrier = carriers.find((c) => String(c.carrier_id) === carrierId)
   const isReminder       = request.status === "Sent to Carrier"
 
-  // Critical-field gate
   const criticalMissingLabels = criticalFields
     .filter((key) => {
       const entry = FIELD_MAP[key]
@@ -204,29 +194,22 @@ export function RequestDetailModal({
 
   const isCriticalBlocked = requireCriticalData && criticalMissingLabels.length > 0
 
-  // Build missing-fields reply body
   function buildReplyBody(onlyCrit: boolean): string {
     const allMissingEntries = Object.entries(FIELD_MAP)
       .filter(([, entry]) => {
         const val = entry.getValue(request)
         return !val || val === "—"
       })
-
     let missingFields: string[]
     if (onlyCrit && criticalFields.length > 0) {
-      missingFields = allMissingEntries
-        .filter(([key]) => criticalFields.includes(key))
-        .map(([, entry]) => entry.label)
+      missingFields = allMissingEntries.filter(([key]) => criticalFields.includes(key)).map(([, entry]) => entry.label)
     } else {
       missingFields = allMissingEntries.map(([, entry]) => entry.label)
     }
-
     const lines: string[] = []
     lines.push(`Hi ${request.senderName},`)
     lines.push("")
-    lines.push(
-      `Thank you for your freight enquiry (${request.originCity} → ${request.destinationCity}). To provide you with an accurate rate, we need a few more details:`
-    )
+    lines.push(`Thank you for your freight enquiry (${request.originCity} → ${request.destinationCity}). To provide you with an accurate rate, we need a few more details:`)
     lines.push("")
     if (missingFields.length > 0) {
       lines.push("Missing information:")
@@ -267,7 +250,7 @@ export function RequestDetailModal({
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? "Failed to send for approval")
+        throw new Error((data as {error?: string}).error ?? "Failed to send for approval")
       }
       onClose()
     } catch (e) {
@@ -278,7 +261,6 @@ export function RequestDetailModal({
   }
 
   function openPanel(method: "Email" | "Reply") {
-    // If user has an approval cycle, route through approval instead
     if (userHasCycle) {
       setShowApprovalConfirm(method)
       return
@@ -306,59 +288,24 @@ export function RequestDetailModal({
     const c = carriers.find((x) => String(x.carrier_id) === id)
     if (c) setSendTo(c.email)
     if (templateId) {
-      setMessageBody(renderTemplateBody(templateId, request, c))
+      setMessageBody(renderTemplateBody(templateId, request, c, templates))
     }
   }
 
   function onSelectTemplate(id: string) {
     setTemplateId(id)
     if (id) {
-      setMessageBody(renderTemplateBody(id, request, selectedCarrier))
+      setMessageBody(renderTemplateBody(id, request, selectedCarrier, templates))
     } else {
       setMessageBody("")
     }
-  }
-
-  function renderTemplateBody(
-    tId: string,
-    req: FreightRequest,
-    carrier: Carrier | undefined,
-  ): string {
-    const t = templates.find((x) => String(x.template_id) === tId)
-    if (!t) return ""
-    const map: Record<string, string> = {
-      origin_city: req.originCity,
-      origin_country: req.originCountry,
-      destination_city: req.destinationCity,
-      destination_country: req.destinationCountry,
-      cargo_type: req.cargoType,
-      equipment: req.equipment,
-      weight: req.weight,
-      quantity: req.quantity,
-      dimensions: req.dimensions,
-      incoterm: req.incoterm,
-      bl_type: req.blType,
-      mode: req.modes.join(", "),
-      urgency: req.urgency,
-      sender_name: req.senderName,
-      sender_email: req.senderEmail,
-      received_date: req.receivedExact,
-      preferred_carrier: req.preferredCarrier,
-      contact_name: carrier?.person_name ?? "there",
-      carrier_name: carrier?.carrier_name ?? "",
-      carrier_email: carrier?.email ?? "",
-      carrier_phone: carrier?.number ?? "",
-    }
-    return t.body.replace(/\{\{(\w+)\}\}/g, (_, key) => map[key] ?? `{{${key}}}`)
   }
 
   function handleSend() {
     if (!sendTo) return
     if (sendMethod === "Reply") {
       if (request.source === "Email") {
-        const subj = encodeURIComponent(
-          `Re: Freight Enquiry — ${request.originCity} → ${request.destinationCity}`
-        )
+        const subj = encodeURIComponent(`Re: Freight Enquiry — ${request.originCity} → ${request.destinationCity}`)
         const body = encodeURIComponent(messageBody)
         window.open(`mailto:${sendTo}?subject=${subj}&body=${body}`, "_blank")
       } else {
@@ -371,9 +318,7 @@ export function RequestDetailModal({
       const body = encodeURIComponent(messageBody)
       const ccList = selectedCarrier?.cc_emails ?? []
       let href = `mailto:${sendTo}?subject=${subj}&body=${body}`
-      if (ccList.length > 0) {
-        href += `&cc=${encodeURIComponent(ccList.join(","))}`
-      }
+      if (ccList.length > 0) href += `&cc=${encodeURIComponent(ccList.join(","))}`
       window.open(href, "_blank")
     }
   }
@@ -416,9 +361,7 @@ export function RequestDetailModal({
               <section>
                 <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Shipment Details</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {fields.map((f) => (
-                    <FieldPill key={f.label} label={f.label} value={f.value} />
-                  ))}
+                  {fields.map((f) => (<FieldPill key={f.label} label={f.label} value={f.value} />))}
                   <div className="col-span-2 flex flex-wrap items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
                     <span className="text-xs font-medium uppercase tracking-wide text-[#64748B]">Mode</span>
                     {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
@@ -428,7 +371,6 @@ export function RequestDetailModal({
                   </div>
                 </div>
               </section>
-
               {request.specialRequirements.length > 0 && (
                 <section>
                   <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Special Requirements</h4>
@@ -442,7 +384,6 @@ export function RequestDetailModal({
                   </ol>
                 </section>
               )}
-
               {request.availabilityQuestions.length > 0 && (
                 <section>
                   <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Availability Questions</h4>
@@ -456,12 +397,9 @@ export function RequestDetailModal({
                   </ul>
                 </section>
               )}
-
               <section>
                 <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Raw Message</h4>
-                <pre className="max-h-36 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[#1E293B] p-4 font-mono text-xs leading-relaxed text-[#E2E8F0]">
-                  {request.rawMessage}
-                </pre>
+                <pre className="max-h-36 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[#1E293B] p-4 font-mono text-xs leading-relaxed text-[#E2E8F0]">{request.rawMessage}</pre>
               </section>
             </div>
 
@@ -479,12 +417,9 @@ export function RequestDetailModal({
                   </div>
                 </div>
               </section>
-
               <section>
                 <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Request Status</h4>
-                <div className="mb-4">
-                  <StatusBadge status={request.status} />
-                </div>
+                <div className="mb-4"><StatusBadge status={request.status} /></div>
                 <ol className="relative space-y-4 border-l border-[#E2E8F0] pl-5 dark:border-[#1E3A5F]">
                   {request.history.map((e) => (
                     <li key={e.label} className="relative">
@@ -495,27 +430,14 @@ export function RequestDetailModal({
                   ))}
                 </ol>
               </section>
-
-              {/* AOG / DGR Flags */}
               <section>
                 <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Special Flags</h4>
                 <div className="space-y-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <AogBadge />
-                      <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Aircraft on Ground</span>
-                    </div>
+                    <div className="flex items-center gap-2"><AogBadge /><span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Aircraft on Ground</span></div>
                     {canEditFlags ? (
-                      <button
-                        type="button"
-                        disabled={flagSaving}
-                        onClick={() => toggleFlag("aog")}
-                        aria-pressed={aogLocal}
-                        aria-label="Toggle AOG flag"
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:opacity-50 ${
-                          aogLocal ? "bg-red-600" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"
-                        }`}
-                      >
+                      <button type="button" disabled={flagSaving} onClick={() => toggleFlag("aog")} aria-pressed={aogLocal} aria-label="Toggle AOG flag"
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:opacity-50 ${aogLocal ? "bg-red-600" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"}`}>
                         <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${aogLocal ? "translate-x-6" : "translate-x-1"}`} />
                       </button>
                     ) : (
@@ -523,30 +445,17 @@ export function RequestDetailModal({
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <DgrBadge />
-                      <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Dangerous Goods</span>
-                    </div>
+                    <div className="flex items-center gap-2"><DgrBadge /><span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Dangerous Goods</span></div>
                     {canEditFlags ? (
-                      <button
-                        type="button"
-                        disabled={flagSaving}
-                        onClick={() => toggleFlag("dgr")}
-                        aria-pressed={dgrLocal}
-                        aria-label="Toggle DGR flag"
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 disabled:opacity-50 ${
-                          dgrLocal ? "bg-orange-500" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"
-                        }`}
-                      >
+                      <button type="button" disabled={flagSaving} onClick={() => toggleFlag("dgr")} aria-pressed={dgrLocal} aria-label="Toggle DGR flag"
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 disabled:opacity-50 ${dgrLocal ? "bg-orange-500" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"}`}>
                         <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${dgrLocal ? "translate-x-6" : "translate-x-1"}`} />
                       </button>
                     ) : (
                       <span className={`text-xs font-bold ${dgrLocal ? "text-orange-500" : "text-[#94A3B8]"}`}>{dgrLocal ? "YES" : "NO"}</span>
                     )}
                   </div>
-                  {canEditFlags && (
-                    <p className="text-[11px] text-[#94A3B8]">Auto-detected from keywords. Toggle to override.</p>
-                  )}
+                  {canEditFlags && <p className="text-[11px] text-[#94A3B8]">Auto-detected from keywords. Toggle to override.</p>}
                 </div>
               </section>
             </div>
@@ -554,55 +463,26 @@ export function RequestDetailModal({
 
           {/* Send panel */}
           {sendMethod && (
-            <div
-              ref={sendPanelRef}
-              className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2 dark:border-[#1E3A5F] dark:bg-[#0F1E33]"
-            >
+            <div ref={sendPanelRef} className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
               {sendMethod === "Reply" ? (
                 <>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                    Replying to{" "}
-                    <span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.senderName}</span>
-                    {" "}via{" "}
-                    <span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.source}</span>
-                  </p>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">Replying to <span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.senderName}</span>{" "}via{" "}<span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.source}</span></p>
                   <div className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                      {request.source === "Email" ? "Email Address" : "WhatsApp Number"}
-                    </label>
-                    <input
-                      value={sendTo}
-                      onChange={(e) => setSendTo(e.target.value)}
-                      placeholder={request.source === "Email" ? "sender@example.com" : "+962 79 000 0000"}
-                      className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-                    />
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">{request.source === "Email" ? "Email Address" : "WhatsApp Number"}</label>
+                    <input value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder={request.source === "Email" ? "sender@example.com" : "+962 79 000 0000"} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
                   </div>
-
                   {criticalFields.length > 0 && (
                     <div className="mb-3">
                       <label className="flex cursor-pointer items-center gap-2.5">
                         <input type="checkbox" checked={onlyCritical} onChange={(e) => setOnlyCritical(e.target.checked)} className="h-4 w-4 accent-[#F97316]" />
                         <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Only ask for critical missing data</span>
-                        {onlyCritical && (
-                          <span className="rounded-full bg-[#FFF7ED] px-2 py-0.5 text-[11px] font-semibold text-[#F97316]">
-                            {criticalFields.join(", ").replace(/_/g, " ")}
-                          </span>
-                        )}
+                        {onlyCritical && <span className="rounded-full bg-[#FFF7ED] px-2 py-0.5 text-[11px] font-semibold text-[#F97316]">{criticalFields.join(", ").replace(/_/g, " ")}</span>}
                       </label>
                     </div>
                   )}
-
                   <div className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                      Message
-                      <span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span>
-                    </label>
-                    <textarea
-                      value={messageBody}
-                      onChange={(e) => setMessageBody(e.target.value)}
-                      rows={9}
-                      className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-                    />
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Message<span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span></label>
+                    <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={9} className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
                   </div>
                   <div className="flex items-center gap-3">
                     <button type="button" onClick={handleSend} disabled={!sendTo} className="inline-flex items-center gap-2 rounded-md bg-[#0D1B2A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1E3A5F] disabled:cursor-not-allowed disabled:opacity-50">
@@ -612,85 +492,41 @@ export function RequestDetailModal({
                   </div>
                 </>
               ) : (
-                /* Send to carrier panel */
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                        Carrier {isReminder && <Lock className="h-3 w-3 text-[#94A3B8]" />}
-                      </label>
+                      <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#64748B]">Carrier {isReminder && <Lock className="h-3 w-3 text-[#94A3B8]" />}</label>
                       {isReminder && sentToCarrier ? (
                         <div className="flex h-10 items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F1F5F9] px-3 text-sm text-[#0F172A] dark:border-[#1E3A5F] dark:bg-[#1A2A40] dark:text-[#E2E8F0]">
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />
-                          {sentToCarrier.carrier_name} — {sentToCarrier.person_name}
+                          <Lock className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />{sentToCarrier.carrier_name} — {sentToCarrier.person_name}
                         </div>
                       ) : (
-                        <select
-                          value={carrierId}
-                          onChange={(e) => onSelectCarrier(e.target.value)}
-                          className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-                        >
+                        <select value={carrierId} onChange={(e) => onSelectCarrier(e.target.value)} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
                           <option value="">Select carrier...</option>
-                          {availableCarriersForEmail.map((c) => (
-                            <option key={c.carrier_id} value={String(c.carrier_id)}>
-                              {c.carrier_name} — {c.person_name}
-                            </option>
-                          ))}
+                          {availableCarriersForEmail.map((c) => (<option key={c.carrier_id} value={String(c.carrier_id)}>{c.carrier_name} — {c.person_name}</option>))}
                         </select>
                       )}
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Template</label>
-                      <select
-                        value={templateId}
-                        onChange={(e) => onSelectTemplate(e.target.value)}
-                        className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-                      >
+                      <select value={templateId} onChange={(e) => onSelectTemplate(e.target.value)} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
                         <option value="">Select template...</option>
-                        {templates.map((t) => (
-                          <option key={t.template_id} value={String(t.template_id)}>
-                            {t.template_name}{t.is_default ? " (Default)" : ""}
-                          </option>
-                        ))}
+                        {templates.map((t) => (<option key={t.template_id} value={String(t.template_id)}>{t.template_name}{t.is_default ? " (Default)" : ""}</option>))}
                       </select>
                     </div>
                   </div>
                   <div className="mt-3">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Send To</label>
-                    <input
-                      value={sendTo}
-                      onChange={(e) => setSendTo(e.target.value)}
-                      placeholder="carrier@example.com"
-                      className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-                    />
-                    {selectedCarrier && selectedCarrier.cc_emails.length > 0 && (
-                      <p className="mt-1 text-xs text-[#64748B]">
-                        CC: {selectedCarrier.cc_emails.join(", ")}
-                      </p>
-                    )}
+                    <input value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder="carrier@example.com" className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
+                    {selectedCarrier && selectedCarrier.cc_emails.length > 0 && <p className="mt-1 text-xs text-[#64748B]">CC: {selectedCarrier.cc_emails.join(", ")}</p>}
                   </div>
                   <div className="mt-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                      Message
-                      <span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span>
-                    </label>
-                    <textarea
-                      value={messageBody}
-                      onChange={(e) => setMessageBody(e.target.value)}
-                      rows={8}
-                      placeholder="Type your message here, or select a template above to pre-fill…"
-                      className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
-                    />
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Message<span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span></label>
+                    <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={8} placeholder="Type your message here, or select a template above to pre-fill…" className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
                   </div>
                   <div className="mt-3 flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleSend}
-                      disabled={!carrierId || !sendTo}
-                      className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Mail className="h-4 w-4" />
-                      {isReminder ? "Send Reminder via Email" : "Open in Email App"}
+                    <button type="button" onClick={handleSend} disabled={!carrierId || !sendTo} className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50">
+                      <Mail className="h-4 w-4" />{isReminder ? "Send Reminder via Email" : "Open in Email App"}
                     </button>
                     <button type="button" onClick={() => setSendMethod(null)} className="text-sm font-medium text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">Cancel</button>
                   </div>
@@ -704,22 +540,9 @@ export function RequestDetailModal({
         <div className="shrink-0 border-t border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
           <div className="flex flex-col gap-3 p-4 sm:flex-row">
             <div className="flex flex-1 flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => !isCriticalBlocked && openPanel("Email")}
-                disabled={isCriticalBlocked}
-                title={isCriticalBlocked ? `Missing critical data: ${criticalMissingLabels.join(", ")}` : undefined}
-                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
-                  isCriticalBlocked
-                    ? "cursor-not-allowed bg-[#F97316]/40 text-white"
-                    : sendMethod === "Email"
-                    ? "bg-[#EA580C] text-white hover:scale-[1.01]"
-                    : "bg-[#F97316] text-white hover:scale-[1.01] hover:bg-[#EA580C]"
-                }`}
-              >
-                <Mail className="h-4 w-4" />
-                {isReminder ? "Send Reminder via Email" : "Send to Carrier via Email"}
-                {isCriticalBlocked && <Lock className="h-3.5 w-3.5 opacity-70" />}
+              <button type="button" onClick={() => !isCriticalBlocked && openPanel("Email")} disabled={isCriticalBlocked} title={isCriticalBlocked ? `Missing critical data: ${criticalMissingLabels.join(", ")}` : undefined}
+                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${isCriticalBlocked ? "cursor-not-allowed bg-[#F97316]/40 text-white" : sendMethod === "Email" ? "bg-[#EA580C] text-white hover:scale-[1.01]" : "bg-[#F97316] text-white hover:scale-[1.01] hover:bg-[#EA580C]"}`}>
+                <Mail className="h-4 w-4" />{isReminder ? "Send Reminder via Email" : "Send to Carrier via Email"}{isCriticalBlocked && <Lock className="h-3.5 w-3.5 opacity-70" />}
               </button>
               {isCriticalBlocked && (
                 <div className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-400">
@@ -729,27 +552,13 @@ export function RequestDetailModal({
               )}
             </div>
           </div>
-
           <div className="border-t border-[#E2E8F0] px-4 pb-4 pt-3 dark:border-[#1E3A5F]">
-            <button
-              type="button"
-              onClick={() => openPanel("Reply")}
-              className={`inline-flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition-all hover:scale-[1.01] ${
-                sendMethod === "Reply"
-                  ? "border-[#0D1B2A] bg-[#0D1B2A] text-white"
-                  : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:border-[#0D1B2A] dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0] dark:hover:border-[#475569]"
-              }`}
-            >
-              <Reply className="h-4 w-4" />
-              Reply to {request.senderName}
-              {missingCount > 0 && (
-                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
-                  {missingCount}
-                </span>
-              )}
+            <button type="button" onClick={() => openPanel("Reply")}
+              className={`inline-flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition-all hover:scale-[1.01] ${sendMethod === "Reply" ? "border-[#0D1B2A] bg-[#0D1B2A] text-white" : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:border-[#0D1B2A] dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0] dark:hover:border-[#475569]"}`}>
+              <Reply className="h-4 w-4" />Reply to {request.senderName}
+              {missingCount > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{missingCount}</span>}
             </button>
           </div>
-
         </div>
 
         {/* Approval confirmation dialog */}
@@ -761,29 +570,13 @@ export function RequestDetailModal({
                 <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">Send for Approval</h3>
               </div>
               <p className="mt-2 text-sm text-[#64748B] dark:text-[#94A3B8]">
-                {showApprovalConfirm === "Email"
-                  ? "This request will be routed through your approval workflow before the carrier email is sent."
-                  : "This reply will be routed through your approval workflow before it is sent."}
+                {showApprovalConfirm === "Email" ? "This request will be routed through your approval workflow before the carrier email is sent." : "This reply will be routed through your approval workflow before it is sent."}
               </p>
               <div className="mt-5 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowApprovalConfirm(null)}
-                  className="flex-1 rounded-md border border-[#E2E8F0] px-4 py-2 text-sm font-semibold text-[#64748B] transition-colors hover:border-[#0D1B2A] hover:text-[#0D1B2A] dark:border-[#1E3A5F] dark:hover:border-[#475569] dark:hover:text-[#E2E8F0]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={submittingApproval}
-                  onClick={async () => {
-                    await submitForApproval()
-                    setShowApprovalConfirm(null)
-                  }}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:opacity-50"
-                >
-                  {submittingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Confirm
+                <button type="button" onClick={() => setShowApprovalConfirm(null)} className="flex-1 rounded-md border border-[#E2E8F0] px-4 py-2 text-sm font-semibold text-[#64748B] transition-colors hover:border-[#0D1B2A] hover:text-[#0D1B2A] dark:border-[#1E3A5F] dark:hover:border-[#475569] dark:hover:text-[#E2E8F0]">Cancel</button>
+                <button type="button" disabled={submittingApproval} onClick={async () => { await submitForApproval(); setShowApprovalConfirm(null) }}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:opacity-50">
+                  {submittingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Confirm
                 </button>
               </div>
             </div>
@@ -794,12 +587,26 @@ export function RequestDetailModal({
   )
 }
 
+function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier | undefined, templates: Template[]): string {
+  const t = templates.find((x) => String(x.template_id) === tId)
+  if (!t) return ""
+  const map: Record<string, string> = {
+    origin_city: req.originCity, origin_country: req.originCountry,
+    destination_city: req.destinationCity, destination_country: req.destinationCountry,
+    cargo_type: req.cargoType, equipment: req.equipment, weight: req.weight,
+    quantity: req.quantity, dimensions: req.dimensions, incoterm: req.incoterm,
+    bl_type: req.blType, mode: req.modes.join(", "), urgency: req.urgency,
+    sender_name: req.senderName, sender_email: req.senderEmail,
+    received_date: req.receivedExact, preferred_carrier: req.preferredCarrier,
+    contact_name: carrier?.person_name ?? "there", carrier_name: carrier?.carrier_name ?? "",
+    carrier_email: carrier?.email ?? "", carrier_phone: carrier?.number ?? "",
+  }
+  return t.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => map[key] ?? `{{${key}}}`)
+}
+
 function parseArrayField(value: string | null | undefined): string {
   if (!value) return ""
-  try {
-    const parsed = JSON.parse(value)
-    if (Array.isArray(parsed)) return parsed.join("\n")
-  } catch { /* not JSON */ }
+  try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed.join("\n") } catch { /* not JSON */ }
   return value
 }
 
@@ -809,9 +616,7 @@ function FieldPill({ label, value }: { label: string; value: string | null }) {
   return (
     <div className={`rounded-md border px-3 py-2 ${missing ? "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30" : "border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#111E33]"}`}>
       <p className="text-[11px] font-medium uppercase tracking-wide text-[#64748B]">{label}</p>
-      <p className={`whitespace-pre-line text-sm font-medium ${missing ? "text-red-600 dark:text-red-400" : "text-[#0D1B2A] dark:text-[#E2E8F0]"}`}>
-        {missing ? "Missing" : display}
-      </p>
+      <p className={`whitespace-pre-line text-sm font-medium ${missing ? "text-red-600 dark:text-red-400" : "text-[#0D1B2A] dark:text-[#E2E8F0]"}`}>{missing ? "Missing" : display}</p>
     </div>
   )
 }
