@@ -9,6 +9,7 @@ type StepInput = {
   sort_order: number;
   committee_mode: "any_approves" | "notify_only";
   can_edit_template: boolean;
+  can_edit_cc: boolean;
   member_usernames: string[];
 };
 
@@ -24,6 +25,7 @@ type Cycle = {
     sort_order: number;
     committee_mode: "any_approves" | "notify_only";
     can_edit_template: boolean;
+    can_edit_cc: boolean;
     member_usernames: string[];
   }>;
 };
@@ -34,6 +36,7 @@ type FormStep = {
   sort_order: number;
   committee_mode: "any_approves" | "notify_only";
   can_edit_template: boolean;
+  can_edit_cc: boolean;
   member_usernames: string[];
 };
 
@@ -210,6 +213,16 @@ function StepCard({
         <CheckSquare size={14} className="text-[#475569] dark:text-[#64748B]" />
         Can edit template
       </label>
+      <label className="flex items-center gap-2 cursor-pointer text-sm text-[#0F172A] dark:text-[#E2E8F0]">
+        <input
+          type="checkbox"
+          checked={step.can_edit_cc}
+          onChange={(e) => onChange({ ...step, can_edit_cc: e.target.checked })}
+          className="rounded border-[#E2E8F0]"
+        />
+        <CheckSquare size={14} className="text-[#475569] dark:text-[#64748B]" />
+        Can edit CC
+      </label>
     </div>
   );
 }
@@ -264,6 +277,7 @@ export default function ApprovalCyclesPage() {
           sort_order: s.sort_order,
           committee_mode: s.committee_mode,
           can_edit_template: s.can_edit_template,
+          can_edit_cc: s.can_edit_cc,
           member_usernames: s.member_usernames,
         })),
     });
@@ -282,6 +296,7 @@ export default function ApprovalCyclesPage() {
           sort_order: f.steps.length + 1,
           committee_mode: "any_approves",
           can_edit_template: false,
+          can_edit_cc: false,
           member_usernames: [],
         },
       ],
@@ -447,6 +462,9 @@ export default function ApprovalCyclesPage() {
                               {step.member_usernames.map((u) => <UserChip key={u} username={u} />)}
                               {step.can_edit_template && (
                                 <span className="text-xs text-[#475569] dark:text-[#64748B] italic">Can edit template</span>
+                              )}
+                              {step.can_edit_cc && (
+                                <span className="text-xs text-[#475569] dark:text-[#64748B] italic">Can edit CC</span>
                               )}
                             </div>
                           </li>
