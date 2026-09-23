@@ -180,7 +180,6 @@ export function RequestDetailModal({
       ? carriers.find((c) => c.carrier_name === request.preferredCarrier) ?? null
       : null
 
-  const selectedCarrier = carriers.find((c) => String(c.carrier_id) === carrierId)
   const isReminder       = request.status === "Sent to Carrier"
 
   const criticalMissingLabels = criticalFields
