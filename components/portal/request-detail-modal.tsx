@@ -94,9 +94,9 @@ export function RequestDetailModal({
   const [carriers, setCarriers] = useState<Carrier[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [sendMethod, setSendMethod] = useState<"Email" | "Reply" | null>(null)
-  const [carrierId, setCarrierId]   = useState("")
+  const [selectedCarrierIds, setSelectedCarrierIds] = useState<string[]>([])
   const [templateId, setTemplateId] = useState("")
-  const [sendTo, setSendTo]         = useState("")
+  const [replyTo, setReplyTo] = useState("")
   const [messageBody, setMessageBody] = useState("")
   const [onlyCritical, setOnlyCritical] = useState(requireCriticalData)
   const [submittingApproval, setSubmittingApproval] = useState(false)
@@ -261,65 +261,69 @@ export function RequestDetailModal({
   }
 
   function openPanel(method: "Email" | "Reply") {
-    if (userHasCycle) {
-      setShowApprovalConfirm(method)
-      return
-    }
     setSendMethod(method)
     setTemplateId("")
+    setMessageBody("")
     if (method === "Reply") {
       const contact = request.source === "Email" ? request.senderEmail : request.senderPhone
-      setSendTo(contact)
+      setReplyTo(contact)
       setMessageBody(buildReplyBody(onlyCritical))
-      setCarrierId("")
-    } else if (isReminder && sentToCarrier) {
-      setCarrierId(String(sentToCarrier.carrier_id))
-      setSendTo(sentToCarrier.email)
-      setMessageBody("")
+      setSelectedCarrierIds([])
     } else {
-      setCarrierId("")
-      setSendTo("")
-      setMessageBody("")
+      if (isReminder && sentToCarrier) {
+        setSelectedCarrierIds([String(sentToCarrier.carrier_id)])
+      } else {
+        setSelectedCarrierIds([])
+      }
+      setReplyTo("")
     }
   }
 
-  function onSelectCarrier(id: string) {
-    setCarrierId(id)
-    const c = carriers.find((x) => String(x.carrier_id) === id)
-    if (c) setSendTo(c.email)
-    if (templateId) {
-      setMessageBody(renderTemplateBody(templateId, request, c, templates))
-    }
+  function toggleCarrier(id: string) {
+    setSelectedCarrierIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
   }
 
   function onSelectTemplate(id: string) {
     setTemplateId(id)
     if (id) {
-      setMessageBody(renderTemplateBody(id, request, selectedCarrier, templates))
+      const singleCarrier = selectedCarrierIds.length === 1
+        ? carriers.find((c) => String(c.carrier_id) === selectedCarrierIds[0])
+        : undefined
+      setMessageBody(renderTemplateBody(id, request, singleCarrier, templates))
     } else {
       setMessageBody("")
     }
   }
 
   function handleSend() {
-    if (!sendTo) return
     if (sendMethod === "Reply") {
+      if (!replyTo) return
+      if (userHasCycle) { setShowApprovalConfirm("Reply"); return }
       if (request.source === "Email") {
         const subj = encodeURIComponent(`Re: Freight Enquiry — ${request.originCity} → ${request.destinationCity}`)
-        const body = encodeURIComponent(messageBody)
-        window.open(`mailto:${sendTo}?subject=${subj}&body=${body}`, "_blank")
+        window.open(`mailto:${replyTo}?subject=${subj}&body=${encodeURIComponent(messageBody)}`, "_blank")
       } else {
-        const phone = sendTo.replace(/[\s\-\(\)\+]/g, "")
+        const phone = replyTo.replace(/[\s\-\(\)\+]/g, "")
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(messageBody)}`, "_blank")
       }
     } else if (sendMethod === "Email") {
+      if (selectedCarrierIds.length === 0) return
+      if (userHasCycle) { setShowApprovalConfirm("Email"); return }
       const t = templates.find((x) => String(x.template_id) === templateId)
       const subj = encodeURIComponent(t?.subject ?? "")
-      const body = encodeURIComponent(messageBody)
-      const ccList = selectedCarrier?.cc_emails ?? []
-      let href = `mailto:${sendTo}?subject=${subj}&body=${body}`
-      if (ccList.length > 0) href += `&cc=${encodeURIComponent(ccList.join(","))}`
-      window.open(href, "_blank")
+      for (const cid of selectedCarrierIds) {
+        const c = carriers.find((x) => String(x.carrier_id) === cid)
+        if (!c?.email) continue
+        const perCarrierBody = templateId
+          ? renderTemplateBody(templateId, request, c, templates)
+          : messageBody
+        const ccList = c.cc_emails ?? []
+        let href = `mailto:${c.email}?subject=${subj}&body=${encodeURIComponent(perCarrierBody)}`
+        if (ccList.length > 0) href += `&cc=${encodeURIComponent(ccList.join(","))}`
+        window.open(href, "_blank")
+      }
     }
   }
 
@@ -469,7 +473,7 @@ export function RequestDetailModal({
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">Replying to <span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.senderName}</span>{" "}via{" "}<span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.source}</span></p>
                   <div className="mb-3">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">{request.source === "Email" ? "Email Address" : "WhatsApp Number"}</label>
-                    <input value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder={request.source === "Email" ? "sender@example.com" : "+962 79 000 0000"} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
+                    <input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder={request.source === "Email" ? "sender@example.com" : "+962 79 000 0000"} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
                   </div>
                   {criticalFields.length > 0 && (
                     <div className="mb-3">
@@ -485,7 +489,7 @@ export function RequestDetailModal({
                     <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={9} className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
                   </div>
                   <div className="flex items-center gap-3">
-                    <button type="button" onClick={handleSend} disabled={!sendTo} className="inline-flex items-center gap-2 rounded-md bg-[#0D1B2A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1E3A5F] disabled:cursor-not-allowed disabled:opacity-50">
+                    <button type="button" onClick={handleSend} disabled={!replyTo} className="inline-flex items-center gap-2 rounded-md bg-[#0D1B2A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1E3A5F] disabled:cursor-not-allowed disabled:opacity-50">
                       {request.source === "Email" ? <><Mail className="h-4 w-4" /> Open in Email App</> : <><MessageCircle className="h-4 w-4" /> Open in WhatsApp</>}
                     </button>
                     <button type="button" onClick={() => setSendMethod(null)} className="text-sm font-medium text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">Cancel</button>
@@ -501,10 +505,22 @@ export function RequestDetailModal({
                           <Lock className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />{sentToCarrier.carrier_name} — {sentToCarrier.person_name}
                         </div>
                       ) : (
-                        <select value={carrierId} onChange={(e) => onSelectCarrier(e.target.value)} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
-                          <option value="">Select carrier...</option>
-                          {availableCarriersForEmail.map((c) => (<option key={c.carrier_id} value={String(c.carrier_id)}>{c.carrier_name} — {c.person_name}</option>))}
-                        </select>
+                        <div className="max-h-44 overflow-y-auto rounded-md border border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#111E33]">
+                          {availableCarriersForEmail.length === 0 ? (
+                            <p className="px-3 py-3 text-sm text-[#94A3B8]">No carriers available for this mode.</p>
+                          ) : availableCarriersForEmail.map((c) => {
+                            const checked = selectedCarrierIds.includes(String(c.carrier_id))
+                            return (
+                              <label key={c.carrier_id} className={`flex cursor-pointer items-center gap-3 border-b border-[#E2E8F0] px-3 py-2.5 last:border-b-0 transition-colors hover:bg-[#F8FAFC] dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${checked ? "bg-[#FFF7ED] dark:bg-[#2A1800]" : ""}`}>
+                                <input type="checkbox" checked={checked} onChange={() => toggleCarrier(String(c.carrier_id))} className="h-4 w-4 accent-[#F97316]" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{c.carrier_name}<span className="ml-1.5 font-normal text-[#64748B]">— {c.person_name}</span></p>
+                                  <p className="truncate text-xs text-[#64748B]">{c.email}{c.cc_emails.length > 0 && <span className="ml-1.5 text-[#94A3B8]">CC: {c.cc_emails.join(", ")}</span>}</p>
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </div>
                       )}
                     </div>
                     <div>
@@ -515,17 +531,13 @@ export function RequestDetailModal({
                       </select>
                     </div>
                   </div>
-                  <div className="mt-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Send To</label>
-                    <input value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder="carrier@example.com" className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
-                    {selectedCarrier && selectedCarrier.cc_emails.length > 0 && <p className="mt-1 text-xs text-[#64748B]">CC: {selectedCarrier.cc_emails.join(", ")}</p>}
-                  </div>
+
                   <div className="mt-3">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Message<span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span></label>
                     <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={8} placeholder="Type your message here, or select a template above to pre-fill…" className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
                   </div>
                   <div className="mt-3 flex items-center gap-3">
-                    <button type="button" onClick={handleSend} disabled={!carrierId || !sendTo} className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50">
+                    <button type="button" onClick={handleSend} disabled={selectedCarrierIds.length === 0} className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50">
                       <Mail className="h-4 w-4" />{isReminder ? "Send Reminder via Email" : "Open in Email App"}
                     </button>
                     <button type="button" onClick={() => setSendMethod(null)} className="text-sm font-medium text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">Cancel</button>

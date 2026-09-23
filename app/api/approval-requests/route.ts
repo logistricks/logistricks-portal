@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
   const { data: inserted, error: insertErr } = await admin
     .from("approval_requests")
     .insert(rows)
-    .select("id, sort_order, assigned_to, assigned_usernames, step_status, committee_mode")
+    .select("id, sort_order, assigned_to, assigned_usernames, step_status")
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
