@@ -36,6 +36,7 @@ interface ApprovalStep {
   sort_order: number
   step_status: "waiting" | "active" | "approved" | "rejected" | "skipped"
   assigned_to: string
+  assigned_usernames: string[]
   can_edit_template: boolean
   can_edit_cc: boolean
   required: boolean
@@ -69,6 +70,7 @@ interface ApprovalDetail {
   sort_order: number
   step_status: string
   assigned_to: string
+  assigned_usernames: string[]
   can_edit_template: boolean
   can_edit_cc: boolean
   required: boolean
@@ -566,8 +568,13 @@ function ApprovalCard({
                             : "text-[var(--text-primary)]"
                         }`}
                       >
-                        {step.assigned_to}
-                        {step.id === item.id && (
+                        {(step.assigned_usernames?.length
+                          ? step.assigned_usernames
+                          : [step.assigned_to]
+                        ).join(", ")}
+                        {(step.assigned_usernames ?? [step.assigned_to]).includes(
+                          (() => { try { return sessionStorage.getItem("portal_username") ?? "" } catch { return "" } })()
+                        ) && step.id === item.id && (
                           <span className="text-xs text-[var(--text-muted)] font-normal ml-1">
                             (you)
                           </span>

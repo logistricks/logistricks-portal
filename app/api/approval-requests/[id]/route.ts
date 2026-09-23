@@ -1,30 +1,27 @@
 /**
  * app/api/approval-requests/[id]/route.ts
  *
- * GET   — fetch one approval step with full request context + draft history
+ * GET   — fetch one approval step with full context, draft history, sibling chain,
+ *          committee responses
  *
- * PATCH — approve | reject | save-draft
- *   body: { action: "approve" | "reject" | "draft" }
- *         { notes }            (required on reject)
- *         { email_subject, email_body, email_cc }   (draft / approve with edits)
+ * PATCH — action: "approve" | "reject" | "draft"
  *
- * Approve logic:
- *   1. Save a draft row if email fields changed
- *   2. Mark this step approved
- *   3. Activate the next step and notify its assignee
+ * Approve logic (committee-aware):
+ *   1. Insert a row into approval_step_responses for this user
+ *   2. For "any_approves" steps: first approval advances the chain immediately
+ *   3. For "notify_only" steps: auto-resolved at submission time; shouldn't reach here
  *   4. If no next step → mark freight_request Approved
  *
  * Reject logic:
- *   1. Mark this step rejected
- *   2. Mark all other steps in the chain as skipped
- *   3. Return freight_request to Pending
- *   4. Notify submitter and prior approvers
+ *   1. Insert rejection response
+ *   2. Mark step rejected, skip remaining steps
+ *   3. Return freight_request to Pending, notify submitter
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
 
-function unauth() { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
+function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 function badInput(msg: string) { return NextResponse.json({ error: msg }, { status: 400 }) }
 
 export async function GET(
@@ -43,7 +40,8 @@ export async function GET(
     .from("approval_requests")
     .select(`
       id, sort_order, status, step_status, notes, decided_at,
-      can_edit_template, can_edit_cc, submitted_by, assigned_to, cycle_id,
+      can_edit_template, can_edit_cc, submitted_by, assigned_to,
+      assigned_usernames, cycle_id,
       freight_requests (
         id, sender_name, sender_email, origin_city, origin_country,
         destination_city, destination_country, cargo_type, weight,
@@ -51,27 +49,29 @@ export async function GET(
         received_at, status, aog, dgr, client_code
       ),
       approval_cycles ( id, name ),
-      approval_drafts ( id, edited_by, email_subject, email_body, email_cc, created_at )
+      approval_drafts ( id, edited_by, email_subject, email_body, email_cc, created_at ),
+      approval_step_responses ( id, username, response, notes, created_at )
     `)
     .eq("id", id)
     .single()
 
   if (error || !ar) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  // Verify this client owns the freight request
   const fr = (ar as any).freight_requests
   if (!fr || fr.client_code !== session.clientCode) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Sort drafts by created_at
   const drafts = ((ar as any).approval_drafts ?? [])
     .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
-  // Get sibling steps for the same request (to show the full chain)
+  // Sibling chain with committee members for display
   const { data: chain } = await admin
     .from("approval_requests")
-    .select("id, sort_order, assigned_to, step_status, status, decided_at, notes")
+    .select(`
+      id, sort_order, assigned_to, assigned_usernames, step_status, status, decided_at, notes,
+      approval_step_responses ( username, response, created_at )
+    `)
     .eq("request_id", fr.id)
     .order("sort_order", { ascending: true })
 
@@ -102,12 +102,11 @@ export async function PATCH(
 
   const admin = adminClient()
 
-  // Fetch the approval step
   const { data: ar } = await admin
     .from("approval_requests")
     .select(`
       id, sort_order, step_status, can_edit_template, can_edit_cc,
-      submitted_by, assigned_to, cycle_id,
+      submitted_by, assigned_to, assigned_usernames, cycle_id,
       freight_requests ( id, client_code, sender_name )
     `)
     .eq("id", id)
@@ -120,10 +119,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Only the assigned user can act (except admins — we'll allow client's portal_users admin role)
-  // For now enforce strict: only assigned_to can approve/reject
-  if (action !== "draft" && (ar as any).assigned_to !== session.username) {
-    return NextResponse.json({ error: "Only the assigned approver can act" }, { status: 403 })
+  // Verify this user is a committee member of this step
+  const assignedUsernames: string[] = (ar as any).assigned_usernames ?? []
+  const legacyAssigned: string = (ar as any).assigned_to ?? ""
+  const isAssigned = assignedUsernames.includes(session.username) || legacyAssigned === session.username
+
+  if (action !== "draft" && !isAssigned) {
+    return NextResponse.json({ error: "You are not assigned to this step" }, { status: 403 })
   }
 
   if ((ar as any).step_status !== "active") {
@@ -152,9 +154,23 @@ export async function PATCH(
     return NextResponse.json({ ok: true, draft })
   }
 
+  // ── Check for duplicate response ───────────────────────────────────────────
+  const { data: existing } = await admin
+    .from("approval_step_responses")
+    .select("id, response")
+    .eq("approval_request_id", id)
+    .eq("username", session.username)
+    .single()
+
+  if (existing) {
+    return NextResponse.json(
+      { error: `You already ${(existing as any).response} this step` },
+      { status: 409 }
+    )
+  }
+
   // ── Approve ────────────────────────────────────────────────────────────────
   if (action === "approve") {
-    // Optionally save a draft if edits were provided
     if (email_subject || email_body || email_cc) {
       await admin.from("approval_drafts").insert({
         approval_id:   id,
@@ -165,7 +181,17 @@ export async function PATCH(
       })
     }
 
-    // Mark this step approved
+    // Record this user's approval
+    await admin.from("approval_step_responses").insert({
+      approval_request_id: id,
+      username:            session.username,
+      response:            "approved",
+      notes:               notes ?? null,
+    })
+
+    // For "any_approves" mode: first approval advances the chain
+    // (committee_mode is on the step template, not the request; we treat default as any_approves)
+    // Advance the chain
     await admin.from("approval_requests").update({
       status:      "approved",
       step_status: "approved",
@@ -173,10 +199,10 @@ export async function PATCH(
       decided_at:  new Date().toISOString(),
     }).eq("id", id)
 
-    // Find the next waiting step for this request
+    // Find next waiting step
     const { data: nextStep } = await admin
       .from("approval_requests")
-      .select("id, assigned_to, sort_order")
+      .select("id, assigned_to, assigned_usernames, sort_order")
       .eq("request_id", requestId)
       .eq("step_status", "waiting")
       .order("sort_order", { ascending: true })
@@ -184,47 +210,50 @@ export async function PATCH(
       .single()
 
     if (nextStep) {
-      // Activate next step
       await admin.from("approval_requests")
         .update({ step_status: "active" })
         .eq("id", (nextStep as any).id)
 
-      // Notify next approver
-      await admin.from("notifications").insert({
+      // Notify all members of next step
+      const nextUsernames: string[] = (nextStep as any).assigned_usernames?.length
+        ? (nextStep as any).assigned_usernames
+        : [(nextStep as any).assigned_to].filter(Boolean)
+
+      const notifRows = nextUsernames.map((username: string) => ({
         client_code: session.clientCode,
-        username:    (nextStep as any).assigned_to,
+        username,
         type:        "approval_required",
         title:       "Approval Required",
         body:        `Step ${(ar as any).sort_order} approved — your turn to review`,
         request_id:  requestId,
-      })
+      }))
+      if (notifRows.length > 0) await admin.from("notifications").insert(notifRows)
 
       void logActivity({
         clientCode:  session.clientCode,
-        eventType:   "request_status_changed",
+        eventType:   "approval_step_approved",
         actor:       session.username,
         description: `Approved step ${(ar as any).sort_order} — forwarded to next approver`,
         requestId,
       })
     } else {
-      // Last step approved — mark freight request as Approved
+      // Last step — mark request Approved
       await admin.from("freight_requests")
         .update({ status: "Approved" })
         .eq("id", requestId)
 
-      // Notify submitter
       await admin.from("notifications").insert({
         client_code: session.clientCode,
         username:    (ar as any).submitted_by,
         type:        "approval_complete",
         title:       "Request Approved",
-        body:        `All approval steps completed — request is ready to send to carrier`,
+        body:        "All approval steps completed — request is ready to send",
         request_id:  requestId,
       })
 
       void logActivity({
         clientCode:  session.clientCode,
-        eventType:   "request_status_changed",
+        eventType:   "approval_cycle_completed",
         actor:       session.username,
         description: "Final approval step approved — request marked Approved",
         requestId,
@@ -236,9 +265,15 @@ export async function PATCH(
 
   // ── Reject ─────────────────────────────────────────────────────────────────
   if (action === "reject") {
-    if (!notes?.trim()) return badInput("notes (rejection reason) required")
+    if (!notes?.trim()) return badInput("Rejection reason required")
 
-    // Mark this step rejected
+    await admin.from("approval_step_responses").insert({
+      approval_request_id: id,
+      username:            session.username,
+      response:            "rejected",
+      notes,
+    })
+
     await admin.from("approval_requests").update({
       status:      "rejected",
       step_status: "rejected",
@@ -246,7 +281,6 @@ export async function PATCH(
       decided_at:  new Date().toISOString(),
     }).eq("id", id)
 
-    // Skip all other pending/waiting/active steps
     await admin.from("approval_requests").update({
       status:      "skipped",
       step_status: "skipped",
@@ -254,12 +288,10 @@ export async function PATCH(
       .eq("request_id", requestId)
       .in("step_status", ["waiting", "active"])
 
-    // Return freight request to Pending
     await admin.from("freight_requests")
       .update({ status: "Pending" })
       .eq("id", requestId)
 
-    // Notify submitter
     await admin.from("notifications").insert({
       client_code: session.clientCode,
       username:    (ar as any).submitted_by,
@@ -271,7 +303,7 @@ export async function PATCH(
 
     void logActivity({
       clientCode:  session.clientCode,
-      eventType:   "request_status_changed",
+      eventType:   "approval_step_rejected",
       actor:       session.username,
       description: `Rejected at step ${(ar as any).sort_order}: ${notes}`,
       requestId,

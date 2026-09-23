@@ -188,7 +188,7 @@ function RequestRow({ group }: { group: GroupedRequest }) {
                 <div className="flex-1 min-w-0 pb-2">
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-[var(--text-primary)]">
-                      {step.assigned_to}
+                      {(step.assigned_usernames?.length ? step.assigned_usernames : [step.assigned_to]).join(', ')}
                     </span>
                     <span
                       className={`text-xs capitalize font-medium ${
@@ -323,7 +323,7 @@ export default function ApprovalHistoryPage() {
         g.request.reference_number.toLowerCase().includes(q) ||
         (g.request.commodity?.toLowerCase().includes(q) ?? false) ||
         g.request.submitted_by.toLowerCase().includes(q) ||
-        g.chain.some((s) => s.assigned_to.toLowerCase().includes(q))
+        g.chain.some((s) => (s.assigned_usernames?.join(',') ?? s.assigned_to).toLowerCase().includes(q))
       )
     }
     return true
