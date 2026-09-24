@@ -58,7 +58,7 @@ export async function GET(
   if (error || !ar) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const fr = (ar as any).freight_requests
-  if (!fr || fr.client_code !== session.clientCode) {
+  if (!fr || fr.client_code?.toLowerCase() !== session.clientCode?.toLowerCase()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -115,7 +115,7 @@ export async function PATCH(
   if (!ar) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const fr = (ar as any).freight_requests
-  if (!fr || fr.client_code !== session.clientCode) {
+  if (!fr || fr.client_code?.toLowerCase() !== session.clientCode?.toLowerCase()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
