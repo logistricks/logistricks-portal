@@ -40,12 +40,11 @@ export async function GET(req: NextRequest) {
       ),
       approval_cycles ( id, name )
     `)
-    .eq("freight_requests.client_code", session.clientCode)
     .order("created_at", { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  let rows = (data ?? []).filter((r: any) => r.freight_requests)
+  let rows = (data ?? []).filter((r: any) => r.freight_requests && r.freight_requests.client_code === session.clientCode)
 
   if (view === "mine") {
     rows = rows.filter((r: any) =>

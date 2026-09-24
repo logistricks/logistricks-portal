@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useToast } from "@/components/ui/toast"
 import { AlertTriangle, Check, CheckSquare, Copy, Loader2, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
 import {
   AogBadge,
@@ -100,6 +101,7 @@ export function RequestDetailModal({
   const [messageBody, setMessageBody] = useState("")
   const [onlyCritical, setOnlyCritical] = useState(requireCriticalData)
   const [submittingApproval, setSubmittingApproval] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToast()
   const [userHasCycle, setUserHasCycle] = useState(false)
   const [showApprovalConfirm, setShowApprovalConfirm] = useState<"Email" | "Reply" | null>(null)
   const [aogLocal, setAogLocal]           = useState(request.aog)
@@ -251,9 +253,10 @@ export function RequestDetailModal({
         const data = await res.json().catch(() => ({}))
         throw new Error((data as {error?: string}).error ?? "Failed to send for approval")
       }
+      toastSuccess("Sent for Approval", "Your request has been submitted and is pending review.")
       onClose()
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to send for approval")
+      toastError("Failed to Send", e instanceof Error ? e.message : "Failed to send for approval")
     } finally {
       setSubmittingApproval(false)
     }
