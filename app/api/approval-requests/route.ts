@@ -80,7 +80,20 @@ export async function POST(req: NextRequest) {
     .single()
   if (!fr) return NextResponse.json({ error: "Request not found" }, { status: 404 })
   if ((fr as any).status === "In Review") {
-    return NextResponse.json({ error: "Already in review" }, { status: 409 })
+    // Allow re-submission only if existing steps have no valid assignees
+    // (happens when a previous submission was broken — no members configured)
+    const { data: existingSteps } = await admin
+      .from("approval_requests")
+      .select("id, assigned_usernames, assigned_to")
+      .eq("request_id", request_id)
+    const isStuck = (existingSteps ?? []).every((s: any) =>
+      (!s.assigned_usernames || (s.assigned_usernames as string[]).length === 0) &&
+      !s.assigned_to
+    )
+    if (!isStuck) {
+      return NextResponse.json({ error: "Already in review" }, { status: 409 })
+    }
+    // Stuck approval — fall through to delete + recreate below
   }
 
   // Resolve cycle from initiators table
