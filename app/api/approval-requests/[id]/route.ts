@@ -46,7 +46,8 @@ export async function GET(
         id, sender_name, sender_email, origin_city, origin_country,
         destination_city, destination_country, cargo_type, weight,
         dimensions, equipment, incoterm, bl_type, urgency,
-        received_at, status, aog, dgr, client_code
+        received_at, status, aog, dgr, client_code,
+        is_sea, is_air, is_land, special_requirements, suggested_reply
       ),
       approval_cycles ( id, name ),
       approval_drafts ( id, edited_by, email_subject, email_body, email_cc, created_at ),
@@ -75,7 +76,45 @@ export async function GET(
     .eq("request_id", fr.id)
     .order("sort_order", { ascending: true })
 
-  return NextResponse.json({ ...(ar as any), approval_drafts: drafts, chain: chain ?? [] })
+  // Map PostgREST table names + DB columns to what the frontend expects
+  const { freight_requests: _fr, approval_cycles, approval_drafts: _drafts, approval_step_responses, ...rest } = ar as any
+
+  const modes = [
+    ...(_fr.is_sea  ? ["Sea"]  : []),
+    ...(_fr.is_air  ? ["Air"]  : []),
+    ...(_fr.is_land ? ["Land"] : []),
+  ]
+
+  const freight_request = {
+    id:                   _fr.id,
+    reference_number:     `REQ-${_fr.id.slice(0, 8).toUpperCase()}`,
+    status:               _fr.status,
+    commodity:            _fr.cargo_type ?? null,
+    weight_kg:            _fr.weight ? parseFloat(_fr.weight) || null : null,
+    dimensions:           _fr.dimensions ?? null,
+    origin_port:          [_fr.origin_city, _fr.origin_country].filter(Boolean).join(", ") || null,
+    destination_port:     [_fr.destination_city, _fr.destination_country].filter(Boolean).join(", ") || null,
+    transport_mode:       modes.length > 0 ? modes.join(" / ") : null,
+    incoterms:            _fr.incoterm ?? null,
+    is_aog:               !!_fr.aog,
+    is_dgr:               !!_fr.dgr,
+    special_instructions: Array.isArray(_fr.special_requirements) && _fr.special_requirements.length > 0
+                            ? _fr.special_requirements.join("; ")
+                            : null,
+    submitted_by:         (ar as any).submitted_by ?? null,
+    submitted_at:         (ar as any).created_at ?? null,
+    email_subject:        null,
+    email_body:           _fr.suggested_reply ?? null,
+    email_cc:             null,
+  }
+
+  return NextResponse.json({
+    ...rest,
+    freight_request,
+    cycle: approval_cycles ?? null,
+    drafts,
+    chain: chain ?? [],
+  })
 }
 
 export async function PATCH(
