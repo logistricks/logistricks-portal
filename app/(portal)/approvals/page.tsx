@@ -25,9 +25,10 @@ import { useToast } from "@/components/ui/toast"
 interface ApprovalDraft {
   id: string
   edited_by: string
-  email_subject: string
-  email_body: string
-  email_cc: string[]
+  email_subject: string | null
+  email_body: string | null
+  email_cc: string[] | null
+  email_to: string | null
   created_at: string
 }
 
@@ -63,6 +64,8 @@ interface FreightRequest {
   email_subject: string | null
   email_body: string | null
   email_cc: string[] | null
+  sender_name: string | null
+  sender_email: string | null
 }
 
 interface ApprovalDetail {
@@ -76,6 +79,7 @@ interface ApprovalDetail {
   required: boolean
   notes: string | null
   decided_at: string | null
+  email_type: "carrier" | "reply" | null
   freight_request: FreightRequest
   cycle: { id: string; name: string } | null
   drafts: ApprovalDraft[]
@@ -706,7 +710,12 @@ function ApprovalCard({
                       To
                     </span>
                     <span className="text-xs text-[var(--text-secondary)]">
-                      [Carrier contact]
+                      {latestDraft?.email_to ??
+                        (item.email_type === "reply" && req.sender_email
+                          ? `${req.sender_name ?? ""} <${req.sender_email}>`.trim()
+                          : item.email_type === "reply" && req.sender_name
+                          ? req.sender_name
+                          : "(recipient not set)")}
                     </span>
                   </div>
                   {currentCc.length > 0 && (

@@ -244,18 +244,50 @@ export function RequestDetailModal({
   async function submitForApproval() {
     setSubmittingApproval(true)
     try {
-      // Capture the email the user composed so it's saved as the initial draft
+      // Determine email type: "carrier" (Email panel) vs "reply" (Reply panel)
+      const emailType = sendMethod === "Email" ? "carrier" : "reply"
+
+      // Build To recipient
+      let emailTo: string | null = null
+      let emailCc: string[] = []
+
+      if (sendMethod === "Email") {
+        // Carrier email: collect To + CC from selected carriers
+        const toAddresses: string[] = []
+        for (const cid of selectedCarrierIds) {
+          const carrier = carriers.find((c) => String(c.carrier_id) === cid)
+          if (carrier) {
+            toAddresses.push(carrier.email ? `${carrier.person_name} <${carrier.email}>` : carrier.person_name)
+            emailCc.push(...(carrier.cc_emails ?? []))
+          }
+        }
+        emailTo = toAddresses.join(", ") || null
+      } else {
+        // Reply email: To is the original freight request sender
+        emailTo = request.senderEmail
+          ? `${request.senderName} <${request.senderEmail}>`
+          : request.senderName ?? null
+      }
+
       const emailTemplate = sendMethod === "Email"
         ? templates.find((x) => String(x.template_id) === templateId)
         : null
       const emailPayload = (sendMethod === "Email" && messageBody)
         ? { email_subject: emailTemplate?.subject ?? null, email_body: messageBody }
+        : sendMethod === "Reply" && messageBody
+        ? { email_body: messageBody }
         : {}
 
       const res = await fetch("/api/approval-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request_id: request.id, ...emailPayload }),
+        body: JSON.stringify({
+          request_id: request.id,
+          email_type: emailType,
+          email_to:   emailTo,
+          email_cc:   emailCc.length > 0 ? emailCc : undefined,
+          ...emailPayload,
+        }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))

@@ -41,7 +41,7 @@ export async function GET(
     .select(`
       id, sort_order, status, step_status, notes, decided_at, created_at,
       can_edit_template, can_edit_cc, submitted_by, assigned_to,
-      assigned_usernames, cycle_id,
+      assigned_usernames, cycle_id, email_type,
       freight_requests (
         id, sender_name, sender_email, origin_city, origin_country,
         destination_city, destination_country, cargo_type, weight,
@@ -50,7 +50,7 @@ export async function GET(
         is_sea, is_air, is_land, special_requirements, suggested_reply
       ),
       approval_cycles ( id, name ),
-      approval_drafts ( id, edited_by, email_subject, email_body, email_cc, created_at ),
+      approval_drafts ( id, edited_by, email_subject, email_body, email_cc, email_to, created_at ),
       approval_step_responses ( id, username, response, notes, created_at )
     `)
     .eq("id", id)
@@ -88,7 +88,7 @@ export async function GET(
   const replyTemplate = templates?.[0] ?? null
 
   // Map PostgREST table names + DB columns to what the frontend expects
-  const { freight_requests: _fr, approval_cycles, approval_drafts: _drafts, approval_step_responses, ...rest } = ar as any
+  const { freight_requests: _fr, approval_cycles, approval_drafts: _drafts, approval_step_responses, email_type: _email_type, ...rest } = ar as any
 
   const modes = [
     ...(_fr.is_sea  ? ["Sea"]  : []),
@@ -114,6 +114,8 @@ export async function GET(
                             : null,
     submitted_by:         (ar as any).submitted_by ?? null,
     submitted_at:         (ar as any).created_at ?? null,
+    sender_name:          _fr.sender_name ?? null,
+    sender_email:         _fr.sender_email ?? null,
     // Base email template from the active reply template (drafts override this)
     email_subject:        replyTemplate?.subject ?? null,
     email_body:           replyTemplate?.body ?? _fr.suggested_reply ?? null,
@@ -122,6 +124,7 @@ export async function GET(
 
   return NextResponse.json({
     ...rest,
+    email_type: _email_type ?? null,
     freight_request,
     cycle: approval_cycles ?? null,
     drafts,
@@ -157,7 +160,7 @@ export async function PATCH(
     .from("approval_requests")
     .select(`
       id, sort_order, step_status, can_edit_template, can_edit_cc,
-      submitted_by, assigned_to, assigned_usernames, cycle_id,
+      submitted_by, assigned_to, assigned_usernames, cycle_id, email_type,
       freight_requests ( id, client_code, sender_name )
     `)
     .eq("id", id)
@@ -288,9 +291,14 @@ export async function PATCH(
         requestId,
       })
     } else {
-      // Last step — mark request Approved
+      // Last step — mark request with correct approved status based on email type
+      const emailType: string = (ar as any).email_type ?? "carrier"
+      const approvedStatus = emailType === "reply"
+        ? "Approved - Reply, Pending Send"
+        : "Approved - Carrier, Pending Send"
+
       await admin.from("freight_requests")
-        .update({ status: "Approved" })
+        .update({ status: approvedStatus })
         .eq("id", requestId)
 
       await admin.from("notifications").insert({
@@ -298,7 +306,9 @@ export async function PATCH(
         username:    (ar as any).submitted_by,
         type:        "approval_complete",
         title:       "Request Approved",
-        body:        "All approval steps completed — request is ready to send",
+        body:        emailType === "reply"
+          ? "All approval steps completed — reply is ready to send"
+          : "All approval steps completed — carrier email is ready to send",
         request_id:  requestId,
       })
 
@@ -306,7 +316,7 @@ export async function PATCH(
         clientCode:  session.clientCode,
         eventType:   "approval_cycle_completed",
         actor:       session.username,
-        description: "Final approval step approved — request marked Approved",
+        description: `Final approval step approved — request marked ${approvedStatus}`,
         requestId,
       })
     }

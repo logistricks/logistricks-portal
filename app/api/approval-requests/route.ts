@@ -65,10 +65,13 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return badInput("Invalid JSON") }
 
-  const { request_id, email_subject, email_body } = body as {
+  const { request_id, email_subject, email_body, email_to, email_cc, email_type } = body as {
     request_id?: string
     email_subject?: string
     email_body?: string
+    email_to?: string
+    email_cc?: string[]
+    email_type?: "carrier" | "reply"
   }
   if (!request_id) return badInput("request_id required")
 
@@ -158,6 +161,7 @@ export async function POST(req: NextRequest) {
       // First step active
       step_status:        idx === 0 ? "active" : "waiting",
       cycle_id:           (cycle as any).id,
+      email_type:         email_type ?? null,
     }
   })
 
@@ -173,13 +177,14 @@ export async function POST(req: NextRequest) {
 
   // Save the email the submitter composed as the initial draft for step 1
   const firstStepRow = inserted?.[0] as any
-  if ((email_subject || email_body) && firstStepRow) {
+  if ((email_subject || email_body || email_to || (email_cc && email_cc.length > 0)) && firstStepRow) {
     await admin.from("approval_drafts").insert({
       approval_id:   firstStepRow.id,
       edited_by:     session.username,
       email_subject: email_subject ?? null,
       email_body:    email_body    ?? null,
-      email_cc:      null,
+      email_cc:      email_cc && email_cc.length > 0 ? email_cc : null,
+      email_to:      email_to      ?? null,
     })
   }
 

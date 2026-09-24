@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
 
-  const VALID_STATUSES = new Set(["Pending", "Waiting for Approval", "Rejected", "Sent to Carrier", "Quoted", "Closed", "Approved"])
+  const VALID_STATUSES = new Set(["Pending", "Waiting for Approval", "Rejected", "Approved - Carrier, Pending Send", "Approved - Carrier, Sent", "Approved - Reply, Pending Send", "Approved - Reply, Sent", "Sent to Carrier", "Quoted", "Closed"])
 
   const patch: Record<string, unknown> = {}
   if (typeof aog === "boolean") patch.aog = aog
