@@ -140,7 +140,6 @@ export async function POST(req: NextRequest) {
     const memberUsernames = (step.approval_cycle_step_members ?? []).map((m: any) => m.username)
     // Fall back to legacy assigned_to when cycle was created before committee members existed
     const effectiveUsernames = memberUsernames.length > 0 ? memberUsernames : (step.assigned_to ? [step.assigned_to] : [])
-    const isNotifyOnly = step.committee_mode === "notify_only"
     return {
       request_id,
       client_code:        session.clientCode,
@@ -151,7 +150,7 @@ export async function POST(req: NextRequest) {
       can_edit_template:  step.can_edit_template,
       can_edit_cc:        step.can_edit_cc,
       status:             "pending",
-      // First step active; notify_only steps go active but auto-resolve
+      // First step active
       step_status:        idx === 0 ? "active" : "waiting",
       cycle_id:           (cycle as any).id,
     }
