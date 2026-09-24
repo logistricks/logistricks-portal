@@ -50,7 +50,6 @@ export async function GET(
         is_sea, is_air, is_land, special_requirements, suggested_reply
       ),
       approval_cycles ( id, name ),
-      approval_drafts ( id, edited_by, email_subject, email_body, email_cc, email_to, created_at ),
       approval_step_responses ( id, username, response, notes, created_at )
     `)
     .eq("id", id)
@@ -62,9 +61,6 @@ export async function GET(
   if (!fr || fr.client_code?.toLowerCase() !== session.clientCode?.toLowerCase()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-
-  const drafts = ((ar as any).approval_drafts ?? [])
-    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   // Sibling chain with committee members for display
   const [{ data: chain }, { data: templates }] = await Promise.all([
@@ -87,8 +83,19 @@ export async function GET(
 
   const replyTemplate = templates?.[0] ?? null
 
+  // Fetch all drafts for every step in this chain (so next approver sees prior edits)
+  const chainStepIds = (chain ?? []).map((s: any) => s.id)
+  const { data: chainDraftsData } = chainStepIds.length > 0
+    ? await admin
+        .from("approval_drafts")
+        .select("id, edited_by, email_subject, email_body, email_cc, email_to, created_at")
+        .in("approval_id", chainStepIds)
+        .order("created_at", { ascending: true })
+    : { data: [] as any[] }
+  const drafts = chainDraftsData ?? []
+
   // Map PostgREST table names + DB columns to what the frontend expects
-  const { freight_requests: _fr, approval_cycles, approval_drafts: _drafts, approval_step_responses, email_type: _email_type, ...rest } = ar as any
+  const { freight_requests: _fr, approval_cycles, approval_step_responses, email_type: _email_type, ...rest } = ar as any
 
   const modes = [
     ...(_fr.is_sea  ? ["Sea"]  : []),

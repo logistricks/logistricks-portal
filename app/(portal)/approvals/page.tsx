@@ -301,7 +301,7 @@ function ApprovalCard({
   item: ApprovalDetail
   onDecision: () => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(!!item.can_edit_template)
   const [acting, setActing] = useState(false)
   const [rejectNote, setRejectNote] = useState("")
   const [showReject, setShowReject] = useState(false)
@@ -311,6 +311,8 @@ function ApprovalCard({
   const [draftCc, setDraftCc] = useState("")
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
+
+  if (!item.freight_request) return null
 
   const req = item.freight_request
   const latestDraft =
@@ -427,7 +429,7 @@ function ApprovalCard({
   }
 
   const stepPosition = `Step ${item.sort_order}${
-    item.cycle ? ` of ${item.chain.length} — ${item.cycle.name}` : ""
+    item.cycle ? ` of ${(item.chain ?? []).length} — ${item.cycle.name}` : ""
   }`
 
   return (
@@ -533,13 +535,13 @@ function ApprovalCard({
           </div>
 
           {/* Approval chain */}
-          {item.chain.length > 0 && (
+          {(item.chain ?? []).length > 0 && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
                 Approval Chain
               </h3>
               <div className="space-y-2">
-                {item.chain.map((step) => (
+                {(item.chain ?? []).map((step) => (
                   <div key={step.id} className="flex items-center gap-3 text-sm">
                     <span
                       className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${
