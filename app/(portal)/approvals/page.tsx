@@ -276,7 +276,7 @@ function DraftHistory({
                         CC
                       </p>
                       <p className="text-xs text-[var(--text-secondary)]">
-                        {draft.email_cc.join(", ") || "(empty)"}
+                        {(draft.email_cc ?? []).join(", ") || "(empty)"}
                       </p>
                     </div>
                   )}
