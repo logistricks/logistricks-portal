@@ -16,11 +16,14 @@ import { Select } from "@/components/portal/select"
 import { type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
 
 const statusOptions = [
-  { value: "Pending" as const,           label: "Pending" },
-  { value: "All" as const,               label: "All Statuses" },
-  { value: "Sent to Carrier" as const,   label: "Sent to Carrier" },
-  { value: "Quoted" as const,            label: "Quoted" },
-  { value: "Closed" as const,            label: "Closed" },
+  { value: "Pending" as const,               label: "Pending" },
+  { value: "All" as const,                   label: "All Statuses" },
+  { value: "Waiting for Approval" as const,  label: "Waiting for Approval" },
+  { value: "Rejected" as const,              label: "Rejected" },
+  { value: "Approved" as const,              label: "Approved" },
+  { value: "Sent to Carrier" as const,       label: "Sent to Carrier" },
+  { value: "Quoted" as const,                label: "Quoted" },
+  { value: "Closed" as const,                label: "Closed" },
 ]
 
 const sourceOptions = [

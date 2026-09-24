@@ -205,9 +205,12 @@ function normalizeConfidence(c: string): Confidence {
 }
 
 function normalizeStatus(s: string): RequestStatus {
-  if (s === "Sent to Carrier") return "Sent to Carrier"
-  if (s === "Quoted")          return "Quoted"
-  if (s === "Closed")          return "Closed"
+  if (s === "Sent to Carrier")       return "Sent to Carrier"
+  if (s === "Quoted")                return "Quoted"
+  if (s === "Closed")                return "Closed"
+  if (s === "Waiting for Approval")  return "Waiting for Approval"
+  if (s === "Rejected")              return "Rejected"
+  if (s === "Approved")              return "Approved"
   return "Pending"
 }
 

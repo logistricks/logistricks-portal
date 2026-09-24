@@ -340,7 +340,7 @@ export async function PATCH(
       .in("step_status", ["waiting", "active"])
 
     await admin.from("freight_requests")
-      .update({ status: "Pending" })
+      .update({ status: "Rejected" })
       .eq("id", requestId)
 
     await admin.from("notifications").insert({

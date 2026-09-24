@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     .eq("client_code", session.clientCode)
     .single()
   if (!fr) return NextResponse.json({ error: "Request not found" }, { status: 404 })
-  if ((fr as any).status === "In Review") {
+  if ((fr as any).status === "Waiting for Approval") {
     // Allow re-submission only if existing steps have no valid assignees
     // (happens when a previous submission was broken — no members configured)
     const { data: existingSteps } = await admin
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
     }
     // Stuck approval — fall through to delete + recreate below
   }
+  // "Rejected" requests can always be re-submitted
 
   // Resolve cycle from initiators table
   const { data: initiator } = await admin
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
   // Update freight request status to "In Review"
-  await admin.from("freight_requests").update({ status: "In Review" }).eq("id", request_id)
+  await admin.from("freight_requests").update({ status: "Waiting for Approval" }).eq("id", request_id)
 
   // Save the email the submitter composed as the initial draft for step 1
   const firstStepRow = inserted?.[0] as any

@@ -1,6 +1,6 @@
 export type Source = "Email" | "WhatsApp" | "Voice Note"
 export type Confidence = "High" | "Medium" | "Low"
-export type RequestStatus = "Pending" | "Sent to Carrier" | "Quoted" | "Closed"
+export type RequestStatus = "Pending" | "Waiting for Approval" | "Rejected" | "Approved" | "Sent to Carrier" | "Quoted" | "Closed"
 export type Mode = "Sea" | "Air" | "Land"
 
 // ──────────────────────────────────────────────────────────────

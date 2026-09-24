@@ -34,6 +34,9 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
 export function StatusBadge({ status }: { status: RequestStatus }) {
   const config: Record<RequestStatus, string> = {
     Pending: "bg-orange-50 text-orange-700",
+    "Waiting for Approval": "bg-yellow-50 text-yellow-700",
+    Rejected: "bg-red-50 text-red-700",
+    Approved: "bg-emerald-50 text-emerald-700",
     "Sent to Carrier": "bg-blue-50 text-blue-700",
     Quoted: "bg-emerald-50 text-emerald-700",
     Closed: "bg-slate-100 text-slate-600",
