@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  let rows = (data ?? []).filter((r: any) => r.freight_requests && r.freight_requests.client_code === session.clientCode)
+  let rows = (data ?? []).filter((r: any) => r.freight_requests && r.freight_requests.client_code?.toLowerCase() === session.clientCode?.toLowerCase())
 
   if (view === "mine") {
     rows = rows.filter((r: any) =>
