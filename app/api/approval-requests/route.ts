@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     .select(`
       id, name,
       approval_cycle_steps (
-        id, sort_order, committee_mode, can_edit_template, can_edit_cc, required,
+        id, sort_order, committee_mode, can_edit_template, can_edit_cc, required, assigned_to,
         approval_cycle_step_members ( username )
       )
     `)
@@ -126,13 +126,15 @@ export async function POST(req: NextRequest) {
   // Create one approval_request row per step
   const rows = steps.map((step: any, idx: number) => {
     const memberUsernames = (step.approval_cycle_step_members ?? []).map((m: any) => m.username)
+    // Fall back to legacy assigned_to when cycle was created before committee members existed
+    const effectiveUsernames = memberUsernames.length > 0 ? memberUsernames : (step.assigned_to ? [step.assigned_to] : [])
     const isNotifyOnly = step.committee_mode === "notify_only"
     return {
       request_id,
       client_code:        session.clientCode,
       submitted_by:       session.username,
-      assigned_to:        memberUsernames[0] ?? "",  // legacy compat
-      assigned_usernames: memberUsernames,
+      assigned_to:        effectiveUsernames[0] ?? "",  // legacy compat
+      assigned_usernames: effectiveUsernames,
       sort_order:         step.sort_order,
       can_edit_template:  step.can_edit_template,
       can_edit_cc:        step.can_edit_cc,
@@ -171,9 +173,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const notifUsernames: string[] = firstStepDef.committee_mode === "notify_only"
-      ? (firstStepDef.approval_cycle_step_members ?? []).map((m: any) => m.username)
-      : (firstStepDef.approval_cycle_step_members ?? []).map((m: any) => m.username)
+    const firstStepMembers = (firstStepDef.approval_cycle_step_members ?? []).map((m: any) => m.username)
+    const firstStepEffective = firstStepMembers.length > 0 ? firstStepMembers : (firstStepDef.assigned_to ? [firstStepDef.assigned_to] : [])
+    const notifUsernames: string[] = firstStepEffective
 
     const notifRows = notifUsernames.map((username: string) => ({
       client_code: session.clientCode,
