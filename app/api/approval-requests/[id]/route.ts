@@ -39,7 +39,7 @@ export async function GET(
   const { data: ar, error } = await admin
     .from("approval_requests")
     .select(`
-      id, sort_order, status, step_status, notes, decided_at,
+      id, sort_order, status, step_status, notes, decided_at, created_at,
       can_edit_template, can_edit_cc, submitted_by, assigned_to,
       assigned_usernames, cycle_id,
       freight_requests (
@@ -67,14 +67,25 @@ export async function GET(
     .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   // Sibling chain with committee members for display
-  const { data: chain } = await admin
-    .from("approval_requests")
-    .select(`
-      id, sort_order, assigned_to, assigned_usernames, step_status, status, decided_at, notes,
-      approval_step_responses ( username, response, created_at )
-    `)
-    .eq("request_id", fr.id)
-    .order("sort_order", { ascending: true })
+  const [{ data: chain }, { data: templates }] = await Promise.all([
+    admin
+      .from("approval_requests")
+      .select(`
+        id, sort_order, assigned_to, assigned_usernames, step_status, status, decided_at, notes,
+        approval_step_responses ( username, response, created_at )
+      `)
+      .eq("request_id", fr.id)
+      .order("sort_order", { ascending: true }),
+    admin
+      .from("templates")
+      .select("subject, body")
+      .eq("client_code", session.clientCode)
+      .eq("is_reply_template", true)
+      .order("template_id", { ascending: true })
+      .limit(1),
+  ])
+
+  const replyTemplate = templates?.[0] ?? null
 
   // Map PostgREST table names + DB columns to what the frontend expects
   const { freight_requests: _fr, approval_cycles, approval_drafts: _drafts, approval_step_responses, ...rest } = ar as any
@@ -103,8 +114,9 @@ export async function GET(
                             : null,
     submitted_by:         (ar as any).submitted_by ?? null,
     submitted_at:         (ar as any).created_at ?? null,
-    email_subject:        null,
-    email_body:           _fr.suggested_reply ?? null,
+    // Base email template from the active reply template (drafts override this)
+    email_subject:        replyTemplate?.subject ?? null,
+    email_body:           replyTemplate?.body ?? _fr.suggested_reply ?? null,
     email_cc:             null,
   }
 

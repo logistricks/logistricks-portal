@@ -422,7 +422,7 @@ function ApprovalCard({
     }
   }
 
-  const stepPosition = `Step ${item.sort_order + 1}${
+  const stepPosition = `Step ${item.sort_order}${
     item.cycle ? ` of ${item.chain.length} — ${item.cycle.name}` : ""
   }`
 
@@ -556,7 +556,7 @@ function ApprovalCard({
                         <Clock className="h-3.5 w-3.5" />
                       ) : (
                         <span className="text-[10px] font-bold">
-                          {step.sort_order + 1}
+                          {step.sort_order}
                         </span>
                       )}
                     </span>
