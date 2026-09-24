@@ -635,9 +635,9 @@ function ApprovalCard({
               {item.can_edit_template && !editingEmail && (
                 <button
                   onClick={startEdit}
-                  className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors"
                 >
-                  <Edit3 className="h-3.5 w-3.5" /> Edit
+                  <Edit3 className="h-3.5 w-3.5" /> Edit Template
                 </button>
               )}
             </div>
