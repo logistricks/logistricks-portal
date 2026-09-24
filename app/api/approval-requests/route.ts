@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       freight_requests (
         id, sender_name, sender_email, origin_city, origin_country,
         destination_city, destination_country, cargo_type, weight,
-        dimensions, equipment, mode, incoterm, bl_type, urgency,
+        dimensions, equipment, incoterm, bl_type, urgency,
         received_at, status, aog, dgr, client_code
       ),
       approval_cycles ( id, name )
