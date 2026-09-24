@@ -85,11 +85,11 @@ interface ApprovalDetail {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function diffLines(
-  a: string,
-  b: string
+  a: string | null,
+  b: string | null
 ): Array<{ type: "same" | "removed" | "added"; text: string }> {
-  const oldLines = a.split("\n")
-  const newLines = b.split("\n")
+  const oldLines = (a ?? "").split("\n")
+  const newLines = (b ?? "").split("\n")
   const result: Array<{ type: "same" | "removed" | "added"; text: string }> = []
   const m = oldLines.length
   const n = newLines.length
