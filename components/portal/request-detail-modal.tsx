@@ -244,10 +244,18 @@ export function RequestDetailModal({
   async function submitForApproval() {
     setSubmittingApproval(true)
     try {
+      // Capture the email the user composed so it's saved as the initial draft
+      const emailTemplate = sendMethod === "Email"
+        ? templates.find((x) => String(x.template_id) === templateId)
+        : null
+      const emailPayload = (sendMethod === "Email" && messageBody)
+        ? { email_subject: emailTemplate?.subject ?? null, email_body: messageBody }
+        : {}
+
       const res = await fetch("/api/approval-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request_id: request.id }),
+        body: JSON.stringify({ request_id: request.id, ...emailPayload }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))

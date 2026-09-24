@@ -65,7 +65,11 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return badInput("Invalid JSON") }
 
-  const { request_id } = body as { request_id?: string }
+  const { request_id, email_subject, email_body } = body as {
+    request_id?: string
+    email_subject?: string
+    email_body?: string
+  }
   if (!request_id) return badInput("request_id required")
 
   const admin = adminClient()
@@ -166,8 +170,19 @@ export async function POST(req: NextRequest) {
   // Update freight request status to "In Review"
   await admin.from("freight_requests").update({ status: "In Review" }).eq("id", request_id)
 
-  // Notify all members of the first step
+  // Save the email the submitter composed as the initial draft for step 1
   const firstStepRow = inserted?.[0] as any
+  if ((email_subject || email_body) && firstStepRow) {
+    await admin.from("approval_drafts").insert({
+      approval_id:   firstStepRow.id,
+      edited_by:     session.username,
+      email_subject: email_subject ?? null,
+      email_body:    email_body    ?? null,
+      email_cc:      null,
+    })
+  }
+
+  // Notify all members of the first step
   const firstStepDef = steps[0] as any
   if (firstStepRow) {
     if (firstStepDef.committee_mode === "notify_only") {
