@@ -651,6 +651,7 @@ export default function SettingsPage() {
                           />
                         )}
                       </button>
+                    </div>
 
                     {/* Nested: auto-reply when data is complete */}
                     <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
