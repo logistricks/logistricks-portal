@@ -77,6 +77,14 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ── Logistricks brand tokens ── */
+  --brand-navy:       #0f1e36;
+  --brand-navy-mid:   #1a2d4a;
+  --brand-navy-light: #243d61;
+  --brand-accent:     #E8821A;
+  --brand-accent-hover: #d4731a;
+  --brand-accent-ring:  rgba(232, 130, 26, 0.18);
 }
 
 .dark {
@@ -157,12 +165,11 @@
   }
   html {
     scroll-behavior: smooth;
-    /* offset for fixed navbar when jumping to anchors */
     scroll-padding-top: 5rem;
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
 }
 
@@ -203,13 +210,11 @@
 
 /* Industrial container stencil typography */
 .font-stencil {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: 0.12em;
 }
 
 /* ---- Crate-style CTA buttons ---- */
-/* Four subtle corner rivets + faint vertical ridge lines evoke a shipping
-   crate panel while staying clean enough for an enterprise UI. */
 .crate-rivets-light {
   background-image:
     radial-gradient(circle, rgba(255, 255, 255, 0.35) 1px, transparent 1.4px),
@@ -257,75 +262,40 @@
 
 /* ---- Hero background vehicles ---- */
 @keyframes ship-slide {
-  from {
-    transform: translateX(105vw);
-  }
-  to {
-    transform: translateX(-460px);
-  }
+  from { transform: translateX(105vw); }
+  to   { transform: translateX(-460px); }
 }
-.anim-ship {
-  animation: ship-slide 28s linear infinite;
-}
+.anim-ship { animation: ship-slide 28s linear infinite; }
 
 @keyframes plane-fly {
-  from {
-    transform: translate(-220px, 60vh) rotate(-18deg);
-  }
-  to {
-    transform: translate(105vw, -30vh) rotate(-18deg);
-  }
+  from { transform: translate(-220px, 60vh) rotate(-18deg); }
+  to   { transform: translate(105vw, -30vh) rotate(-18deg); }
 }
-.anim-plane {
-  animation: plane-fly 18s linear infinite;
-}
+.anim-plane { animation: plane-fly 18s linear infinite; }
 
 @keyframes truck-drive {
-  from {
-    transform: translateX(-280px);
-  }
-  to {
-    transform: translateX(105vw);
-  }
+  from { transform: translateX(-280px); }
+  to   { transform: translateX(105vw); }
 }
-.anim-truck {
-  animation: truck-drive 14s linear infinite;
-}
+.anim-truck { animation: truck-drive 14s linear infinite; }
 
 @keyframes ship-slide-slow {
-  from {
-    transform: translateX(-640px);
-  }
-  to {
-    transform: translateX(105vw);
-  }
+  from { transform: translateX(-640px); }
+  to   { transform: translateX(105vw); }
 }
-.anim-ship-slow {
-  animation: ship-slide-slow 30s linear infinite;
-}
+.anim-ship-slow { animation: ship-slide-slow 30s linear infinite; }
 
 @keyframes float-crate {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-3deg);
-  }
-  50% {
-    transform: translateY(-18px) rotate(3deg);
-  }
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%       { transform: translateY(-18px) rotate(3deg); }
 }
-.anim-float {
-  animation: float-crate var(--float-dur, 6s) ease-in-out infinite;
-}
+.anim-float { animation: float-crate var(--float-dur, 6s) ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+  html { scroll-behavior: auto; }
   .anim-ship,
   .anim-plane,
   .anim-truck,
   .anim-ship-slow,
-  .anim-float {
-    animation: none;
-  }
+  .anim-float { animation: none; }
 }

@@ -59,37 +59,92 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] dark:bg-[#0A0F1A] px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo / brand */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#F97316]">
-            <span className="text-2xl font-black text-white">L</span>
-          </div>
-          <h1
-            className="text-2xl font-black tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
-            style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
+    <div
+      className="relative flex min-h-screen items-center justify-center px-4 py-12"
+      style={{ background: "#e8edf4" }}
+    >
+      {/* Subtle diagonal-stripe background */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            -45deg,
+            transparent 0px,
+            transparent 18px,
+            rgba(15,30,54,0.022) 18px,
+            rgba(15,30,54,0.022) 19px
+          )`,
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0"
+        style={{
+          background: "radial-gradient(ellipse 80% 80% at 50% 50%, transparent 50%, rgba(15,30,54,0.07) 100%)",
+        }}
+      />
+
+      {/* Card */}
+      <div
+        className="relative z-10 w-full max-w-[380px] overflow-hidden rounded-[4px]"
+        style={{
+          background: "#ffffff",
+          border: "1px solid #d0d8e4",
+          boxShadow: "0 1px 2px rgba(15,30,54,0.06), 0 8px 32px rgba(15,30,54,0.10), 0 2px 8px rgba(15,30,54,0.07)",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center gap-3 px-[22px] py-[18px]"
+          style={{
+            background: "var(--brand-navy)",
+            borderBottom: "2px solid var(--brand-accent)",
+          }}
+        >
+          <div
+            className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[3px] text-[19px] font-extrabold text-white"
+            style={{ background: "var(--brand-accent)", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
           >
-            Logistricks Portal
-          </h1>
-          <p className="mt-1 text-sm text-[#64748B] dark:text-[#475569]">
-            Sign in to your workspace
-          </p>
+            L
+          </div>
+          <div>
+            <div
+              className="text-[17px] font-extrabold leading-none tracking-tight text-white"
+              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+            >
+              Logistricks
+            </div>
+            <div
+              className="mt-[3px] text-[9px] font-medium uppercase tracking-[0.14em]"
+              style={{ color: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono), monospace" }}
+            >
+              Operations Portal
+            </div>
+          </div>
         </div>
 
-        {/* Card */}
-        <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
-          <form onSubmit={handleSubmit} className="space-y-4 p-6">
-            {error && (
-              <div className="rounded border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
-                {error}
-              </div>
-            )}
+        {/* Form body */}
+        <div className="px-[22px] pb-[26px] pt-6">
+          {error && (
+            <div
+              className="mb-4 rounded-[3px] px-[11px] py-2 text-[12.5px] text-red-600"
+              style={{
+                background: "rgba(220,38,38,0.05)",
+                border: "1px solid rgba(220,38,38,0.2)",
+              }}
+            >
+              {error}
+            </div>
+          )}
 
-            <div>
+          <form onSubmit={handleSubmit} noValidate className="space-y-[14px]">
+            {/* Client Code */}
+            <div className="flex flex-col gap-[5px]">
               <label
                 htmlFor="clientCode"
-                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]"
+                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: "#6b7f96", fontFamily: "var(--font-mono), monospace" }}
               >
                 Client Code
               </label>
@@ -97,18 +152,36 @@ export default function LoginPage() {
                 id="clientCode"
                 type="text"
                 autoComplete="organization"
-                placeholder=""
+                placeholder="SABIC-001"
                 value={clientCode}
                 onChange={(e) => setClientCode(e.target.value)}
                 required
-                className="h-10 w-full rounded border border-[#D1D9E0] bg-white px-3 text-sm text-[#0D1B2A] outline-none placeholder:text-[#CBD5E1] focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#0E1A2E] dark:text-[#E2E8F0]"
+                className="h-10 w-full rounded-[3px] px-[11px] text-[13px] outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6]"
+                style={{
+                  background: "#f7f9fc",
+                  border: "1px solid #cdd6e2",
+                  color: "var(--brand-navy)",
+                  fontFamily: "var(--font-mono), monospace",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--brand-accent)"
+                  e.target.style.boxShadow = "0 0 0 3px var(--brand-accent-ring)"
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#cdd6e2"
+                  e.target.style.boxShadow = "none"
+                }}
               />
             </div>
 
-            <div>
+            {/* Username */}
+            <div className="flex flex-col gap-[5px]">
               <label
                 htmlFor="username"
-                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]"
+                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: "#6b7f96", fontFamily: "var(--font-mono), monospace" }}
               >
                 Username
               </label>
@@ -120,14 +193,30 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="h-10 w-full rounded border border-[#D1D9E0] bg-white px-3 text-sm text-[#0D1B2A] outline-none placeholder:text-[#CBD5E1] focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#0E1A2E] dark:text-[#E2E8F0]"
+                className="h-10 w-full rounded-[3px] px-[11px] text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6]"
+                style={{
+                  background: "#f7f9fc",
+                  border: "1px solid #cdd6e2",
+                  color: "var(--brand-navy)",
+                  fontFamily: "var(--font-sans), system-ui, sans-serif",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--brand-accent)"
+                  e.target.style.boxShadow = "0 0 0 3px var(--brand-accent-ring)"
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#cdd6e2"
+                  e.target.style.boxShadow = "none"
+                }}
               />
             </div>
 
-            <div>
+            {/* Password */}
+            <div className="flex flex-col gap-[5px]">
               <label
                 htmlFor="password"
-                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]"
+                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: "#6b7f96", fontFamily: "var(--font-mono), monospace" }}
               >
                 Password
               </label>
@@ -139,18 +228,69 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="h-10 w-full rounded border border-[#D1D9E0] bg-white px-3 text-sm text-[#0D1B2A] outline-none placeholder:text-[#CBD5E1] focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#0E1A2E] dark:text-[#E2E8F0]"
+                className="h-10 w-full rounded-[3px] px-[11px] text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6]"
+                style={{
+                  background: "#f7f9fc",
+                  border: "1px solid #cdd6e2",
+                  color: "var(--brand-navy)",
+                  fontFamily: "var(--font-sans), system-ui, sans-serif",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--brand-accent)"
+                  e.target.style.boxShadow = "0 0 0 3px var(--brand-accent-ring)"
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#cdd6e2"
+                  e.target.style.boxShadow = "none"
+                }}
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 h-10 w-full rounded bg-[#F97316] text-sm font-bold text-white transition-colors hover:bg-[#EA580C] disabled:opacity-60"
+              className="mt-[6px] h-[42px] w-full rounded-[3px] text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-[background,box-shadow] duration-150 disabled:opacity-50"
+              style={{
+                background: "var(--brand-accent)",
+                fontFamily: "var(--font-mono), monospace",
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  (e.target as HTMLButtonElement).style.background = "var(--brand-accent-hover)"
+                  ;(e.target as HTMLButtonElement).style.boxShadow = "0 2px 8px rgba(232,130,26,0.3)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                ;(e.target as HTMLButtonElement).style.background = "var(--brand-accent)"
+                ;(e.target as HTMLButtonElement).style.boxShadow = "none"
+              }}
             >
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? "Signing in…" : "Sign In →"}
             </button>
           </form>
+        </div>
+
+        {/* Footer strip */}
+        <div
+          className="flex items-center justify-between px-[22px] py-[9px]"
+          style={{ borderTop: "1px solid #edf1f6" }}
+        >
+          <span
+            className="text-[9px] uppercase tracking-[0.1em]"
+            style={{ color: "#b0bcc9", fontFamily: "var(--font-mono), monospace" }}
+          >
+            TLS 1.3 · Secured
+          </span>
+          <span
+            className="flex items-center gap-[5px] text-[9px] uppercase tracking-[0.1em]"
+            style={{ color: "#b0bcc9", fontFamily: "var(--font-mono), monospace" }}
+          >
+            <span
+              className="inline-block h-[5px] w-[5px] rounded-full"
+              style={{ background: "#16a34a", boxShadow: "0 0 4px rgba(22,163,74,0.6)" }}
+            />
+            Operational
+          </span>
         </div>
       </div>
     </div>

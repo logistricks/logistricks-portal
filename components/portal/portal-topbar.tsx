@@ -60,41 +60,66 @@ export function PortalTopbar() {
   const avatarInitials = displayName ? initials(displayName) : "—"
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] md:px-8">
+    <header
+      className="sticky top-0 z-20 flex h-14 items-center justify-between px-4 md:px-8"
+      style={{
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "var(--brand-navy)",
+        fontFamily: "var(--font-sans), system-ui, sans-serif",
+      }}
+    >
       {/* Left: current page label */}
-      <h1 className="hidden w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-[#94A3B8] dark:text-[#475569] sm:block">
+      <h1
+        className="hidden w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] sm:block"
+        style={{ color: "#475569", fontFamily: "var(--font-mono), monospace" }}
+      >
         {titleFor(pathname)}
       </h1>
 
       {/* Center: Logistricks wordmark */}
       <div className="absolute left-1/2 -translate-x-1/2">
         <Link href="/dashboard" className="flex items-center gap-2.5 select-none">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0D1B2A] dark:bg-[#F97316]/10">
-            <span
-              className="text-[22px] font-black leading-none text-[#F97316]"
-              style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
-            >L</span>
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[22px] font-black leading-none"
+            style={{
+              background: "rgba(232,130,26,0.12)",
+              color: "var(--brand-accent)",
+              fontFamily: "var(--font-sans), system-ui, sans-serif",
+            }}
+          >
+            L
           </div>
           <span
-            className="hidden text-[17px] font-black tracking-tight text-[#0D1B2A] dark:text-white sm:inline"
-            style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
+            className="hidden text-[17px] font-black tracking-tight text-white sm:inline"
+            style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
           >
-            Logis<span className="text-[#F97316]">tricks</span>
+            Logis<span style={{ color: "var(--brand-accent)" }}>tricks</span>
           </span>
         </Link>
       </div>
 
       {/* Right: actions */}
       <div className="flex items-center gap-2">
-        <span className="hidden text-xs tabular-nums text-[#94A3B8] sm:block">{now}</span>
+        <span
+          className="hidden text-xs tabular-nums sm:block"
+          style={{ color: "#475569", fontFamily: "var(--font-mono), monospace" }}
+        >
+          {now}
+        </span>
         <ThemeToggle />
         <NotificationBell />
         <div className="flex items-center gap-2.5 pl-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#0D1B2A] text-xs font-bold text-white dark:bg-[#1E3A5F]">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-xs font-bold text-white"
+            style={{ background: "var(--brand-navy-mid)" }}
+          >
             {avatarInitials}
           </div>
           {displayName && (
-            <span className="hidden text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0] lg:block">
+            <span
+              className="hidden text-sm font-medium text-[#e2e8f0] lg:block"
+              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+            >
               {displayName}
             </span>
           )}
