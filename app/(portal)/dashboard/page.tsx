@@ -46,28 +46,30 @@ function KPICard({
   trend?: "up"; color: string; icon: React.ElementType; loading?: boolean
 }) {
   return (
-    <div className="ds-card relative overflow-hidden">
-      <div className="absolute left-0 right-0 top-0 h-[3px] rounded-t-[10px]" style={{ backgroundColor: color }} />
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-            {loading ? (
-              <Skeleton h={44} w={56} className="mt-2" />
-            ) : (
-              <p className="mt-2 text-[2.75rem] font-black leading-none tabular-nums" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>{value}</p>
-            )}
-            <p className={`mt-1.5 flex items-center gap-0.5 text-xs font-medium ${trend === "up" ? "text-emerald-500" : ""}`}
-               style={trend !== "up" ? { color: 'var(--text-secondary)' } : undefined}>
-              {trend === "up" && <ArrowUpRight className="h-3.5 w-3.5" />}
-              {loading ? "…" : sub}
-            </p>
-          </div>
-          <div className="shrink-0 rounded-lg p-2.5" style={{ backgroundColor: color + "18" }}>
-            <Icon className="h-5 w-5" style={{ color }} />
-          </div>
+    <div className="ds-card p-5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div
+          className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]"
+          style={{ backgroundColor: color + "18" }}
+        >
+          <Icon className="h-5 w-5" style={{ color }} />
         </div>
+        {trend === "up" && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a" }}>
+            <ArrowUpRight className="h-3 w-3" />
+            {loading ? "…" : sub}
+          </span>
+        )}
       </div>
+      {loading ? (
+        <Skeleton h={32} w={64} className="mb-1" />
+      ) : (
+        <p className="text-[28px] font-bold tabular-nums leading-tight mb-1" style={{ color: 'var(--text-primary)', letterSpacing: "-0.02em" }}>{value}</p>
+      )}
+      <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+      {trend !== "up" && (
+        <p className="mt-1 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>{loading ? "…" : sub}</p>
+      )}
     </div>
   )
 }
