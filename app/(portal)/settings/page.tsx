@@ -94,14 +94,16 @@ function Section({
   title,
   description,
   children,
+  id,
 }: {
   icon: React.ReactNode
   title: string
   description: string
   children: React.ReactNode
+  id?: string
 }) {
   return (
-    <section className="mb-10">
+    <section id={id} className="mb-10 scroll-mt-6">
       <div className="flex items-center gap-2 mb-2">
         <span style={{color:"var(--brand-accent)"}}>{icon}</span>
         <h2 className="text-xs font-semibold uppercase tracking-widest" style={{color:"var(--text-secondary)"}}>{title}</h2>
@@ -434,8 +436,37 @@ export default function SettingsPage() {
   }
 
   // ── Render ───────────────────────────────────────────────
+  const SETTINGS_NAV = [
+    { id: "receiver-emails",    label: "Receiver Emails",    icon: <Mail className="h-4 w-4" /> },
+    { id: "whatsapp-numbers",   label: "WhatsApp Numbers",   icon: <MessageCircle className="h-4 w-4" /> },
+    { id: "automation",        label: "Automation",         icon: <Settings2 className="h-4 w-4" /> },
+    { id: "approval-workflow", label: "Approval Workflow",  icon: <GitBranch className="h-4 w-4" /> },
+  ]
+
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="flex gap-8 p-6">
+      <aside className="hidden w-56 shrink-0 md:block">
+        <div className="sticky top-[76px]">
+          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>Settings</p>
+          <nav className="flex flex-col gap-0.5">
+            {SETTINGS_NAV.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors"
+                style={{ color: "var(--text-secondary)" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--table-header-bg)" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
+              >
+                <span style={{ color: "var(--brand-accent)" }}>{s.icon}</span>
+                {s.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+      </aside>
+
+      <div className="max-w-2xl flex-1">
       <h1 className="mb-1 text-xl font-bold text-[var(--text-primary)]">Settings</h1>
       <p className="mb-8 text-sm text-[#475569]">Manage your organisation's configuration</p>
 
@@ -446,6 +477,7 @@ export default function SettingsPage() {
       {/* ── Receiver Emails ── */}
       <Section
         icon={<Mail className="h-4 w-4" />}
+        id="receiver-emails"
         title="Receiver Emails"
         description="Inbound addresses n8n monitors for this client. Only active addresses are processed. Deactivating stops new requests from that mailbox without deleting history."
       >
@@ -502,6 +534,7 @@ export default function SettingsPage() {
       {/* ── WhatsApp Numbers ── */}
       <Section
         icon={<MessageCircle className="h-4 w-4" />}
+        id="whatsapp-numbers"
         title="WhatsApp Numbers"
         description="Sender numbers n8n listens to for inbound WhatsApp rate replies. Only active numbers are processed. Use E.164 format (+96612345678)."
       >
@@ -558,6 +591,7 @@ export default function SettingsPage() {
       {/* ── Automation ── */}
       <Section
         icon={<Settings2 className="h-4 w-4" />}
+        id="automation"
         title="Automation"
         description="Control how the system handles sending rate requests and replies on your behalf."
       >
@@ -690,6 +724,7 @@ export default function SettingsPage() {
       {/* ── Approval Workflow ── */}
       <Section
         icon={<GitBranch className="h-4 w-4" />}
+        id="approval-workflow"
         title="Approval Workflow"
         description="Configure named approval cycles and step chains used when submitting freight requests for internal review."
       >
@@ -710,6 +745,7 @@ export default function SettingsPage() {
           onCancel={() => setShowPicker(false)}
         />
       )}
+      </div>
     </div>
   )
 }
