@@ -79,6 +79,7 @@ export type TemplateRow = {
   is_default: boolean
   is_reply_template: boolean
   is_missing_reply_template: boolean
+  is_complete_reply_template: boolean
   active: boolean
   updated_at: string
 }
@@ -95,6 +96,7 @@ export type Template = {
   is_default: boolean
   is_reply_template: boolean
   is_missing_reply_template: boolean
+  is_complete_reply_template: boolean
   active: boolean
   updated_at: string
 }
@@ -145,6 +147,19 @@ export type FreightRequest = {
   aog: boolean
   dgr: boolean
   history: StatusEvent[]
+  // Reply threading
+  gmailThreadId: string | null
+  repliedAt: string | null
+  replySentType: "missing_fields" | "complete" | "acknowledgement" | "manual" | null
+  replyBody: string | null
+  conversation: ConversationMessage[]
+}
+
+export type ConversationMessage = {
+  role: "sender" | "system"
+  type?: string
+  body: string
+  sent_at: string
 }
 
 export const requests: FreightRequest[] = [

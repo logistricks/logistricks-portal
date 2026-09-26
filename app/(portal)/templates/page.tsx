@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, Check, Copy, Loader2, Mail, MessageCircle, MessageSquareReply, Pencil, Plus, Star, Trash2 } from "lucide-react"
+import { AlertTriangle, Check, CheckCheck, Copy, Loader2, Mail, MessageCircle, MessageSquareReply, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { TemplateEditor } from "@/components/portal/template-editor"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 
@@ -20,6 +20,7 @@ function rowToTemplate(row: TemplateRow): Template {
     is_default:         row.is_default,
     is_reply_template:  row.is_reply_template,
     is_missing_reply_template: row.is_missing_reply_template,
+    is_complete_reply_template: row.is_complete_reply_template,
     active:             row.active,
     updated_at:         row.updated_at,
   }
@@ -170,6 +171,30 @@ export default function TemplatesPage() {
     }
   }
 
+
+  async function handleSetCompleteReplyTemplate(t: Template) {
+    // Optimistic: mark this one, unmark all others
+    const nextComplete = !t.is_complete_reply_template
+    setList((l) => l.map((x) =>
+      x.template_id === t.template_id
+        ? { ...x, is_complete_reply_template: nextComplete, is_reply_template: nextComplete ? false : x.is_reply_template, is_missing_reply_template: nextComplete ? false : x.is_missing_reply_template }
+        : { ...x, is_complete_reply_template: false }
+    ))
+    try {
+      const res = await fetch("/api/templates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: t.template_id, is_complete_reply_template: nextComplete }),
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setList((l) => l.map((x) =>
+        x.template_id === t.template_id ? { ...x, is_complete_reply_template: t.is_complete_reply_template, is_reply_template: t.is_reply_template, is_missing_reply_template: t.is_missing_reply_template } : x
+      ))
+    }
+  }
+
   function openNew(type: "Email" | "WhatsApp" = "Email") {
     setEditing({
       row_id:             0,
@@ -182,6 +207,7 @@ export default function TemplatesPage() {
       is_default:         false,
       is_reply_template:  false,
       is_missing_reply_template: false,
+      is_complete_reply_template: false,
       active:             true,
       updated_at:         new Date().toISOString(),
     })
@@ -256,6 +282,11 @@ export default function TemplatesPage() {
                       <AlertTriangle className="h-3 w-3" /> Missing data
                     </span>
                   )}
+                  {t.is_complete_reply_template && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
+                      <CheckCheck className="h-3 w-3" /> Complete data
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -300,6 +331,14 @@ export default function TemplatesPage() {
                     className={`rounded-md p-1.5 transition-colors ${t.is_missing_reply_template ? "bg-orange-50 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300" : "text-[#64748B] hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-500/10"}`}
                   >
                     <AlertTriangle className="h-4 w-4" />
+                  </button>
+                  <button
+                    aria-label={t.is_complete_reply_template ? "Remove as complete-data auto-reply template" : "Set as complete-data auto-reply template"}
+                    title={t.is_complete_reply_template ? "Remove as complete-data auto-reply template" : "Set as complete-data auto-reply template"}
+                    onClick={() => handleSetCompleteReplyTemplate(t)}
+                    className={`rounded-md p-1.5 transition-colors ${t.is_complete_reply_template ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300" : "text-[#64748B] hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"}`}
+                  >
+                    <CheckCheck className="h-4 w-4" />
                   </button>
                   <button
                     aria-label="Edit"

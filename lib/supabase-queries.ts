@@ -47,6 +47,12 @@ export interface DbFreightRequest {
   history: { label: string; time: string; done: boolean }[]
   created_at: string
   updated_at: string
+  // Reply threading
+  gmail_thread_id: string | null
+  replied_at: string | null
+  reply_sent_type: string | null
+  reply_body: string | null
+  conversation: unknown[]
 }
 
 export interface DashboardStats {
@@ -273,6 +279,12 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     history:           Array.isArray(row.history) && row.history.length > 0
                          ? row.history as FreightRequest["history"]
                          : buildDefaultHistory(row.status),
+    // Reply threading
+    gmailThreadId:     row.gmail_thread_id ?? null,
+    repliedAt:         row.replied_at ?? null,
+    replySentType:     (row.reply_sent_type ?? null) as FreightRequest["replySentType"],
+    replyBody:         row.reply_body ?? null,
+    conversation:      Array.isArray(row.conversation) ? row.conversation as FreightRequest["conversation"] : [],
   }
 }
 

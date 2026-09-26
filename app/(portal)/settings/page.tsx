@@ -264,6 +264,8 @@ export default function SettingsPage() {
   const [autoReplyBusy, setAutoReplyBusy]   = useState(false)
   const [autoReplyMissing, setAutoReplyMissing] = useState(false)
   const [autoReplyMissingBusy, setAutoReplyMissingBusy] = useState(false)
+  const [autoReplyComplete, setAutoReplyComplete] = useState(false)
+  const [autoReplyCompleteBusy, setAutoReplyCompleteBusy] = useState(false)
   const [showPicker, setShowPicker]         = useState(false)
 
   const [error, setError] = useState<string | null>(null)
@@ -292,6 +294,7 @@ export default function SettingsPage() {
           setCriticalFields(data.critical_fields ?? [])
           setAutoReply(data.auto_reply_enabled ?? false)
           setAutoReplyMissing(data.auto_reply_missing_enabled ?? false)
+          setAutoReplyComplete(data.auto_reply_complete_enabled ?? false)
         }
         setFlagsLoading(false)
       })
@@ -380,6 +383,16 @@ export default function SettingsPage() {
     if (err) { setError(err); setAutoReplyMissingBusy(false); return }
     setAutoReplyMissing(next)
     setAutoReplyMissingBusy(false)
+  }
+
+
+  async function toggleAutoReplyComplete() {
+    setAutoReplyCompleteBusy(true); setError(null)
+    const next = !autoReplyComplete
+    const err = await patchSettings({ auto_reply_complete_enabled: next })
+    if (err) { setError(err); setAutoReplyCompleteBusy(false); return }
+    setAutoReplyComplete(next)
+    setAutoReplyCompleteBusy(false)
   }
 
   async function toggleAutoSend() {
@@ -634,6 +647,32 @@ export default function SettingsPage() {
                           <span
                             className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
                               autoReplyMissing ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        )}
+                      </button>
+
+                    {/* Nested: auto-reply when data is complete */}
+                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#0F172A] dark:text-[#E2E8F0]">Auto-reply when all data is complete</p>
+                        <p className="text-xs text-[#475569] mt-0.5">Sends the complete-data auto-reply template when all required fields are present. Requires a Complete Data template. Priority: Missing fields &gt; Complete &gt; Standard.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={toggleAutoReplyComplete}
+                        disabled={autoReplyCompleteBusy}
+                        aria-pressed={autoReplyComplete}
+                        className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${
+                          autoReplyComplete ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"
+                        }`}
+                      >
+                        {autoReplyCompleteBusy ? (
+                          <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
+                        ) : (
+                          <span
+                            className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                              autoReplyComplete ? "translate-x-5" : "translate-x-0"
                             }`}
                           />
                         )}

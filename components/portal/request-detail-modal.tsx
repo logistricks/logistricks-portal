@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
-import { AlertTriangle, Check, CheckSquare, Copy, Loader2, Lock, Mail, MessageCircle, Phone, Reply, X } from "lucide-react"
+import { AlertTriangle, Check, CheckSquare, Copy, Loader2, Lock, Mail, MessageCircle, MessageSquareReply, Phone, Reply, X } from "lucide-react"
 import {
   AogBadge,
   ConfidenceBadge,
@@ -16,6 +16,7 @@ import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel
 import {
   type Carrier,
   type CarrierRow,
+  type ConversationMessage,
   type FreightRequest,
   type Template,
   type TemplateRow,
@@ -530,6 +531,37 @@ export function RequestDetailModal({
                   {canEditFlags && <p className="text-[11px] text-[#94A3B8]">Auto-detected from keywords. Toggle to override.</p>}
                 </div>
               </section>
+              <section>
+                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Reply Thread</h4>
+                {request.conversation && request.conversation.length > 0 ? (
+                  <div className="space-y-2">
+                    {request.conversation.map((msg: ConversationMessage, i: number) => (
+                      <div
+                        key={i}
+                        className={`rounded-lg p-3 text-xs leading-relaxed ${
+                          msg.role === "system"
+                            ? "border border-blue-100 bg-blue-50 dark:border-blue-800/30 dark:bg-blue-950/30"
+                            : "border border-[#E2E8F0] bg-[#F8FAFC] dark:border-[#1E3A5F] dark:bg-[#0F1E33]"
+                        }`}
+                      >
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <span className={`font-semibold ${msg.role === "system" ? "text-blue-600 dark:text-blue-400" : "text-[#0F172A] dark:text-[#E2E8F0]"}`}>
+                            {msg.role === "system" ? "System" : request.senderName}
+                          </span>
+                          <span className="shrink-0 text-[10px] tabular-nums text-[#94A3B8]">
+                            {new Date(msg.sent_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <p className="whitespace-pre-wrap text-[#475569] dark:text-[#94A3B8]">{msg.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed border-[#CBD5E1] px-4 py-3 text-center text-xs text-[#94A3B8] dark:border-[#1E3A5F]">
+                    No replies sent yet.
+                  </p>
+                )}
+              </section>
             </div>
           </div>
           )}
@@ -634,11 +666,38 @@ export function RequestDetailModal({
             </div>
           </div>
           <div className="border-t border-[#E2E8F0] px-4 pb-4 pt-3 dark:border-[#1E3A5F]">
-            <button type="button" onClick={() => openPanel("Reply")}
-              className={`inline-flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition-all hover:scale-[1.01] ${sendMethod === "Reply" ? "border-[#0D1B2A] bg-[#0D1B2A] text-white" : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:border-[#0D1B2A] dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0] dark:hover:border-[#475569]"}`}>
-              <Reply className="h-4 w-4" />Reply to {request.senderName}
-              {missingCount > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{missingCount}</span>}
-            </button>
+            {(() => {
+              const lastMsg = request.conversation?.[request.conversation.length - 1]
+              const awaitingSenderReply = lastMsg?.role === "system"
+              return (
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => !awaitingSenderReply && openPanel("Reply")}
+                    disabled={awaitingSenderReply}
+                    title={awaitingSenderReply ? "Awaiting sender reply — reply button re-enables when they respond" : undefined}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition-all ${
+                      awaitingSenderReply
+                        ? "cursor-not-allowed border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#475569]"
+                        : sendMethod === "Reply"
+                        ? "border-[#0D1B2A] bg-[#0D1B2A] text-white"
+                        : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:scale-[1.01] hover:border-[#0D1B2A] dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0] dark:hover:border-[#475569]"
+                    }`}
+                  >
+                    {awaitingSenderReply ? <MessageSquareReply className="h-4 w-4" /> : <Reply className="h-4 w-4" />}
+                    {awaitingSenderReply ? "Awaiting reply from " : "Reply to "}{request.senderName}
+                    {missingCount > 0 && !awaitingSenderReply && (
+                      <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{missingCount}</span>
+                    )}
+                  </button>
+                  {awaitingSenderReply && (
+                    <p className="text-center text-[11px] text-[#94A3B8]">
+                      Reply sent{request.replySentType ? ` (${request.replySentType.replace(/_/g, " ")})` : ""}. Re-enables when {request.senderName} responds.
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         </div>
 
