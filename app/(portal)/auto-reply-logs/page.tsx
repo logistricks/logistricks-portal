@@ -86,8 +86,7 @@ export default function AutoReplyLogsPage() {
     <div className="portal-page space-y-5 p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
-            style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
           Auto Reply Logs
         </h2>
         <div className="flex items-center gap-2">
@@ -137,6 +136,48 @@ export default function AutoReplyLogsPage() {
           )
         })}
       </div>
+
+      {/* KPI row */}
+      {!loading && rows.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(15,30,54,0.08)" }}>
+              <Mail className="h-[18px] w-[18px]" style={{ color: "var(--text-primary)" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{rows.length}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Total Sent</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(37,99,235,0.1)" }}>
+              <CheckCircle className="h-[18px] w-[18px]" style={{ color: "#2563eb" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{counts.acknowledgement ?? 0}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Acknowledgements</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(245,158,11,0.12)" }}>
+              <AlertTriangle className="h-[18px] w-[18px]" style={{ color: "#d97706" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{counts.missing_fields ?? 0}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Missing Fields</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(22,163,74,0.1)" }}>
+              <Truck className="h-[18px] w-[18px]" style={{ color: "#16a34a" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{counts.carrier ?? 0}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>To Carriers</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-hidden ds-card">
