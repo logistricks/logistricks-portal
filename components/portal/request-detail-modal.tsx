@@ -12,6 +12,7 @@ import {
   StatusBadge,
   UrgencyBadge,
 } from "@/components/portal/badges"
+import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
 import {
   type Carrier,
   type CarrierRow,
@@ -104,6 +105,7 @@ export function RequestDetailModal({
   const { success: toastSuccess, error: toastError } = useToast()
   const [userHasCycle, setUserHasCycle] = useState(false)
   const [showApprovalConfirm, setShowApprovalConfirm] = useState<"Email" | "Reply" | null>(null)
+  const [activeTab, setActiveTab]         = useState<"details" | "quotes">("details")
   const [aogLocal, setAogLocal]           = useState(request.aog)
   const [dgrLocal, setDgrLocal]           = useState(request.dgr)
   const [flagSaving, setFlagSaving]       = useState(false)
@@ -399,8 +401,32 @@ export function RequestDetailModal({
           </button>
         </div>
 
+        {/* Tab bar */}
+        <div className="flex shrink-0 border-b border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
+          {(["details", "quotes"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`px-5 py-3 text-sm font-semibold capitalize transition-colors border-b-2 -mb-px ${
+                activeTab === tab
+                  ? "border-[#F97316] text-[#F97316]"
+                  : "border-transparent text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-[#E2E8F0]"
+              }`}
+            >
+              {tab === "details" ? "Shipment Details" : "Carrier Quotes"}
+            </button>
+          ))}
+        </div>
+
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
+          {activeTab === "quotes" && (
+            <div className="p-6">
+              <QuoteComparisonPanel freightRequestId={request.id} />
+            </div>
+          )}
+          {activeTab === "details" && (
           <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-5">
             {/* Left */}
             <div className="space-y-6 lg:col-span-3">
@@ -590,6 +616,7 @@ export function RequestDetailModal({
           )}
         </div>
 
+          )}
         {/* Footer */}
         <div className="shrink-0 border-t border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
           <div className="flex flex-col gap-3 p-4 sm:flex-row">

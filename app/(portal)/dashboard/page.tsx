@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Send,
   TrendingUp,
+  Truck,
   Zap,
 } from "lucide-react"
 import { SourceBadge, StatusBadge } from "@/components/portal/badges"
@@ -183,12 +184,13 @@ export default function DashboardPage() {
     load()
   }, [toastError])
 
-  const total       = stats?.total         ?? 0
-  const pending     = stats?.pending       ?? 0
-  const sentCount   = stats?.sentToCarrier ?? 0
-  const quotedCount = stats?.quoted        ?? 0
-  const weekTotal   = stats?.weekTotal     ?? 0
-  const dailyCounts = stats?.dailyCounts   ?? []
+  const total          = stats?.total            ?? 0
+  const pending        = stats?.pending          ?? 0
+  const sentCount      = stats?.sentToCarrier    ?? 0
+  const quotedCount    = stats?.quoted           ?? 0
+  const weekTotal      = stats?.weekTotal        ?? 0
+  const dailyCounts    = stats?.dailyCounts      ?? []
+  const pendingRfqCount = stats?.pendingRfqCount ?? 0
 
   const pipeline = [
     { stage: "Received",        count: total,       color: "#475569" },
@@ -215,11 +217,12 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <KPICard loading={loading} label="Total Requests"  value={total}       sub={stats?.todayDelta ?? "—"} trend="up" color="#F97316" icon={Inbox}     />
-        <KPICard loading={loading} label="Pending Action"  value={pending}     sub="Awaiting carrier outreach"             color="#F97316" icon={Clock}     />
-        <KPICard loading={loading} label="Sent to Carrier" value={sentCount}   sub="Awaiting quotes"                       color="#3B82F6" icon={Send}      />
-        <KPICard loading={loading} label="Quoted"          value={quotedCount} sub="Ready to close"                        color="#22C55E" icon={TrendingUp} />
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+        <KPICard loading={loading} label="Total Requests"        value={total}            sub={stats?.todayDelta ?? "—"} trend="up" color="#F97316" icon={Inbox}     />
+        <KPICard loading={loading} label="Pending Action"        value={pending}          sub="Awaiting carrier outreach"             color="#F97316" icon={Clock}     />
+        <KPICard loading={loading} label="Sent to Carrier"       value={sentCount}        sub="Awaiting quotes"                       color="#3B82F6" icon={Send}      />
+        <KPICard loading={loading} label="Awaiting Carrier Reply" value={pendingRfqCount} sub="RFQs with no response yet"             color="#8B5CF6" icon={Truck}     />
+        <KPICard loading={loading} label="Quoted"                value={quotedCount}      sub="Ready to close"                        color="#22C55E" icon={TrendingUp} />
       </div>
 
       {/* Chart + Pipeline */}

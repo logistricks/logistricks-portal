@@ -58,6 +58,7 @@ export interface DashboardStats {
   quoted: number
   todayCount: number
   todayDelta: string
+  pendingRfqCount: number
 }
 
 // ─── Country → flag emoji ───────────────────────────────────────────────────

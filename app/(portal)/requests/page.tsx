@@ -12,6 +12,7 @@ import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { AogBadge, ConfidenceBadge, DgrBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
+import { SendToCarriersModal } from "@/components/portal/send-to-carriers-modal"
 import { Select } from "@/components/portal/select"
 import { type FreightRequest, type RequestStatus, type Source } from "@/lib/portal-data"
 
@@ -56,6 +57,7 @@ export default function RequestsPage() {
   const [sourceFilter, setSourceFilter] = useState<Source | "All Sources">("All Sources")
   const [search, setSearch]             = useState("")
   const [selected, setSelected]         = useState<string[]>([])
+  const [showRfqModal, setShowRfqModal]   = useState(false)
   const [active, setActive]             = useState<FreightRequest | null>(null)
 
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -214,10 +216,9 @@ export default function RequestsPage() {
         <div className="flex flex-wrap items-center gap-3 rounded border border-[#F97316]/30 bg-[#FFF7ED] px-4 py-3 dark:bg-[#1A1200]">
           <span className="text-sm font-medium text-[#0D1B2A] dark:text-[#E2E8F0]">{selected.length} requests selected</span>
           <button
-            onClick={() => bulkUpdateStatus("Sent to Carrier")}
+            onClick={() => setShowRfqModal(true)}
             disabled={bulkBusy}
             className="flex items-center gap-1.5 rounded bg-[#F97316] px-3 py-1.5 text-sm font-bold text-white hover:bg-[#EA580C] disabled:opacity-50">
-            {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Send to Carriers
           </button>
           <button
@@ -323,6 +324,17 @@ export default function RequestsPage() {
         )}
       </div>
 
+      {showRfqModal && selected.length > 0 && (
+        <SendToCarriersModal
+          freightRequestId={selected[0]}
+          modes={requests.find(r => r.id === selected[0])?.modes ?? []}
+          onClose={() => setShowRfqModal(false)}
+          onSent={() => {
+            setShowRfqModal(false)
+            setSelected([])
+          }}
+        />
+      )}
       {active && (
         <RequestDetailModal
           request={active}

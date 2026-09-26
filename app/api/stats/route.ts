@@ -52,12 +52,19 @@ export async function GET(req: NextRequest) {
     todayCount: 0, todayDelta: "+0 from yesterday",
     dailyCounts: [] as { date: string; shortDate: string; count: number; isToday: boolean }[],
     weekTotal: 0,
+    pendingRfqCount: 0,
   }
 
   if (error || !data) {
     console.error("[api/stats]", error?.message)
     return NextResponse.json(empty)
   }
+
+  // Pending carrier RFQ count
+  const { count: pendingRfqCount } = await admin
+    .from("carrier_quote_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "sent")
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -107,5 +114,6 @@ export async function GET(req: NextRequest) {
     todayDelta,
     dailyCounts,
     weekTotal,
+    pendingRfqCount: pendingRfqCount ?? 0,
   })
 }
