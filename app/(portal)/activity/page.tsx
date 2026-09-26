@@ -137,6 +137,20 @@ export default function ActivityPage() {
     [rows, sortAsc],
   )
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { Requests: 0, Carriers: 0, Templates: 0 }
+    for (const r of rows) if (r.category in counts) counts[r.category]++
+    return counts
+  }, [rows])
+
+  const topActors = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const r of rows) counts.set(r.actor, (counts.get(r.actor) ?? 0) + 1)
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+  }, [rows])
+
   return (
     <div className="portal-page space-y-5 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -194,7 +208,49 @@ export default function ActivityPage() {
         </p>
       )}
 
-      <div className="overflow-hidden ds-card">
+      {!loading && sorted.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(15,30,54,0.08)" }}>
+              <Activity className="h-[18px] w-[18px]" style={{ color: "var(--text-primary)" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{sorted.length}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Total Events</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(37,99,235,0.1)" }}>
+              <FileText className="h-[18px] w-[18px]" style={{ color: "#2563eb" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{categoryCounts.Requests}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Requests</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(22,163,74,0.1)" }}>
+              <Truck className="h-[18px] w-[18px]" style={{ color: "#16a34a" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{categoryCounts.Carriers}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Carriers</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3 p-4">
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(232,130,26,0.12)" }}>
+              <Mail className="h-[18px] w-[18px]" style={{ color: "var(--brand-accent)" }} />
+            </div>
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none" style={{ color: "var(--text-primary)" }}>{categoryCounts.Templates}</p>
+              <p className="mt-1 text-[11.5px] font-medium" style={{ color: "var(--text-secondary)" }}>Templates</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+      <div className="overflow-hidden ds-card lg:col-span-3">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-accent)]" />
@@ -278,6 +334,23 @@ export default function ActivityPage() {
             </p>
           </div>
         )}
+      </div>
+
+      {!loading && topActors.length > 0 && (
+        <div className="ds-card lg:col-span-2">
+          <div className="ds-card-header">
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Top Actors</h3>
+          </div>
+          <div>
+            {topActors.map(([actor, count]) => (
+              <div key={actor} className="flex items-center justify-between px-5 py-2.5 border-b last:border-b-0" style={{ borderColor: "var(--divider)" }}>
+                <ActorBadge actor={actor} />
+                <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-secondary)" }}>{count} event{count !== 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )
