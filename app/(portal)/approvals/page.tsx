@@ -433,7 +433,10 @@ function ApprovalCard({
   }`
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+    <div
+      className="ds-card overflow-hidden"
+      style={req.is_aog ? { borderLeft: "3px solid #ef4444" } : undefined}
+    >
       {/* Header */}
       <div className="px-5 py-4 flex items-start gap-4">
         <div className="flex-1 min-w-0">
@@ -886,6 +889,42 @@ export default function ApprovalsPage() {
           Refresh
         </button>
       </div>
+
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="ds-card flex items-center gap-3.5 p-4">
+            <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px]" style={{ background: "rgba(15,30,54,0.08)" }}>
+              <Clock className="h-5 w-5" style={{ color: "var(--text-primary)" }} />
+            </div>
+            <div>
+              <p className="text-[26px] font-bold leading-none tabular-nums" style={{ color: "var(--text-primary)" }}>{items.length}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Awaiting Review</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3.5 p-4">
+            <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px]" style={{ background: "#fef2f2" }}>
+              <AlertTriangle className="h-5 w-5" style={{ color: "#ef4444" }} />
+            </div>
+            <div>
+              <p className="text-[26px] font-bold leading-none tabular-nums" style={{ color: "var(--text-primary)" }}>
+                {items.filter((i) => i.freight_request?.is_aog).length}
+              </p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>AOG</p>
+            </div>
+          </div>
+          <div className="ds-card flex items-center gap-3.5 p-4">
+            <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px]" style={{ background: "#fffbeb" }}>
+              <Package className="h-5 w-5" style={{ color: "#f59e0b" }} />
+            </div>
+            <div>
+              <p className="text-[26px] font-bold leading-none tabular-nums" style={{ color: "var(--text-primary)" }}>
+                {items.filter((i) => i.freight_request?.is_dgr).length}
+              </p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>DGR</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">

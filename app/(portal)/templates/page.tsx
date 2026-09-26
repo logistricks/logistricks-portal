@@ -219,14 +219,15 @@ export default function TemplatesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">Message Templates</h2>
         <div className="flex items-center gap-3">
-          <div className="flex rounded-lg border border-[#E2E8F0] bg-white p-0.5 dark:border-[#1E3A5F] dark:bg-[#111E33]">
+          <div className="flex gap-1.5">
             {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  tab === t ? "bg-[var(--brand-accent)] text-white" : "text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-white"
-                }`}
+                className="rounded-full border px-4 py-1.5 text-[13px] font-medium transition-colors"
+                style={tab === t
+                  ? { background: "var(--text-primary)", color: "#fff", borderColor: "var(--text-primary)" }
+                  : { background: "var(--card-bg)", color: "var(--text-secondary)", borderColor: "var(--card-border)" }}
               >
                 {t}
               </button>
@@ -254,17 +255,17 @@ export default function TemplatesPage() {
           {filtered.map((t) => (
             <article
               key={t.template_id}
-              className="flex flex-col rounded-lg border border-[#E2E8F0] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-shadow hover:shadow-md dark:border-[#1E3A5F] dark:bg-[#111E33]"
+              className="ds-card flex flex-col p-5"
             >
               <div className="flex items-start justify-between">
                 <span
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-[9px] ${
                     t.type === "Email"
                       ? "bg-blue-50 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300"
                       : "bg-green-50 text-green-600 dark:bg-green-500/20 dark:text-green-300"
                   }`}
                 >
-                  {t.type === "Email" ? <Mail className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
+                  {t.type === "Email" ? <Mail className="h-[18px] w-[18px]" /> : <MessageCircle className="h-[18px] w-[18px]" />}
                 </span>
                 <div className="flex flex-col items-end gap-1">
                   {t.is_default && (
@@ -290,11 +291,11 @@ export default function TemplatesPage() {
                 </div>
               </div>
 
-              <h3 className="mt-3 font-semibold text-[var(--text-primary)]">{t.template_name}</h3>
+              <h3 className="mt-3 text-[14px] font-bold text-[var(--text-primary)]">{t.template_name}</h3>
               {t.subject ? <p className="mt-0.5 truncate text-xs text-[#64748B]">{t.subject}</p> : null}
               <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-[#64748B]">{t.body}</p>
 
-              <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
+              <div className="mt-4 flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--divider)" }}>
                 <span className="text-xs text-[var(--text-muted)]">Updated {relativeTime(t.updated_at)}</span>
                 <div className="flex items-center gap-2">
                   <button
@@ -369,7 +370,8 @@ export default function TemplatesPage() {
 
           <button
             onClick={() => openNew(tab === "WhatsApp" ? "WhatsApp" : "Email")}
-            className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#CBD5E1] bg-white/50 p-5 text-[#64748B] transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)] dark:border-[#1E3A5F] dark:bg-[#111E33]/50 dark:hover:border-[var(--brand-accent)]"
+            className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-dashed p-5 transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
+            style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}
           >
             <Plus className="h-8 w-8" />
             <span className="text-sm font-medium">Create New Template</span>
