@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { FileText, Filter, Loader2, RefreshCw, Search, X } from "lucide-react"
+import { ExternalLink, FileText, Filter, Loader2, Maximize2, RefreshCw, Search, X } from "lucide-react"
+import Link from "next/link"
 import { useToast } from "@/components/ui/toast"
 import { AogBadge, ConfidenceBadge, DgrBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
@@ -288,6 +289,7 @@ export default function RequestsPage() {
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Confidence</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Flags</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Status</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -346,6 +348,30 @@ export default function RequestsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => setActive(r)}
+                          title="Quick view"
+                          className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors"
+                          style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(232,130,26,0.4)" }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)" }}
+                        >
+                          <Maximize2 className="h-3 w-3" />
+                        </button>
+                        <Link
+                          href={`/requests/${r.id}`}
+                          title="Open full page"
+                          className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors"
+                          style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(232,130,26,0.4)" }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)" }}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}

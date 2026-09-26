@@ -856,7 +856,7 @@ export function RequestDetailModal({
                                 {new Date(msg.sent_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                               </span>
                             </div>
-                            <p className="whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>{msg.body}</p>
+                            <p className="whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>{stripHtml(msg.body)}</p>
                           </div>
                         ))}
                       </div>
@@ -1001,4 +1001,21 @@ function parseArrayField(value: string | null | undefined): string {
   if (!value) return ""
   try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed.join("\n") } catch { /* not JSON */ }
   return value
+}
+
+function stripHtml(html: string): string {
+  if (!html) return ""
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
 }
