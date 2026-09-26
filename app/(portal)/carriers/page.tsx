@@ -23,6 +23,20 @@ interface CarrierRow {
   active: boolean
 }
 
+const CARRIER_COLORS = ["#0f1e36", "#1a3352", "#003087", "#7c3aed", "#16a34a", "#d97706", "#2563eb", "#be185d"]
+
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+function carrierColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  return CARRIER_COLORS[hash % CARRIER_COLORS.length]
+}
+
 function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
   const map = new Map<number, Carrier>()
   for (const row of rows) {
@@ -162,100 +176,85 @@ export default function CarriersPage() {
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">{error}</p>
       )}
 
-      <div className="ds-card overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-accent)]" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide" style={{background:"var(--table-header-bg)",color:"var(--text-secondary)"}}>
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Carrier Name</th>
-                  <th className="px-4 py-3 font-semibold">Contact Person</th>
-                  <th className="px-4 py-3 font-semibold">Email</th>
-                  <th className="px-4 py-3 font-semibold">Phone / WhatsApp</th>
-                  <th className="px-4 py-3 font-semibold">Modes</th>
-                  <th className="px-4 py-3 font-semibold">Language</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((c, i) => (
-                  <tr
-                    key={c.carrier_id}
-                    className="transition-colors" style={{borderTop:"1px solid var(--divider)"}} onMouseEnter={(e)=>{(e.currentTarget as HTMLElement).style.background="var(--hover-bg)"}} onMouseLeave={(e)=>{(e.currentTarget as HTMLElement).style.background=""}}
-                  >
-                    <td className="px-4 py-3">
-                      <div>
-                        <span className="font-semibold" style={{color:"var(--text-primary)"}}>{c.carrier_name}</span>
-                        {c.cc_emails.length > 0 && (
-                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">+{c.cc_emails.length} CC</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="" style={{color:"var(--text-primary)"}}>{c.person_name}</p>
-                      {c.role && <p className="text-xs " style={{color:"var(--text-secondary)"}}>{c.role}</p>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <CopyCell value={c.email} href={`mailto:${c.email}`} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <CopyCell value={c.number} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {modesFromCarrier(c).map((m) => (
-                          <ModeBadge key={m} mode={m} />
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3" style={{color:"var(--text-primary)"}}>{langLabel(c.lang)}</td>
-                    <td className="px-4 py-3">
-                      <button
-                        role="switch"
-                        aria-checked={c.active}
-                        aria-label={`Toggle ${c.carrier_name}`}
-                        onClick={() => toggleActive(c)}
-                        className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${c.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
-                      >
-                        <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${c.active ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button
-                          aria-label="Edit"
-                          onClick={() => { setEditing(c); setModalOpen(true) }}
-                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[var(--brand-accent)]/10 hover:text-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)]/10"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          aria-label="Delete"
-                          onClick={() => setConfirmDelete(c)}
-                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {loading ? (
+        <div className="ds-card flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-accent)]" />
+        </div>
+      ) : list.length === 0 && !error ? (
+        <div className="ds-card py-16 text-center text-sm text-[var(--text-muted)]">
+          No carriers added yet. Add your first carrier to get started.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {list.map((c) => (
+            <div key={c.carrier_id} className="ds-card p-5">
+              <div className="mb-4 flex items-start justify-between">
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-sm font-extrabold text-white"
+                  style={{ background: carrierColor(c.carrier_name) }}
+                >
+                  {initialsFor(c.carrier_name)}
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={c.active}
+                  aria-label={`Toggle ${c.carrier_name}`}
+                  onClick={() => toggleActive(c)}
+                  className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${c.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
+                >
+                  <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${c.active ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
 
-        {!loading && list.length === 0 && !error && (
-          <div className="py-16 text-center text-sm text-[#64748B]">
-            No carriers added yet. Add your first carrier to get started.
-          </div>
-        )}
-      </div>
+              <p className="mb-0.5 text-[15px] font-bold" style={{ color: "var(--text-primary)" }}>{c.carrier_name}</p>
+              <p className="mb-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                {modesFromCarrier(c).join(" & ")} · {langLabel(c.lang)}
+              </p>
+
+              <div className="mb-3.5 grid grid-cols-2 gap-2.5">
+                <div className="rounded-[7px] px-3 py-2.5" style={{ background: "var(--table-header-bg)" }}>
+                  <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Contact</p>
+                  <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{c.person_name || "—"}</p>
+                  {c.role && <p className="truncate text-[11px]" style={{ color: "var(--text-secondary)" }}>{c.role}</p>}
+                </div>
+                <div className="rounded-[7px] px-3 py-2.5" style={{ background: "var(--table-header-bg)" }}>
+                  <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Phone / WhatsApp</p>
+                  <CopyCell value={c.number} />
+                </div>
+              </div>
+
+              <div className="mb-3.5 rounded-[7px] px-3 py-2.5" style={{ background: "var(--table-header-bg)" }}>
+                <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Email {c.cc_emails.length > 0 && `(+${c.cc_emails.length} CC)`}</p>
+                <CopyCell value={c.email} href={`mailto:${c.email}`} />
+              </div>
+
+              <div className="flex items-center justify-between border-t pt-3.5" style={{ borderColor: "var(--divider)" }}>
+                <div className="flex flex-wrap gap-1">
+                  {modesFromCarrier(c).map((m) => (
+                    <ModeBadge key={m} mode={m} />
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    aria-label="Edit"
+                    onClick={() => { setEditing(c); setModalOpen(true) }}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--brand-accent)]/10 hover:text-[var(--brand-accent)]"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    aria-label="Delete"
+                    onClick={() => setConfirmDelete(c)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {modalOpen && (
         <CarrierModal
