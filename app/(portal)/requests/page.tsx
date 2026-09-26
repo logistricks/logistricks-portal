@@ -158,14 +158,13 @@ export default function RequestsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-5">
+      <div className="portal-page space-y-5 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
-              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+          <h2 className="text-2xl font-bold tracking-tight" style={{color:"var(--text-primary)",fontFamily:"var(--font-sans)"}}>
             Requests
           </h2>
         </div>
-        <div className="flex items-center justify-center gap-2 py-24 text-[#94A3B8]">
+        <div className="flex items-center justify-center gap-2 py-24 text-[var(--text-muted)]">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Loading requests…</span>
         </div>
@@ -174,18 +173,17 @@ export default function RequestsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-5 p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
-              style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+          <h2 className="text-2xl font-bold tracking-tight" style={{color:"var(--text-primary)",fontFamily:"var(--font-sans)"}}>
             Requests
           </h2>
           {lastUpdated && (
             <button onClick={() => load()}
               title={`Last synced ${lastUpdated.toLocaleTimeString()}`}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2A40]">
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs" style={{color:"var(--text-muted)"}}>
               <RefreshCw className="h-3 w-3" />
               <span className="hidden sm:inline">Live</span>
             </button>
@@ -203,28 +201,28 @@ export default function RequestsPage() {
             options={sourceOptions}
           />
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, cargo, route..."
-              className="h-9 w-full rounded border border-[#D1D9E0] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] sm:w-64" />
+              className="h-9 w-full rounded border border-[#D1D9E0] bg-white pl-9 pr-3 text-sm outline-none focus:border-[var(--brand-accent)] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] sm:w-64" />
           </div>
         </div>
       </div>
 
       {/* Bulk actions */}
       {selected.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded border border-[#F97316]/30 bg-[#FFF7ED] px-4 py-3 dark:bg-[#1A1200]">
-          <span className="text-sm font-medium text-[#0D1B2A] dark:text-[#E2E8F0]">{selected.length} requests selected</span>
+        <div className="flex flex-wrap items-center gap-3 rounded border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-4 py-3 dark:bg-[#1A1200]">
+          <span className="text-sm font-medium text-[var(--text-primary)]">{selected.length} requests selected</span>
           <button
             onClick={() => setShowRfqModal(true)}
             disabled={bulkBusy}
-            className="flex items-center gap-1.5 rounded bg-[#F97316] px-3 py-1.5 text-sm font-bold text-white hover:bg-[#EA580C] disabled:opacity-50">
+            className="flex items-center gap-1.5 rounded bg-[var(--brand-accent)] px-3 py-1.5 text-sm font-bold text-white hover:bg-[var(--brand-accent-hover)] disabled:opacity-50">
             Send to Carriers
           </button>
           <button
             onClick={() => bulkUpdateStatus("Closed")}
             disabled={bulkBusy}
-            className="flex items-center gap-1.5 rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-bold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]">
+            className="flex items-center gap-1.5 rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-bold text-[#0F172A] hover:border-[var(--brand-accent)]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]">
             {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Mark as Closed
           </button>
@@ -232,10 +230,10 @@ export default function RequestsPage() {
       )}
 
       {/* Table */}
-      <div className="overflow-hidden rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
+      <div className="overflow-hidden ds-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[#0D1B2A] text-[11px] uppercase tracking-[0.08em] text-[#94A3B8]">
+            <thead className="bg-[#0D1B2A] text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
               <tr>
                 <th className="w-10 px-4 py-3">
                   <input type="checkbox" aria-label="Select all"
@@ -257,8 +255,8 @@ export default function RequestsPage() {
             <tbody>
               {filtered.map((r, i) => (
                 <tr key={r.id} onClick={() => setActive(r)}
-                  className={`cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[#FFF7ED] dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${
-                    r.aog ? "bg-red-50/60 dark:bg-red-950/20 border-l-2 border-l-red-500" : i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-white dark:bg-[#111E33]"
+                  className={`cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[var(--brand-accent)]/10 dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${
+                    r.aog ? "bg-red-50/60 dark:bg-red-950/20 border-l-2 border-l-red-500" : i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-[var(--card-bg)]"
                   }`}>
                   <td className="px-4 py-3">
                     <input type="checkbox" aria-label={`Select ${r.senderName}`}
@@ -267,19 +265,19 @@ export default function RequestsPage() {
                   </td>
                   <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{r.senderName}</p>
-                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                    <p className="font-medium text-[var(--text-primary)]">{r.senderName}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">
                       {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
                     </p>
                   </td>
-                  <td className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">
+                  <td className="px-4 py-3 text-[var(--text-primary)]">
                     <span className="whitespace-nowrap">{r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-[#0F172A] dark:text-[#E2E8F0]">{r.cargoType}</p>
-                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8] whitespace-pre-line">{parseArrayField(r.equipment)}</p>
+                    <p className="text-[var(--text-primary)]">{r.cargoType}</p>
+                    <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line">{parseArrayField(r.equipment)}</p>
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-[#64748B] dark:text-[#94A3B8]" title={r.receivedExact}>
+                  <td className="px-4 py-3 tabular-nums text-[var(--text-secondary)]" title={r.receivedExact}>
                     {r.receivedRelative}
                   </td>
                   <td className="px-4 py-3"><ConfidenceBadge confidence={r.confidence} /></td>
@@ -292,7 +290,7 @@ export default function RequestsPage() {
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                   <td className="px-4 py-3">
                     <button onClick={(e) => { e.stopPropagation(); setActive(r) }}
-                      className="rounded border border-[#F97316] px-3 py-1.5 text-xs font-bold text-[#F97316] transition-colors hover:bg-[#FFF7ED] dark:hover:bg-[#1A1200]">
+                      className="rounded border border-[var(--brand-accent)] px-3 py-1.5 text-xs font-bold text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)]/10 dark:hover:bg-[#1A1200]">
                       View Details
                     </button>
                   </td>
@@ -305,7 +303,7 @@ export default function RequestsPage() {
         {filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <FileText className="h-10 w-10 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">
               {requests.length === 0
                 ? "No requests yet — send a test email to see one appear here."
                 : "No requests match your filters"}
@@ -314,11 +312,11 @@ export default function RequestsPage() {
         )}
 
         {filtered.length > 0 && (
-          <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B] dark:border-[#1E3A5F] dark:text-[#94A3B8]">
+          <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B] dark:border-[#1E3A5F] dark:text-[var(--text-muted)]">
             <span>Showing 1–{filtered.length} of {filtered.length} requests</span>
             <div className="flex gap-2">
-              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8] dark:border-[#1E3A5F]" disabled>Previous</button>
-              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#94A3B8] dark:border-[#1E3A5F]" disabled>Next</button>
+              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] dark:border-[#1E3A5F]" disabled>Previous</button>
+              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] dark:border-[#1E3A5F]" disabled>Next</button>
             </div>
           </div>
         )}

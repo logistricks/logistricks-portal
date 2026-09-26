@@ -47,7 +47,7 @@ function initials(name: string): string {
 }
 
 const ROLE_META: Record<Role, { label: string; Icon: React.ElementType; color: string; bg: string; desc: string }> = {
-  admin:    { label: "Admin",    Icon: ShieldCheck, color: "text-[#F97316]",  bg: "bg-[#F97316]/15",  desc: "Full access — users, all requests, all carriers" },
+  admin:    { label: "Admin",    Icon: ShieldCheck, color: "text-[var(--brand-accent)]",  bg: "bg-[var(--brand-accent,#E8821A)]/15",  desc: "Full access — users, all requests, all carriers" },
   operator: { label: "Operator", Icon: Shield,      color: "text-[#3B82F6]",  bg: "bg-[#3B82F6]/15",  desc: "Submit requests, update status, view carriers/templates" },
   viewer:   { label: "Viewer",   Icon: Eye,         color: "text-[#8B5CF6]",  bg: "bg-[#8B5CF6]/15",  desc: "Read-only access to assigned carrier requests" },
 }
@@ -71,7 +71,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       disabled={disabled}
       onClick={onChange}
       className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F97316] disabled:cursor-not-allowed disabled:opacity-40 ${
-        checked ? "bg-[#F97316]" : "bg-[var(--toggle-off)]"
+        checked ? "bg-[var(--brand-accent,#E8821A)]" : "bg-[var(--toggle-off)]"
       }`}
     >
       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-[3px]"}`} />
@@ -163,7 +163,7 @@ function UserFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="portal-page fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-lg rounded-xl bg-[var(--modal-bg)] shadow-2xl border border-[var(--border)] max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4 sticky top-0 bg-[var(--modal-bg)]">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
@@ -184,7 +184,7 @@ function UserFormModal({
                 onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 15))}
                 required
                 placeholder="e.g. john_doe"
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/50"
               />
               <p className="mt-1 text-[11px] text-[var(--text-muted)]">Lowercase letters, numbers, underscores — max 15 chars</p>
             </div>
@@ -197,7 +197,7 @@ function UserFormModal({
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               placeholder="Full name or nickname"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/50"
             />
           </div>
 
@@ -209,7 +209,7 @@ function UserFormModal({
               onChange={e => setAuthEmail(e.target.value)}
               type="email"
               placeholder="user@example.com"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/50"
             />
           </div>
 
@@ -259,7 +259,7 @@ function UserFormModal({
                       onClick={() => toggleCarrier(id)}
                       className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
                         checked
-                          ? "bg-[#F97316] text-white"
+                          ? "bg-[var(--brand-accent,#E8821A)] text-white"
                           : "bg-[var(--hover-bg)] text-[var(--text-muted)] hover:bg-[var(--border)]"
                       }`}
                     >
@@ -289,7 +289,7 @@ function UserFormModal({
                       onClick={() => toggleMode(m)}
                       className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition-colors ${
                         checked
-                          ? "border-[#F97316] bg-[#F97316]/10 text-[#F97316]"
+                          ? "border-[var(--brand-accent)] bg-[var(--brand-accent,#E8821A)]/10 text-[var(--brand-accent)]"
                           : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
                       }`}
                     >
@@ -313,7 +313,7 @@ function UserFormModal({
               type="password"
               required={mode === "add"}
               placeholder={mode === "add" ? "Min 6 characters" : "Leave blank to keep current"}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]/50"
             />
           </div>
 
@@ -327,7 +327,7 @@ function UserFormModal({
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA6C0A] disabled:opacity-60">
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent,#E8821A)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA6C0A] disabled:opacity-60">
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {mode === "add" ? "Create User" : "Save Changes"}
             </button>
@@ -478,9 +478,9 @@ export default function UsersPage() {
       <style>{`
         :root {
           --text-primary: #1E293B; --text-muted: #64748B;
-          --border: #E2E8F0; --hover-bg: #F8FAFC;
+          --border: #E2E8F0; --hover-bg: rgba(232,130,26,0.05);
           --modal-bg: #FFFFFF; --input-bg: #FFFFFF;
-          --card-bg: #FFFFFF; --page-bg: #F1F5F9;
+          --card-bg: #FFFFFF; --page-bg: #f0f2f5;
           --toggle-off: #CBD5E1;
         }
         @media (prefers-color-scheme: dark) {
@@ -488,7 +488,7 @@ export default function UsersPage() {
             --text-primary: #E2E8F0; --text-muted: #94A3B8;
             --border: #1E3A5F; --hover-bg: #1E3A5F;
             --modal-bg: #0F2033; --input-bg: #0D1B2A;
-            --card-bg: #0F2033; --page-bg: #0D1B2A;
+            --card-bg: #111e33; --page-bg: #0c1424;
             --toggle-off: #334155;
           }
         }
@@ -496,7 +496,7 @@ export default function UsersPage() {
           --text-primary: #E2E8F0; --text-muted: #94A3B8;
           --border: #1E3A5F; --hover-bg: #1E3A5F;
           --modal-bg: #0F2033; --input-bg: #0D1B2A;
-          --card-bg: #0F2033; --page-bg: #0D1B2A;
+          --card-bg: #0F2033; --page-bg: #0c1424;
           --toggle-off: #334155;
         }
       `}</style>
@@ -505,8 +505,8 @@ export default function UsersPage() {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F97316]/10">
-              <Users className="h-5 w-5 text-[#F97316]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-accent,#E8821A)]/10">
+              <Users className="h-5 w-5 text-[var(--brand-accent)]" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-[var(--text-primary)]">Users</h1>
@@ -515,7 +515,7 @@ export default function UsersPage() {
           </div>
           <button
             onClick={() => setModal({ kind: "add" })}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#EA6C0A] transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent,#E8821A)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#EA6C0A] transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add User
@@ -534,7 +534,7 @@ export default function UsersPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-7 w-7 animate-spin text-[#F97316]" />
+            <Loader2 className="h-7 w-7 animate-spin text-[var(--brand-accent)]" />
           </div>
         ) : list.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] py-20 text-center">
@@ -574,7 +574,7 @@ export default function UsersPage() {
                             <p className="truncate font-medium text-[var(--text-primary)]">
                               {user.display_name || user.username}
                               {isSelf && (
-                                <span className="ml-2 inline-flex items-center gap-0.5 rounded bg-[#F97316]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#F97316]">
+                                <span className="ml-2 inline-flex items-center gap-0.5 rounded bg-[var(--brand-accent,#E8821A)]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand-accent)]">
                                   <UserCheck className="h-2.5 w-2.5" />
                                   You
                                 </span>
@@ -614,7 +614,7 @@ export default function UsersPage() {
                                   ) : null
                                 })}
                                 {hasModeRestriction && user.allowed_modes.map(m => (
-                                  <span key={m} className="rounded bg-[#F97316]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#F97316]">
+                                  <span key={m} className="rounded bg-[var(--brand-accent,#E8821A)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--brand-accent)]">
                                     {m}
                                   </span>
                                 ))}

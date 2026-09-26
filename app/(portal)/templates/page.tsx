@@ -215,9 +215,9 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-5 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold text-[#0D1B2A] dark:text-white">Message Templates</h2>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Message Templates</h2>
         <div className="flex items-center gap-3">
           <div className="flex rounded-lg border border-[#E2E8F0] bg-white p-0.5 dark:border-[#1E3A5F] dark:bg-[#111E33]">
             {tabs.map((t) => (
@@ -225,7 +225,7 @@ export default function TemplatesPage() {
                 key={t}
                 onClick={() => setTab(t)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  tab === t ? "bg-[#F97316] text-white" : "text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-white"
+                  tab === t ? "bg-[var(--brand-accent)] text-white" : "text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-white"
                 }`}
               >
                 {t}
@@ -234,7 +234,7 @@ export default function TemplatesPage() {
           </div>
           <button
             onClick={() => openNew(tab === "WhatsApp" ? "WhatsApp" : "Email")}
-            className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#EA580C]"
+            className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-accent)] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[var(--brand-accent-hover)]"
           >
             <Plus className="h-4 w-4" /> New Template
           </button>
@@ -247,7 +247,7 @@ export default function TemplatesPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-[#F97316]" />
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-accent)]" />
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -268,7 +268,7 @@ export default function TemplatesPage() {
                 </span>
                 <div className="flex flex-col items-end gap-1">
                   {t.is_default && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-xs font-medium text-[#F97316] dark:bg-[#F97316]/10">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)]/10 px-2 py-0.5 text-xs font-medium text-[var(--brand-accent)] dark:bg-[var(--brand-accent)]/10">
                       <Star className="h-3 w-3 fill-[#F97316]" /> Default
                     </span>
                   )}
@@ -290,12 +290,12 @@ export default function TemplatesPage() {
                 </div>
               </div>
 
-              <h3 className="mt-3 font-semibold text-[#0D1B2A] dark:text-white">{t.template_name}</h3>
+              <h3 className="mt-3 font-semibold text-[var(--text-primary)]">{t.template_name}</h3>
               {t.subject ? <p className="mt-0.5 truncate text-xs text-[#64748B]">{t.subject}</p> : null}
               <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-[#64748B]">{t.body}</p>
 
               <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
-                <span className="text-xs text-[#94A3B8]">Updated {relativeTime(t.updated_at)}</span>
+                <span className="text-xs text-[var(--text-muted)]">Updated {relativeTime(t.updated_at)}</span>
                 <div className="flex items-center gap-2">
                   <button
                     role="switch"
@@ -343,14 +343,14 @@ export default function TemplatesPage() {
                   <button
                     aria-label="Edit"
                     onClick={() => { setEditing(t); setEditorOpen(true) }}
-                    className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
+                    className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[var(--brand-accent)]/10 hover:text-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)]/10"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     aria-label="Duplicate"
                     onClick={() => handleDuplicate(t)}
-                    className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
+                    className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[var(--brand-accent)]/10 hover:text-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)]/10"
                   >
                     <Copy className="h-4 w-4" />
                   </button>
@@ -369,7 +369,7 @@ export default function TemplatesPage() {
 
           <button
             onClick={() => openNew(tab === "WhatsApp" ? "WhatsApp" : "Email")}
-            className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#CBD5E1] bg-white/50 p-5 text-[#64748B] transition-colors hover:border-[#F97316] hover:text-[#F97316] dark:border-[#1E3A5F] dark:bg-[#111E33]/50 dark:hover:border-[#F97316]"
+            className="flex min-h-52 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#CBD5E1] bg-white/50 p-5 text-[#64748B] transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)] dark:border-[#1E3A5F] dark:bg-[#111E33]/50 dark:hover:border-[var(--brand-accent)]"
           >
             <Plus className="h-8 w-8" />
             <span className="text-sm font-medium">Create New Template</span>
@@ -385,17 +385,17 @@ export default function TemplatesPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
-            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Delete template?</h3>
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">Delete template?</h3>
             <p className="mt-2 text-sm text-[#64748B]">
               Are you sure you want to delete{" "}
-              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{confirmDelete.template_name}</span>?
+              <span className="font-medium text-[var(--text-primary)]">{confirmDelete.template_name}</span>?
               This cannot be undone.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
                 disabled={deleteLoading}
-                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[var(--brand-accent)]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
               >
                 Cancel
               </button>
@@ -415,21 +415,21 @@ export default function TemplatesPage() {
       {inUseTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
-            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Cannot delete template</h3>
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">Cannot delete template</h3>
             <p className="mt-2 text-sm text-[#64748B]">
-              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{inUseTemplate.template_name}</span>{" "}
+              <span className="font-medium text-[var(--text-primary)]">{inUseTemplate.template_name}</span>{" "}
               has been used in one or more requests and cannot be deleted. You can deactivate it instead to hide it from future use.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setInUseTemplate(null)}
-                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[var(--brand-accent)]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeactivateTemplate(inUseTemplate)}
-                className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA580C]"
+                className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-accent-hover)]"
               >
                 Deactivate Instead
               </button>

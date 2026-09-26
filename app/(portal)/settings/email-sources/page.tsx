@@ -56,14 +56,14 @@ const EMPTY_FORM: FormState = {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs font-medium text-[#64748B] dark:text-[#94A3B8] mb-1">{children}</label>
+  return <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{children}</label>
 }
 
 function Input({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] placeholder-[#CBD5E1] focus:border-[#F97316] focus:outline-none dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-white dark:placeholder-[#334155] ${className}`}
+      className={`w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] placeholder-[#CBD5E1] focus:border-[var(--brand-accent)] focus:outline-none dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-white dark:placeholder-[#334155] ${className}`}
     />
   )
 }
@@ -156,7 +156,7 @@ export default function EmailSourcesPage() {
       {/* Breadcrumb */}
       <Link
         href="/settings"
-        className="mb-5 flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F97316]"
+        className="mb-5 flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--brand-accent)]"
       >
         <ChevronLeft className="h-3.5 w-3.5" />
         Back to Settings
@@ -165,19 +165,19 @@ export default function EmailSourcesPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F97316]/10">
-            <Mail className="h-5 w-5 text-[#F97316]" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-accent)]/10">
+            <Mail className="h-5 w-5 text-[var(--brand-accent)]" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-[#0F172A] dark:text-white">Email Sources</h2>
-            <p className="text-xs text-[#94A3B8]">Mailboxes to monitor for incoming requests</p>
+            <p className="text-xs text-[var(--text-muted)]">Mailboxes to monitor for incoming requests</p>
           </div>
         </div>
         {!form && (
           <button
             type="button"
             onClick={openNew}
-            className="flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA6E0D]"
+            className="flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA6E0D]"
           >
             <Plus className="h-4 w-4" />
             Add Source
@@ -187,16 +187,16 @@ export default function EmailSourcesPage() {
 
       {/* Source list */}
       {loading ? (
-        <p className="text-sm text-[#94A3B8]">Loading…</p>
+        <p className="text-sm text-[var(--text-muted)]">Loading…</p>
       ) : sources.length === 0 && !form ? (
         <div className="rounded-xl border-2 border-dashed border-[#E2E8F0] px-6 py-12 text-center dark:border-[#1E3A5F]">
           <Mail className="mx-auto mb-3 h-8 w-8 text-[#CBD5E1]" />
-          <p className="text-sm font-medium text-[#94A3B8]">No email sources yet</p>
+          <p className="text-sm font-medium text-[var(--text-muted)]">No email sources yet</p>
           <p className="mt-1 text-xs text-[#CBD5E1]">Add a mailbox to forward requests into Logistricks</p>
           <button
             type="button"
             onClick={openNew}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white mx-auto hover:bg-[#EA6E0D]"
+            className="mt-4 flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white mx-auto hover:bg-[#EA6E0D]"
           >
             <Plus className="h-4 w-4" />
             Add Source
@@ -217,7 +217,7 @@ export default function EmailSourcesPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[#0F172A] dark:text-white">{s.name}</p>
-                  <p className="text-xs text-[#94A3B8]">
+                  <p className="text-xs text-[var(--text-muted)]">
                     {s.provider === "microsoft365"
                       ? `Microsoft 365 · ${s.ms_email || "—"}`
                       : `IMAP · ${s.imap_host || "—"}`}
@@ -242,7 +242,7 @@ export default function EmailSourcesPage() {
                 <button
                   type="button"
                   onClick={() => remove(s.id)}
-                  className="rounded p-1 text-[#94A3B8] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
+                  className="rounded p-1 text-[var(--text-muted)] hover:bg-[#FEE2E2] hover:text-[#DC2626]"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -281,7 +281,7 @@ export default function EmailSourcesPage() {
                   className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-colors ${
                     form.provider === p
                       ? "bg-white text-[#0F172A] shadow-sm dark:bg-[#1E3A5F] dark:text-white"
-                      : "text-[#94A3B8] hover:text-[#64748B]"
+                      : "text-[var(--text-muted)] hover:text-[#64748B]"
                   }`}
                 >
                   {p === "imap" ? "Generic IMAP" : "Microsoft 365"}
@@ -335,7 +335,7 @@ export default function EmailSourcesPage() {
                     type="button"
                     tabIndex={-1}
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -348,7 +348,7 @@ export default function EmailSourcesPage() {
                   onChange={(e) => set("imap_tls", e.target.checked)}
                   className="h-4 w-4 rounded border-[#E2E8F0] accent-[#F97316]"
                 />
-                <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Use TLS/SSL (recommended)</span>
+                <span className="text-xs text-[var(--text-secondary)]">Use TLS/SSL (recommended)</span>
               </label>
             </div>
           )}
@@ -402,7 +402,7 @@ export default function EmailSourcesPage() {
                     type="button"
                     tabIndex={-1}
                     onClick={() => setShowSecret((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
                   >
                     {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -419,7 +419,7 @@ export default function EmailSourcesPage() {
               onChange={(e) => set("active", e.target.checked)}
               className="h-4 w-4 rounded border-[#E2E8F0] accent-[#F97316]"
             />
-            <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Active (this mailbox will be monitored)</span>
+            <span className="text-xs text-[var(--text-secondary)]">Active (this mailbox will be monitored)</span>
           </label>
 
           {error && <p className="mt-3 text-xs text-[#EF4444]">{error}</p>}
@@ -437,7 +437,7 @@ export default function EmailSourcesPage() {
               type="button"
               onClick={save}
               disabled={busy}
-              className="flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA6E0D] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA6E0D] disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
               {busy ? "Saving…" : "Save"}

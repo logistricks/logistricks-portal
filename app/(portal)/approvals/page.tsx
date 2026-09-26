@@ -192,7 +192,7 @@ function DraftHistory({
                   <div>
                     <p className="text-sm font-medium text-[var(--text-primary)]">
                       Edited by{" "}
-                      <span className="text-[#F97316]">{draft.edited_by}</span>
+                      <span className="text-[var(--brand-accent)]">{draft.edited_by}</span>
                     </p>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">
                       {fmt(draft.created_at)}
@@ -550,7 +550,7 @@ function ApprovalCard({
                           : step.step_status === "rejected"
                           ? "bg-red-500/15 text-red-500"
                           : step.step_status === "active"
-                          ? "bg-[#F97316]/15 text-[#F97316]"
+                          ? "bg-[var(--brand-accent)]/15 text-[var(--brand-accent)]"
                           : "bg-[var(--surface-3)] text-[var(--text-muted)]"
                       }`}
                     >
@@ -570,7 +570,7 @@ function ApprovalCard({
                       <span
                         className={`font-medium ${
                           step.id === item.id
-                            ? "text-[#F97316]"
+                            ? "text-[var(--brand-accent)]"
                             : "text-[var(--text-primary)]"
                         }`}
                       >
@@ -635,7 +635,7 @@ function ApprovalCard({
               {item.can_edit_template && !editingEmail && (
                 <button
                   onClick={startEdit}
-                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-[#F97316] text-[#F97316] hover:bg-[#F97316] hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-[var(--brand-accent)] text-[var(--brand-accent)] hover:bg-[var(--brand-accent)] hover:text-white transition-colors"
                 >
                   <Edit3 className="h-3.5 w-3.5" /> Edit Template
                 </button>
@@ -865,7 +865,7 @@ export default function ApprovalsPage() {
   }, [load])
 
   return (
-    <div className="space-y-6 pb-20 md:pb-0">
+    <div className="portal-page space-y-6 p-6 pb-20 md:pb-0">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">

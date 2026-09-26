@@ -53,7 +53,7 @@ function ChannelRow({
     <div className="flex items-center gap-3 px-4 py-3">
       <span className={`h-2 w-2 shrink-0 rounded-full ${active ? "bg-green-400" : "bg-[#CBD5E1] dark:bg-[#334155]"}`} />
       <div className="flex-1 min-w-0">
-        <p className="truncate text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{primary}</p>
+        <p className="truncate text-sm font-medium text-[var(--text-primary)]">{primary}</p>
         {secondary && <p className="text-xs text-[#475569]">{secondary}</p>}
       </div>
       <button
@@ -80,10 +80,11 @@ function ChannelRow({
         onClick={onDelete}
         disabled={busy}
         title="Remove"
-        className="flex h-7 w-7 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-red-100 hover:text-red-500 disabled:opacity-40 dark:text-[#334155] dark:hover:bg-red-900/30 dark:hover:text-red-400"
+        className="flex h-7 w-7 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-red-100 hover:text-red-500 disabled:opacity-40 dark:text-[#334155] dark:hover:bg-red-900/30 dark:hover:text-red-400"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
+    </div>
     </div>
   )
 }
@@ -103,10 +104,10 @@ function Section({
   return (
     <section className="mb-10">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[#F97316]">{icon}</span>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-[#64748B]">{title}</h2>
+        <span style={{color:"var(--brand-accent)"}}>{icon}</span>
+        <h2 className="text-xs font-semibold uppercase tracking-widest" style={{color:"var(--text-secondary)"}}>{title}</h2>
       </div>
-      <p className="mb-4 text-xs text-[#475569]">{description}</p>
+      <p className="mb-4 text-xs" style={{color:"var(--text-secondary)"}}>{description}</p>
       {children}
     </section>
   )
@@ -129,10 +130,10 @@ function ToggleRow({
   extra?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-white p-4 dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
+    <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-white p-4 border-[var(--card-border)] bg-[var(--card-bg)]">
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{label}</p>
+          <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
           <p className="text-xs text-[#475569] mt-0.5">{description}</p>
         </div>
         <button
@@ -179,7 +180,7 @@ function CriticalFieldsPicker({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl dark:bg-[#111E33]">
-        <div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4 dark:border-[#1E3A5F]">
+        <div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4 border-[var(--card-border)]">
           <div>
             <h3 className="font-semibold text-[#0F172A] dark:text-white">Select Critical Fields</h3>
             <p className="text-xs text-[#475569] mt-0.5">Sending is blocked when these are missing</p>
@@ -187,7 +188,7 @@ function CriticalFieldsPicker({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg p-1.5 text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:hover:bg-[#1E3A5F] dark:hover:text-white"
+            className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:hover:bg-[#1E3A5F] dark:hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -201,20 +202,20 @@ function CriticalFieldsPicker({
               className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1E3A5F]/40"
             >
               {selected.includes(opt.key)
-                ? <CheckSquare className="h-4 w-4 shrink-0 text-[#F97316]" />
+                ? <CheckSquare className="h-4 w-4 shrink-0 text-[var(--brand-accent)]" />
                 : <Square       className="h-4 w-4 shrink-0 text-[#CBD5E1] dark:text-[#334155]" />
               }
-              <span className={selected.includes(opt.key) ? "font-medium text-[#0F172A] dark:text-[#E2E8F0]" : "text-[#475569]"}>
+              <span className={selected.includes(opt.key) ? "font-medium text-[var(--text-primary)]" : "text-[#475569]"}>
                 {opt.label}
               </span>
             </button>
           ))}
         </div>
-        <div className="flex gap-3 border-t border-[#E2E8F0] px-5 py-4 dark:border-[#1E3A5F]">
+        <div className="flex gap-3 border-t border-[#E2E8F0] px-5 py-4 border-[var(--card-border)]">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+            className="flex-1 rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[var(--brand-accent)]/40 border-[var(--card-border)] dark:bg-transparent dark:text-[#E2E8F0]"
           >
             Cancel
           </button>
@@ -222,7 +223,7 @@ function CriticalFieldsPicker({
             type="button"
             onClick={() => onSave(selected)}
             disabled={selected.length === 0}
-            className="flex-1 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA580C] disabled:opacity-40"
+            className="flex-1 rounded-md bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-accent-hover)] disabled:opacity-40"
           >
             Save ({selected.length} selected)
           </button>
@@ -436,7 +437,7 @@ export default function SettingsPage() {
   // ── Render ───────────────────────────────────────────────
   return (
     <div className="p-6 max-w-2xl">
-      <h1 className="mb-1 text-xl font-bold text-[#0D1B2A] dark:text-white">Settings</h1>
+      <h1 className="mb-1 text-xl font-bold text-[var(--text-primary)]">Settings</h1>
       <p className="mb-8 text-sm text-[#475569]">Manage your organisation's configuration</p>
 
       {error && (
@@ -456,7 +457,7 @@ export default function SettingsPage() {
         ) : (
           <div className="divide-y divide-[#E2E8F0] rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] dark:divide-white/5 dark:border-white/5 dark:bg-[#0D1B2A]">
             {emails.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-[#94A3B8] dark:text-[#334155]">No email addresses configured.</p>
+              <p className="px-4 py-6 text-center text-sm text-[var(--text-muted)] dark:text-[#334155]">No email addresses configured.</p>
             )}
             {emails.map((row) => (
               <ChannelRow
@@ -470,7 +471,7 @@ export default function SettingsPage() {
               />
             ))}
             <div className="flex items-center gap-2 bg-[#F1F5F9] px-4 py-3 dark:bg-[#0a1628]">
-              <Plus className="h-4 w-4 shrink-0 text-[#94A3B8] dark:text-[#334155]" />
+              <Plus className="h-4 w-4 shrink-0 text-[var(--text-muted)] dark:text-[#334155]" />
               <input
                 type="email"
                 placeholder="new@intake.logistricks.com"
@@ -490,7 +491,7 @@ export default function SettingsPage() {
               <button
                 onClick={addEmail}
                 disabled={addingMail || !newMail.trim()}
-                className="flex items-center gap-1 rounded bg-[#F97316] px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:bg-[#ea6a05] disabled:opacity-40"
+                className="flex items-center gap-1 rounded bg-[var(--brand-accent)] px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:bg-[#ea6a05] disabled:opacity-40"
               >
                 {addingMail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
               </button>
@@ -512,7 +513,7 @@ export default function SettingsPage() {
         ) : (
           <div className="divide-y divide-[#E2E8F0] rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] dark:divide-white/5 dark:border-white/5 dark:bg-[#0D1B2A]">
             {numbers.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-[#94A3B8] dark:text-[#334155]">No WhatsApp numbers configured.</p>
+              <p className="px-4 py-6 text-center text-sm text-[var(--text-muted)] dark:text-[#334155]">No WhatsApp numbers configured.</p>
             )}
             {numbers.map((row) => (
               <ChannelRow
@@ -526,7 +527,7 @@ export default function SettingsPage() {
               />
             ))}
             <div className="flex items-center gap-2 bg-[#F1F5F9] px-4 py-3 dark:bg-[#0a1628]">
-              <Plus className="h-4 w-4 shrink-0 text-[#94A3B8] dark:text-[#334155]" />
+              <Plus className="h-4 w-4 shrink-0 text-[var(--text-muted)] dark:text-[#334155]" />
               <input
                 type="tel"
                 placeholder="+96612345678"
@@ -546,7 +547,7 @@ export default function SettingsPage() {
               <button
                 onClick={addNumber}
                 disabled={addingNum || !newNum.trim()}
-                className="flex items-center gap-1 rounded bg-[#F97316] px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:bg-[#ea6a05] disabled:opacity-40"
+                className="flex items-center gap-1 rounded bg-[var(--brand-accent)] px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:bg-[#ea6a05] disabled:opacity-40"
               >
                 {addingNum ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
               </button>
@@ -594,7 +595,7 @@ export default function SettingsPage() {
               onToggle={toggleRequireCritical}
               extra={
                 requireCritical && (
-                  <div className="mt-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] p-3 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
+                  <div className="mt-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] p-3 border-[var(--card-border)] dark:bg-[#0F1E33]">
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                         Critical fields <span className="normal-case font-normal">({criticalFields.length} selected)</span>
@@ -602,7 +603,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={openPickerToEdit}
-                        className="text-xs font-medium text-[#F97316] hover:underline"
+                        className="text-xs font-medium text-[var(--brand-accent)] hover:underline"
                       >
                         Edit
                       </button>
@@ -614,7 +615,7 @@ export default function SettingsPage() {
                           return opt ? (
                             <span
                               key={key}
-                              className="inline-flex items-center gap-1 rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-2.5 py-0.5 text-xs font-medium text-[#EA580C] dark:bg-[#F97316]/10 dark:text-[#F97316]"
+                              className="inline-flex items-center gap-1 rounded-full border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-2.5 py-0.5 text-xs font-medium text-[#EA580C] dark:bg-[var(--brand-accent)]/10 dark:text-[var(--brand-accent)]"
                             >
                               <AlertTriangle className="h-3 w-3" />
                               {opt.label}
@@ -623,13 +624,13 @@ export default function SettingsPage() {
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-[#94A3B8]">No fields selected. Click Edit to choose.</p>
+                      <p className="text-xs text-[var(--text-muted)]">No fields selected. Click Edit to choose.</p>
                     )}
 
                     {/* Nested: auto-reply when missing */}
-                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
+                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 border-[var(--card-border)]">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-[#0F172A] dark:text-[#E2E8F0]">Auto-reply when critical data is missing</p>
+                        <p className="text-xs font-medium text-[var(--text-primary)]">Auto-reply when critical data is missing</p>
                         <p className="text-xs text-[#475569] mt-0.5">Sends the missing-data auto-reply template instead of the standard acknowledgement when required fields are absent. Requires an Auto-Reply Missing template.</p>
                       </div>
                       <button
@@ -654,9 +655,9 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Nested: auto-reply when data is complete */}
-                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 dark:border-[#1E3A5F]">
+                    <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#E2E8F0] pt-3 border-[var(--card-border)]">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-[#0F172A] dark:text-[#E2E8F0]">Auto-reply when all data is complete</p>
+                        <p className="text-xs font-medium text-[var(--text-primary)]">Auto-reply when all data is complete</p>
                         <p className="text-xs text-[#475569] mt-0.5">Sends the complete-data auto-reply template when all required fields are present. Requires a Complete Data template. Priority: Missing fields &gt; Complete &gt; Standard.</p>
                       </div>
                       <button
@@ -695,10 +696,10 @@ export default function SettingsPage() {
       >
         <Link
           href="/settings/approval-cycles"
-          className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-4 py-3 text-sm font-medium text-[#0F172A] hover:border-[#F97316]/40 hover:bg-[#FFF7ED] transition-colors dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0] dark:hover:border-[#F97316]/40"
+          className="flex items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-4 py-3 text-sm font-medium text-[#0F172A] hover:border-[var(--brand-accent)]/40 hover:bg-[var(--brand-accent)]/10 transition-colors border-[var(--card-border)] bg-[var(--card-bg)] dark:text-[#E2E8F0] dark:hover:border-[var(--brand-accent)]/40"
         >
           <span>Manage Approval Cycles</span>
-          <ChevronRight className="h-4 w-4 text-[#94A3B8]" />
+          <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
         </Link>
       </Section>
 

@@ -140,19 +140,19 @@ export default function CarriersPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-5 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-[#0D1B2A] dark:text-white">Carriers</h2>
+          <h2 className="text-2xl font-bold" style={{color:"var(--text-primary)"}}>Carriers</h2>
           {!loading && (
-            <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]">
+            <span className="rounded-full px-2.5 py-1 text-xs font-medium" style={{background:"var(--table-header-bg)",color:"var(--text-secondary)"}}>
               {list.length} carriers
             </span>
           )}
         </div>
         <button
           onClick={() => { setEditing(null); setModalOpen(true) }}
-          className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01] hover:bg-[#EA580C]"
+          className="inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01]" style={{background:"var(--brand-accent)"}}
         >
           <Plus className="h-4 w-4" /> Add Carrier
         </button>
@@ -162,15 +162,15 @@ export default function CarriersPage() {
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">{error}</p>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
+      <div className="ds-card overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-[#F97316]" />
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-accent)]" />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-[#F0F4F8] text-xs uppercase tracking-wide text-[#64748B] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
+              <thead className="text-xs uppercase tracking-wide" style={{background:"var(--table-header-bg)",color:"var(--text-secondary)"}}>
                 <tr>
                   <th className="px-4 py-3 font-semibold">Carrier Name</th>
                   <th className="px-4 py-3 font-semibold">Contact Person</th>
@@ -186,21 +186,19 @@ export default function CarriersPage() {
                 {list.map((c, i) => (
                   <tr
                     key={c.carrier_id}
-                    className={`border-t border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC] dark:border-[#1E3A5F] dark:hover:bg-[#1E3A5F]/30 ${
-                      i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0D1B2A]/40" : "bg-white dark:bg-transparent"
-                    }`}
+                    className="transition-colors" style={{borderTop:"1px solid var(--divider)"}} onMouseEnter={(e)=>{(e.currentTarget as HTMLElement).style.background="var(--hover-bg)"}} onMouseLeave={(e)=>{(e.currentTarget as HTMLElement).style.background=""}}
                   >
                     <td className="px-4 py-3">
                       <div>
-                        <span className="font-semibold text-[#0D1B2A] dark:text-white">{c.carrier_name}</span>
+                        <span className="font-semibold" style={{color:"var(--text-primary)"}}>{c.carrier_name}</span>
                         {c.cc_emails.length > 0 && (
-                          <p className="mt-0.5 text-xs text-[#94A3B8]">+{c.cc_emails.length} CC</p>
+                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">+{c.cc_emails.length} CC</p>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-[#0F172A] dark:text-[#E2E8F0]">{c.person_name}</p>
-                      {c.role && <p className="text-xs text-[#64748B]">{c.role}</p>}
+                      <p className="" style={{color:"var(--text-primary)"}}>{c.person_name}</p>
+                      {c.role && <p className="text-xs " style={{color:"var(--text-secondary)"}}>{c.role}</p>}
                     </td>
                     <td className="px-4 py-3">
                       <CopyCell value={c.email} href={`mailto:${c.email}`} />
@@ -215,7 +213,7 @@ export default function CarriersPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">{langLabel(c.lang)}</td>
+                    <td className="px-4 py-3" style={{color:"var(--text-primary)"}}>{langLabel(c.lang)}</td>
                     <td className="px-4 py-3">
                       <button
                         role="switch"
@@ -232,7 +230,7 @@ export default function CarriersPage() {
                         <button
                           aria-label="Edit"
                           onClick={() => { setEditing(c); setModalOpen(true) }}
-                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[#FFF7ED] hover:text-[#F97316] dark:hover:bg-[#F97316]/10"
+                          className="rounded-md p-1.5 text-[#64748B] transition-colors hover:bg-[var(--brand-accent)]/10 hover:text-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)]/10"
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -270,21 +268,21 @@ export default function CarriersPage() {
       {inUseCarrier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
-            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Cannot delete carrier</h3>
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">Cannot delete carrier</h3>
             <p className="mt-2 text-sm text-[#64748B]">
-              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{inUseCarrier.carrier_name}</span>{" "}
+              <span className="font-medium text-[var(--text-primary)]">{inUseCarrier.carrier_name}</span>{" "}
               has been used in one or more requests and cannot be deleted. You can deactivate it instead to hide it from future use.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setInUseCarrier(null)}
-                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[var(--brand-accent)]/40 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeactivateCarrier(inUseCarrier)}
-                className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA580C]"
+                className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-accent-hover)]"
               >
                 Deactivate Instead
               </button>
@@ -296,17 +294,17 @@ export default function CarriersPage() {
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl duration-200 animate-in fade-in zoom-in-95 dark:bg-[#111E33]">
-            <h3 className="text-lg font-bold text-[#0D1B2A] dark:text-white">Delete carrier?</h3>
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">Delete carrier?</h3>
             <p className="mt-2 text-sm text-[#64748B]">
               Are you sure you want to delete{" "}
-              <span className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{confirmDelete.carrier_name}</span>?
+              <span className="font-medium text-[var(--text-primary)]">{confirmDelete.carrier_name}</span>?
               This also removes all CC entries and cannot be undone.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
                 disabled={deleteLoading}
-                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+                className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[var(--brand-accent)]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
               >
                 Cancel
               </button>
@@ -328,15 +326,15 @@ export default function CarriersPage() {
 
 function CopyCell({ value, href }: { value: string; href?: string }) {
   const [copied, setCopied] = useState(false)
-  if (!value) return <span className="text-[#94A3B8]">—</span>
+  if (!value) return <span className="text-[var(--text-muted)]">—</span>
   return (
     <div className="flex items-center gap-2">
       {href ? (
-        <a href={href} className="truncate text-[#0F172A] hover:text-[#F97316] hover:underline dark:text-[#E2E8F0]">
+        <a href={href} className="truncate text-[#0F172A] hover:text-[var(--brand-accent)] hover:underline dark:text-[#E2E8F0]">
           {value}
         </a>
       ) : (
-        <span className="truncate text-[#0F172A] dark:text-[#E2E8F0]">{value}</span>
+        <span className="truncate text-[var(--text-primary)]">{value}</span>
       )}
       <button
         aria-label="Copy"
@@ -345,7 +343,7 @@ function CopyCell({ value, href }: { value: string; href?: string }) {
           setCopied(true)
           setTimeout(() => setCopied(false), 1500)
         }}
-        className="text-[#94A3B8] transition-colors hover:text-[#F97316]"
+        className="text-[var(--text-muted)] transition-colors hover:text-[var(--brand-accent)]"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
       </button>

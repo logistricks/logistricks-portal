@@ -83,29 +83,29 @@ export default function AutoReplyLogsPage() {
   }, {})
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-5 p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold tracking-tight text-[#0D1B2A] dark:text-[#E2E8F0]"
+        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
             style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
           Auto Reply Logs
         </h2>
         <div className="flex items-center gap-2">
           {/* Range selector */}
-          <div className="flex rounded border border-[#E2E8F0] dark:border-[#1E3A5F] overflow-hidden">
+          <div className="flex rounded border border-[var(--card-border)] overflow-hidden">
             {RANGES.map((r) => (
               <button key={r.value} onClick={() => setRange(r.value)}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   range === r.value
-                    ? "bg-[#0D1B2A] text-white dark:bg-[#F97316]"
-                    : "bg-white text-[#64748B] hover:bg-[#F8FAFC] dark:bg-[#111E33] dark:text-[#94A3B8] dark:hover:bg-[#1A2A40]"
+                    ? "bg-[#0D1B2A] text-white dark:bg-[var(--brand-accent)]"
+                    : "bg-white text-[#64748B] hover:bg-[#F8FAFC] dark:bg-[#111E33] dark:text-[var(--text-muted)] dark:hover:bg-[#1A2A40]"
                 }`}>
                 {r.label}
               </button>
             ))}
           </div>
           <button onClick={load}
-            className="flex items-center gap-1 rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs text-[#64748B] hover:bg-[#F8FAFC] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#94A3B8]">
+            className="flex items-center gap-1 rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs text-[#64748B] hover:bg-[#F8FAFC] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[var(--text-muted)]">
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </button>
@@ -122,13 +122,13 @@ export default function AutoReplyLogsPage() {
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 active
                   ? "bg-white text-[#0D1B2A] shadow-sm dark:bg-[#1A2A40] dark:text-[#E2E8F0]"
-                  : "text-[#64748B] hover:text-[#0D1B2A] dark:text-[#94A3B8] dark:hover:text-[#E2E8F0]"
+                  : "text-[#64748B] hover:text-[#0D1B2A] dark:text-[var(--text-muted)] dark:hover:text-[#E2E8F0]"
               }`}>
               <Icon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{label}</span>
               {count > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                  active ? "bg-[#F97316]/10 text-[#F97316]" : "bg-[#E2E8F0] text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]"
+                  active ? "bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]" : "bg-[#E2E8F0] text-[#64748B] dark:bg-[#1E3A5F] dark:text-[var(--text-muted)]"
                 }`}>
                   {count}
                 </span>
@@ -139,21 +139,21 @@ export default function AutoReplyLogsPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded border border-[#E2E8F0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
+      <div className="overflow-hidden ds-card">
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-[#94A3B8]">
+          <div className="flex items-center justify-center gap-2 py-20 text-[var(--text-muted)]">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm">Loading logs…</span>
           </div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
             <Mail className="h-10 w-10 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">No auto-reply emails logged yet.</p>
+            <p className="text-sm font-medium text-[var(--text-secondary)]">No auto-reply emails logged yet.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-sm">
-              <thead className="bg-[#0D1B2A] text-[11px] uppercase tracking-[0.08em] text-[#94A3B8]">
+              <thead className="bg-[#0D1B2A] text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Type</th>
                   <th className="px-4 py-3 font-semibold">Recipient</th>
@@ -175,8 +175,8 @@ export default function AutoReplyLogsPage() {
 
                   return (
                     <tr key={row.id}
-                      className={`border-t border-[#E2E8F0] dark:border-[#1E3A5F] ${
-                        i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-white dark:bg-[#111E33]"
+                      className={`border-t border-[var(--card-border)] ${
+                        i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-[var(--card-bg)]"
                       }`}>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.bg} ${s.text}`}>
@@ -185,21 +185,21 @@ export default function AutoReplyLogsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-[#0F172A] dark:text-[#E2E8F0]">{row.sender_name || "—"}</p>
-                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">{row.sender_email}</p>
+                        <p className="font-medium text-[var(--text-primary)]">{row.sender_name || "—"}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{row.sender_email}</p>
                       </td>
-                      <td className="px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0] max-w-[200px] truncate" title={row.subject ?? ""}>
+                      <td className="px-4 py-3 text-[var(--text-primary)] max-w-[200px] truncate" title={row.subject ?? ""}>
                         {row.subject || "—"}
                       </td>
-                      <td className="px-4 py-3 text-[#64748B] dark:text-[#94A3B8] whitespace-nowrap">
+                      <td className="px-4 py-3 text-[var(--text-secondary)] whitespace-nowrap">
                         {route || "—"}
                       </td>
-                      <td className="px-4 py-3 text-[#64748B] dark:text-[#94A3B8] max-w-[180px]">
+                      <td className="px-4 py-3 text-[var(--text-secondary)] max-w-[180px]">
                         {missingFields
                           ? <span className="text-amber-600 dark:text-amber-400 text-xs">{missingFields}</span>
                           : <span className="text-[#CBD5E1]">—</span>}
                       </td>
-                      <td className="px-4 py-3 tabular-nums text-[#64748B] dark:text-[#94A3B8]" title={t.exact}>
+                      <td className="px-4 py-3 tabular-nums text-[var(--text-secondary)]" title={t.exact}>
                         {t.relative}
                       </td>
                     </tr>
@@ -210,7 +210,7 @@ export default function AutoReplyLogsPage() {
           </div>
         )}
         {rows.length > 0 && (
-          <div className="border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B] dark:border-[#1E3A5F] dark:text-[#94A3B8]">
+          <div className="border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B] dark:border-[#1E3A5F] dark:text-[var(--text-muted)]">
             Showing {rows.length} log{rows.length > 1 ? "s" : ""}
           </div>
         )}

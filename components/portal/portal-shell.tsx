@@ -19,6 +19,21 @@ export function PortalShell({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem("portal-theme")
       if (saved === "light") setTheme("light")
     } catch { /* */ }
+    // Apply saved brand colors from Theme Settings
+    try {
+      const savedColors = localStorage.getItem("portal-theme-colors")
+      if (savedColors) {
+        const colors = JSON.parse(savedColors) as Record<string, string>
+        const root = document.documentElement
+        if (colors.primaryDark)  root.style.setProperty("--brand-navy",       colors.primaryDark)
+        if (colors.primaryMid)   root.style.setProperty("--brand-navy-mid",   colors.primaryMid)
+        if (colors.primaryLight) root.style.setProperty("--brand-navy-light", colors.primaryLight)
+        if (colors.accent) {
+          root.style.setProperty("--brand-accent",       colors.accent)
+          root.style.setProperty("--brand-accent-hover", colors.accent)
+        }
+      }
+    } catch { /* */ }
   }, [])
 
   function toggle() {

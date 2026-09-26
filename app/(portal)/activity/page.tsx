@@ -53,7 +53,7 @@ const EVENT_BADGE: Record<string, BadgeConfig> = {
 const DEFAULT_BADGE: BadgeConfig = {
   label: "Event",
   bg:    "bg-[#F0F4F8] dark:bg-[#1E3A5F]",
-  text:  "text-[#64748B] dark:text-[#94A3B8]",
+  text:  "text-[var(--text-secondary)]",
 }
 
 function CategoryIcon({ category }: { category: string }) {
@@ -95,8 +95,8 @@ function ActorBadge({ actor }: { actor: string }) {
     <span
       className={`inline-block rounded px-1.5 py-0.5 font-mono text-[11px] font-medium ${
         isSystem
-          ? "bg-[#F0F4F8] text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]"
-          : "bg-[#FFF7ED] text-[#F97316] dark:bg-[#F97316]/10"
+          ? "bg-[#F0F4F8] text-[#64748B] dark:bg-[#1E3A5F] dark:text-[var(--text-muted)]"
+          : "bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] dark:bg-[var(--brand-accent)]/10"
       }`}
     >
       {actor}
@@ -138,12 +138,12 @@ export default function ActivityPage() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="portal-page space-y-5 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-[#0D1B2A] dark:text-white">Activity Log</h2>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">Activity Log</h2>
           {!loading && (
-            <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B] dark:bg-[#1E3A5F] dark:text-[#94A3B8]">
+            <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B] dark:bg-[#1E3A5F] dark:text-[var(--text-muted)]">
               {sorted.length} events
             </span>
           )}
@@ -151,7 +151,7 @@ export default function ActivityPage() {
             <button
               onClick={() => load()}
               title={`Last synced ${lastUpdated.toLocaleTimeString()}`}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[#94A3B8] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2A40]"
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
             >
               <RefreshCw className="h-3 w-3" />
               <span className="hidden sm:inline">Refresh</span>
@@ -167,7 +167,7 @@ export default function ActivityPage() {
                 onClick={() => setCategory(c)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   category === c
-                    ? "bg-[#F97316] text-white"
+                    ? "bg-[var(--brand-accent)] text-white"
                     : "text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-white"
                 }`}
               >
@@ -179,7 +179,7 @@ export default function ActivityPage() {
           <select
             value={range}
             onChange={(e) => setRange(e.target.value as Range)}
-            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
+            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[var(--brand-accent)] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
           >
             {RANGES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
@@ -194,15 +194,15 @@ export default function ActivityPage() {
         </p>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-[#1E3A5F] dark:bg-[#111E33]">
+      <div className="overflow-hidden ds-card">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-[#F97316]" />
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-accent)]" />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-[#F0F4F8] text-xs uppercase tracking-wide text-[#64748B] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
+              <thead className="bg-[#F0F4F8] text-xs uppercase tracking-wide text-[#64748B] dark:bg-[#0D1B2A] dark:text-[var(--text-muted)]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Event</th>
                   <th className="px-4 py-3 font-semibold">Description</th>
@@ -210,7 +210,7 @@ export default function ActivityPage() {
                   <th className="px-4 py-3 font-semibold">
                     <button
                       onClick={() => setSortAsc((v) => !v)}
-                      className="inline-flex items-center gap-1 hover:text-[#F97316]"
+                      className="inline-flex items-center gap-1 hover:text-[var(--brand-accent)]"
                     >
                       Time
                       <ArrowDownUp className="h-3 w-3" />
@@ -227,7 +227,7 @@ export default function ActivityPage() {
                       key={row.id}
                       className={`border-t border-[#E2E8F0] transition-colors dark:border-[#1E3A5F] ${
                         i % 2 === 1
-                          ? "bg-[#F8FAFC] dark:bg-[#0D1B2A]/40"
+                          ? "bg-[var(--table-header-bg)]"
                           : "bg-white dark:bg-transparent"
                       }`}
                     >
@@ -240,10 +240,10 @@ export default function ActivityPage() {
                         </span>
                       </td>
 
-                      <td className="max-w-[340px] px-4 py-3 text-[#0F172A] dark:text-[#E2E8F0]">
+                      <td className="max-w-[340px] px-4 py-3 text-[var(--text-primary)]">
                         <p className="truncate">{row.description}</p>
                         {row.request_id && (
-                          <p className="mt-0.5 font-mono text-[10px] text-[#94A3B8]">
+                          <p className="mt-0.5 font-mono text-[10px] text-[var(--text-muted)]">
                             req:{row.request_id.slice(0, 8)}…
                           </p>
                         )}
@@ -254,7 +254,7 @@ export default function ActivityPage() {
                       </td>
 
                       <td
-                        className="whitespace-nowrap px-4 py-3 tabular-nums text-[#64748B] dark:text-[#94A3B8]"
+                        className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--text-secondary)]"
                         title={exact}
                       >
                         {relative}
@@ -270,10 +270,10 @@ export default function ActivityPage() {
         {!loading && sorted.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <Activity className="h-10 w-10 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">
               No activity yet for this period.
             </p>
-            <p className="text-xs text-[#94A3B8]">
+            <p className="text-xs text-[var(--text-muted)]">
               Events appear here when carriers and templates are added, edited, or deleted.
             </p>
           </div>

@@ -67,7 +67,7 @@ const triggerLabel = (t: string | null) => {
 
 function UserChip({ username, onRemove }: { username: string; onRemove?: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] border border-[#F97316] px-2 py-0.5 text-xs text-[#F97316] font-medium">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)] px-2 py-0.5 text-xs text-[var(--brand-accent)] font-medium">
       {username}
       {onRemove && (
         <button onClick={onRemove} className="ml-0.5 hover:text-orange-700">
@@ -92,7 +92,7 @@ function UserMultiSelect({
   const available = users.filter((u) => !selected.includes(u.username));
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{label}</label>
+      <label className="block text-sm font-medium text-[var(--text-primary)]">{label}</label>
       <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
         {selected.map((u) => (
           <UserChip key={u} username={u} onRemove={() => onChange(selected.filter((s) => s !== u))} />
@@ -138,15 +138,15 @@ function StepCard({
   onMoveDown: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-[#E2E8F0] dark:border-[#1E3A5F] p-4 space-y-3 bg-white dark:bg-[#0D1B2A]">
+    <div className="rounded-lg border border-[var(--card-border)] p-4 space-y-3 bg-[var(--card-bg)]">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-[#0F172A] dark:text-[#E2E8F0]">Step {index + 1}</span>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">Step {index + 1}</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             disabled={index === 0}
             onClick={onMoveUp}
-            className="p-1 rounded text-[#475569] dark:text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0] disabled:opacity-30"
+            className="p-1 rounded text-[var(--text-secondary)] hover:text-[#0F172A] dark:hover:text-[#E2E8F0] disabled:opacity-30"
           >
             <ChevronUp size={16} />
           </button>
@@ -154,7 +154,7 @@ function StepCard({
             type="button"
             disabled={index === total - 1}
             onClick={onMoveDown}
-            className="p-1 rounded text-[#475569] dark:text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0] disabled:opacity-30"
+            className="p-1 rounded text-[var(--text-secondary)] hover:text-[#0F172A] dark:hover:text-[#E2E8F0] disabled:opacity-30"
           >
             <ChevronDown size={16} />
           </button>
@@ -176,7 +176,7 @@ function StepCard({
       />
 
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Committee mode</label>
+        <label className="block text-sm font-medium text-[var(--text-primary)]">Committee mode</label>
         <div className="flex gap-2">
           <button
             type="button"
@@ -203,24 +203,24 @@ function StepCard({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-[#0F172A] dark:text-[#E2E8F0]">
+      <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
         <input
           type="checkbox"
           checked={step.can_edit_template}
           onChange={(e) => onChange({ ...step, can_edit_template: e.target.checked })}
           className="rounded border-[#E2E8F0]"
         />
-        <CheckSquare size={14} className="text-[#475569] dark:text-[#64748B]" />
+        <CheckSquare size={14} className="text-[var(--text-secondary)]" />
         Can edit template
       </label>
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-[#0F172A] dark:text-[#E2E8F0]">
+      <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
         <input
           type="checkbox"
           checked={step.can_edit_cc}
           onChange={(e) => onChange({ ...step, can_edit_cc: e.target.checked })}
           className="rounded border-[#E2E8F0]"
         />
-        <CheckSquare size={14} className="text-[#475569] dark:text-[#64748B]" />
+        <CheckSquare size={14} className="text-[var(--text-secondary)]" />
         Can edit CC
       </label>
     </div>
@@ -380,56 +380,56 @@ export default function ApprovalCyclesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0D1B2A] text-[#0F172A] dark:text-[#E2E8F0]">
+    <div className="min-h-screen bg-[var(--card-bg)] text-[var(--text-primary)]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] dark:text-[#E2E8F0]">Approval Cycles</h1>
-            <p className="mt-1 text-sm text-[#475569] dark:text-[#64748B]">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Approval Cycles</h1>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
               Configure who approves freight requests before they are sent
             </p>
           </div>
-          <button onClick={openCreate} className="flex items-center gap-2 bg-[#F97316] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500 shrink-0">
+          <button onClick={openCreate} className="flex items-center gap-2 bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500 shrink-0">
             <Plus size={16} /> New Cycle
           </button>
         </div>
 
         {/* List */}
         {loading ? (
-          <div className="text-center py-16 text-[#475569] dark:text-[#64748B]">Loading…</div>
+          <div className="text-center py-16 text-[var(--text-secondary)]">Loading…</div>
         ) : cycles.length === 0 ? (
           <div className="text-center py-16 space-y-3">
-            <p className="text-[#475569] dark:text-[#64748B]">No approval cycles yet</p>
-            <button onClick={openCreate} className="bg-[#F97316] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500">
+            <p className="text-[var(--text-secondary)]">No approval cycles yet</p>
+            <button onClick={openCreate} className="bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500">
               Create your first cycle
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             {cycles.map((cycle) => (
-              <div key={cycle.id} className="rounded-xl border border-[#E2E8F0] dark:border-[#1E3A5F] bg-white dark:bg-[#0D1B2A] p-5 space-y-4">
+              <div key={cycle.id} className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-[#0F172A] dark:text-[#E2E8F0]">{cycle.name}</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{cycle.name}</span>
                     {cycle.applies_to_automated_emails && cycle.automated_trigger && (
-                      <span className="inline-flex items-center rounded-full bg-[#FFF7ED] border border-[#F97316] px-2 py-0.5 text-xs text-[#F97316] font-medium">
+                      <span className="inline-flex items-center rounded-full bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)] px-2 py-0.5 text-xs text-[var(--brand-accent)] font-medium">
                         Auto: {triggerLabel(cycle.automated_trigger)}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => openEdit(cycle)} className="p-1.5 rounded-lg border border-[#E2E8F0] dark:border-[#1E3A5F] text-[#475569] dark:text-[#64748B] hover:text-[#F97316] hover:border-[#F97316]">
+                    <button onClick={() => openEdit(cycle)} className="p-1.5 rounded-lg border border-[var(--card-border)] text-[var(--text-secondary)] hover:text-[var(--brand-accent)] hover:border-[var(--brand-accent)]">
                       <Pencil size={15} />
                     </button>
                     {confirmDelete === cycle.id ? (
                       <span className="flex items-center gap-1.5 text-sm">
                         <span className="text-red-500 font-medium">Confirm delete?</span>
                         <button onClick={() => handleDelete(cycle.id)} className="text-xs bg-red-500 text-white rounded px-2 py-1 hover:bg-red-600">Yes</button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-xs border border-[#E2E8F0] dark:border-[#1E3A5F] rounded px-2 py-1">No</button>
+                        <button onClick={() => setConfirmDelete(null)} className="text-xs border border-[var(--card-border)] rounded px-2 py-1">No</button>
                       </span>
                     ) : (
-                      <button onClick={() => setConfirmDelete(cycle.id)} className="p-1.5 rounded-lg border border-[#E2E8F0] dark:border-[#1E3A5F] text-[#475569] dark:text-[#64748B] hover:text-red-500 hover:border-red-200">
+                      <button onClick={() => setConfirmDelete(cycle.id)} className="p-1.5 rounded-lg border border-[var(--card-border)] text-[var(--text-secondary)] hover:text-red-500 hover:border-red-200">
                         <Trash2 size={15} />
                       </button>
                     )}
@@ -437,34 +437,34 @@ export default function ApprovalCyclesPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-[#475569] dark:text-[#64748B] uppercase tracking-wide">Linked users</p>
+                  <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">Linked users</p>
                   <div className="flex flex-wrap gap-1.5">
                     {cycle.initiator_usernames.length > 0
                       ? cycle.initiator_usernames.map((u) => <UserChip key={u} username={u} />)
-                      : <span className="text-sm text-[#475569] dark:text-[#64748B]">No users linked</span>}
+                      : <span className="text-sm text-[var(--text-secondary)]">No users linked</span>}
                   </div>
                 </div>
 
                 {cycle.approval_cycle_steps.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-[#475569] dark:text-[#64748B] uppercase tracking-wide">Steps</p>
+                    <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">Steps</p>
                     <ol className="space-y-2">
                       {cycle.approval_cycle_steps
                         .slice()
                         .sort((a, b) => a.sort_order - b.sort_order)
                         .map((step, i) => (
-                          <li key={step.id} className="flex items-start gap-3 rounded-lg border border-[#E2E8F0] dark:border-[#1E3A5F] px-3 py-2">
-                            <span className="shrink-0 w-5 h-5 rounded-full bg-[#F97316] text-white text-xs flex items-center justify-center font-bold mt-0.5">{i + 1}</span>
+                          <li key={step.id} className="flex items-start gap-3 rounded-lg border border-[var(--card-border)] px-3 py-2">
+                            <span className="shrink-0 w-5 h-5 rounded-full bg-[var(--brand-accent)] text-white text-xs flex items-center justify-center font-bold mt-0.5">{i + 1}</span>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className={`text-xs rounded-full px-2 py-0.5 font-medium border ${step.committee_mode === "any_approves" ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-600 dark:text-blue-300" : "bg-slate-100 border-slate-300 text-slate-600 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300"}`}>
                                 {step.committee_mode === "any_approves" ? "Any approves" : "Notify only"}
                               </span>
                               {step.member_usernames.map((u) => <UserChip key={u} username={u} />)}
                               {step.can_edit_template && (
-                                <span className="text-xs text-[#475569] dark:text-[#64748B] italic">Can edit template</span>
+                                <span className="text-xs text-[var(--text-secondary)] italic">Can edit template</span>
                               )}
                               {step.can_edit_cc && (
-                                <span className="text-xs text-[#475569] dark:text-[#64748B] italic">Can edit CC</span>
+                                <span className="text-xs text-[var(--text-secondary)] italic">Can edit CC</span>
                               )}
                             </div>
                           </li>
@@ -481,12 +481,12 @@ export default function ApprovalCyclesPage() {
       {/* Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8 px-4">
-          <div className="w-full max-w-2xl bg-white dark:bg-[#0D1B2A] rounded-2xl shadow-2xl border border-[#E2E8F0] dark:border-[#1E3A5F]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] dark:border-[#1E3A5F]">
-              <h2 className="text-lg font-semibold text-[#0F172A] dark:text-[#E2E8F0]">
+          <div className="w-full max-w-2xl bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-[var(--card-border)]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
                 {editing ? "Edit Cycle" : "New Approval Cycle"}
               </h2>
-              <button onClick={closeForm} className="p-1.5 rounded-lg text-[#475569] dark:text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">
+              <button onClick={closeForm} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">
                 <X size={18} />
               </button>
             </div>
@@ -499,7 +499,7 @@ export default function ApprovalCyclesPage() {
               )}
 
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Name</label>
+                <label className="block text-sm font-medium text-[var(--text-primary)]">Name</label>
                 <input
                   type="text"
                   value={form.name}
@@ -516,7 +516,7 @@ export default function ApprovalCyclesPage() {
                   users={users}
                   onChange={(next) => setForm((f) => ({ ...f, initiator_usernames: next }))}
                 />
-                <p className="text-xs text-[#475569] dark:text-[#64748B]">Each user can only be linked to one cycle.</p>
+                <p className="text-xs text-[var(--text-secondary)]">Each user can only be linked to one cycle.</p>
               </div>
 
               <div className="space-y-3">
@@ -527,16 +527,16 @@ export default function ApprovalCyclesPage() {
                     onChange={(e) => setForm((f) => ({ ...f, applies_to_automated_emails: e.target.checked }))}
                     className="rounded border-[#E2E8F0]"
                   />
-                  <span className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Applies to automated emails</span>
+                  <span className="text-sm font-medium text-[var(--text-primary)]">Applies to automated emails</span>
                 </label>
                 {form.applies_to_automated_emails && (
-                  <div className="ml-6 space-y-2 border-l-2 border-[#F97316] pl-4">
-                    <p className="text-xs font-medium text-[#475569] dark:text-[#64748B]">Trigger on</p>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-[#0F172A] dark:text-[#E2E8F0]">
+                  <div className="ml-6 space-y-2 border-l-2 border-[var(--brand-accent)] pl-4">
+                    <p className="text-xs font-medium text-[var(--text-secondary)]">Trigger on</p>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
                       <input type="checkbox" checked={form.trigger_carrier} onChange={(e) => setForm((f) => ({ ...f, trigger_carrier: e.target.checked }))} />
                       Carrier email
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-[#0F172A] dark:text-[#E2E8F0]">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
                       <input type="checkbox" checked={form.trigger_reply} onChange={(e) => setForm((f) => ({ ...f, trigger_reply: e.target.checked }))} />
                       Reply email
                     </label>
@@ -545,7 +545,7 @@ export default function ApprovalCyclesPage() {
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Steps</p>
+                <p className="text-sm font-medium text-[var(--text-primary)]">Steps</p>
                 {form.steps.map((step, i) => (
                   <StepCard
                     key={i}
@@ -562,18 +562,18 @@ export default function ApprovalCyclesPage() {
                 <button
                   type="button"
                   onClick={addStep}
-                  className="w-full rounded-lg border-2 border-dashed border-[#E2E8F0] dark:border-[#1E3A5F] py-3 text-sm text-[#475569] dark:text-[#64748B] hover:border-[#F97316] hover:text-[#F97316] transition-colors"
+                  className="w-full rounded-lg border-2 border-dashed border-[var(--card-border)] py-3 text-sm text-[var(--text-secondary)] hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)] transition-colors"
                 >
                   + Add Step
                 </button>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#E2E8F0] dark:border-[#1E3A5F]">
-              <button onClick={closeForm} className="rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm dark:border-[#1E3A5F] text-[#475569] dark:text-[#64748B]">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--card-border)]">
+              <button onClick={closeForm} className="rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm dark:border-[#1E3A5F] text-[var(--text-secondary)]">
                 Cancel
               </button>
-              <button onClick={handleSave} disabled={busy} className="bg-[#F97316] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500 disabled:opacity-60">
+              <button onClick={handleSave} disabled={busy} className="bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500 disabled:opacity-60">
                 {busy ? "Saving…" : "Save Cycle"}
               </button>
             </div>

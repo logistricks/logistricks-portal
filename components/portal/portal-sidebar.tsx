@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Pin, PinOff, Settings, Users } from "lucide-react"
+import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Palette, Pin, PinOff, Settings, Users } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 function initials(name: string): string {
@@ -69,7 +69,8 @@ export function PortalSidebar({
     { label: "Activity Log", href: "/activity", icon: Activity },
     { label: "Auto Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
     { label: "Users",        href: "/users",    icon: Users },
-    { label: "Settings",  href: "/settings",  icon: Settings },
+    { label: "Settings",  href: "/settings",  icon: Settings, exact: true },
+    { label: "Theme",     href: "/settings/theme", icon: Palette },
   ]
 
   async function handleLogout() {
@@ -161,7 +162,7 @@ export function PortalSidebar({
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
         {nav.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/")
+          const active = pathname === item.href || (!item.exact && pathname.startsWith(item.href + "/"))
           const Icon = item.icon
           return (
             <Link

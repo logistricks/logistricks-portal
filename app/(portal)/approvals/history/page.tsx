@@ -86,7 +86,7 @@ function statusBadge(status: string) {
       )
     default:
       return (
-        <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 bg-[#F97316]/10 text-[#F97316] text-xs font-semibold">
+        <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] text-xs font-semibold">
           <Clock className="h-3 w-3" /> In Progress
         </span>
       )
@@ -167,7 +167,7 @@ function RequestRow({ group }: { group: GroupedRequest }) {
                         : step.step_status === "skipped"
                         ? "bg-[var(--surface-3)] text-[var(--text-muted)] line-through"
                         : step.step_status === "active"
-                        ? "bg-[#F97316]/15 text-[#F97316]"
+                        ? "bg-[var(--brand-accent)]/15 text-[var(--brand-accent)]"
                         : "bg-[var(--surface-3)] text-[var(--text-muted)]"
                     }`}
                   >
