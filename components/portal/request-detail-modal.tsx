@@ -532,6 +532,7 @@ export function RequestDetailModal({
               </section>
             </div>
           </div>
+          )}
 
           {/* Send panel */}
           {sendMethod && (
