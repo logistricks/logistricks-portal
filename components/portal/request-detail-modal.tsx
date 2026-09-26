@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
-import { AlertTriangle, Check, CheckSquare, Copy, Loader2, Lock, Mail, MessageCircle, MessageSquareReply, Phone, Reply, X } from "lucide-react"
+import {
+  AlertTriangle, ArrowRight, Check, CheckSquare, ChevronDown, ChevronUp,
+  Copy, Loader2, Lock, Mail, MessageCircle, Phone, Reply, X
+} from "lucide-react"
 import {
   AogBadge,
   ConfidenceBadge,
@@ -79,6 +82,45 @@ const FIELD_MAP: Record<string, { getValue: (r: FreightRequest) => string | null
   bl_type:    { getValue: (r) => r.blType,     label: "BL type" },
 }
 
+/* ── Sub-components ─────────────────────────────────────────── */
+
+function FieldRow({ label, value }: { label: string; value: string | null }) {
+  const display = parseArrayField(value)
+  const missing = !display || display === "—"
+  return (
+    <div className="flex items-start gap-3 py-2" style={{ borderBottom: "1px solid var(--divider)" }}>
+      <span className="shrink-0 text-xs font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 120 }}>{label}</span>
+      <span className={`text-sm font-medium whitespace-pre-line flex-1 text-right ${missing ? "text-red-500" : ""}`} style={{ color: missing ? "#ef4444" : "var(--text-primary)" }}>
+        {missing ? "— Missing" : display}
+      </span>
+    </div>
+  )
+}
+
+function CopyRow({ icon: Icon, value }: { icon: typeof Mail; value: string }) {
+  const [copied, setCopied] = useState(false)
+  if (!value) return null
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+      <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>{value}</span>
+      <button
+        type="button"
+        aria-label="Copy"
+        onClick={() => { navigator.clipboard?.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+        className="transition-colors"
+        style={{ color: "var(--text-muted)" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  )
+}
+
+/* ── Main modal ─────────────────────────────────────────────── */
+
 export function RequestDetailModal({
   request,
   onClose,
@@ -94,23 +136,24 @@ export function RequestDetailModal({
   requireCriticalData?: boolean
   criticalFields?: string[]
 }) {
-  const [carriers, setCarriers] = useState<Carrier[]>([])
-  const [templates, setTemplates] = useState<Template[]>([])
+  const [carriers, setCarriers]     = useState<Carrier[]>([])
+  const [templates, setTemplates]   = useState<Template[]>([])
   const [sendMethod, setSendMethod] = useState<"Email" | "Reply" | null>(null)
   const [selectedCarrierIds, setSelectedCarrierIds] = useState<string[]>([])
   const [templateId, setTemplateId] = useState("")
-  const [replyTo, setReplyTo] = useState("")
+  const [replyTo, setReplyTo]       = useState("")
   const [messageBody, setMessageBody] = useState("")
   const [onlyCritical, setOnlyCritical] = useState(requireCriticalData)
   const [submittingApproval, setSubmittingApproval] = useState(false)
   const { success: toastSuccess, error: toastError } = useToast()
-  const [userHasCycle, setUserHasCycle] = useState(false)
+  const [userHasCycle, setUserHasCycle]   = useState(false)
   const [showApprovalConfirm, setShowApprovalConfirm] = useState<"Email" | "Reply" | null>(null)
   const [activeTab, setActiveTab]         = useState<"details" | "quotes">("details")
   const [aogLocal, setAogLocal]           = useState(request.aog)
   const [dgrLocal, setDgrLocal]           = useState(request.dgr)
   const [flagSaving, setFlagSaving]       = useState(false)
   const [effectiveRole, setEffectiveRole] = useState<string | undefined>(role)
+  const [rawExpanded, setRawExpanded]     = useState(false)
   const sendPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -180,12 +223,11 @@ export function RequestDetailModal({
     )
   })
 
-  const sentToCarrier =
-    request.status === "Sent to Carrier"
-      ? carriers.find((c) => c.carrier_name === request.preferredCarrier) ?? null
-      : null
+  const sentToCarrier = request.status === "Sent to Carrier"
+    ? carriers.find((c) => c.carrier_name === request.preferredCarrier) ?? null
+    : null
 
-  const isReminder       = request.status === "Sent to Carrier"
+  const isReminder = request.status === "Sent to Carrier"
 
   const criticalMissingLabels = criticalFields
     .filter((key) => {
@@ -247,15 +289,11 @@ export function RequestDetailModal({
   async function submitForApproval() {
     setSubmittingApproval(true)
     try {
-      // Determine email type: "carrier" (Email panel) vs "reply" (Reply panel)
       const emailType = sendMethod === "Email" ? "carrier" : "reply"
-
-      // Build To recipient
       let emailTo: string | null = null
       let emailCc: string[] = []
 
       if (sendMethod === "Email") {
-        // Carrier email: collect To + CC from selected carriers
         const toAddresses: string[] = []
         for (const cid of selectedCarrierIds) {
           const carrier = carriers.find((c) => String(c.carrier_id) === cid)
@@ -266,7 +304,6 @@ export function RequestDetailModal({
         }
         emailTo = toAddresses.join(", ") || null
       } else {
-        // Reply email: To is the original freight request sender
         emailTo = request.senderEmail
           ? `${request.senderName} <${request.senderEmail}>`
           : request.senderName ?? null
@@ -372,351 +409,565 @@ export function RequestDetailModal({
     }
   }
 
-  const fields: { label: string; value: string | null }[] = [
-    { label: "Origin", value: `${request.originCity}, ${request.originCountry}` },
-    { label: "Destination", value: `${request.destinationCity}, ${request.destinationCountry}` },
-    { label: "Cargo Type", value: request.cargoType },
-    { label: "Equipment", value: request.equipment },
-    { label: "Weight", value: request.weight },
-    { label: "Quantity", value: request.quantity },
-    { label: "Dimensions", value: request.dimensions },
-    { label: "Incoterm", value: request.incoterm },
-    { label: "BL Type", value: request.blType },
-    { label: "Preferred Carrier", value: request.preferredCarrier },
+  // All cargo fields for the details tab
+  const cargoFields = [
+    { label: "Cargo Type",   value: request.cargoType },
+    { label: "Equipment",    value: request.equipment },
+    { label: "Weight",       value: request.weight },
+    { label: "Quantity",     value: request.quantity },
+    { label: "Dimensions",   value: request.dimensions },
+    { label: "Incoterm",     value: request.incoterm },
+    { label: "BL Type",      value: request.blType },
+    { label: "Pref. Carrier",value: request.preferredCarrier },
   ]
 
+  const lastMsg = request.conversation?.[request.conversation.length - 1]
+  const awaitingSenderReply = lastMsg?.role === "system"
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-200 animate-in fade-in zoom-in-95 sm:rounded-2xl dark:bg-[#0D1B2A]">
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between bg-[#0D1B2A] px-6 py-4">
-          <div className="flex items-center gap-3">
-            <SourceBadge source={request.source} />
-            <div>
-              <p className="font-semibold text-white">Request from {request.senderName}</p>
-              <p className="text-xs text-[#94A3B8]">{request.receivedExact}</p>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl shadow-2xl duration-200 animate-in fade-in zoom-in-95 sm:rounded-2xl" style={{ background: "var(--card-bg)" }}>
+
+        {/* ── Gradient header ──────────────────────────────────── */}
+        <div
+          className="shrink-0 px-6 py-4"
+          style={{ background: "linear-gradient(135deg, #0f1e36 0%, #1a3352 60%, #1e3d5c 100%)" }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <SourceBadge source={request.source} />
+              <div className="min-w-0">
+                <p className="font-semibold text-white truncate">{request.senderName}</p>
+                <p className="text-xs text-white/60 mt-0.5">{request.receivedExact}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {aogLocal && <AogBadge />}
+              {dgrLocal && <DgrBadge />}
+              <StatusBadge status={request.status} />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="rounded-lg p-1.5 ml-1 transition-colors"
+                style={{ color: "rgba(255,255,255,0.6)" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "white"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.6)"; (e.currentTarget as HTMLElement).style.background = "transparent" }}
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white">
-            <X className="h-5 w-5" />
-          </button>
+
+          {/* Route summary row */}
+          <div className="mt-3 flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-white">
+                {request.originFlag} {request.originCity}
+              </span>
+              <ArrowRight className="h-4 w-4 text-white/40" />
+              <span className="text-sm font-semibold text-white">
+                {request.destinationFlag} {request.destinationCity}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 ml-auto flex-wrap justify-end">
+              {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
+              <UrgencyBadge urgency={request.urgency} />
+              <ConfidenceBadge confidence={request.confidence} />
+            </div>
+          </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex shrink-0 border-b border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
+        {/* ── Tab bar ──────────────────────────────────────────── */}
+        <div className="flex shrink-0" style={{ borderBottom: "1px solid var(--divider)", background: "var(--card-bg)" }}>
           {(["details", "quotes"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-3 text-sm font-semibold capitalize transition-colors border-b-2 -mb-px ${
-                activeTab === tab
-                  ? "border-[#F97316] text-[#F97316]"
-                  : "border-transparent text-[#64748B] hover:text-[#0D1B2A] dark:hover:text-[#E2E8F0]"
-              }`}
+              className="px-5 py-3 text-sm font-semibold capitalize transition-colors -mb-px"
+              style={{
+                borderBottom: activeTab === tab ? "2px solid var(--brand-accent)" : "2px solid transparent",
+                color: activeTab === tab ? "var(--brand-accent)" : "var(--text-secondary)",
+              }}
             >
               {tab === "details" ? "Shipment Details" : "Carrier Quotes"}
             </button>
           ))}
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ── Scrollable body ──────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto" style={{ background: "var(--page-bg)" }}>
+
           {activeTab === "quotes" && (
-            <div className="p-6">
+            <div className="p-5">
               <QuoteComparisonPanel freightRequestId={request.id} />
             </div>
           )}
+
           {activeTab === "details" && (
-          <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-5">
-            {/* Left */}
-            <div className="space-y-6 lg:col-span-3">
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Shipment Details</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {fields.map((f) => (<FieldPill key={f.label} label={f.label} value={f.value} />))}
-                  <div className="col-span-2 flex flex-wrap items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
-                    <span className="text-xs font-medium uppercase tracking-wide text-[#64748B]">Mode</span>
-                    {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
-                    <span className="ml-auto text-xs font-medium uppercase tracking-wide text-[#64748B]">Urgency</span>
-                    <UrgencyBadge urgency={request.urgency} />
-                    <ConfidenceBadge confidence={request.confidence} />
+            <div className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-5">
+
+              {/* ── Left column ────────────────────────────────── */}
+              <div className="space-y-4 lg:col-span-3">
+
+                {/* Cargo details */}
+                <div className="ds-card">
+                  <div className="ds-card-header">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h4>
+                  </div>
+                  <div className="px-5 pb-2">
+                    {cargoFields.map((f) => (
+                      <FieldRow key={f.label} label={f.label} value={f.value} />
+                    ))}
                   </div>
                 </div>
-              </section>
-              {request.specialRequirements.length > 0 && (
-                <section>
-                  <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Special Requirements</h4>
-                  <ol className="space-y-2">
-                    {request.specialRequirements.map((s, i) => (
-                      <li key={i} className="flex gap-3 rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-xs font-semibold text-[#F97316]">{i + 1}</span>
-                        {s}
+
+                {/* Special requirements */}
+                {request.specialRequirements.length > 0 && (
+                  <div className="ds-card">
+                    <div className="ds-card-header">
+                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Special Requirements</h4>
+                    </div>
+                    <ol className="space-y-2 px-5 pb-4">
+                      {request.specialRequirements.map((s, i) => (
+                        <li key={i} className="flex gap-3 rounded-lg px-3 py-2.5 text-sm" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "var(--brand-accent)" }}>{i + 1}</span>
+                          {s}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Availability questions */}
+                {request.availabilityQuestions.length > 0 && (
+                  <div className="ds-card">
+                    <div className="ds-card-header">
+                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Availability Questions</h4>
+                    </div>
+                    <ul className="space-y-2 px-5 pb-4">
+                      {request.availabilityQuestions.map((q, i) => (
+                        <li key={i} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--text-primary)" }}>
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "var(--brand-accent)" }}>?</span>
+                          {q}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Raw message — collapsible */}
+                <div className="ds-card">
+                  <button
+                    type="button"
+                    className="ds-card-header w-full flex items-center justify-between"
+                    onClick={() => setRawExpanded((v) => !v)}
+                  >
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Raw Message</h4>
+                    {rawExpanded
+                      ? <ChevronUp className="h-4 w-4" style={{ color: "var(--text-muted)" }} />
+                      : <ChevronDown className="h-4 w-4" style={{ color: "var(--text-muted)" }} />}
+                  </button>
+                  {rawExpanded && (
+                    <div className="px-5 pb-4">
+                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: "#0f1e36", color: "#e2e8f0" }}>
+                        {request.rawMessage}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+
+                {/* Send panel — inline */}
+                {sendMethod && (
+                  <div
+                    ref={sendPanelRef}
+                    className="ds-card duration-200 animate-in slide-in-from-bottom-2"
+                  >
+                    <div className="ds-card-header">
+                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {sendMethod === "Reply" ? `Reply to ${request.senderName}` : "Send to Carrier via Email"}
+                      </h4>
+                      <button type="button" onClick={() => setSendMethod(null)} style={{ color: "var(--text-muted)" }}>
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-3 p-5">
+                      {sendMethod === "Reply" ? (
+                        <>
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                              {request.source === "Email" ? "Email Address" : "WhatsApp Number"}
+                            </label>
+                            <input
+                              value={replyTo}
+                              onChange={(e) => setReplyTo(e.target.value)}
+                              placeholder={request.source === "Email" ? "sender@example.com" : "+962 79 000 0000"}
+                              className="ds-input w-full"
+                            />
+                          </div>
+                          {criticalFields.length > 0 && (
+                            <label className="flex cursor-pointer items-center gap-2.5">
+                              <input type="checkbox" checked={onlyCritical} onChange={(e) => setOnlyCritical(e.target.checked)} className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
+                              <span className="text-sm" style={{ color: "var(--text-primary)" }}>Only ask for critical missing data</span>
+                              {onlyCritical && (
+                                <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "rgba(232,130,26,0.12)", color: "var(--brand-accent)" }}>
+                                  {criticalFields.join(", ").replace(/_/g, " ")}
+                                </span>
+                              )}
+                            </label>
+                          )}
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                              Message <span className="font-normal normal-case" style={{ color: "var(--text-muted)" }}>— editable before sending</span>
+                            </label>
+                            <textarea
+                              value={messageBody}
+                              onChange={(e) => setMessageBody(e.target.value)}
+                              rows={8}
+                              className="w-full rounded-lg px-3 py-2.5 font-mono text-xs leading-relaxed outline-none"
+                              style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button type="button" onClick={handleSend} disabled={!replyTo}
+                              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                              style={{ background: "#0f1e36" }}>
+                              {request.source === "Email" ? <><Mail className="h-4 w-4" /> Open in Email App</> : <><MessageCircle className="h-4 w-4" /> Open in WhatsApp</>}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                                Carrier {isReminder && <Lock className="h-3 w-3" style={{ color: "var(--text-muted)" }} />}
+                              </label>
+                              {isReminder && sentToCarrier ? (
+                                <div className="flex h-10 items-center gap-2 rounded-lg px-3 text-sm" style={{ border: "1px solid var(--card-border)", background: "var(--table-header-bg)", color: "var(--text-primary)" }}>
+                                  <Lock className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+                                  {sentToCarrier.carrier_name} — {sentToCarrier.person_name}
+                                </div>
+                              ) : (
+                                <div className="max-h-44 overflow-y-auto rounded-lg" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
+                                  {availableCarriersForEmail.length === 0 ? (
+                                    <p className="px-3 py-3 text-sm" style={{ color: "var(--text-muted)" }}>No carriers available for this mode.</p>
+                                  ) : availableCarriersForEmail.map((c) => {
+                                    const checked = selectedCarrierIds.includes(String(c.carrier_id))
+                                    return (
+                                      <label
+                                        key={c.carrier_id}
+                                        className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors"
+                                        style={{
+                                          borderBottom: "1px solid var(--divider)",
+                                          background: checked ? "rgba(232,130,26,0.06)" : "transparent",
+                                        }}
+                                      >
+                                        <input type="checkbox" checked={checked} onChange={() => toggleCarrier(String(c.carrier_id))} className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                                            {c.carrier_name}
+                                            <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>— {c.person_name}</span>
+                                          </p>
+                                          <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+                                            {c.email}
+                                            {c.cc_emails.length > 0 && <span className="ml-1.5" style={{ color: "var(--text-muted)" }}>CC: {c.cc_emails.join(", ")}</span>}
+                                          </p>
+                                        </div>
+                                      </label>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Template</label>
+                              <select
+                                value={templateId}
+                                onChange={(e) => onSelectTemplate(e.target.value)}
+                                className="h-10 w-full rounded-lg px-3 text-sm outline-none"
+                                style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+                              >
+                                <option value="">Select template…</option>
+                                {templates.map((t) => (
+                                  <option key={t.template_id} value={String(t.template_id)}>
+                                    {t.template_name}{t.is_default ? " (Default)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                              Message <span className="font-normal normal-case" style={{ color: "var(--text-muted)" }}>— editable before sending</span>
+                            </label>
+                            <textarea
+                              value={messageBody}
+                              onChange={(e) => setMessageBody(e.target.value)}
+                              rows={7}
+                              placeholder="Type your message here, or select a template above to pre-fill…"
+                              className="w-full rounded-lg px-3 py-2.5 font-mono text-xs leading-relaxed outline-none"
+                              style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button type="button" onClick={handleSend} disabled={selectedCarrierIds.length === 0}
+                              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                              style={{ background: "var(--brand-accent)" }}>
+                              <Mail className="h-4 w-4" />
+                              {isReminder ? "Send Reminder via Email" : "Open in Email App"}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Right sidebar ───────────────────────────────── */}
+              <div className="space-y-4 lg:col-span-2">
+
+                {/* Sender card */}
+                <div className="ds-card">
+                  <div className="ds-card-header">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Sender</h4>
+                  </div>
+                  <div className="space-y-2.5 px-5 pb-4">
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{request.senderName}</p>
+                    <CopyRow icon={Mail} value={request.senderEmail} />
+                    <CopyRow icon={Phone} value={request.senderPhone} />
+                    <div className="flex items-center gap-2 pt-1">
+                      <SourceBadge source={request.source} />
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{request.receivedExact}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="ds-card">
+                  <div className="ds-card-header">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
+                    <StatusBadge status={request.status} />
+                  </div>
+                  <ol className="relative space-y-4 px-5 pb-4" style={{ borderLeft: "none" }}>
+                    {request.history.map((e) => (
+                      <li key={e.label} className="relative flex gap-3">
+                        <span
+                          className="mt-0.5 h-3 w-3 shrink-0 rounded-full ring-2"
+                          style={{
+                            background: e.done ? "var(--brand-accent)" : "var(--card-border)",
+                            ringColor: "var(--card-bg)",
+                          }}
+                        />
+                        <div>
+                          <p className={`text-sm ${e.done ? "font-medium" : "font-normal"}`} style={{ color: e.done ? "var(--text-primary)" : "var(--text-muted)" }}>{e.label}</p>
+                          <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{e.time}</p>
+                        </div>
                       </li>
                     ))}
                   </ol>
-                </section>
-              )}
-              {request.availabilityQuestions.length > 0 && (
-                <section>
-                  <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Availability Questions</h4>
-                  <ul className="space-y-2">
-                    {request.availabilityQuestions.map((q, i) => (
-                      <li key={i} className="flex items-center gap-2.5 text-sm text-[#0F172A] dark:text-[#E2E8F0]">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-xs font-bold text-[#F97316]">?</span>
-                        {q}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Raw Message</h4>
-                <pre className="max-h-36 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[#1E293B] p-4 font-mono text-xs leading-relaxed text-[#E2E8F0]">{request.rawMessage}</pre>
-              </section>
-            </div>
+                </div>
 
-            {/* Right */}
-            <div className="space-y-6 lg:col-span-2">
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Sender Information</h4>
-                <div className="space-y-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
-                  <p className="text-sm font-semibold text-[#0F172A] dark:text-[#E2E8F0]">{request.senderName}</p>
-                  <CopyRow icon={Mail} value={request.senderEmail} />
-                  <CopyRow icon={Phone} value={request.senderPhone} />
-                  <div className="flex items-center gap-2 pt-1">
-                    <SourceBadge source={request.source} />
-                    <span className="text-xs text-[#64748B]">{request.receivedExact}</span>
+                {/* Special flags */}
+                <div className="ds-card">
+                  <div className="ds-card-header">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Special Flags</h4>
                   </div>
-                </div>
-              </section>
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Request Status</h4>
-                <div className="mb-4"><StatusBadge status={request.status} /></div>
-                <ol className="relative space-y-4 border-l border-[#E2E8F0] pl-5 dark:border-[#1E3A5F]">
-                  {request.history.map((e) => (
-                    <li key={e.label} className="relative">
-                      <span className={`absolute -left-[23px] top-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-[#0D1B2A] ${e.done ? "bg-[#F97316]" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"}`} />
-                      <p className={`text-sm ${e.done ? "font-medium text-[#0F172A] dark:text-[#E2E8F0]" : "text-[#94A3B8]"}`}>{e.label}</p>
-                      <p className="text-xs tabular-nums text-[#64748B]">{e.time}</p>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Special Flags</h4>
-                <div className="space-y-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-4 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2"><AogBadge /><span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Aircraft on Ground</span></div>
-                    {canEditFlags ? (
-                      <button type="button" disabled={flagSaving} onClick={() => toggleFlag("aog")} aria-pressed={aogLocal} aria-label="Toggle AOG flag"
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:opacity-50 ${aogLocal ? "bg-red-600" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"}`}>
-                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${aogLocal ? "translate-x-6" : "translate-x-1"}`} />
-                      </button>
-                    ) : (
-                      <span className={`text-xs font-bold ${aogLocal ? "text-red-600" : "text-[#94A3B8]"}`}>{aogLocal ? "YES" : "NO"}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2"><DgrBadge /><span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Dangerous Goods</span></div>
-                    {canEditFlags ? (
-                      <button type="button" disabled={flagSaving} onClick={() => toggleFlag("dgr")} aria-pressed={dgrLocal} aria-label="Toggle DGR flag"
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 disabled:opacity-50 ${dgrLocal ? "bg-orange-500" : "bg-[#CBD5E1] dark:bg-[#1E3A5F]"}`}>
-                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${dgrLocal ? "translate-x-6" : "translate-x-1"}`} />
-                      </button>
-                    ) : (
-                      <span className={`text-xs font-bold ${dgrLocal ? "text-orange-500" : "text-[#94A3B8]"}`}>{dgrLocal ? "YES" : "NO"}</span>
-                    )}
-                  </div>
-                  {canEditFlags && <p className="text-[11px] text-[#94A3B8]">Auto-detected from keywords. Toggle to override.</p>}
-                </div>
-              </section>
-              <section>
-                <h4 className="mb-3 text-sm font-bold text-[#0D1B2A] dark:text-[#E2E8F0]">Reply Thread</h4>
-                {request.conversation && request.conversation.length > 0 ? (
-                  <div className="space-y-2">
-                    {request.conversation.map((msg: ConversationMessage, i: number) => (
-                      <div
-                        key={i}
-                        className={`rounded-lg p-3 text-xs leading-relaxed ${
-                          msg.role === "system"
-                            ? "border border-blue-100 bg-blue-50 dark:border-blue-800/30 dark:bg-blue-950/30"
-                            : "border border-[#E2E8F0] bg-[#F8FAFC] dark:border-[#1E3A5F] dark:bg-[#0F1E33]"
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <span className={`font-semibold ${msg.role === "system" ? "text-blue-600 dark:text-blue-400" : "text-[#0F172A] dark:text-[#E2E8F0]"}`}>
-                            {msg.role === "system" ? "System" : request.senderName}
-                          </span>
-                          <span className="shrink-0 text-[10px] tabular-nums text-[#94A3B8]">
-                            {new Date(msg.sent_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                        <p className="whitespace-pre-wrap text-[#475569] dark:text-[#94A3B8]">{msg.body}</p>
+                  <div className="space-y-3 px-5 pb-4">
+                    {/* AOG */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <AogBadge />
+                        <span className="text-sm" style={{ color: "var(--text-primary)" }}>Aircraft on Ground</span>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-dashed border-[#CBD5E1] px-4 py-3 text-center text-xs text-[#94A3B8] dark:border-[#1E3A5F]">
-                    No replies sent yet.
-                  </p>
-                )}
-              </section>
-            </div>
-          </div>
-          )}
-
-          {/* Send panel */}
-          {sendMethod && (
-            <div ref={sendPanelRef} className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-4 duration-200 animate-in slide-in-from-bottom-2 dark:border-[#1E3A5F] dark:bg-[#0F1E33]">
-              {sendMethod === "Reply" ? (
-                <>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">Replying to <span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.senderName}</span>{" "}via{" "}<span className="text-[#0D1B2A] dark:text-[#E2E8F0]">{request.source}</span></p>
-                  <div className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">{request.source === "Email" ? "Email Address" : "WhatsApp Number"}</label>
-                    <input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder={request.source === "Email" ? "sender@example.com" : "+962 79 000 0000"} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
-                  </div>
-                  {criticalFields.length > 0 && (
-                    <div className="mb-3">
-                      <label className="flex cursor-pointer items-center gap-2.5">
-                        <input type="checkbox" checked={onlyCritical} onChange={(e) => setOnlyCritical(e.target.checked)} className="h-4 w-4 accent-[#F97316]" />
-                        <span className="text-sm text-[#0F172A] dark:text-[#E2E8F0]">Only ask for critical missing data</span>
-                        {onlyCritical && <span className="rounded-full bg-[#FFF7ED] px-2 py-0.5 text-[11px] font-semibold text-[#F97316]">{criticalFields.join(", ").replace(/_/g, " ")}</span>}
-                      </label>
-                    </div>
-                  )}
-                  <div className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Message<span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span></label>
-                    <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={9} className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={handleSend} disabled={!replyTo} className="inline-flex items-center gap-2 rounded-md bg-[#0D1B2A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1E3A5F] disabled:cursor-not-allowed disabled:opacity-50">
-                      {request.source === "Email" ? <><Mail className="h-4 w-4" /> Open in Email App</> : <><MessageCircle className="h-4 w-4" /> Open in WhatsApp</>}
-                    </button>
-                    <button type="button" onClick={() => setSendMethod(null)} className="text-sm font-medium text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">Cancel</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#64748B]">Carrier {isReminder && <Lock className="h-3 w-3 text-[#94A3B8]" />}</label>
-                      {isReminder && sentToCarrier ? (
-                        <div className="flex h-10 items-center gap-2 rounded-md border border-[#E2E8F0] bg-[#F1F5F9] px-3 text-sm text-[#0F172A] dark:border-[#1E3A5F] dark:bg-[#1A2A40] dark:text-[#E2E8F0]">
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />{sentToCarrier.carrier_name} — {sentToCarrier.person_name}
-                        </div>
+                      {canEditFlags ? (
+                        <button
+                          type="button"
+                          disabled={flagSaving}
+                          onClick={() => toggleFlag("aog")}
+                          aria-pressed={aogLocal}
+                          aria-label="Toggle AOG flag"
+                          className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:opacity-50"
+                          style={{ background: aogLocal ? "#ef4444" : "var(--card-border)" }}
+                        >
+                          <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform" style={{ transform: aogLocal ? "translateX(24px)" : "translateX(4px)" }} />
+                        </button>
                       ) : (
-                        <div className="max-h-44 overflow-y-auto rounded-md border border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#111E33]">
-                          {availableCarriersForEmail.length === 0 ? (
-                            <p className="px-3 py-3 text-sm text-[#94A3B8]">No carriers available for this mode.</p>
-                          ) : availableCarriersForEmail.map((c) => {
-                            const checked = selectedCarrierIds.includes(String(c.carrier_id))
-                            return (
-                              <label key={c.carrier_id} className={`flex cursor-pointer items-center gap-3 border-b border-[#E2E8F0] px-3 py-2.5 last:border-b-0 transition-colors hover:bg-[#F8FAFC] dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${checked ? "bg-[#FFF7ED] dark:bg-[#2A1800]" : ""}`}>
-                                <input type="checkbox" checked={checked} onChange={() => toggleCarrier(String(c.carrier_id))} className="h-4 w-4 accent-[#F97316]" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">{c.carrier_name}<span className="ml-1.5 font-normal text-[#64748B]">— {c.person_name}</span></p>
-                                  <p className="truncate text-xs text-[#64748B]">{c.email}{c.cc_emails.length > 0 && <span className="ml-1.5 text-[#94A3B8]">CC: {c.cc_emails.join(", ")}</span>}</p>
-                                </div>
-                              </label>
-                            )
-                          })}
-                        </div>
+                        <span className="text-xs font-bold" style={{ color: aogLocal ? "#ef4444" : "var(--text-muted)" }}>{aogLocal ? "YES" : "NO"}</span>
                       )}
                     </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Template</label>
-                      <select value={templateId} onChange={(e) => onSelectTemplate(e.target.value)} className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]">
-                        <option value="">Select template...</option>
-                        {templates.map((t) => (<option key={t.template_id} value={String(t.template_id)}>{t.template_name}{t.is_default ? " (Default)" : ""}</option>))}
-                      </select>
+                    {/* DGR */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <DgrBadge />
+                        <span className="text-sm" style={{ color: "var(--text-primary)" }}>Dangerous Goods</span>
+                      </div>
+                      {canEditFlags ? (
+                        <button
+                          type="button"
+                          disabled={flagSaving}
+                          onClick={() => toggleFlag("dgr")}
+                          aria-pressed={dgrLocal}
+                          aria-label="Toggle DGR flag"
+                          className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:opacity-50"
+                          style={{ background: dgrLocal ? "#f97316" : "var(--card-border)" }}
+                        >
+                          <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform" style={{ transform: dgrLocal ? "translateX(24px)" : "translateX(4px)" }} />
+                        </button>
+                      ) : (
+                        <span className="text-xs font-bold" style={{ color: dgrLocal ? "#f97316" : "var(--text-muted)" }}>{dgrLocal ? "YES" : "NO"}</span>
+                      )}
                     </div>
+                    {canEditFlags && <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Auto-detected from keywords. Toggle to override.</p>}
                   </div>
+                </div>
 
-                  <div className="mt-3">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">Message<span className="ml-1.5 font-normal normal-case text-[#94A3B8]">— editable before sending</span></label>
-                    <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={8} placeholder="Type your message here, or select a template above to pre-fill…" className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#0F172A] outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]" />
+                {/* Reply thread */}
+                <div className="ds-card">
+                  <div className="ds-card-header">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Reply Thread</h4>
                   </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <button type="button" onClick={handleSend} disabled={selectedCarrierIds.length === 0} className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50">
-                      <Mail className="h-4 w-4" />{isReminder ? "Send Reminder via Email" : "Open in Email App"}
-                    </button>
-                    <button type="button" onClick={() => setSendMethod(null)} className="text-sm font-medium text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#E2E8F0]">Cancel</button>
+                  <div className="px-5 pb-4">
+                    {request.conversation && request.conversation.length > 0 ? (
+                      <div className="space-y-2">
+                        {request.conversation.map((msg: ConversationMessage, i: number) => (
+                          <div
+                            key={i}
+                            className="rounded-lg p-3 text-xs leading-relaxed"
+                            style={{
+                              border: msg.role === "system"
+                                ? "1px solid rgba(59,130,246,0.2)"
+                                : "1px solid var(--card-border)",
+                              background: msg.role === "system"
+                                ? "rgba(59,130,246,0.06)"
+                                : "var(--table-header-bg)",
+                            }}
+                          >
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <span className="font-semibold" style={{ color: msg.role === "system" ? "#3b82f6" : "var(--text-primary)" }}>
+                                {msg.role === "system" ? "System" : request.senderName}
+                              </span>
+                              <span className="shrink-0 text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                                {new Date(msg.sent_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                            <p className="whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>{msg.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-lg px-4 py-3 text-center text-xs" style={{ border: "1px dashed var(--card-border)", color: "var(--text-muted)" }}>
+                        No replies sent yet.
+                      </p>
+                    )}
                   </div>
-                </>
-              )}
+                </div>
+
+              </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="shrink-0 border-t border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
-          <div className="flex flex-col gap-3 p-4 sm:flex-row">
+        {/* ── Footer ───────────────────────────────────────────── */}
+        <div className="shrink-0" style={{ borderTop: "1px solid var(--divider)", background: "var(--card-bg)" }}>
+          <div className="flex gap-3 p-4">
+            {/* Send to Carrier */}
             <div className="flex flex-1 flex-col gap-1.5">
-              <button type="button" onClick={() => !isCriticalBlocked && openPanel("Email")} disabled={isCriticalBlocked} title={isCriticalBlocked ? `Missing critical data: ${criticalMissingLabels.join(", ")}` : undefined}
-                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${isCriticalBlocked ? "cursor-not-allowed bg-[#F97316]/40 text-white" : sendMethod === "Email" ? "bg-[#EA580C] text-white hover:scale-[1.01]" : "bg-[#F97316] text-white hover:scale-[1.01] hover:bg-[#EA580C]"}`}>
-                <Mail className="h-4 w-4" />{isReminder ? "Send Reminder via Email" : "Send to Carrier via Email"}{isCriticalBlocked && <Lock className="h-3.5 w-3.5 opacity-70" />}
+              <button
+                type="button"
+                onClick={() => !isCriticalBlocked && openPanel("Email")}
+                disabled={isCriticalBlocked}
+                title={isCriticalBlocked ? `Missing critical data: ${criticalMissingLabels.join(", ")}` : undefined}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all"
+                style={{
+                  background: isCriticalBlocked
+                    ? "rgba(232,130,26,0.4)"
+                    : sendMethod === "Email"
+                    ? "#c8701a"
+                    : "var(--brand-accent)",
+                  cursor: isCriticalBlocked ? "not-allowed" : "pointer",
+                }}
+              >
+                <Mail className="h-4 w-4" />
+                {isReminder ? "Send Reminder" : "Send to Carrier"}
+                {isCriticalBlocked && <Lock className="h-3.5 w-3.5 opacity-70" />}
               </button>
               {isCriticalBlocked && (
-                <div className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-400">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>Missing critical data: <span className="font-semibold">{criticalMissingLabels.join(", ")}</span>. Reply to the sender to collect it first.</span>
+                <div className="flex items-start gap-1.5 rounded-lg px-3 py-2 text-xs" style={{ border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)", color: "#92400e" }}>
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <span>Missing: <strong>{criticalMissingLabels.join(", ")}</strong></span>
                 </div>
               )}
             </div>
-          </div>
-          <div className="border-t border-[#E2E8F0] px-4 pb-4 pt-3 dark:border-[#1E3A5F]">
-            {(() => {
-              const lastMsg = request.conversation?.[request.conversation.length - 1]
-              const awaitingSenderReply = lastMsg?.role === "system"
-              return (
-                <div className="flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => !awaitingSenderReply && openPanel("Reply")}
-                    disabled={awaitingSenderReply}
-                    title={awaitingSenderReply ? "Awaiting sender reply — reply button re-enables when they respond" : undefined}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition-all ${
-                      awaitingSenderReply
-                        ? "cursor-not-allowed border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#475569]"
-                        : sendMethod === "Reply"
-                        ? "border-[#0D1B2A] bg-[#0D1B2A] text-white"
-                        : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:scale-[1.01] hover:border-[#0D1B2A] dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0] dark:hover:border-[#475569]"
-                    }`}
-                  >
-                    {awaitingSenderReply ? <MessageSquareReply className="h-4 w-4" /> : <Reply className="h-4 w-4" />}
-                    {awaitingSenderReply ? "Awaiting reply from " : "Reply to "}{request.senderName}
-                    {missingCount > 0 && !awaitingSenderReply && (
-                      <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{missingCount}</span>
-                    )}
-                  </button>
-                  {awaitingSenderReply && (
-                    <p className="text-center text-[11px] text-[#94A3B8]">
-                      Reply sent{request.replySentType ? ` (${request.replySentType.replace(/_/g, " ")})` : ""}. Re-enables when {request.senderName} responds.
-                    </p>
-                  )}
-                </div>
-              )
-            })()}
+
+            {/* Reply to Sender */}
+            <div className="flex flex-1 flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => !awaitingSenderReply && openPanel("Reply")}
+                disabled={awaitingSenderReply}
+                title={awaitingSenderReply ? "Awaiting sender reply" : undefined}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all"
+                style={{
+                  border: "1px solid var(--card-border)",
+                  background: awaitingSenderReply ? "var(--table-header-bg)" : sendMethod === "Reply" ? "#0f1e36" : "var(--card-bg)",
+                  color: awaitingSenderReply ? "var(--text-muted)" : sendMethod === "Reply" ? "white" : "var(--text-primary)",
+                  cursor: awaitingSenderReply ? "not-allowed" : "pointer",
+                }}
+              >
+                <Reply className="h-4 w-4" />
+                {awaitingSenderReply ? "Awaiting reply…" : `Reply to ${request.senderName}`}
+                {missingCount > 0 && !awaitingSenderReply && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white" style={{ background: "#ef4444" }}>
+                    {missingCount}
+                  </span>
+                )}
+              </button>
+              {awaitingSenderReply && (
+                <p className="text-center text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  Reply sent{request.replySentType ? ` (${request.replySentType.replace(/_/g, " ")})` : ""}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Approval confirmation dialog */}
+        {/* ── Approval confirmation dialog ──────────────────────── */}
         {showApprovalConfirm && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-t-2xl bg-black/40 sm:rounded-2xl">
-            <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl dark:bg-[#0D1B2A]">
+            <div className="mx-4 w-full max-w-sm rounded-xl p-6 shadow-2xl" style={{ background: "var(--card-bg)" }}>
               <div className="mb-1 flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-[#F97316]" />
-                <h3 className="font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">Send for Approval</h3>
+                <CheckSquare className="h-5 w-5" style={{ color: "var(--brand-accent)" }} />
+                <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Send for Approval</h3>
               </div>
-              <p className="mt-2 text-sm text-[#64748B] dark:text-[#94A3B8]">
-                {showApprovalConfirm === "Email" ? "This request will be routed through your approval workflow before the carrier email is sent." : "This reply will be routed through your approval workflow before it is sent."}
+              <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+                {showApprovalConfirm === "Email"
+                  ? "This request will be routed through your approval workflow before the carrier email is sent."
+                  : "This reply will be routed through your approval workflow before it is sent."}
               </p>
               <div className="mt-5 flex gap-3">
-                <button type="button" onClick={() => setShowApprovalConfirm(null)} className="flex-1 rounded-md border border-[#E2E8F0] px-4 py-2 text-sm font-semibold text-[#64748B] transition-colors hover:border-[#0D1B2A] hover:text-[#0D1B2A] dark:border-[#1E3A5F] dark:hover:border-[#475569] dark:hover:text-[#E2E8F0]">Cancel</button>
-                <button type="button" disabled={submittingApproval} onClick={async () => { await submitForApproval(); setShowApprovalConfirm(null) }}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:opacity-50">
-                  {submittingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Confirm
+                <button
+                  type="button"
+                  onClick={() => setShowApprovalConfirm(null)}
+                  className="flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
+                  style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={submittingApproval}
+                  onClick={async () => { await submitForApproval(); setShowApprovalConfirm(null) }}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                  style={{ background: "var(--brand-accent)" }}
+                >
+                  {submittingApproval ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Confirm
                 </button>
               </div>
             </div>
@@ -726,6 +977,8 @@ export function RequestDetailModal({
     </div>
   )
 }
+
+/* ── Helpers ─────────────────────────────────────────────────── */
 
 function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier | undefined, templates: Template[]): string {
   const t = templates.find((x) => String(x.template_id) === tId)
@@ -748,28 +1001,4 @@ function parseArrayField(value: string | null | undefined): string {
   if (!value) return ""
   try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed.join("\n") } catch { /* not JSON */ }
   return value
-}
-
-function FieldPill({ label, value }: { label: string; value: string | null }) {
-  const display = parseArrayField(value)
-  const missing = !display || display === "—"
-  return (
-    <div className={`rounded-md border px-3 py-2 ${missing ? "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30" : "border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#111E33]"}`}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[#64748B]">{label}</p>
-      <p className={`whitespace-pre-line text-sm font-medium ${missing ? "text-red-600 dark:text-red-400" : "text-[#0D1B2A] dark:text-[#E2E8F0]"}`}>{missing ? "Missing" : display}</p>
-    </div>
-  )
-}
-
-function CopyRow({ icon: Icon, value }: { icon: typeof Mail; value: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />
-      <span className="flex-1 truncate text-sm text-[#0F172A] dark:text-[#E2E8F0]">{value}</span>
-      <button type="button" aria-label="Copy" onClick={() => { navigator.clipboard?.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }} className="text-[#94A3B8] transition-colors hover:text-[#F97316]">
-        {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-      </button>
-    </div>
-  )
 }

@@ -1,14 +1,7 @@
 "use client"
 
-/**
- * app/(portal)/requests/page.tsx
- *
- * Fetches freight requests from /api/requests (server-side, service role).
- * Realtime subscription is replaced with 30-second polling + manual refresh,
- * because Supabase realtime requires auth that we no longer use client-side.
- */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { FileText, Loader2, RefreshCw, Search } from "lucide-react"
+import { FileText, Filter, Loader2, RefreshCw, Search, X } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { AogBadge, ConfidenceBadge, DgrBadge, SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
@@ -36,33 +29,30 @@ const sourceOptions = [
   { value: "WhatsApp" as const,    label: "WhatsApp" },
 ]
 
-const POLL_INTERVAL = 30_000 // 30 s
-
+const POLL_INTERVAL = 30_000
 
 function parseArrayField(value: string | null | undefined): string {
   if (!value) return ""
   try {
     const parsed = JSON.parse(value)
-    if (Array.isArray(parsed)) return parsed.join("\n")
+    if (Array.isArray(parsed)) return parsed.join(", ")
   } catch { /* not JSON */ }
   return value
 }
 
 export default function RequestsPage() {
-  const [requests, setRequests]     = useState<FreightRequest[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [requests, setRequests]         = useState<FreightRequest[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [lastUpdated, setLastUpdated]   = useState<Date | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "All">("Pending")
   const [sourceFilter, setSourceFilter] = useState<Source | "All Sources">("All Sources")
   const [search, setSearch]             = useState("")
   const [selected, setSelected]         = useState<string[]>([])
-  const [showRfqModal, setShowRfqModal]   = useState(false)
+  const [showRfqModal, setShowRfqModal] = useState(false)
   const [active, setActive]             = useState<FreightRequest | null>(null)
-
-  const [bulkBusy, setBulkBusy] = useState(false)
-  const { success, error: toastError } = useToast()
-
+  const [bulkBusy, setBulkBusy]         = useState(false)
+  const { success, error: toastError }  = useToast()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = useCallback(async (silent = false) => {
@@ -73,7 +63,6 @@ export default function RequestsPage() {
       const data: FreightRequest[] = await res.json()
       setRequests(data)
       setLastUpdated(new Date())
-      // Reflect updates inside open modal
       setActive((prev) => {
         if (!prev) return prev
         const updated = data.find((r) => r.id === prev.id)
@@ -88,14 +77,10 @@ export default function RequestsPage() {
 
   useEffect(() => {
     load()
-    // Poll silently every 30 s for new/updated rows
     pollRef.current = setInterval(() => load(true), POLL_INTERVAL)
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
-    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [load])
 
-  // ── Filters ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const base = requests.filter((r) => {
       if (statusFilter !== "All" && r.status !== statusFilter) return false
@@ -107,16 +92,14 @@ export default function RequestsPage() {
       }
       return true
     })
-    // AOG always first, then DGR-only, then the rest — within each tier sort by received date
     return base.sort((a, b) => {
       const scoreA = (a.aog ? 2 : 0) + (a.dgr ? 1 : 0)
       const scoreB = (b.aog ? 2 : 0) + (b.dgr ? 1 : 0)
       if (scoreB !== scoreA) return scoreB - scoreA
-      return 0 // preserve server order (newest first)
+      return 0
     })
   }, [requests, statusFilter, sourceFilter, search])
 
-  // ── Selection ─────────────────────────────────────────────────
   function toggle(id: string, e: React.MouseEvent) {
     e.stopPropagation()
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -124,6 +107,8 @@ export default function RequestsPage() {
   function toggleAll() {
     setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
   }
+
+  const hasActiveFilters = statusFilter !== "Pending" || sourceFilter !== "All Sources" || search !== ""
 
   async function bulkUpdateStatus(newStatus: string) {
     if (bulkBusy || selected.length === 0) return
@@ -159,12 +144,12 @@ export default function RequestsPage() {
   if (loading) {
     return (
       <div className="portal-page space-y-5 p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight" style={{color:"var(--text-primary)",fontFamily:"var(--font-sans)"}}>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
             Requests
           </h2>
         </div>
-        <div className="flex items-center justify-center gap-2 py-24 text-[var(--text-muted)]">
+        <div className="flex items-center justify-center gap-2 py-24" style={{ color: "var(--text-muted)" }}>
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Loading requests…</span>
         </div>
@@ -173,23 +158,34 @@ export default function RequestsPage() {
   }
 
   return (
-    <div className="portal-page space-y-5 p-6">
+    <div className="portal-page space-y-4 p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold tracking-tight" style={{color:"var(--text-primary)",fontFamily:"var(--font-sans)"}}>
+          <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
             Requests
           </h2>
-          {lastUpdated && (
-            <button onClick={() => load()}
-              title={`Last synced ${lastUpdated.toLocaleTimeString()}`}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs" style={{color:"var(--text-muted)"}}>
-              <RefreshCw className="h-3 w-3" />
-              <span className="hidden sm:inline">Live</span>
-            </button>
-          )}
+          <span className="rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums" style={{ background: "rgba(232,130,26,0.12)", color: "var(--brand-accent)" }}>
+            {requests.length}
+          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => load()}
+          title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+          style={{ color: "var(--text-secondary)", border: "1px solid var(--card-border)", background: "var(--card-bg)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)" }}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Filter bar */}
+      <div className="ds-card">
+        <div className="flex flex-wrap items-center gap-2 p-3">
+          <Filter className="h-4 w-4 shrink-0" style={{ color: "var(--text-muted)" }} />
           <Select
             value={statusFilter}
             onChange={(v) => setStatusFilter(v as RequestStatus | "All")}
@@ -200,124 +196,189 @@ export default function RequestsPage() {
             onChange={(v) => setSourceFilter(v as Source | "All Sources")}
             options={sourceOptions}
           />
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, cargo, route..."
-              className="h-9 w-full rounded border border-[#D1D9E0] bg-white pl-9 pr-3 text-sm outline-none focus:border-[var(--brand-accent)] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] sm:w-64" />
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, cargo, route…"
+              className="h-9 w-full rounded-lg pl-9 pr-8 text-sm outline-none"
+              style={{
+                border: "1px solid var(--card-border)",
+                background: "var(--card-bg)",
+                color: "var(--text-primary)",
+              }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setStatusFilter("Pending"); setSourceFilter("All Sources"); setSearch("") }}
+              className="text-xs font-medium"
+              style={{ color: "var(--brand-accent)" }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Bulk actions */}
+      {/* Bulk action bar */}
       {selected.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-4 py-3 dark:bg-[#1A1200]">
-          <span className="text-sm font-medium text-[var(--text-primary)]">{selected.length} requests selected</span>
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-3"
+          style={{ background: "rgba(232,130,26,0.08)", border: "1px solid rgba(232,130,26,0.25)" }}
+        >
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            {selected.length} selected
+          </span>
           <button
             onClick={() => setShowRfqModal(true)}
             disabled={bulkBusy}
-            className="flex items-center gap-1.5 rounded bg-[var(--brand-accent)] px-3 py-1.5 text-sm font-bold text-white hover:bg-[var(--brand-accent-hover)] disabled:opacity-50">
+            className="rounded-md px-3 py-1.5 text-sm font-bold text-white transition-colors disabled:opacity-50"
+            style={{ background: "var(--brand-accent)" }}
+          >
             Send to Carriers
           </button>
           <button
             onClick={() => bulkUpdateStatus("Closed")}
             disabled={bulkBusy}
-            className="flex items-center gap-1.5 rounded border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-bold text-[#0F172A] hover:border-[var(--brand-accent)]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]">
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+          >
             {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Mark as Closed
+          </button>
+          <button
+            onClick={() => setSelected([])}
+            className="ml-auto text-xs"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Clear
           </button>
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-hidden ds-card">
+      <div className="ds-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[#f7f8fa] text-[11px] uppercase tracking-[0.06em] text-[#8a9ab0] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead style={{ background: "var(--table-header-bg)" }}>
               <tr>
                 <th className="w-10 px-4 py-3">
-                  <input type="checkbox" aria-label="Select all"
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
                     checked={filtered.length > 0 && selected.length === filtered.length}
-                    onChange={toggleAll} onClick={(e) => e.stopPropagation()}
-                    className="h-4 w-4 accent-[#F97316]" />
+                    onChange={toggleAll}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4"
+                    style={{ accentColor: "var(--brand-accent)" }}
+                  />
                 </th>
-                <th className="px-4 py-3 font-semibold">Source</th>
-                <th className="px-4 py-3 font-semibold">Sender</th>
-                <th className="px-4 py-3 font-semibold">Route</th>
-                <th className="px-4 py-3 font-semibold">Cargo</th>
-                <th className="px-4 py-3 font-semibold">Received</th>
-                <th className="px-4 py-3 font-semibold">Confidence</th>
-                <th className="px-4 py-3 font-semibold">Flags</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Actions</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Source</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Sender</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Route</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Cargo</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Received</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Confidence</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Flags</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => (
-                <tr key={r.id} onClick={() => setActive(r)}
-                  className={`cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[var(--brand-accent)]/10 dark:border-[#1E3A5F] dark:hover:bg-[#1A2A40] ${
-                    r.aog ? "bg-red-50/60 dark:bg-red-950/20 border-l-2 border-l-red-500" : i % 2 === 1 ? "bg-[#F8FAFC] dark:bg-[#0E1A2E]" : "bg-[var(--card-bg)]"
-                  }`}>
-                  <td className="px-4 py-3">
-                    <input type="checkbox" aria-label={`Select ${r.senderName}`}
-                      checked={selected.includes(r.id)} onChange={() => {}}
-                      onClick={(e) => toggle(r.id, e)} className="h-4 w-4 accent-[#F97316]" />
-                  </td>
-                  <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-[var(--text-primary)]">{r.senderName}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-primary)]">
-                    <span className="whitespace-nowrap">{r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-[var(--text-primary)]">{r.cargoType}</p>
-                    <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line">{parseArrayField(r.equipment)}</p>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-[var(--text-secondary)]" title={r.receivedExact}>
-                    {r.receivedRelative}
-                  </td>
-                  <td className="px-4 py-3"><ConfidenceBadge confidence={r.confidence} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {r.aog && <AogBadge />}
-                      {r.dgr && <DgrBadge />}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                  <td className="px-4 py-3">
-                    <button onClick={(e) => { e.stopPropagation(); setActive(r) }}
-                      className="rounded border border-[var(--brand-accent)] px-3 py-1.5 text-xs font-bold text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)]/10 dark:hover:bg-[#1A1200]">
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((r) => {
+                const isAog = r.aog
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => setActive(r)}
+                    className="cursor-pointer transition-colors"
+                    style={{
+                      borderTop: "1px solid var(--divider)",
+                      background: isAog ? "rgba(239,68,68,0.04)" : "var(--card-bg)",
+                      borderLeft: isAog ? "3px solid #ef4444" : undefined,
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = isAog ? "rgba(239,68,68,0.08)" : "var(--hover-bg)" }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isAog ? "rgba(239,68,68,0.04)" : "var(--card-bg)" }}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${r.senderName}`}
+                        checked={selected.includes(r.id)}
+                        onChange={() => {}}
+                        onClick={(e) => toggle(r.id, e)}
+                        className="h-4 w-4"
+                        style={{ accentColor: "var(--brand-accent)" }}
+                      />
+                    </td>
+                    <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>{r.senderName}</p>
+                      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="whitespace-nowrap font-medium" style={{ color: "var(--text-primary)" }}>
+                        {r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
+                      {r.equipment && (
+                        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
+                      {r.receivedRelative}
+                    </td>
+                    <td className="px-4 py-3"><ConfidenceBadge confidence={r.confidence} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        {r.aog && <AogBadge />}
+                        {r.dgr && <DgrBadge />}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
 
         {filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <FileText className="h-10 w-10 text-[#CBD5E1]" />
-            <p className="text-sm font-medium text-[var(--text-secondary)]">
+            <FileText className="h-9 w-9" style={{ color: "var(--card-border)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
               {requests.length === 0
                 ? "No requests yet — send a test email to see one appear here."
-                : "No requests match your filters"}
+                : "No requests match your filters."}
             </p>
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setStatusFilter("Pending"); setSourceFilter("All Sources"); setSearch("") }}
+                className="text-sm font-medium"
+                style={{ color: "var(--brand-accent)" }}
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         )}
 
         {filtered.length > 0 && (
-          <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3 text-sm text-[#64748B] dark:border-[#1E3A5F] dark:text-[var(--text-muted)]">
-            <span>Showing 1–{filtered.length} of {filtered.length} requests</span>
-            <div className="flex gap-2">
-              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] dark:border-[#1E3A5F]" disabled>Previous</button>
-              <button className="rounded border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] dark:border-[#1E3A5F]" disabled>Next</button>
-            </div>
+          <div
+            className="flex items-center justify-between px-4 py-3 text-sm"
+            style={{ borderTop: "1px solid var(--divider)", color: "var(--text-muted)" }}
+          >
+            <span>Showing {filtered.length} of {requests.length} requests</span>
           </div>
         )}
       </div>
