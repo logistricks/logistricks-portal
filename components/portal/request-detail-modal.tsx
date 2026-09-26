@@ -617,7 +617,6 @@ export function RequestDetailModal({
           )}
         </div>
 
-          )}
         {/* Footer */}
         <div className="shrink-0 border-t border-[#E2E8F0] bg-white dark:border-[#1E3A5F] dark:bg-[#0D1B2A]">
           <div className="flex flex-col gap-3 p-4 sm:flex-row">
