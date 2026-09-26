@@ -202,7 +202,7 @@ export default function ActivityPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-[#F0F4F8] text-xs uppercase tracking-wide text-[#64748B] dark:bg-[#0D1B2A] dark:text-[var(--text-muted)]">
+              <thead className="bg-[#f7f8fa] text-[11px] uppercase tracking-[0.06em] text-[#8a9ab0] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Event</th>
                   <th className="px-4 py-3 font-semibold">Description</th>

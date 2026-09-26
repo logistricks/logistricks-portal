@@ -233,7 +233,7 @@ export default function RequestsPage() {
       <div className="overflow-hidden ds-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-[#0D1B2A] text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
+            <thead className="bg-[#f7f8fa] text-[11px] uppercase tracking-[0.06em] text-[#8a9ab0] dark:bg-[#0D1B2A] dark:text-[#94A3B8]">
               <tr>
                 <th className="w-10 px-4 py-3">
                   <input type="checkbox" aria-label="Select all"

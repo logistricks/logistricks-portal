@@ -10,14 +10,14 @@ import { ToastProvider } from "@/components/ui/toast"
 export function PortalShell({ children }: { children: ReactNode }) {
   const [pinned, setPinned]   = useState(false)
   const [hovered, setHovered] = useState(false)
-  const [theme, setTheme]     = useState<"dark" | "light">("dark")
+  const [theme, setTheme]     = useState<"dark" | "light">("light")
 
   const expanded = pinned || hovered
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("portal-theme")
-      if (saved === "light") setTheme("light")
+      if (saved === "dark") setTheme("dark")
     } catch { /* */ }
     // Apply saved brand colors from Theme Settings
     try {
@@ -47,7 +47,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   return (
     <PortalThemeContext.Provider value={{ theme, toggle }}>
       <ToastProvider>
-        <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#F0F4F8]"} ${theme}`}>
+        <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f0f2f5]"} ${theme}`}>
           <PortalSidebar
             expanded={expanded}
             pinned={pinned}

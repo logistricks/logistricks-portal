@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *):not(:where(.light, .light *)));
@@ -100,15 +101,15 @@
   --page-bg:           #f0f2f5;
   --card-bg:           #ffffff;
   --card-border:       #e2e6ec;
-  --card-shadow:       0 1px 4px rgba(0,0,0,0.06);
-  --text-primary:      #1a2535;
-  --text-secondary:    #5a6a7e;
-  --text-muted:        #8fa0b4;
-  --divider:           #eaeef2;
-  --table-header-bg:   #f6f8fa;
+  --card-shadow:       0 1px 4px rgba(15,30,54,0.07), 0 4px 12px rgba(15,30,54,0.05);
+  --text-primary:      #0f1e36;
+  --text-secondary:    #5a6a80;
+  --text-muted:        #8a9ab0;
+  --divider:           #e2e6ec;
+  --table-header-bg:   #f7f8fa;
   --input-bg:          #ffffff;
   --input-border:      #d0d7e2;
-  --hover-bg:          rgba(232,130,26,0.05);
+  --hover-bg:          #f7f8fa;
 }
 
 .dark {
@@ -237,7 +238,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: 'IBM Plex Sans', var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
 }
 
@@ -266,10 +267,10 @@
 /* ── Table styles ── */
 .ds-table thead th {
   background: var(--table-header-bg);
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 10px 16px;
   border-bottom: 1px solid var(--card-border);
