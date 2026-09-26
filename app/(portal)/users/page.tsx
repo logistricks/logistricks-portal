@@ -472,40 +472,15 @@ export default function UsersPage() {
 
   const activeCount   = list.filter(u => u.is_active).length
   const inactiveCount = list.length - activeCount
+  const adminCount    = list.filter(u => u.role === "admin").length
 
   return (
     <>
-      <style>{`
-        :root {
-          --text-primary: #1E293B; --text-muted: #64748B;
-          --border: #E2E8F0; --hover-bg: rgba(232,130,26,0.05);
-          --modal-bg: #FFFFFF; --input-bg: #FFFFFF;
-          --card-bg: #FFFFFF; --page-bg: #f0f2f5;
-          --toggle-off: #CBD5E1;
-        }
-        @media (prefers-color-scheme: dark) {
-          :root:not([data-theme="light"]) {
-            --text-primary: #E2E8F0; --text-muted: #94A3B8;
-            --border: #1E3A5F; --hover-bg: #1E3A5F;
-            --modal-bg: #0F2033; --input-bg: #0D1B2A;
-            --card-bg: #111e33; --page-bg: #0c1424;
-            --toggle-off: #334155;
-          }
-        }
-        :root[data-theme="dark"] {
-          --text-primary: #E2E8F0; --text-muted: #94A3B8;
-          --border: #1E3A5F; --hover-bg: #1E3A5F;
-          --modal-bg: #0F2033; --input-bg: #0D1B2A;
-          --card-bg: #0F2033; --page-bg: #0c1424;
-          --toggle-off: #334155;
-        }
-      `}</style>
-
       <div className="min-h-full bg-[var(--page-bg)] p-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-accent,#E8821A)]/10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "rgba(232,130,26,0.12)" }}>
               <Users className="h-5 w-5 text-[var(--brand-accent)]" />
             </div>
             <div>
@@ -521,6 +496,40 @@ export default function UsersPage() {
             Add User
           </button>
         </div>
+
+        {/* Stats */}
+        {!loading && (
+          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="ds-card p-[18px]">
+              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(37,99,235,0.1)" }}>
+                <Users className="h-[18px] w-[18px]" style={{ color: "#2563eb" }} />
+              </div>
+              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{list.length}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Total Users</p>
+            </div>
+            <div className="ds-card p-[18px]">
+              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(22,163,74,0.1)" }}>
+                <UserCheck className="h-[18px] w-[18px]" style={{ color: "#16a34a" }} />
+              </div>
+              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{activeCount}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Active</p>
+            </div>
+            <div className="ds-card p-[18px]">
+              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(232,130,26,0.12)" }}>
+                <ShieldCheck className="h-[18px] w-[18px]" style={{ color: "var(--brand-accent)" }} />
+              </div>
+              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{adminCount}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Admins</p>
+            </div>
+            <div className="ds-card p-[18px]">
+              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(220,38,38,0.08)" }}>
+                <UserMinus className="h-[18px] w-[18px]" style={{ color: "#dc2626" }} />
+              </div>
+              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{inactiveCount}</p>
+              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Inactive</p>
+            </div>
+          </div>
+        )}
 
         {/* Error banner */}
         {error && (
@@ -543,7 +552,7 @@ export default function UsersPage() {
             <p className="mt-1 text-xs text-[var(--text-muted)]">Add your first user to get started.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card-bg)] shadow-sm">
+          <div className="ds-card overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
