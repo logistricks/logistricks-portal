@@ -312,6 +312,7 @@ export default function SettingsPage() {
   const [active, setActive]       = useState<SectionKey>("emails")
   const [clientCode, setClientCode] = useState<string>("")
   const [role, setRole]           = useState<UserRole>("operator")
+  const [topTab, setTopTab]       = useState<"setup" | "theme">("setup")
   const supabase = createClient()
 
   // Email state
@@ -582,7 +583,6 @@ export default function SettingsPage() {
     { key: "whatsapp",   label: "WhatsApp Numbers", icon: MessageCircle, desc: "Inbound WhatsApp sources"       },
     { key: "automation", label: "Automation",        icon: Zap,           desc: "Auto-send & auto-reply rules"   },
     { key: "approval",   label: "Approval Workflow", icon: GitBranch,     desc: "Approval cycles & chains"      },
-    ...(role === "admin" ? [{ key: "theme" as SectionKey, label: "Theme", icon: Palette, desc: "Brand colours & portal appearance" }] : []),
   ]
 
   // ── Render sections ──────────────────────────────────────────────────────────
@@ -873,7 +873,8 @@ export default function SettingsPage() {
 
   return (
     <div className="portal-page p-6">
-      <div className="mb-6">
+      {/* Header */}
+      <div className="mb-5">
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Settings</h1>
         <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Manage your organisation's configuration</p>
       </div>
@@ -882,43 +883,86 @@ export default function SettingsPage() {
         <p className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{error}</p>
       )}
 
-      <div className="flex gap-6">
-        {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 md:block">
-          <nav className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
-            {SECTIONS.map((s, i) => {
-              const Icon = s.icon
-              const isActive = active === s.key
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => setActive(s.key)}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all"
-                  style={{
-                    borderBottom: i < SECTIONS.length - 1 ? "1px solid var(--divider)" : "none",
-                    background: isActive ? "rgba(232,130,26,0.08)" : "transparent",
-                    color: isActive ? "var(--brand-accent)" : "var(--text-secondary)",
-                    borderLeft: isActive ? "3px solid var(--brand-accent)" : "3px solid transparent",
-                  }}
-                  onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
-                  onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent" }}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold leading-tight">{s.label}</p>
-                    <p className="text-[11px] leading-tight mt-0.5 truncate" style={{ color: isActive ? "rgba(232,130,26,0.7)" : "var(--text-muted)" }}>{s.desc}</p>
-                  </div>
-                </button>
-              )
-            })}
-          </nav>
-        </aside>
-
-        {/* Content */}
-        <div className="min-w-0 flex-1 max-w-2xl">
-          {renderSection()}
-        </div>
+      {/* Top tab bar: Setup | Theme */}
+      <div className="mb-6 flex items-center gap-1 border-b" style={{ borderColor: "var(--card-border)" }}>
+        <button
+          onClick={() => { setTopTab("setup"); if (active === "theme") setActive("emails") }}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            color: topTab === "setup" ? "var(--brand-accent)" : "var(--text-secondary)",
+            borderBottom: topTab === "setup" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          <Settings2 className="h-4 w-4" />
+          Setup
+        </button>
+        <button
+          onClick={() => { if (role === "admin") { setTopTab("theme"); setActive("theme") } }}
+          disabled={role !== "admin"}
+          title={role !== "admin" ? "Admin access required" : undefined}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            color: role !== "admin"
+              ? "var(--text-muted)"
+              : topTab === "theme" ? "var(--brand-accent)" : "var(--text-secondary)",
+            borderBottom: topTab === "theme" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+            marginBottom: -1,
+            opacity: role !== "admin" ? 0.45 : 1,
+            cursor: role !== "admin" ? "not-allowed" : "pointer",
+          }}
+        >
+          <Palette className="h-4 w-4" />
+          Theme
+          {role !== "admin" && (
+            <span className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              style={{ background: "var(--divider)", color: "var(--text-muted)" }}>
+              Admin
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Setup tab: sidebar + content */}
+      {topTab === "setup" && (
+        <div className="flex gap-6">
+          <aside className="hidden w-56 shrink-0 md:block">
+            <nav className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+              {SECTIONS.map((s, i) => {
+                const Icon = s.icon
+                const isActive = active === s.key
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setActive(s.key)}
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all"
+                    style={{
+                      borderBottom: i < SECTIONS.length - 1 ? "1px solid var(--divider)" : "none",
+                      background: isActive ? "rgba(232,130,26,0.08)" : "transparent",
+                      color: isActive ? "var(--brand-accent)" : "var(--text-secondary)",
+                      borderLeft: isActive ? "3px solid var(--brand-accent)" : "3px solid transparent",
+                    }}
+                    onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
+                    onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight">{s.label}</p>
+                      <p className="text-[11px] leading-tight mt-0.5 truncate" style={{ color: isActive ? "rgba(232,130,26,0.7)" : "var(--text-muted)" }}>{s.desc}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
+          <div className="min-w-0 flex-1 max-w-2xl">
+            {renderSection()}
+          </div>
+        </div>
+      )}
+
+      {/* Theme tab: full-width */}
+      {topTab === "theme" && role === "admin" && renderSection()}
 
       {showPicker && (
         <CriticalFieldsPicker
