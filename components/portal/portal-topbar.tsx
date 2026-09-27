@@ -106,7 +106,7 @@ export function PortalTopbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-all"
+                className="relative flex items-center gap-1.5 rounded-md px-[14px] py-[6px] text-[13px] font-medium uppercase transition-all"
                 style={{
                   background: active ? "rgba(255,255,255,0.14)" : "transparent",
                   color: active ? "#ffffff" : "rgba(255,255,255,0.72)",
@@ -115,14 +115,14 @@ export function PortalTopbar() {
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
-                    ;(e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.07)"
+                    ;(e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.1)"
                     ;(e.currentTarget as HTMLAnchorElement).style.color = "#ffffff"
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!active) {
                     ;(e.currentTarget as HTMLAnchorElement).style.background = "transparent"
-                    ;(e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.6)"
+                    ;(e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.72)"
                   }
                 }}
               >
@@ -148,8 +148,8 @@ export function PortalTopbar() {
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/requests/new"
-            className="hidden sm:flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-semibold text-white transition-all hover:brightness-110"
-            style={{ background: "#E8821A", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+            className="hidden sm:flex items-center gap-1.5 rounded-md px-[16px] py-[7px] text-[13px] font-semibold text-white transition-all hover:brightness-110"
+            style={{ background: "#E8821A", fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "0.02em" }}
           >
             <Plus className="h-3.5 w-3.5" />
             New Request
