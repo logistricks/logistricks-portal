@@ -337,7 +337,7 @@ export default function RequestsPage() {
                         <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
+                    <td className="px-4 py-3 font-mono tabular-nums text-[12.5px]" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
                       {r.receivedRelative}
                     </td>
                     <td className="px-4 py-3"><ConfidenceBadge confidence={r.confidence} /></td>

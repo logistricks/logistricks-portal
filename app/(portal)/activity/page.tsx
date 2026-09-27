@@ -310,7 +310,7 @@ export default function ActivityPage() {
                       </td>
 
                       <td
-                        className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--text-secondary)]"
+                        className="whitespace-nowrap px-4 py-3 font-mono tabular-nums text-[11px] text-[var(--text-secondary)]"
                         title={exact}
                       >
                         {relative}
