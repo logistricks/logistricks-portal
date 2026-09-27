@@ -107,16 +107,14 @@ export function PortalSidebar({
         {expanded ? (
           <>
             <Link href="/dashboard" className="flex flex-1 items-center gap-2 min-w-0">
-              <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-base font-black leading-none"
-                style={{
-                  background: "rgba(232,130,26,0.12)",
-                  color: "var(--brand-accent)",
-                  fontFamily: "var(--font-sans), system-ui, sans-serif",
-                }}
-              >
-                L
-              </div>
+              <img
+                src="/logistricks-mark.svg"
+                alt="Logistricks"
+                width={36}
+                height={36}
+                className="shrink-0"
+                style={{ display: "block" }}
+              />
               <span
                 className="whitespace-nowrap text-[18px] font-black tracking-tight text-white"
                 style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
@@ -144,16 +142,13 @@ export function PortalSidebar({
         ) : (
           <div className="flex w-full items-center justify-center">
             <Link href="/dashboard">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded text-base font-black leading-none"
-                style={{
-                  background: "rgba(232,130,26,0.12)",
-                  color: "var(--brand-accent)",
-                  fontFamily: "var(--font-sans), system-ui, sans-serif",
-                }}
-              >
-                L
-              </div>
+              <img
+                src="/logistricks-mark.svg"
+                alt="Logistricks"
+                width={32}
+                height={32}
+                style={{ display: "block" }}
+              />
             </Link>
           </div>
         )}

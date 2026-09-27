@@ -91,17 +91,13 @@ export function PortalTopbar() {
       >
         {/* Logo */}
         <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 select-none">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black leading-none"
-            style={{
-              background: "linear-gradient(135deg, #E8821A 0%, #f09a3e 100%)",
-              color: "#fff",
-              boxShadow: "0 2px 8px rgba(232,130,26,0.4)",
-              fontFamily: "'Inter', system-ui, sans-serif",
-            }}
-          >
-            L
-          </div>
+          <img
+            src="/logistricks-mark.svg"
+            alt="Logistricks"
+            width={36}
+            height={36}
+            style={{ display: "block", flexShrink: 0 }}
+          />
           <div className="hidden sm:block">
             <div
               className="text-[17px] font-black tracking-tight text-white leading-none"

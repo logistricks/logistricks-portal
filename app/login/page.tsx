@@ -96,31 +96,25 @@ export default function LoginPage() {
       >
         {/* Header */}
         <div
-          className="flex items-center gap-3 px-[22px] py-[18px]"
+          className="flex flex-col items-center gap-2 px-[22px] py-[22px]"
           style={{
             background: "var(--brand-navy)",
             borderBottom: "2px solid var(--brand-accent)",
           }}
         >
+          {/* Animated brand mark */}
+          <img
+            src="/logistricks-mark-animated.svg"
+            alt="Logistricks"
+            width={120}
+            height={120}
+            style={{ display: "block" }}
+          />
           <div
-            className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[3px] text-[19px] font-extrabold text-white"
-            style={{ background: "var(--brand-accent)", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+            className="mt-1 text-[9px] font-medium uppercase tracking-[0.14em]"
+            style={{ color: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono), monospace" }}
           >
-            L
-          </div>
-          <div>
-            <div
-              className="text-[17px] font-extrabold leading-none tracking-tight text-white"
-              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
-            >
-              Logistricks
-            </div>
-            <div
-              className="mt-[3px] text-[9px] font-medium uppercase tracking-[0.14em]"
-              style={{ color: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono), monospace" }}
-            >
-              Operations Portal
-            </div>
+            Operations Portal
           </div>
         </div>
 
