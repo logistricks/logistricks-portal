@@ -241,7 +241,11 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Log ──────────────────────────────────────────────────────────────────
-  void admin.from("auto_reply_logs").insert({
+  // Must be awaited: on Vercel's serverless runtime the function can be frozen
+  // or torn down immediately after the response is sent, so a fire-and-forget
+  // insert here is not guaranteed to ever reach the database. A failure here
+  // must never block the actual auto-reply response from going out.
+  const { error: logError } = await admin.from("auto_reply_logs").insert({
     client_code,
     log_type:        replyType,
     sender_email,
@@ -257,6 +261,9 @@ export async function POST(req: NextRequest) {
       template_id:    template.template_id,
     },
   })
+  if (logError) {
+    console.error("auto_reply_logs insert failed:", logError.message)
+  }
 
   return NextResponse.json({ to: sender_email, subject, html, reply_type: replyType })
 }
