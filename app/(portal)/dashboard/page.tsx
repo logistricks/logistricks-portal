@@ -9,39 +9,33 @@ import {
   Clock,
   Download,
   Inbox,
-  Mail,
-  MessageCircle,
   MoreHorizontal,
   Search,
-  Send,
-  TrendingUp,
-  Truck,
-  Zap,
+  DollarSign,
+  PackageCheck,
 } from "lucide-react"
 import { SourceBadge, StatusBadge } from "@/components/portal/badges"
-import { currentUser } from "@/lib/portal-data"
 import { type FreightRequest } from "@/lib/portal-data"
-import { type DashboardStats } from "@/lib/supabase-queries"
+import { type DashboardStats, formatRelative } from "@/lib/supabase-queries"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
 
-interface DailyCount {
-  date: string
-  shortDate: string
-  count: number
-  isToday: boolean
+interface MonthlyCount {
+  month: string
+  shipments: number
+  delivered: number
+  isCurrent: boolean
 }
 
 interface ExtendedStats extends DashboardStats {
-  dailyCounts?: DailyCount[]
-  weekTotal?: number
+  monthlyCounts?: MonthlyCount[]
 }
 
-function greeting() {
-  const h = new Date().getHours()
-  if (h < 12) return "Good morning"
-  if (h < 18) return "Good afternoon"
-  return "Good evening"
+interface ActivityItem {
+  id: number
+  description: string
+  created_at: string
+  event_type: string
 }
 
 function KPICard({
@@ -98,22 +92,22 @@ function KPICard({
   )
 }
 
-function BarChart({ data, loading }: { data: DailyCount[]; loading?: boolean }) {
-  const max = Math.max(...data.map((d) => d.count), 1)
+function MonthlyBarChart({ data, loading }: { data: MonthlyCount[]; loading?: boolean }) {
+  const max = Math.max(...data.map((d) => Math.max(d.shipments, d.delivered)), 1)
 
-  if (loading) {
-    const placeholders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Today"]
+  if (loading || data.length === 0) {
+    const placeholders = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"]
     return (
-      <div className="flex items-end gap-1.5" style={{ height: 80 }}>
-        {placeholders.map((d, i) => (
-          <div key={d} className="flex flex-1 flex-col items-center gap-1">
+      <div className="flex items-end gap-1.5" style={{ height: 76 }}>
+        {placeholders.map((m, i) => (
+          <div key={m} className="flex flex-1 flex-col items-center gap-1">
             <div className="w-full flex-1 flex flex-col justify-end">
               <div
                 className="w-full rounded-t animate-pulse"
                 style={{ height: `${20 + (i * 12) % 70}%`, background: "var(--card-border)" }}
               />
             </div>
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{d}</span>
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{m}</span>
           </div>
         ))}
       </div>
@@ -121,34 +115,27 @@ function BarChart({ data, loading }: { data: DailyCount[]; loading?: boolean }) 
   }
 
   return (
-    <div className="flex items-end gap-1.5" style={{ height: 80 }}>
+    <div className="flex items-end gap-1.5" style={{ height: 76 }}>
       {data.map((d) => {
-        const pct = (d.count / max) * 100
+        const pShips = (d.shipments / max) * 100
+        const pDel = (d.delivered / max) * 100
         return (
-          <div key={d.date} className="group relative flex flex-1 flex-col items-center gap-1">
-            <div className="pointer-events-none absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 z-10">
-              <span
-                className="whitespace-nowrap rounded px-2 py-1 text-[11px] font-bold text-white"
-                style={{ background: "var(--brand-navy)" }}
-              >
-                {d.count} · {d.shortDate}
-              </span>
-            </div>
-            <div className="w-full flex-1 flex flex-col justify-end">
-              <div
-                className="w-full rounded-t transition-all duration-500"
-                style={{
-                  height: `${pct}%`,
-                  minHeight: d.count > 0 ? 3 : 0,
-                  backgroundColor: d.isToday ? "var(--brand-accent)" : "#0f1e3640",
-                }}
-              />
-            </div>
+          <div key={d.month} className="group relative flex flex-1 gap-[3px] items-end">
+            <div
+              className="flex-1 rounded-t transition-all duration-500"
+              style={{ height: `${pShips}%`, minHeight: d.shipments > 0 ? 3 : 0, background: "var(--brand-navy)", opacity: 0.8 }}
+              title={`${d.shipments} shipments`}
+            />
+            <div
+              className="flex-1 rounded-t transition-all duration-500"
+              style={{ height: `${pDel}%`, minHeight: d.delivered > 0 ? 3 : 0, background: "var(--brand-accent)" }}
+              title={`${d.delivered} delivered`}
+            />
             <span
-              className="text-[10px] font-medium"
-              style={{ color: d.isToday ? "var(--brand-accent)" : "var(--text-muted)" }}
+              className="absolute -bottom-[18px] left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap"
+              style={{ color: d.isCurrent ? "var(--brand-accent)" : "var(--text-muted)" }}
             >
-              {d.date}
+              {d.month}
             </span>
           </div>
         )
@@ -163,6 +150,7 @@ export default function DashboardPage() {
   const { error: toastError } = useToast()
   const [stats, setStats] = useState<ExtendedStats | null>(null)
   const [recent, setRecent] = useState<FreightRequest[]>([])
+  const [activity, setActivity] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("All")
   const [search, setSearch] = useState("")
@@ -170,9 +158,10 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, reqRes] = await Promise.all([
+        const [statsRes, reqRes, activityRes] = await Promise.all([
           fetch("/api/stats"),
           fetch("/api/requests"),
+          fetch("/api/activity?limit=5"),
         ])
         if (!statsRes.ok) throw new Error("Failed to load stats")
         if (!reqRes.ok) throw new Error("Failed to load requests")
@@ -180,6 +169,10 @@ export default function DashboardPage() {
         const reqData = await reqRes.json()
         setStats(statsData)
         setRecent(Array.isArray(reqData) ? reqData : [])
+        if (activityRes.ok) {
+          const activityData = await activityRes.json()
+          setActivity(Array.isArray(activityData) ? activityData.slice(0, 5) : [])
+        }
       } catch (e) {
         toastError("Dashboard failed to load", (e as Error).message)
       } finally {
@@ -191,11 +184,10 @@ export default function DashboardPage() {
 
   const total = stats?.total ?? 0
   const pending = stats?.pending ?? 0
-  const sentCount = stats?.sentToCarrier ?? 0
-  const quotedCount = stats?.quoted ?? 0
-  const weekTotal = stats?.weekTotal ?? 0
-  const dailyCounts = stats?.dailyCounts ?? []
-  const pendingRfqCount = stats?.pendingRfqCount ?? 0
+  const active = stats?.active ?? 0
+  const deliveredThisMonth = stats?.deliveredThisMonth ?? 0
+  const revenueThisMonthLabel = stats?.revenueThisMonthLabel ?? "$0"
+  const monthlyCounts = stats?.monthlyCounts ?? []
 
   const filteredRecent = useMemo(() => {
     let rows = recent
@@ -204,6 +196,7 @@ export default function DashboardPage() {
         const s = r.status?.toLowerCase() ?? ""
         const t = activeTab.toLowerCase()
         if (t === "sent") return s.includes("sent") || s.includes("carrier")
+        if (t === "delivered") return s.includes("closed")
         return s.includes(t)
       })
     }
@@ -222,6 +215,9 @@ export default function DashboardPage() {
 
   const now = new Date()
   const monthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const dateRangeLabel = `${monthStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${monthEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
 
   return (
     <div className="portal-page p-6 space-y-5">
@@ -232,7 +228,7 @@ export default function DashboardPage() {
             className="text-[22px] font-bold tracking-tight"
             style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}
           >
-            {greeting()}, {currentUser.name.split(" ")[0]}
+            Shipment Overview
           </h2>
           <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
             {monthLabel} · All active and recent freight
@@ -244,7 +240,7 @@ export default function DashboardPage() {
             style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}
           >
             <Calendar className="h-3.5 w-3.5" />
-            This month
+            {dateRangeLabel}
           </button>
           <button
             className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-medium transition-colors"
@@ -260,8 +256,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KPICard
           loading={loading}
-          label="Total Requests"
-          value={total}
+          label="Active Shipments"
+          value={active}
           delta={stats?.todayDelta ?? undefined}
           deltaPositive
           color="#E8821A"
@@ -269,7 +265,7 @@ export default function DashboardPage() {
         />
         <KPICard
           loading={loading}
-          label="Pending Action"
+          label="Pending Quotes"
           value={pending}
           delta={pending > 0 ? "Needs attention" : undefined}
           deltaPositive={false}
@@ -278,19 +274,17 @@ export default function DashboardPage() {
         />
         <KPICard
           loading={loading}
-          label="Sent to Carrier"
-          value={sentCount}
-          color="#3b82f6"
-          icon={Send}
+          label="Delivered This Month"
+          value={deliveredThisMonth}
+          color="#16a34a"
+          icon={PackageCheck}
         />
         <KPICard
           loading={loading}
-          label="Quoted"
-          value={quotedCount}
-          delta={quotedCount > 0 ? "Ready to close" : undefined}
-          deltaPositive
-          color="#16a34a"
-          icon={TrendingUp}
+          label="Revenue This Month"
+          value={revenueThisMonthLabel}
+          color="#7c3aed"
+          icon={DollarSign}
         />
       </div>
 
@@ -383,7 +377,7 @@ export default function DashboardPage() {
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "" }}
                     >
                       <td>
-                        <div className="font-semibold tabular-nums text-[13px]" style={{ color: "var(--text-primary)" }}>
+                        <div className="font-semibold tabular-nums text-[13px] font-mono" style={{ color: "var(--text-primary)" }}>
                           {r.id?.toString().padStart(4, "0") ? `LT-${r.id}` : r.id}
                         </div>
                         <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
@@ -443,73 +437,72 @@ export default function DashboardPage() {
 
         {/* Sidebar: Chart + Recent Activity */}
         <div className="flex flex-col gap-5">
-          {/* Weekly volume chart */}
+          {/* Monthly volume chart */}
           <div className="ds-card">
             <div className="ds-card-header">
               <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                Weekly Volume
+                Monthly Volume
               </span>
-              {!loading && (
-                <span
-                  className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                  style={{ background: "rgba(232,130,26,0.1)", color: "var(--brand-accent)" }}
-                >
-                  {weekTotal} this week
-                </span>
-              )}
-              {loading && <Skeleton h={22} w={80} />}
             </div>
-            <div className="p-4">
-              <BarChart data={dailyCounts} loading={loading} />
+            <div className="px-5 pt-3.5 pb-2">
+              <div className="flex gap-4 mb-3">
+                <span className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                  <span className="h-2 w-2 rounded-[2px]" style={{ background: "var(--brand-navy)", opacity: 0.8 }} />
+                  Shipments
+                </span>
+                <span className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                  <span className="h-2 w-2 rounded-[2px]" style={{ background: "var(--brand-accent)" }} />
+                  Delivered
+                </span>
+              </div>
+              <MonthlyBarChart data={monthlyCounts} loading={loading} />
             </div>
           </div>
 
-          {/* Pipeline */}
+          {/* Recent Activity */}
           <div className="ds-card">
             <div className="ds-card-header">
               <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                Pipeline
+                Recent Activity
               </span>
+              <Link
+                href="/activity"
+                className="text-[12px] font-semibold hover:underline"
+                style={{ color: "var(--brand-accent)" }}
+              >
+                View all
+              </Link>
             </div>
-            <div className="p-4 space-y-3.5">
+            <div className="py-0.5">
               {loading ? (
-                [1, 2, 3, 4].map((i) => (
-                  <div key={i} className="space-y-1.5">
-                    <div className="flex justify-between">
-                      <Skeleton h={11} w={80} />
-                      <Skeleton h={11} w={32} />
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} h={14} />)}
+                </div>
+              ) : activity.length === 0 ? (
+                <p className="p-4 text-[12.5px]" style={{ color: "var(--text-muted)" }}>
+                  No recent activity.
+                </p>
+              ) : (
+                activity.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex gap-2.5 px-5 py-2.5 items-start"
+                    style={{ borderBottom: "1px solid var(--divider)" }}
+                  >
+                    <div
+                      className="h-2 w-2 rounded-full mt-[5px] shrink-0"
+                      style={{ background: "var(--brand-accent)" }}
+                    />
+                    <div>
+                      <div className="text-[12.5px] leading-[1.45]" style={{ color: "var(--text-primary)" }}>
+                        {a.description}
+                      </div>
+                      <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                        {formatRelative(new Date(a.created_at))}
+                      </div>
                     </div>
-                    <Skeleton h={6} />
                   </div>
                 ))
-              ) : (
-                [
-                  { stage: "Received", count: total, color: "#64748b" },
-                  { stage: "Pending", count: pending, color: "#E8821A" },
-                  { stage: "Sent to Carrier", count: sentCount, color: "#3b82f6" },
-                  { stage: "Quoted", count: quotedCount, color: "#16a34a" },
-                ].map((p) => {
-                  const pct = total ? Math.round((p.count / total) * 100) : 0
-                  return (
-                    <div key={p.stage}>
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
-                          {p.stage}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-semibold tabular-nums" style={{ color: p.color }}>{pct}%</span>
-                          <span className="text-[13px] font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{p.count}</span>
-                        </div>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--divider)" }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%`, backgroundColor: p.color }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })
               )}
             </div>
           </div>

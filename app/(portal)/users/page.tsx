@@ -484,7 +484,7 @@ export default function UsersPage() {
               <Users className="h-5 w-5 text-[var(--brand-accent)]" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[var(--text-primary)]">Users</h1>
+              <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Users</h1>
               <p className="text-sm text-[var(--text-muted)]">Manage who has access to this portal</p>
             </div>
           </div>

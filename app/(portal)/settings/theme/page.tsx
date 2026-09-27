@@ -85,8 +85,8 @@ function ColorField({
       </div>
       {/* Labels + hex input */}
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>{label}</p>
-        <p className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{varName}</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)", letterSpacing: "0.08em" }}>{label}</p>
+        <p className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>{varName}</p>
       </div>
       <div
         className="flex items-center rounded-lg px-2 py-1.5"
@@ -280,10 +280,10 @@ export default function ThemeSettingsPage() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
+        <h1 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
           Theme Settings
         </h1>
-        <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
           Customise the portal's colour palette. Changes apply immediately across the portal.
         </p>
       </div>

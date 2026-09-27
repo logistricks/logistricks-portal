@@ -871,10 +871,10 @@ export default function ApprovalsPage() {
     <div className="portal-page space-y-6 p-6 pb-20 md:pb-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+          <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
             Pending Approvals
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">
+          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
             {loading
               ? "Loading…"
               : `${items.length} item${items.length !== 1 ? "s" : ""} awaiting your review`}

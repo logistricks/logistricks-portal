@@ -342,10 +342,10 @@ export default function ApprovalHistoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+          <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
             Approval History
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">
+          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
             {loading
               ? "Loading…"
               : `${grouped.length} request${grouped.length !== 1 ? "s" : ""} total`}

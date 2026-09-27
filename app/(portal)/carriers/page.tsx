@@ -157,7 +157,7 @@ export default function CarriersPage() {
     <div className="portal-page space-y-5 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold" style={{color:"var(--text-primary)"}}>Carriers</h2>
+          <h2 className="text-[22px] font-bold" style={{color:"var(--text-primary)", letterSpacing: "-0.01em"}}>Carriers</h2>
           {!loading && (
             <span className="rounded-full px-2.5 py-1 text-xs font-medium" style={{background:"var(--table-header-bg)",color:"var(--text-secondary)"}}>
               {list.length} carriers

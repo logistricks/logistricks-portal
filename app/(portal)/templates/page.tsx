@@ -245,7 +245,7 @@ export default function TemplatesPage() {
   return (
     <div className="portal-page space-y-5 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Message Templates</h2>
+        <h2 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Message Templates</h2>
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
             {tabs.map((t) => (

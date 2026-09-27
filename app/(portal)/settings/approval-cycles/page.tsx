@@ -385,7 +385,7 @@ export default function ApprovalCyclesPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Approval Cycles</h1>
+            <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Approval Cycles</h1>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
               Configure who approves freight requests before they are sent
             </p>

@@ -875,7 +875,7 @@ export default function SettingsPage() {
     <div className="portal-page p-6">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Settings</h1>
+        <h1 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Settings</h1>
         <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Manage your organisation's configuration</p>
       </div>
 

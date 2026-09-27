@@ -146,7 +146,7 @@ export default function RequestsPage() {
     return (
       <div className="portal-page space-y-5 p-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
+          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
             Requests
           </h2>
         </div>
@@ -163,7 +163,7 @@ export default function RequestsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
+          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
             Requests
           </h2>
           <span className="rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums" style={{ background: "rgba(232,130,26,0.12)", color: "var(--brand-accent)" }}>
@@ -281,6 +281,7 @@ export default function RequestsPage() {
                     style={{ accentColor: "var(--brand-accent)" }}
                   />
                 </th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Ref #</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Source</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Sender</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Route</th>
@@ -318,6 +319,9 @@ export default function RequestsPage() {
                         className="h-4 w-4"
                         style={{ accentColor: "var(--brand-accent)" }}
                       />
+                    </td>
+                    <td className="px-4 py-3 font-mono tabular-nums text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {r.id ? `LT-${r.id}` : ""}
                     </td>
                     <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
                     <td className="px-4 py-3">

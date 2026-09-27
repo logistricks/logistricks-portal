@@ -62,9 +62,13 @@ export interface DashboardStats {
   pending: number
   sentToCarrier: number
   quoted: number
+  active: number
   todayCount: number
   todayDelta: string
   pendingRfqCount: number
+  deliveredThisMonth: number
+  revenueThisMonth: number
+  revenueThisMonthLabel: string
 }
 
 // ─── Country → flag emoji ───────────────────────────────────────────────────
@@ -314,7 +318,7 @@ export async function fetchDashboardStats(supabase: SupabaseClient, clientCode?:
 
   if (error || !data) {
     console.error("[supabase] fetchDashboardStats:", error?.message)
-    return { total: 0, email: 0, whatsapp: 0, pending: 0, sentToCarrier: 0, quoted: 0, todayCount: 0, todayDelta: "+0 from yesterday" }
+    return { total: 0, email: 0, whatsapp: 0, pending: 0, sentToCarrier: 0, quoted: 0, active: 0, todayCount: 0, todayDelta: "+0 from yesterday", pendingRfqCount: 0, deliveredThisMonth: 0, revenueThisMonth: 0, revenueThisMonthLabel: "$0" }
   }
 
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -336,8 +340,13 @@ export async function fetchDashboardStats(supabase: SupabaseClient, clientCode?:
     pending:      data.filter(r => r.status === "Pending").length,
     sentToCarrier:data.filter(r => r.status === "Sent to Carrier").length,
     quoted:       data.filter(r => r.status === "Quoted").length,
+    active:       data.filter(r => r.status !== "Closed").length,
     todayCount,
     todayDelta,
+    pendingRfqCount: 0,
+    deliveredThisMonth: 0,
+    revenueThisMonth: 0,
+    revenueThisMonthLabel: "$0",
   }
 }
 
