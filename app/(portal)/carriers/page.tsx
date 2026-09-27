@@ -200,7 +200,7 @@ export default function CarriersPage() {
                   aria-checked={c.active}
                   aria-label={`Toggle ${c.carrier_name}`}
                   onClick={() => toggleActive(c)}
-                  className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${c.active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
+                  className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${c.active ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}
                 >
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${c.active ? "translate-x-5" : "translate-x-0"}`} />
                 </button>

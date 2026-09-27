@@ -14,21 +14,35 @@ export function PortalShell({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem("portal-theme")
       if (saved === "dark") setTheme("dark")
     } catch { /* */ }
-    // Apply saved brand colors from Theme Settings
+    // Apply brand colors: DB first (so all browsers/devices get client's theme), localStorage as instant fallback
+    function applyColors(colors: Record<string, string>) {
+      const root = document.documentElement
+      if (colors.primaryDark)  root.style.setProperty("--brand-navy",        colors.primaryDark)
+      if (colors.primaryMid)   root.style.setProperty("--brand-navy-mid",    colors.primaryMid)
+      if (colors.primaryLight) root.style.setProperty("--brand-navy-light",  colors.primaryLight)
+      if (colors.accent) {
+        root.style.setProperty("--brand-accent",       colors.accent)
+        const hex = colors.accent.replace("#","")
+        const n = parseInt(hex,16)
+        const r=Math.min(255,Math.round(((n>>16)&255)*0.9)), g=Math.min(255,Math.round(((n>>8)&255)*0.9)), b=Math.min(255,Math.round((n&255)*0.9))
+        root.style.setProperty("--brand-accent-hover", `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`)
+      }
+    }
+    // Instant paint from localStorage while DB loads
     try {
       const savedColors = localStorage.getItem("portal-theme-colors")
-      if (savedColors) {
-        const colors = JSON.parse(savedColors) as Record<string, string>
-        const root = document.documentElement
-        if (colors.primaryDark)  root.style.setProperty("--brand-navy",       colors.primaryDark)
-        if (colors.primaryMid)   root.style.setProperty("--brand-navy-mid",   colors.primaryMid)
-        if (colors.primaryLight) root.style.setProperty("--brand-navy-light", colors.primaryLight)
-        if (colors.accent) {
-          root.style.setProperty("--brand-accent",       colors.accent)
-          root.style.setProperty("--brand-accent-hover", colors.accent)
-        }
-      }
+      if (savedColors) applyColors(JSON.parse(savedColors) as Record<string, string>)
     } catch { /* */ }
+    // Then override with DB value if available
+    fetch("/api/client-settings?key=theme")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.value?.primaryDark) {
+          applyColors(data.value as Record<string, string>)
+          try { localStorage.setItem("portal-theme-colors", JSON.stringify(data.value)) } catch {}
+        }
+      })
+      .catch(() => { /* keep localStorage values */ })
   }, [])
 
   function toggle() {

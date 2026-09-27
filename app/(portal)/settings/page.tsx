@@ -201,7 +201,7 @@ function Toggle({ checked, busy, onChange, label }: { checked: boolean; busy: bo
   return (
     <button
       type="button" onClick={onChange} disabled={busy} aria-pressed={checked} aria-label={label}
-      className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${checked ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"}`}
+      className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${checked ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1] dark:bg-[#334155]"}`}
     >
       {busy
         ? <Loader2 className="absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-white" />
@@ -379,18 +379,41 @@ export default function SettingsPage() {
       setFlagsLoading(false)
     }).catch(() => setFlagsLoading(false))
 
-    // Load saved theme
-    try {
-      const saved = localStorage.getItem("portal-theme-colors")
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        setThemeColors(parsed)
-        const match = PRESETS.find(p =>
-          Object.entries(p.colors).every(([k, v]) => parsed[k]?.toLowerCase() === v.toLowerCase())
-        )
-        setActivePreset(match?.name ?? "")
-      }
-    } catch {}
+    // Load saved theme — DB first (shared across browsers/devices), localStorage as fallback
+    fetch("/api/client-settings?key=theme")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const parsed = data?.value ?? null
+        if (parsed && parsed.primaryDark) {
+          setThemeColors(parsed)
+          const match = PRESETS.find(p =>
+            Object.entries(p.colors).every(([k, v]) => (parsed as Record<string,string>)[k]?.toLowerCase() === v.toLowerCase())
+          )
+          setActivePreset(match?.name ?? "")
+          try { localStorage.setItem("portal-theme-colors", JSON.stringify(parsed)) } catch {}
+        } else {
+          try {
+            const saved = localStorage.getItem("portal-theme-colors")
+            if (saved) {
+              const lsParsed = JSON.parse(saved)
+              setThemeColors(lsParsed)
+              const match = PRESETS.find(p =>
+                Object.entries(p.colors).every(([k, v]) => (lsParsed as Record<string,string>)[k]?.toLowerCase() === v.toLowerCase())
+              )
+              setActivePreset(match?.name ?? "")
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const saved = localStorage.getItem("portal-theme-colors")
+          if (saved) {
+            const lsParsed = JSON.parse(saved)
+            setThemeColors(lsParsed)
+          }
+        } catch {}
+      })
   }, [])
 
   // Apply theme colors to document root whenever they change
@@ -519,10 +542,19 @@ export default function SettingsPage() {
     const root = document.documentElement
     ;["--brand-navy","--brand-navy-mid","--brand-navy-light","--brand-accent","--brand-accent-hover"].forEach(v => root.style.removeProperty(v))
     try { localStorage.removeItem("portal-theme-colors") } catch {}
+    fetch("/api/client-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "theme", value: DEFAULT_COLORS }) }).catch(() => {})
     showThemeToast("Reset to default theme")
   }
-  function saveTheme() {
+  async function saveTheme() {
     try { localStorage.setItem("portal-theme-colors", JSON.stringify(themeColors)) } catch {}
+    try {
+      const res = await fetch("/api/client-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "theme", value: themeColors }),
+      })
+      if (!res.ok) { const e = await res.json().catch(() => ({})); showThemeToast(`Save failed: ${e.error ?? res.status}`); return }
+    } catch { showThemeToast("Save failed — network error"); return }
     showThemeToast("Theme saved!")
   }
   function copyCss() {

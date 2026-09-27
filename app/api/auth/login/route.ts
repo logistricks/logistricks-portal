@@ -5,8 +5,8 @@
  * service role key (bypasses RLS). On success sets a HMAC-signed HTTP-only
  * cookie — the browser never sees the raw payload, and JS cannot read it.
  *
- * Session payload now includes userId (portal_users.id) so that
- * per-user features (push subscriptions, read state) work correctly.
+ * Session payload includes userId (portal_users.id) and role so that
+ * per-user features (push subscriptions, read state, admin gating) work.
  */
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     const { data: user, error } = await admin
       .from("portal_users")
-      .select("id, is_active, password_hash")
+      .select("id, is_active, password_hash, role")
       .eq("username", username)
       .eq("client_code", clientCode)
       .maybeSingle()
@@ -63,8 +63,9 @@ export async function POST(req: Request) {
     const token = signSession({
       username,
       clientCode,
-      userId: user.id,          // ← per-user identity
-      exp: Date.now() + 8 * 60 * 60 * 1000,
+      userId: user.id,
+      role:   user.role ?? "operator",
+      exp:    Date.now() + 8 * 60 * 60 * 1000,
     })
 
     const res = NextResponse.json({ ok: true })

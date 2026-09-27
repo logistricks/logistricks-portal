@@ -366,7 +366,7 @@ export default function TemplatesPage() {
                       })
                       if (!res.ok) setList((l) => l.map((x) => x.template_id === t.template_id ? { ...x, active: t.active } : x))
                     }}
-                    className={`relative h-5 w-9 overflow-hidden rounded-full transition-colors ${t.active ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"}`}
+                    className={`relative h-5 w-9 overflow-hidden rounded-full transition-colors ${t.active ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1] dark:bg-[#334155]"}`}
                   >
                     <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${t.active ? "translate-x-4" : "translate-x-0"}`} />
                   </button>
