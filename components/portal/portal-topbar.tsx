@@ -86,7 +86,7 @@ export function PortalTopbar() {
           <div className="hidden sm:block">
             <div
               className="text-[17px] font-black tracking-tight text-white leading-none"
-              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "-0.03em" }}
+              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "0.02em" }}
             >
               Logis<span style={{ color: "#E8821A" }}>tricks</span>
             </div>
@@ -106,12 +106,12 @@ export function PortalTopbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-semibold transition-all"
+                className="relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-all"
                 style={{
-                  background: active ? "rgba(232,130,26,0.18)" : "transparent",
-                  color: active ? "#ffffff" : "rgba(255,255,255,0.6)",
+                  background: active ? "rgba(255,255,255,0.14)" : "transparent",
+                  color: active ? "#ffffff" : "rgba(255,255,255,0.72)",
                   fontFamily: "var(--font-sans), system-ui, sans-serif",
-                  letterSpacing: "-0.01em",
+                  letterSpacing: "0.03em",
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
@@ -138,12 +138,7 @@ export function PortalTopbar() {
                     {item.badge}
                   </span>
                 ) : null}
-                {active && (
-                  <span
-                    className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t"
-                    style={{ background: "#E8821A" }}
-                  />
-                )}
+
               </Link>
             )
           })}
