@@ -181,22 +181,35 @@ export default function ThemeSettingsPage() {
   const [colors, setColors] = useState<ThemeColors>(DEFAULT_COLORS)
   const [copied, setCopied] = useState(false)
   const [toast, setToast]   = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [activePreset, setActivePreset] = useState<string>("Navy & Orange")
 
-  // Load saved theme on mount
+  function applyLoaded(parsed: Record<string, string>) {
+    setColors((prev) => ({ ...prev, ...parsed } as ThemeColors))
+    const match = PRESETS.find(p =>
+      Object.entries(p.colors).every(([k, v]) => parsed[k]?.toLowerCase() === v.toLowerCase())
+    )
+    setActivePreset(match?.name ?? "")
+  }
+
+  // Load saved theme on mount — DB is the source of truth (shared across
+  // every browser/device for this client); localStorage is only an instant
+  // fallback while the DB request is in flight.
   useEffect(() => {
     try {
       const saved = localStorage.getItem("portal-theme-colors")
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        setColors(parsed)
-        // Figure out if it matches a preset
-        const match = PRESETS.find(p =>
-          Object.entries(p.colors).every(([k, v]) => parsed[k]?.toLowerCase() === v.toLowerCase())
-        )
-        setActivePreset(match?.name ?? "")
-      }
+      if (saved) applyLoaded(JSON.parse(saved))
     } catch {}
+
+    fetch("/api/client-settings?key=theme")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.value?.primaryDark) {
+          applyLoaded(data.value as Record<string, string>)
+          try { localStorage.setItem("portal-theme-colors", JSON.stringify(data.value)) } catch {}
+        }
+      })
+      .catch(() => { /* keep localStorage / default values */ })
   }, [])
 
   // Apply colors to document root for live preview of the whole portal
@@ -223,21 +236,45 @@ export default function ThemeSettingsPage() {
     showToast(`Applied "${preset.name}"`)
   }
 
+  async function persist(next: ThemeColors, successMsg: string) {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/client-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "theme", value: next }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        if (res.status === 403) {
+          showToast("Only admins can save the theme")
+        } else if (res.status === 401) {
+          showToast("Session expired — please log in again")
+        } else {
+          showToast(body?.error ?? "Failed to save theme")
+        }
+        return
+      }
+      try { localStorage.setItem("portal-theme-colors", JSON.stringify(next)) } catch {}
+      showToast(successMsg)
+    } catch {
+      showToast("Failed to save theme — check your connection")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   function reset() {
     setColors(DEFAULT_COLORS)
     setActivePreset("Navy & Orange")
     // Remove CSS overrides
     const root = document.documentElement
     ;["--brand-navy","--brand-navy-mid","--brand-navy-light","--brand-accent","--brand-accent-hover"].forEach(v => root.style.removeProperty(v))
-    try { localStorage.removeItem("portal-theme-colors") } catch {}
-    showToast("Reset to default theme")
+    persist(DEFAULT_COLORS, "Reset to default theme")
   }
 
   function save() {
-    try {
-      localStorage.setItem("portal-theme-colors", JSON.stringify(colors))
-    } catch {}
-    showToast("Theme saved!")
+    persist(colors, "Theme saved!")
   }
 
   function copyCss() {
@@ -363,10 +400,11 @@ export default function ThemeSettingsPage() {
           {/* Save */}
           <button
             onClick={save}
-            className="w-full rounded-lg py-3 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99]"
+            disabled={saving}
+            className="w-full rounded-lg py-3 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
             style={{ background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primaryMid} 100%)` }}
           >
-            Save Theme
+            {saving ? "Saving…" : "Save Theme"}
           </button>
         </div>
 
