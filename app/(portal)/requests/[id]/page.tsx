@@ -374,7 +374,7 @@ export default function RequestDetailPage() {
                   </button>
                   {rawOpen && (
                     <div className="border-t px-5 py-4" style={{ borderColor: "var(--divider)" }}>
-                      <pre className="whitespace-pre-wrap text-xs leading-relaxed" style={{ color: "var(--text-secondary)", fontFamily: "monospace" }}>
+                      <pre className="whitespace-pre-wrap text-xs leading-relaxed" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono), monospace" }}>
                         {request.rawMessage}
                       </pre>
                     </div>

@@ -42,7 +42,7 @@ export function StatCard({
         </div>
       </div>
       <p className={`mt-4 font-display text-5xl font-extrabold tabular-nums leading-none tracking-tight ${valueClass}`}
-         style={{ fontFamily: "var(--font-jakarta), var(--font-inter), system-ui, sans-serif" }}>
+         style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}>
         {value}
       </p>
       <p className={`mt-2 text-xs ${subClass}`}>{sub}</p>

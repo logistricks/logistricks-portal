@@ -85,7 +85,7 @@ export function PortalTopbar() {
         style={{
           background: "linear-gradient(135deg, #0f1e36 0%, #1a3352 60%, #1e3d5c 100%)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
-          fontFamily: "'Inter', system-ui, sans-serif",
+          fontFamily: "var(--font-sans), system-ui, sans-serif",
           boxShadow: "0 2px 12px rgba(15,30,54,0.35)",
         }}
       >
@@ -101,7 +101,7 @@ export function PortalTopbar() {
           <div className="hidden sm:block">
             <div
               className="text-[17px] font-black tracking-tight text-white leading-none"
-              style={{ fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: "-0.03em" }}
+              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "-0.03em" }}
             >
               Logis<span style={{ color: "#E8821A" }}>tricks</span>
             </div>
@@ -125,7 +125,7 @@ export function PortalTopbar() {
                 style={{
                   background: active ? "rgba(232,130,26,0.18)" : "transparent",
                   color: active ? "#ffffff" : "rgba(255,255,255,0.6)",
-                  fontFamily: "'Inter', system-ui, sans-serif",
+                  fontFamily: "var(--font-sans), system-ui, sans-serif",
                   letterSpacing: "-0.01em",
                 }}
                 onMouseEnter={(e) => {
@@ -169,7 +169,7 @@ export function PortalTopbar() {
           <Link
             href="/requests/new"
             className="hidden sm:flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-semibold text-white transition-all hover:brightness-110"
-            style={{ background: "#E8821A", fontFamily: "'Inter', system-ui, sans-serif" }}
+            style={{ background: "#E8821A", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
           >
             <Plus className="h-3.5 w-3.5" />
             New Request
@@ -181,14 +181,14 @@ export function PortalTopbar() {
               onClick={handleLogout}
               title={`${displayName} — Log out`}
               className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white transition-colors"
-              style={{ background: "rgba(255,255,255,0.1)", fontFamily: "'Inter', system-ui, sans-serif" }}
+              style={{ background: "rgba(255,255,255,0.1)", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
               onMouseEnter={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(232,130,26,0.25)" }}
               onMouseLeave={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)" }}
             >
               {avatarInitials}
             </button>
             {displayName && (
-              <span className="hidden text-[13px] font-semibold text-[#e2e8f0] lg:block" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+              <span className="hidden text-[13px] font-semibold text-[#e2e8f0] lg:block" style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}>
                 {displayName}
               </span>
             )}

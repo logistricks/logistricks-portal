@@ -136,7 +136,7 @@ export function QuoteComparisonPanel({ freightRequestId }: Props) {
                     <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Rate</span>
                     <span
                       className="text-lg font-black tabular-nums text-[#0D1B2A] dark:text-[#E2E8F0]"
-                      style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
+                      style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
                     >
                       {row.quote.rateUsd != null
                         ? `$${row.quote.rateUsd.toLocaleString("en-US", { minimumFractionDigits: 0 })}`
