@@ -434,7 +434,7 @@ export function RequestDetailModal({
         {/* ── Gradient header ──────────────────────────────────── */}
         <div
           className="shrink-0 px-6 py-4"
-          style={{ background: "linear-gradient(135deg, #0f1e36 0%, #1a3352 60%, #1e3d5c 100%)" }}
+          style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -574,7 +574,7 @@ export function RequestDetailModal({
                   </button>
                   {rawExpanded && (
                     <div className="px-5 pb-4">
-                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: "#0f1e36", color: "#e2e8f0" }}>
+                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: "var(--brand-navy)", color: "#e2e8f0" }}>
                         {request.rawMessage}
                       </pre>
                     </div>
@@ -635,7 +635,7 @@ export function RequestDetailModal({
                           <div className="flex items-center gap-3">
                             <button type="button" onClick={handleSend} disabled={!replyTo}
                               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
-                              style={{ background: "#0f1e36" }}>
+                              style={{ background: "var(--brand-navy)" }}>
                               {request.source === "Email" ? <><Mail className="h-4 w-4" /> Open in Email App</> : <><MessageCircle className="h-4 w-4" /> Open in WhatsApp</>}
                             </button>
                           </div>
@@ -915,7 +915,7 @@ export function RequestDetailModal({
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all"
                 style={{
                   border: "1px solid var(--card-border)",
-                  background: awaitingSenderReply ? "var(--table-header-bg)" : sendMethod === "Reply" ? "#0f1e36" : "var(--card-bg)",
+                  background: awaitingSenderReply ? "var(--table-header-bg)" : sendMethod === "Reply" ? "var(--brand-navy)" : "var(--card-bg)",
                   color: awaitingSenderReply ? "var(--text-muted)" : sendMethod === "Reply" ? "white" : "var(--text-primary)",
                   cursor: awaitingSenderReply ? "not-allowed" : "pointer",
                 }}

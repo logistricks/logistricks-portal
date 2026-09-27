@@ -273,7 +273,7 @@ export function TemplateEditor({
       <div className="flex max-h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl shadow-2xl sm:rounded-2xl" style={{ background: "var(--card-bg)" }}>
 
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between px-5 py-4" style={{ background: "linear-gradient(135deg, #0f1e36 0%, #1a3352 60%, #1e3d5c 100%)" }}>
+        <div className="flex shrink-0 items-center justify-between px-5 py-4" style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}>
           <div className="flex items-center gap-3">
             <h3 className="font-bold text-white">{template.row_id > 0 ? "Edit Template" : "New Template"}</h3>
             <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: isEmail ? "rgba(59,130,246,0.25)" : "rgba(34,197,94,0.25)", color: isEmail ? "#93c5fd" : "#86efac" }}>

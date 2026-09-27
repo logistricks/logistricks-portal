@@ -68,7 +68,7 @@ export function PortalTopbar() {
       <header
         className="sticky top-0 z-40 flex h-[60px] items-center justify-between px-4 md:px-6"
         style={{
-          background: "linear-gradient(135deg, #0f1e36 0%, #1a3352 60%, #1e3d5c 100%)",
+          background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           fontFamily: "var(--font-sans), system-ui, sans-serif",
           boxShadow: "0 2px 12px rgba(15,30,54,0.35)",

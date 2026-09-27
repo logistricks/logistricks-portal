@@ -255,7 +255,7 @@ export default function RequestDetailPage() {
     <div className="portal-page flex flex-col" style={{ minHeight: "100vh" }}>
 
       {/* ── Back bar + header ────────────────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(135deg, #0f1e36 0%, #1a3352 60%, #1e3d5c 100%)" }}>
+      <div style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}>
         {/* breadcrumb */}
         <div className="flex items-center gap-2 px-6 pt-4 pb-2">
           <Link href="/requests" className="flex items-center gap-1 text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
