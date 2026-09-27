@@ -1,16 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase"
 import {
-  AlertTriangle, CheckSquare, ChevronRight, GitBranch, Loader2,
-  Mail, MessageCircle, Plus, Settings2, Square, Trash2, X, Zap,
+  AlertTriangle, Check, CheckSquare, ChevronRight, Copy, GitBranch, Loader2,
+  Mail, MessageCircle, Palette, Plus, RefreshCw, RotateCcw, Settings2,
+  Square, Trash2, X, Zap,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ReceiverEmail  = { id: string; r_mail: string; active: boolean; label: string | null }
 type WhatsappNumber = { id: string; number: string; active: boolean; label: string | null }
+type UserRole       = "admin" | "operator" | "viewer"
 
 const CRITICAL_FIELD_OPTIONS = [
   { key: "cargo_type", label: "Cargo Type" },
@@ -21,22 +23,161 @@ const CRITICAL_FIELD_OPTIONS = [
   { key: "bl_type",    label: "BL Type" },
 ]
 
-type SectionKey = "emails" | "whatsapp" | "automation" | "approval"
+type SectionKey = "emails" | "whatsapp" | "automation" | "approval" | "theme"
 
-const SECTIONS: { key: SectionKey; label: string; icon: React.ElementType; desc: string }[] = [
-  { key: "emails",     label: "Receiver Emails",   icon: Mail,       desc: "Inbound email addresses" },
-  { key: "whatsapp",   label: "WhatsApp Numbers",  icon: MessageCircle, desc: "Inbound WhatsApp sources" },
-  { key: "automation", label: "Automation",         icon: Zap,        desc: "Auto-send & auto-reply rules" },
-  { key: "approval",   label: "Approval Workflow",  icon: GitBranch,  desc: "Approval cycles & chains" },
+// ── Theme types & helpers ─────────────────────────────────────────────────────
+interface ThemeColors {
+  primaryDark:  string
+  primaryMid:   string
+  primaryLight: string
+  accent:       string
+}
+
+const DEFAULT_COLORS: ThemeColors = {
+  primaryDark:  "#0f1e36",
+  primaryMid:   "#1a2d4a",
+  primaryLight: "#243d61",
+  accent:       "#E8821A",
+}
+
+const PRESETS: { name: string; colors: ThemeColors }[] = [
+  { name: "Navy & Orange",         colors: { primaryDark: "#0f1e36", primaryMid: "#1a2d4a", primaryLight: "#243d61", accent: "#E8821A" } },
+  { name: "Midnight & Emerald",    colors: { primaryDark: "#0a1628", primaryMid: "#122035", primaryLight: "#1a2d4a", accent: "#10b981" } },
+  { name: "Slate & Cobalt",        colors: { primaryDark: "#1e293b", primaryMid: "#27374d", primaryLight: "#334155", accent: "#3b82f6" } },
+  { name: "Deep Forest & Amber",   colors: { primaryDark: "#14291a", primaryMid: "#1a3320", primaryLight: "#234228", accent: "#f59e0b" } },
+  { name: "Charcoal & Crimson",    colors: { primaryDark: "#1c1c1e", primaryMid: "#2c2c2e", primaryLight: "#3a3a3c", accent: "#ef4444" } },
+  { name: "Corporate Grey & Teal", colors: { primaryDark: "#243447", primaryMid: "#2f4155", primaryLight: "#3a5068", accent: "#14b8a6" } },
 ]
 
-// ── Shared input style ─────────────────────────────────────────────────────────
-const inputCls = "w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all placeholder:text-[var(--text-muted)]"
-const inputStyle = {
-  borderColor: "var(--card-border)",
-  background: "var(--input-bg, var(--card-bg))",
-  color: "var(--text-primary)",
+function hexToRgb(hex: string): [number, number, number] {
+  const c = hex.replace("#", "")
+  const n = parseInt(c, 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
+
+function contrastColor(hex: string): string {
+  const [r, g, b] = hexToRgb(hex)
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? "#1a2535" : "#ffffff"
+}
+
+function lighten(hex: string, pct: number): string {
+  const [r, g, b] = hexToRgb(hex)
+  const f = (c: number) => Math.min(255, Math.round(c + (255 - c) * pct))
+  return `#${f(r).toString(16).padStart(2,"0")}${f(g).toString(16).padStart(2,"0")}${f(b).toString(16).padStart(2,"0")}`
+}
+
+// ── ColorField ────────────────────────────────────────────────────────────────
+function ColorField({ label, varName, value, onChange }: {
+  label: string; varName: string; value: string; onChange: (v: string) => void
+}) {
+  const [hex, setHex] = useState(value)
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { setHex(value) }, [value])
+
+  function handleHexInput(e: React.ChangeEvent<HTMLInputElement>) {
+    let v = e.target.value.replace(/[^0-9a-fA-F#]/g, "")
+    if (!v.startsWith("#")) v = "#" + v
+    setHex(v)
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v)
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--divider)" }}>
+      <div className="relative shrink-0">
+        <div
+          className="h-10 w-10 cursor-pointer rounded-lg border-2 transition-transform hover:scale-105"
+          style={{ background: value, borderColor: "var(--card-border)" }}
+          onClick={() => inputRef.current?.click()}
+          title="Pick colour"
+        />
+        <input
+          ref={inputRef}
+          type="color"
+          value={value}
+          onChange={(e) => { setHex(e.target.value); onChange(e.target.value) }}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          style={{ width: "100%", height: "100%" }}
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>{label}</p>
+        <p className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{varName}</p>
+      </div>
+      <div className="flex items-center rounded-lg px-2 py-1.5" style={{ background: "var(--table-header-bg)", border: "1px solid var(--card-border)" }}>
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>#</span>
+        <input
+          type="text"
+          value={hex.replace("#", "")}
+          onChange={handleHexInput}
+          maxLength={6}
+          className="w-16 bg-transparent text-xs font-mono outline-none"
+          style={{ color: "var(--text-primary)" }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── MiniPreview ───────────────────────────────────────────────────────────────
+function MiniPreview({ colors }: { colors: ThemeColors }) {
+  const navGrad      = `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primaryMid} 60%, ${colors.primaryLight} 100%)`
+  const accent       = colors.accent
+  const textContrast = contrastColor(colors.primaryDark)
+
+  return (
+    <div className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--card-border)", background: "#f0f2f5" }}>
+      <div className="flex items-center justify-between px-4 py-2.5" style={{ background: navGrad }}>
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded text-xs font-black" style={{ background: accent + "22", color: accent }}>L</div>
+          <span className="text-xs font-black" style={{ color: textContrast }}>
+            Logis<span style={{ color: accent }}>tricks</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {["Dashboard","Requests","Carriers"].map((l) => (
+            <span key={l} className="rounded px-2 py-0.5 text-[9px]" style={{ color: textContrast + "bb" }}>{l}</span>
+          ))}
+        </div>
+        <div className="h-5 w-5 rounded-full" style={{ background: colors.primaryLight }} />
+      </div>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        {[
+          { label: "Total", value: "142", color: accent },
+          { label: "Pending", value: "38", color: "#3b82f6" },
+          { label: "Quoted", value: "27", color: "#22c55e" },
+        ].map((t) => (
+          <div key={t.label} className="overflow-hidden rounded-lg bg-white p-2.5" style={{ border: "1px solid #e2e6ec", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+            <div className="mb-1 h-0.5 rounded-full" style={{ background: t.color }} />
+            <p className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: "#5a6a7e" }}>{t.label}</p>
+            <p className="text-sm font-black leading-tight tabular-nums" style={{ color: "#1a2535" }}>{t.value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mx-3 mb-3 overflow-hidden rounded-lg bg-white" style={{ border: "1px solid #e2e6ec" }}>
+        <div className="px-3 py-2" style={{ background: navGrad }}>
+          <span className="text-[9px] font-semibold" style={{ color: textContrast }}>Recent Requests</span>
+        </div>
+        {[
+          { ref: "LTX-2609-001", route: "Shanghai → Dubai", status: "Pending" },
+          { ref: "LTX-2609-002", route: "Rotterdam → NYC",  status: "Quoted"  },
+        ].map((row) => (
+          <div key={row.ref} className="flex items-center justify-between px-3 py-1.5" style={{ borderTop: "1px solid #eaeef2" }}>
+            <span className="text-[8px] font-mono" style={{ color: "#1a2535" }}>{row.ref}</span>
+            <span className="text-[8px]" style={{ color: "#5a6a7e" }}>{row.route}</span>
+            <span className="rounded-full px-1.5 py-0.5 text-[7px] font-semibold" style={{ background: accent + "18", color: accent }}>{row.status}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end px-3 pb-3">
+        <div className="rounded-md px-3 py-1.5 text-[9px] font-semibold text-white" style={{ background: accent }}>Send RFQ →</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Shared input style ────────────────────────────────────────────────────────
+const inputCls   = "w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all placeholder:text-[var(--text-muted)]"
+const inputStyle = { borderColor: "var(--card-border)", background: "var(--input-bg, var(--card-bg))", color: "var(--text-primary)" }
 const inputFocusStyle = { borderColor: "var(--brand-accent)", boxShadow: "0 0 0 3px rgba(232,130,26,0.12)" }
 
 function Input({ value, onChange, onKeyDown, type = "text", placeholder, className = "" }: {
@@ -59,8 +200,7 @@ function Input({ value, onChange, onKeyDown, type = "text", placeholder, classNa
 function Toggle({ checked, busy, onChange, label }: { checked: boolean; busy: boolean; onChange: () => void; label?: string }) {
   return (
     <button
-      type="button" onClick={onChange} disabled={busy} aria-pressed={checked}
-      aria-label={label}
+      type="button" onClick={onChange} disabled={busy} aria-pressed={checked} aria-label={label}
       className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-40 ${checked ? "bg-[#059669]" : "bg-[#CBD5E1] dark:bg-[#334155]"}`}
     >
       {busy
@@ -71,7 +211,7 @@ function Toggle({ checked, busy, onChange, label }: { checked: boolean; busy: bo
   )
 }
 
-// ── Setting card (toggle row) ──────────────────────────────────────────────────
+// ── Setting card ──────────────────────────────────────────────────────────────
 function SettingCard({ label, description, checked, busy, onToggle, children }: {
   label: string; description: string; checked: boolean; busy: boolean; onToggle: () => void; children?: React.ReactNode
 }) {
@@ -169,8 +309,9 @@ function CriticalFieldsPicker({ initial, onSave, onCancel }: {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const [active, setActive] = useState<SectionKey>("emails")
+  const [active, setActive]       = useState<SectionKey>("emails")
   const [clientCode, setClientCode] = useState<string>("")
+  const [role, setRole]           = useState<UserRole>("operator")
   const supabase = createClient()
 
   // Email state
@@ -205,9 +346,20 @@ export default function SettingsPage() {
   const [showPicker, setShowPicker]                       = useState(false)
   const [error, setError]                                 = useState<string | null>(null)
 
+  // Theme state
+  const [themeColors, setThemeColors]   = useState<ThemeColors>(DEFAULT_COLORS)
+  const [activePreset, setActivePreset] = useState<string>("Navy & Orange")
+  const [copied, setCopied]             = useState(false)
+  const [themeToast, setThemeToast]     = useState<string | null>(null)
+
   useEffect(() => {
     const cc = sessionStorage.getItem("portal_client_code") ?? ""
     setClientCode(cc)
+
+    // Fetch user role
+    fetch("/api/me").then(r => r.json()).then(data => {
+      if (data?.role) setRole(data.role as UserRole)
+    }).catch(() => {})
 
     supabase.from("client_receiver_emails").select("id, r_mail, active, label").eq("client_code", cc).order("created_at")
       .then(({ data }) => { setEmails(data ?? []); setEmailsLoading(false) })
@@ -226,7 +378,30 @@ export default function SettingsPage() {
       }
       setFlagsLoading(false)
     }).catch(() => setFlagsLoading(false))
+
+    // Load saved theme
+    try {
+      const saved = localStorage.getItem("portal-theme-colors")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        setThemeColors(parsed)
+        const match = PRESETS.find(p =>
+          Object.entries(p.colors).every(([k, v]) => parsed[k]?.toLowerCase() === v.toLowerCase())
+        )
+        setActivePreset(match?.name ?? "")
+      }
+    } catch {}
   }, [])
+
+  // Apply theme colors to document root whenever they change
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty("--brand-navy",        themeColors.primaryDark)
+    root.style.setProperty("--brand-navy-mid",    themeColors.primaryMid)
+    root.style.setProperty("--brand-navy-light",  themeColors.primaryLight)
+    root.style.setProperty("--brand-accent",      themeColors.accent)
+    root.style.setProperty("--brand-accent-hover", lighten(themeColors.accent, -0.1))
+  }, [themeColors])
 
   // Email actions
   async function toggleEmail(row: ReceiverEmail) {
@@ -328,7 +503,57 @@ export default function SettingsPage() {
     setShowPicker(false); setRequireCritBusy(false)
   }
 
-  // ── Render sections ─────────────────────────────────────────────────────────
+  // Theme actions
+  function updateThemeColor(key: keyof ThemeColors, value: string) {
+    setThemeColors((prev) => ({ ...prev, [key]: value }))
+    setActivePreset("")
+  }
+  function applyPreset(preset: typeof PRESETS[0]) {
+    setThemeColors(preset.colors)
+    setActivePreset(preset.name)
+    showThemeToast(`Applied "${preset.name}"`)
+  }
+  function resetTheme() {
+    setThemeColors(DEFAULT_COLORS)
+    setActivePreset("Navy & Orange")
+    const root = document.documentElement
+    ;["--brand-navy","--brand-navy-mid","--brand-navy-light","--brand-accent","--brand-accent-hover"].forEach(v => root.style.removeProperty(v))
+    try { localStorage.removeItem("portal-theme-colors") } catch {}
+    showThemeToast("Reset to default theme")
+  }
+  function saveTheme() {
+    try { localStorage.setItem("portal-theme-colors", JSON.stringify(themeColors)) } catch {}
+    showThemeToast("Theme saved!")
+  }
+  function copyCss() {
+    const css = `/* Logistricks Brand Tokens */\n--brand-navy:        ${themeColors.primaryDark};\n--brand-navy-mid:    ${themeColors.primaryMid};\n--brand-navy-light:  ${themeColors.primaryLight};\n--brand-accent:      ${themeColors.accent};\n--brand-accent-hover:${lighten(themeColors.accent, -0.1)};`
+    navigator.clipboard.writeText(css).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  function showThemeToast(msg: string) {
+    setThemeToast(msg)
+    setTimeout(() => setThemeToast(null), 2500)
+  }
+
+  const cssVars = [
+    { name: "Primary Dark",  var: "--brand-navy",       key: "primaryDark"  as keyof ThemeColors, value: themeColors.primaryDark  },
+    { name: "Primary Mid",   var: "--brand-navy-mid",   key: "primaryMid"   as keyof ThemeColors, value: themeColors.primaryMid   },
+    { name: "Primary Light", var: "--brand-navy-light", key: "primaryLight" as keyof ThemeColors, value: themeColors.primaryLight },
+    { name: "Accent",        var: "--brand-accent",     key: "accent"       as keyof ThemeColors, value: themeColors.accent       },
+  ]
+
+  // Sections — theme only shown to admins
+  const SECTIONS: { key: SectionKey; label: string; icon: React.ElementType; desc: string }[] = [
+    { key: "emails",     label: "Receiver Emails",  icon: Mail,          desc: "Inbound email addresses"        },
+    { key: "whatsapp",   label: "WhatsApp Numbers", icon: MessageCircle, desc: "Inbound WhatsApp sources"       },
+    { key: "automation", label: "Automation",        icon: Zap,           desc: "Auto-send & auto-reply rules"   },
+    { key: "approval",   label: "Approval Workflow", icon: GitBranch,     desc: "Approval cycles & chains"      },
+    ...(role === "admin" ? [{ key: "theme" as SectionKey, label: "Theme", icon: Palette, desc: "Brand colours & portal appearance" }] : []),
+  ]
+
+  // ── Render sections ──────────────────────────────────────────────────────────
   function renderSection() {
     if (active === "emails") return (
       <div>
@@ -347,7 +572,6 @@ export default function SettingsPage() {
                 <ChannelRow key={row.id} primary={row.r_mail} secondary={row.label} active={row.active}
                   busy={emailBusy === row.id} onToggle={() => toggleEmail(row)} onDelete={() => deleteEmail(row.id)} />
               ))}
-              {/* Add row */}
               <div className="flex items-center gap-2 px-4 py-3" style={{ background: "var(--table-header-bg)" }}>
                 <Plus className="h-4 w-4 shrink-0" style={{ color: "var(--text-muted)" }} />
                 <Input type="email" placeholder="new@intake.example.com" value={newMail} onChange={setNewMail}
@@ -356,8 +580,7 @@ export default function SettingsPage() {
                   onKeyDown={(e) => e.key === "Enter" && addEmail()} className="w-32" />
                 <button onClick={addEmail} disabled={addingMail || !newMail.trim()}
                   className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: "var(--brand-accent)" }}
-                >
+                  style={{ background: "var(--brand-accent)" }}>
                   {addingMail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
                 </button>
               </div>
@@ -392,8 +615,7 @@ export default function SettingsPage() {
                   onKeyDown={(e) => e.key === "Enter" && addNumber()} className="w-32" />
                 <button onClick={addNumber} disabled={addingNum || !newNum.trim()}
                   className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: "var(--brand-accent)" }}
-                >
+                  style={{ background: "var(--brand-accent)" }}>
                   {addingNum ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
                 </button>
               </div>
@@ -450,8 +672,6 @@ export default function SettingsPage() {
                     ) : (
                       <p className="text-xs" style={{ color: "var(--text-muted)" }}>No fields selected. Click Edit to choose.</p>
                     )}
-
-                    {/* Nested toggles */}
                     <div className="mt-3 flex items-start justify-between gap-4 pt-3" style={{ borderTop: "1px solid var(--divider)" }}>
                       <div>
                         <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Auto-reply when critical data is missing</p>
@@ -491,6 +711,130 @@ export default function SettingsPage() {
           <span>Manage Approval Cycles</span>
           <ChevronRight className="h-4 w-4" style={{ color: "var(--text-muted)" }} />
         </Link>
+      </div>
+    )
+
+    if (active === "theme" && role === "admin") return (
+      <div>
+        {/* Toast */}
+        {themeToast && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-xl"
+            style={{ background: "var(--brand-navy)", animation: "fadeIn 0.2s ease" }}>
+            <Check className="h-4 w-4" style={{ color: "var(--brand-accent)" }} />
+            {themeToast}
+          </div>
+        )}
+
+        <div className="mb-5">
+          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Theme</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Customise the portal's colour palette. Changes apply immediately across the portal.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+          {/* Controls */}
+          <div className="space-y-4 lg:col-span-2">
+            {/* Color variables */}
+            <div className="rounded-xl border p-5" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+              <h3 className="mb-0.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Color Variables</h3>
+              <p className="mb-4 text-xs" style={{ color: "var(--text-secondary)" }}>Click a swatch or enter a hex value</p>
+              {cssVars.map((cv) => (
+                <ColorField
+                  key={cv.var}
+                  label={cv.name}
+                  varName={cv.var}
+                  value={cv.value}
+                  onChange={(v) => updateThemeColor(cv.key, v)}
+                />
+              ))}
+              <div className="mt-4 flex gap-2">
+                <button onClick={copyCss}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold text-white transition-all"
+                  style={{ background: "var(--brand-accent)" }}>
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copied!" : "Copy CSS Vars"}
+                </button>
+                <button onClick={resetTheme}
+                  className="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition-all"
+                  style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)", border: "1px solid var(--card-border)" }}
+                  title="Reset to defaults">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Presets */}
+            <div className="rounded-xl border p-5" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+              <h3 className="mb-0.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Client Presets</h3>
+              <p className="mb-4 text-xs" style={{ color: "var(--text-secondary)" }}>One-click brand configurations</p>
+              <div className="space-y-2">
+                {PRESETS.map((preset) => {
+                  const isActive = activePreset === preset.name
+                  return (
+                    <button key={preset.name} onClick={() => applyPreset(preset)}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all"
+                      style={{
+                        background: isActive ? "rgba(232,130,26,0.08)" : "var(--table-header-bg)",
+                        border: `1px solid ${isActive ? "var(--brand-accent)" : "var(--card-border)"}`,
+                        color: "var(--text-primary)",
+                      }}>
+                      <div className="flex shrink-0 gap-0.5">
+                        {Object.values(preset.colors).map((c, i) => (
+                          <div key={i} className="h-4 w-4 rounded-full" style={{ background: c, marginLeft: i > 0 ? -4 : 0 }} />
+                        ))}
+                      </div>
+                      <span className="flex-1 text-xs font-medium">{preset.name}</span>
+                      {isActive && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--brand-accent)" }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Save */}
+            <button onClick={saveTheme}
+              className="w-full rounded-lg py-3 text-sm font-semibold text-white transition-all hover:opacity-90"
+              style={{ background: `linear-gradient(135deg, ${themeColors.primaryDark} 0%, ${themeColors.primaryMid} 100%)` }}>
+              Save Theme
+            </button>
+          </div>
+
+          {/* Preview */}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="rounded-xl border p-5" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Live Preview</h3>
+                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>How the portal looks with your chosen colours</p>
+                </div>
+                <button onClick={() => setThemeColors({ ...themeColors })} className="rounded-md p-1.5 transition-colors" style={{ color: "var(--text-muted)" }}>
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+              <MiniPreview colors={themeColors} />
+            </div>
+
+            {/* Current values */}
+            <div className="rounded-xl border p-5" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+              <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Current Values</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {cssVars.map((cv) => (
+                  <div key={cv.var} className="flex items-center gap-2.5 rounded-lg p-3" style={{ background: "var(--table-header-bg)", border: "1px solid var(--card-border)" }}>
+                    <div className="h-8 w-8 shrink-0 rounded" style={{ background: cv.value }} />
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>{cv.var}</p>
+                      <p className="font-mono text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{cv.value.toUpperCase()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        `}</style>
       </div>
     )
   }
