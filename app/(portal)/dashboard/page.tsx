@@ -466,7 +466,7 @@ export default function DashboardPage() {
                 Recent Activity
               </span>
               <Link
-                href="/activity"
+                href="/users?tab=activity"
                 className="text-[12px] font-semibold hover:underline"
                 style={{ color: "var(--brand-accent)" }}
               >

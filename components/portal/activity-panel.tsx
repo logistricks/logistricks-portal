@@ -104,7 +104,7 @@ function ActorBadge({ actor }: { actor: string }) {
   )
 }
 
-export default function ActivityPage() {
+export function ActivityPanel() {
   const [rows, setRows]               = useState<ActivityRow[]>([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
@@ -152,7 +152,7 @@ export default function ActivityPage() {
   }, [rows])
 
   return (
-    <div className="portal-page space-y-5 p-6">
+    <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Activity Log</h2>

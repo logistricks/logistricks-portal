@@ -4,10 +4,12 @@ import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase"
 import {
-  AlertTriangle, Check, CheckSquare, ChevronRight, Copy, GitBranch, Loader2,
+  AlertTriangle, Check, CheckSquare, ChevronRight, Copy, FileText, GitBranch, Loader2,
   Mail, MessageCircle, Palette, Plus, RefreshCw, RotateCcw, Settings2,
-  Square, Trash2, X, Zap,
+  Square, Trash2, Truck, X, Zap,
 } from "lucide-react"
+import { TemplatesPanel } from "@/components/portal/templates-panel"
+import { CarriersPanel } from "@/components/portal/carriers-panel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ReceiverEmail  = { id: string; r_mail: string; active: boolean; label: string | null }
@@ -312,8 +314,17 @@ export default function SettingsPage() {
   const [active, setActive]       = useState<SectionKey>("emails")
   const [clientCode, setClientCode] = useState<string>("")
   const [role, setRole]           = useState<UserRole>("operator")
-  const [topTab, setTopTab]       = useState<"setup" | "theme">("setup")
+  const [topTab, setTopTab]       = useState<"setup" | "theme" | "templates" | "carriers">("setup")
   const supabase = createClient()
+
+  // Deep-link support: /settings?tab=templates or ?tab=carriers
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const t = params.get("tab")
+      if (t === "templates" || t === "carriers") setTopTab(t)
+    } catch { /* */ }
+  }, [])
 
   // Email state
   const [emails, setEmails]               = useState<ReceiverEmail[]>([])
@@ -921,6 +932,30 @@ export default function SettingsPage() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setTopTab("templates")}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            color: topTab === "templates" ? "var(--brand-accent)" : "var(--text-secondary)",
+            borderBottom: topTab === "templates" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          <FileText className="h-4 w-4" />
+          Templates
+        </button>
+        <button
+          onClick={() => setTopTab("carriers")}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            color: topTab === "carriers" ? "var(--brand-accent)" : "var(--text-secondary)",
+            borderBottom: topTab === "carriers" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          <Truck className="h-4 w-4" />
+          Carriers
+        </button>
       </div>
 
       {/* Setup tab: sidebar + content */}
@@ -963,6 +998,12 @@ export default function SettingsPage() {
 
       {/* Theme tab: full-width */}
       {topTab === "theme" && role === "admin" && renderSection()}
+
+      {/* Templates tab: full-width */}
+      {topTab === "templates" && <TemplatesPanel />}
+
+      {/* Carriers tab: full-width */}
+      {topTab === "carriers" && <CarriersPanel />}
 
       {showPicker && (
         <CriticalFieldsPicker

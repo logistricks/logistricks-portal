@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LogOut, Plus } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 import { NotificationBell } from "@/components/portal/notification-bell"
@@ -52,10 +52,7 @@ export function PortalTopbar() {
   const nav = [
     { label: "Dashboard",   href: "/dashboard",       exact: true },
     { label: "Requests",    href: "/requests",         badge: pendingCount },
-    { label: "Carriers",    href: "/carriers" },
-    { label: "Templates",   href: "/templates" },
     { label: "Approvals",   href: "/approvals",        badge: approvalCount },
-    { label: "Activity",    href: "/activity" },
     { label: "Auto Reply",  href: "/auto-reply-logs" },
     { label: "Users",       href: "/users" },
     { label: "Settings",    href: "/settings",         exact: true },
@@ -146,14 +143,6 @@ export function PortalTopbar() {
 
         {/* Right actions */}
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/requests/new"
-            className="hidden sm:flex items-center gap-1.5 rounded-md px-[16px] py-[7px] text-[13px] font-semibold text-white transition-all hover:brightness-110"
-            style={{ background: "#E8821A", fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "0.02em" }}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New Request
-          </Link>
           <ThemeToggle />
           <NotificationBell />
           <div className="flex items-center gap-1.5 pl-1">

@@ -68,7 +68,7 @@ function TagButton({
   )
 }
 
-export default function TemplatesPage() {
+export function TemplatesPanel() {
   const [list, setList]           = useState<Template[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
@@ -243,7 +243,7 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="portal-page space-y-5 p-6">
+    <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Message Templates</h2>
         <div className="flex items-center gap-3">

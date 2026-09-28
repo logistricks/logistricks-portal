@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
+  Activity as ActivityIcon,
   Check,
   Eye,
   Loader2,
@@ -14,6 +15,7 @@ import {
   Users,
   X,
 } from "lucide-react"
+import { ActivityPanel } from "@/components/portal/activity-panel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -392,9 +394,18 @@ export default function UsersPage() {
   const [deactivateLoading, setDeactivateLoading] = useState(false)
   const [toastMsg, setToastMsg]     = useState("")
   const [currentUsername, setCurrentUsername] = useState("")
+  const [topTab, setTopTab]         = useState<"users" | "activity">("users")
 
   useEffect(() => {
     try { setCurrentUsername(sessionStorage.getItem("portal_username") ?? "") } catch { /* */ }
+  }, [])
+
+  // Deep-link support: /users?tab=activity
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("tab") === "activity") setTopTab("activity")
+    } catch { /* */ }
   }, [])
 
   function showToast(msg: string) {
@@ -477,6 +488,38 @@ export default function UsersPage() {
   return (
     <>
       <div className="min-h-full bg-[var(--page-bg)] p-6">
+        {/* Tab bar */}
+        <div className="mb-6 flex items-center gap-1 border-b" style={{ borderColor: "var(--card-border)" }}>
+          <button
+            onClick={() => setTopTab("users")}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
+            style={{
+              color: topTab === "users" ? "var(--brand-accent)" : "var(--text-secondary)",
+              borderBottom: topTab === "users" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+              marginBottom: -1,
+            }}
+          >
+            <Users className="h-4 w-4" />
+            Users
+          </button>
+          <button
+            onClick={() => setTopTab("activity")}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
+            style={{
+              color: topTab === "activity" ? "var(--brand-accent)" : "var(--text-secondary)",
+              borderBottom: topTab === "activity" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+              marginBottom: -1,
+            }}
+          >
+            <ActivityIcon className="h-4 w-4" />
+            Activity
+          </button>
+        </div>
+
+        {topTab === "activity" && <ActivityPanel />}
+
+        {topTab === "users" && (
+        <>
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -676,6 +719,8 @@ export default function UsersPage() {
               </p>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

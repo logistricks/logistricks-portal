@@ -68,7 +68,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
   return Array.from(map.values())
 }
 
-export default function CarriersPage() {
+export function CarriersPanel() {
   const [list, setList]               = useState<Carrier[]>([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
@@ -154,7 +154,7 @@ export default function CarriersPage() {
   }
 
   return (
-    <div className="portal-page space-y-5 p-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-[22px] font-bold" style={{color:"var(--text-primary)", letterSpacing: "-0.01em"}}>Carriers</h2>
