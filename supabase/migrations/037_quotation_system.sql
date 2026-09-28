@@ -29,7 +29,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS cqr_rfq_reference_idx
 -- the carrier-facing RFQ / auto-reply templates).
 CREATE TABLE IF NOT EXISTS public.quotation_templates (
   id             BIGSERIAL    PRIMARY KEY,
-  client_code    TEXT         NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
+  client_code    citext       NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE ON UPDATE CASCADE,
   template_id    INTEGER      NOT NULL,     -- logical serial per client_code
   template_name  TEXT         NOT NULL DEFAULT '',
   subject        TEXT         NOT NULL DEFAULT '',
@@ -52,7 +52,7 @@ COMMENT ON TABLE public.quotation_templates IS
 -- markup -> final price -> rendered doc -> (optionally) sent.
 CREATE TABLE IF NOT EXISTS public.quotations (
   id                    BIGSERIAL    PRIMARY KEY,
-  client_code           TEXT         NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE,
+  client_code           citext       NOT NULL REFERENCES public.clients(client_code) ON DELETE CASCADE ON UPDATE CASCADE,
   freight_request_id    UUID         NOT NULL REFERENCES freight_requests(id) ON DELETE CASCADE,
   carrier_quote_id      BIGINT       REFERENCES carrier_quotes(id) ON DELETE SET NULL,
   quotation_template_id INTEGER      NOT NULL,   -- references quotation_templates.template_id (per client_code)
