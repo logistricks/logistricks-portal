@@ -24,6 +24,7 @@ export type CarrierRow = {
   routes: string
   is_cc: boolean
   active: boolean
+  auto_send_rfq: boolean
 }
 
 /** UI-level carrier — main contact row with CC emails merged in */
@@ -41,6 +42,7 @@ export type Carrier = {
   lang: number
   routes: string
   active: boolean
+  auto_send_rfq: boolean
   cc_emails: string[]  // from is_cc=true rows
 }
 
@@ -98,6 +100,18 @@ export type Template = {
   is_missing_reply_template: boolean
   is_complete_reply_template: boolean
   active: boolean
+  updated_at: string
+}
+
+export type QuotationTemplate = {
+  id: number
+  template_id: number
+  template_name: string
+  subject: string
+  body: string
+  is_default: boolean
+  active: boolean
+  created_at: string
   updated_at: string
 }
 

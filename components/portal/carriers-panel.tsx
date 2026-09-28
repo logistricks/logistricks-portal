@@ -21,6 +21,7 @@ interface CarrierRow {
   routes: string
   is_cc: boolean
   active: boolean
+  auto_send_rfq: boolean
 }
 
 const CARRIER_COLORS = ["#0f1e36", "#1a3352", "#003087", "#7c3aed", "#16a34a", "#d97706", "#2563eb", "#be185d"]
@@ -55,6 +56,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
         lang: row.lang,
         routes: row.routes,
         active: row.active,
+        auto_send_rfq: row.auto_send_rfq,
         cc_emails: [],
       })
     }
@@ -114,6 +116,22 @@ export function CarriersPanel() {
     } catch (e) {
       setError((e as Error).message)
       setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, active: carrier.active } : c))
+    }
+  }
+
+  async function toggleAutoSend(carrier: Carrier) {
+    const next = !carrier.auto_send_rfq
+    setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, auto_send_rfq: next } : c))
+    try {
+      const res = await fetch("/api/carriers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carrier_id: carrier.carrier_id, auto_send_rfq: next }),
+      })
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setList((l) => l.map((c) => c.carrier_id === carrier.carrier_id ? { ...c, auto_send_rfq: carrier.auto_send_rfq } : c))
     }
   }
 
@@ -227,6 +245,22 @@ export function CarriersPanel() {
                 <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Email {c.cc_emails.length > 0 && `(+${c.cc_emails.length} CC)`}</p>
                 <CopyCell value={c.email} href={`mailto:${c.email}`} />
               </div>
+
+              <button
+                onClick={() => toggleAutoSend(c)}
+                title={c.auto_send_rfq ? "Included in automated RFQ send — click to exclude" : "Not included in automated RFQ send — click to include"}
+                className="mb-3.5 flex w-full items-center justify-between rounded-[7px] px-3 py-2 text-xs font-semibold transition-colors"
+                style={c.auto_send_rfq
+                  ? { background: "rgba(232,130,26,0.1)", color: "var(--brand-accent)" }
+                  : { background: "var(--table-header-bg)", color: "var(--text-muted)" }}
+              >
+                <span>Auto-send RFQ</span>
+                <span
+                  className={`relative h-4 w-7 overflow-hidden rounded-full transition-colors ${c.auto_send_rfq ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}
+                >
+                  <span className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${c.auto_send_rfq ? "translate-x-3" : "translate-x-0"}`} />
+                </span>
+              </button>
 
               <div className="flex items-center justify-between border-t pt-3.5" style={{ borderColor: "var(--divider)" }}>
                 <div className="flex flex-wrap gap-1">

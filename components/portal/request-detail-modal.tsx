@@ -16,6 +16,7 @@ import {
   UrgencyBadge,
 } from "@/components/portal/badges"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
+import { QuotationBuilder } from "@/components/portal/quotation-builder"
 import {
   type Carrier,
   type CarrierRow,
@@ -43,6 +44,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
         lang: row.lang,
         routes: row.routes,
         active: row.active,
+        auto_send_rfq: row.auto_send_rfq,
         cc_emails: [],
       })
     }
@@ -154,6 +156,7 @@ export function RequestDetailModal({
   const [flagSaving, setFlagSaving]       = useState(false)
   const [effectiveRole, setEffectiveRole] = useState<string | undefined>(role)
   const [rawExpanded, setRawExpanded]     = useState(false)
+  const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
   const sendPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -379,7 +382,7 @@ export function RequestDetailModal({
     }
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (sendMethod === "Reply") {
       if (!replyTo) return
       if (userHasCycle) { setShowApprovalConfirm("Reply"); return }
@@ -395,17 +398,38 @@ export function RequestDetailModal({
       if (userHasCycle) { setShowApprovalConfirm("Email"); return }
       const t = templates.find((x) => String(x.template_id) === templateId)
       const subj = encodeURIComponent(t?.subject ?? "")
+
+      // Register the RFQ send so it shows up in the quote-comparison panel and
+      // carrier replies can be correlated back to this request. Best-effort —
+      // if this fails we still send the emails.
+      const carrierIdNums = selectedCarrierIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n))
+      let references: Record<number, string> = {}
+      try {
+        const res = await fetch("/api/rfq", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ freight_request_id: request.id, carrier_ids: carrierIdNums }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          for (const item of data.items ?? []) references[item.carrier_id] = item.rfq_reference
+        }
+      } catch { /* non-fatal — proceed with sending regardless */ }
+
       for (const cid of selectedCarrierIds) {
         const c = carriers.find((x) => String(x.carrier_id) === cid)
         if (!c?.email) continue
-        const perCarrierBody = templateId
+        let perCarrierBody = templateId
           ? renderTemplateBody(templateId, request, c, templates)
           : messageBody
+        const ref = references[c.carrier_id]
+        if (ref) perCarrierBody += `\n\nRef: ${ref}`
         const ccList = c.cc_emails ?? []
         let href = `mailto:${c.email}?subject=${subj}&body=${encodeURIComponent(perCarrierBody)}`
         if (ccList.length > 0) href += `&cc=${encodeURIComponent(ccList.join(","))}`
         window.open(href, "_blank")
       }
+      setRfqRefreshSignal((n) => n + 1)
     }
   }
 
@@ -504,7 +528,8 @@ export function RequestDetailModal({
 
           {activeTab === "quotes" && (
             <div className="p-5">
-              <QuoteComparisonPanel freightRequestId={request.id} />
+              <QuoteComparisonPanel freightRequestId={request.id} key={rfqRefreshSignal} />
+              <QuotationBuilder request={request} refreshSignal={rfqRefreshSignal} />
             </div>
           )}
 

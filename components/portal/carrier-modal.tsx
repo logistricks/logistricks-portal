@@ -28,6 +28,7 @@ export function CarrierModal({
   const [lang,        setLang]        = useState<number>(carrier?.lang  ?? -1)
   const [routes,      setRoutes]      = useState(carrier?.routes        ?? "")
   const [active,      setActive]      = useState(carrier?.active        ?? true)
+  const [autoSendRfq, setAutoSendRfq] = useState(carrier?.auto_send_rfq  ?? false)
   const [ccEmails,    setCcEmails]    = useState<string[]>(carrier?.cc_emails ?? [])
   const [ccInput,     setCcInput]     = useState("")
 
@@ -61,6 +62,7 @@ export function CarrierModal({
       lang,
       routes,
       active,
+      auto_send_rfq: autoSendRfq,
       cc_emails:    ccEmails,
     }
 
@@ -209,7 +211,7 @@ export function CarrierModal({
             </div>
 
             {/* Active */}
-            <label className="flex items-center gap-3 sm:col-span-2">
+            <label className="flex items-center gap-3">
               <button
                 type="button"
                 role="switch"
@@ -220,6 +222,23 @@ export function CarrierModal({
                 <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${active ? "translate-x-5" : "translate-x-0"}`} />
               </button>
               <span className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Active</span>
+            </label>
+
+            {/* Auto-send RFQ */}
+            <label className="flex items-center gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoSendRfq}
+                onClick={() => setAutoSendRfq((v) => !v)}
+                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${autoSendRfq ? "bg-[#F97316]" : "bg-[#CBD5E1]"}`}
+              >
+                <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${autoSendRfq ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+              <span className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
+                Include in Auto-Send RFQ
+                <span className="ml-1.5 block font-normal text-[#94A3B8]">Sent automatically when a complete request matches this carrier&apos;s modes</span>
+              </span>
             </label>
           </div>
 

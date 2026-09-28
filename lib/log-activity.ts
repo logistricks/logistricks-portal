@@ -19,6 +19,11 @@ export type ActivityEventType =
   | "approval_step_approved"
   | "approval_step_rejected"
   | "approval_cycle_completed"
+  | "quotation_template_created"
+  | "quotation_template_updated"
+  | "quotation_template_deleted"
+  | "quotation_created"
+  | "quotation_sent"
 
 function adminClient() {
   return createClient(

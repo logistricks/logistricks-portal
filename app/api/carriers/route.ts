@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
     lang:         body.lang         ?? -1,
     routes:       body.routes       ?? "",
     active:       body.active       ?? true,
+    auto_send_rfq: body.auto_send_rfq ?? false,
     is_cc:        false,
   })
   if (mainErr) return NextResponse.json({ error: mainErr.message }, { status: 500 })
@@ -136,7 +137,7 @@ export async function PATCH(req: NextRequest) {
   const carrierId: number = body.carrier_id
 
   const patch: Record<string, unknown> = {}
-  const fields = ["carrier_name","person_name","role","email","number","is_sea","is_air","is_land","lang","routes","active"] as const
+  const fields = ["carrier_name","person_name","role","email","number","is_sea","is_air","is_land","lang","routes","active","auto_send_rfq"] as const
   for (const f of fields) {
     if (body[f] !== undefined) patch[f] = body[f]
   }

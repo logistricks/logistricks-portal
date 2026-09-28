@@ -22,6 +22,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
         lang: row.lang,
         routes: row.routes,
         active: row.active,
+        auto_send_rfq: row.auto_send_rfq,
         cc_emails: [],
       })
     }
