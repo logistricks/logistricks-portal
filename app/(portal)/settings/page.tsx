@@ -4,13 +4,12 @@ import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase"
 import {
-  AlertTriangle, Check, CheckSquare, ChevronRight, Copy, FileSpreadsheet, FileText, GitBranch, Loader2,
+  AlertTriangle, Check, CheckSquare, ChevronRight, Copy, FileText, GitBranch, Loader2,
   Mail, MessageCircle, Palette, Plus, RefreshCw, RotateCcw, Settings2,
   Square, Trash2, Truck, X, Zap,
 } from "lucide-react"
 import { TemplatesPanel } from "@/components/portal/templates-panel"
 import { CarriersPanel } from "@/components/portal/carriers-panel"
-import { QuotationTemplatesPanel } from "@/components/portal/quotation-templates-panel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ReceiverEmail  = { id: string; r_mail: string; active: boolean; label: string | null }
@@ -315,7 +314,7 @@ export default function SettingsPage() {
   const [active, setActive]       = useState<SectionKey>("emails")
   const [clientCode, setClientCode] = useState<string>("")
   const [role, setRole]           = useState<UserRole>("operator")
-  const [topTab, setTopTab]       = useState<"setup" | "theme" | "templates" | "carriers" | "quotations">("setup")
+  const [topTab, setTopTab]       = useState<"setup" | "theme" | "templates" | "carriers">("setup")
   const supabase = createClient()
 
   // Deep-link support: /settings?tab=templates or ?tab=carriers
@@ -957,18 +956,6 @@ export default function SettingsPage() {
           <Truck className="h-4 w-4" />
           Carriers
         </button>
-        <button
-          onClick={() => setTopTab("quotations")}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            color: topTab === "quotations" ? "var(--brand-accent)" : "var(--text-secondary)",
-            borderBottom: topTab === "quotations" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-            marginBottom: -1,
-          }}
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-          Quotations
-        </button>
       </div>
 
       {/* Setup tab: sidebar + content */}
@@ -1017,9 +1004,6 @@ export default function SettingsPage() {
 
       {/* Carriers tab: full-width */}
       {topTab === "carriers" && <CarriersPanel />}
-
-      {/* Quotations tab: full-width */}
-      {topTab === "quotations" && <QuotationTemplatesPanel />}
 
       {showPicker && (
         <CriticalFieldsPicker
