@@ -526,8 +526,13 @@ export default function SettingsPage() {
     const next = !requireCritical
     if (next && criticalFields.length === 0) { setShowPicker(true); return }
     setRequireCritBusy(true)
-    const err = await patchSettings({ require_critical_data: next })
-    if (err) setError(err); else setRequireCritical(next)
+    const patch: Record<string, unknown> = { require_critical_data: next }
+    if (!next) { patch.auto_reply_missing_enabled = false; patch.auto_reply_complete_enabled = false }
+    const err = await patchSettings(patch)
+    if (err) { setError(err) } else {
+      setRequireCritical(next)
+      if (!next) { setAutoReplyMissing(false); setAutoReplyComplete(false) }
+    }
     setRequireCritBusy(false)
   }
   async function saveCriticalFields(fields: string[]) {
