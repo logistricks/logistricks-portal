@@ -123,7 +123,10 @@ export async function POST(req: NextRequest) {
   if (clientErr) return NextResponse.json({ error: clientErr.message }, { status: 500 })
 
   // ── Determine missing fields ──────────────────────────────────────────────
-  const criticalFields: string[] = Array.isArray(clientRow?.critical_fields)
+  // Only compute missing when require_critical_data is actually enabled.
+  // If the toggle is off, treat everything as "complete" so the missing-data
+  // reply branch never fires inadvertently.
+  const criticalFields: string[] = (clientRow?.require_critical_data && Array.isArray(clientRow?.critical_fields))
     ? (clientRow.critical_fields as string[])
     : []
 

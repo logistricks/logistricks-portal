@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -13,6 +13,7 @@ import {
   Lock,
   Mail,
   MessageCircle,
+  Pencil,
   Phone,
   Reply,
   AlertTriangle,
@@ -115,6 +116,121 @@ function FieldRow({ label, value }: { label: string; value: string | null }) {
   )
 }
 
+// Map from display label to DB field key
+const LABEL_TO_FIELD: Record<string, string> = {
+  "Cargo Type":          "cargo_type",
+  "Weight":              "weight",
+  "Quantity":            "quantity",
+  "Dimensions":          "dimensions",
+  "Equipment / Container": "equipment",
+  "Incoterm":            "incoterm",
+  "BL Type":             "bl_type",
+  "Preferred Carrier":   "preferred_carrier",
+}
+
+function EditableFieldRow({
+  requestId,
+  label,
+  value,
+  lockReason,
+  onSaved,
+}: {
+  requestId: string
+  label: string
+  value: string | null
+  lockReason: string | null
+  onSaved: (field: string, newVal: string) => void
+}) {
+  const display = value && value !== "—" ? value : null
+  const [editing, setEditing]   = useState(false)
+  const [draft, setDraft]       = useState("")
+  const [saving, setSaving]     = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function startEdit() {
+    setDraft(display ?? "")
+    setEditing(true)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  async function save() {
+    const field = LABEL_TO_FIELD[label]
+    if (!field) { setEditing(false); return }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: requestId, fields: { [field]: draft } }),
+      })
+      if (!res.ok) throw new Error("Save failed")
+      onSaved(field, draft)
+      setEditing(false)
+    } catch {
+      /* keep editing open so user can retry */
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-3 py-2.5" style={{ borderBottom: "1px solid var(--divider)" }}>
+      <span className="shrink-0 text-xs font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 140 }}>{label}</span>
+      {editing ? (
+        <div className="flex flex-1 items-center gap-1.5">
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false) }}
+            className="flex-1 rounded border px-2 py-1 text-sm"
+            style={{ borderColor: "var(--brand-accent)", background: "var(--card-bg)", color: "var(--text-primary)", outline: "none" }}
+          />
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            style={{ background: "var(--brand-accent)" }}
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="rounded px-2 py-1 text-xs"
+            style={{ color: "var(--text-muted)" }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-1 items-center justify-end gap-1.5">
+          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: display ? "var(--text-primary)" : "#ef4444" }}>
+            {display ?? "— Missing"}
+          </span>
+          {LABEL_TO_FIELD[label] && (
+            lockReason ? (
+              <span title={lockReason} className="cursor-not-allowed opacity-40">
+                <Lock className="h-3.5 w-3.5" style={{ color: "var(--text-muted)" }} />
+              </span>
+            ) : (
+              <button
+                onClick={startEdit}
+                title="Edit field"
+                className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5"
+                style={{ color: "var(--text-muted)" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CopyRow({ icon: Icon, value }: { icon: typeof Mail; value: string }) {
   const [copied, setCopied] = useState(false)
   if (!value) return null
@@ -155,6 +271,17 @@ export default function RequestDetailPage() {
   const [sending, setSending]       = useState(false)
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
+  const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({})
+
+  function handleFieldSaved(field: string, newVal: string) {
+    const DB_TO_CAMEL: Record<string, string> = {
+      cargo_type: "cargoType", equipment: "equipment", weight: "weight",
+      quantity: "quantity", dimensions: "dimensions", incoterm: "incoterm",
+      bl_type: "blType", preferred_carrier: "preferredCarrier",
+    }
+    const camel = DB_TO_CAMEL[field] ?? field
+    setFieldValues((prev) => ({ ...prev, [camel]: newVal }))
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -165,6 +292,16 @@ export default function RequestDetailPage() {
       setRequest(data)
       setAog(data.aog)
       setDgr(data.dgr)
+      setFieldValues({
+        cargoType:        data.cargoType,
+        equipment:        data.equipment,
+        weight:           data.weight,
+        quantity:         data.quantity,
+        dimensions:       data.dimensions,
+        incoterm:         data.incoterm,
+        blType:           data.blType,
+        preferredCarrier: data.preferredCarrier,
+      })
     } catch {
       toastError("Failed to load", "Request not found or not accessible.")
     } finally {
@@ -321,21 +458,61 @@ export default function RequestDetailPage() {
             <div className="space-y-4 lg:col-span-3">
 
               {/* Cargo Details */}
-              <div className="ds-card">
-                <div className="ds-card-header">
-                  <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
-                  {missingCount > 0 && (
-                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
-                      {missingCount} missing
-                    </span>
-                  )}
-                </div>
-                <div className="px-5 pb-4">
-                  {Object.entries(FIELD_MAP).map(([k, { label, getValue }]) => (
-                    <FieldRow key={k} label={label} value={getValue(request)} />
-                  ))}
-                </div>
-              </div>
+              {(() => {
+                const lastMsg = replyThread[replyThread.length - 1]
+                const awaitingSenderReply = lastMsg?.role === "system"
+                const carrierRfqSent = ["Sent to Carrier", "Quoted", "Closed"].includes(request.status)
+                const fieldLockReason: string | null = carrierRfqSent
+                  ? "Locked — carrier RFQ already sent"
+                  : awaitingSenderReply
+                  ? "Waiting for reply from sender"
+                  : null
+
+                const displayFields = [
+                  { label: "Cargo Type",           camel: "cargoType" },
+                  { label: "Weight",                camel: "weight" },
+                  { label: "Quantity",              camel: "quantity" },
+                  { label: "Dimensions",            camel: "dimensions" },
+                  { label: "Equipment / Container", camel: "equipment" },
+                  { label: "Incoterm",              camel: "incoterm" },
+                  { label: "BL Type",               camel: "blType" },
+                  { label: "Preferred Carrier",     camel: "preferredCarrier" },
+                ]
+
+                return (
+                  <div className="ds-card">
+                    <div className="ds-card-header">
+                      <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
+                      <div className="flex items-center gap-2">
+                        {missingCount > 0 && (
+                          <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                            {missingCount} missing
+                          </span>
+                        )}
+                        {fieldLockReason && (
+                          <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
+                            <Lock className="h-3 w-3" />
+                            {carrierRfqSent ? "Locked" : "Awaiting reply"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="group px-5 pb-4">
+                      {displayFields.map(({ label, camel }) => (
+                        <EditableFieldRow
+                          key={label}
+                          requestId={request.id}
+                          label={label}
+                          value={fieldValues[camel] ?? null}
+                          lockReason={fieldLockReason}
+                          onSaved={handleFieldSaved}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Special requirements */}
               {request.specialRequirements && request.specialRequirements.length > 0 && (

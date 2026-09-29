@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
 import {
   AlertTriangle, ArrowRight, Check, CheckSquare, ChevronDown, ChevronUp,
-  Copy, Loader2, Lock, Mail, MessageCircle, Phone, Reply, X
+  Copy, Loader2, Lock, Mail, MessageCircle, Pencil, Phone, Reply, X
 } from "lucide-react"
 import {
   AogBadge,
@@ -95,6 +95,122 @@ function FieldRow({ label, value }: { label: string; value: string | null }) {
       <span className={`text-sm font-medium whitespace-pre-line flex-1 text-right ${missing ? "text-red-500" : ""}`} style={{ color: missing ? "#ef4444" : "var(--text-primary)" }}>
         {missing ? "— Missing" : display}
       </span>
+    </div>
+  )
+}
+
+// Map from human label to DB field key
+const LABEL_TO_FIELD: Record<string, string> = {
+  "Cargo Type":    "cargo_type",
+  "Equipment":     "equipment",
+  "Weight":        "weight",
+  "Quantity":      "quantity",
+  "Dimensions":    "dimensions",
+  "Incoterm":      "incoterm",
+  "BL Type":       "bl_type",
+  "Pref. Carrier": "preferred_carrier",
+}
+
+function EditableFieldRow({
+  requestId,
+  label,
+  value,
+  lockReason,
+  onSaved,
+}: {
+  requestId: string
+  label: string
+  value: string | null
+  lockReason: string | null   // null = editable; string = tooltip message
+  onSaved: (field: string, newVal: string) => void
+}) {
+  const display = parseArrayField(value)
+  const missing = !display || display === "—"
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft]     = useState("")
+  const [saving, setSaving]   = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function startEdit() {
+    setDraft(display === "—" ? "" : display ?? "")
+    setEditing(true)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  async function save() {
+    const field = LABEL_TO_FIELD[label]
+    if (!field) { setEditing(false); return }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: requestId, fields: { [field]: draft } }),
+      })
+      if (!res.ok) throw new Error("Save failed")
+      onSaved(field, draft)
+      setEditing(false)
+    } catch {
+      /* keep editing open so user can retry */
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-3 py-2" style={{ borderBottom: "1px solid var(--divider)" }}>
+      <span className="shrink-0 text-xs font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 120 }}>{label}</span>
+      {editing ? (
+        <div className="flex flex-1 items-center gap-1.5">
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false) }}
+            className="flex-1 rounded border px-2 py-1 text-sm"
+            style={{ borderColor: "var(--brand-accent)", background: "var(--card-bg)", color: "var(--text-primary)", outline: "none" }}
+          />
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            style={{ background: "var(--brand-accent)" }}
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="rounded px-2 py-1 text-xs"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-1 items-center justify-end gap-1.5">
+          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: missing ? "#ef4444" : "var(--text-primary)" }}>
+            {missing ? "— Missing" : display}
+          </span>
+          {LABEL_TO_FIELD[label] && (
+            lockReason ? (
+              <span title={lockReason} className="cursor-not-allowed opacity-40">
+                <Lock className="h-3.5 w-3.5" style={{ color: "var(--text-muted)" }} />
+              </span>
+            ) : (
+              <button
+                onClick={startEdit}
+                title="Edit field"
+                className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5"
+                style={{ color: "var(--text-muted)" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -433,20 +549,53 @@ export function RequestDetailModal({
     }
   }
 
+  // ── Local field values (updated optimistically on save) ──────────────────
+  const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({
+    cargoType:        request.cargoType,
+    equipment:        request.equipment,
+    weight:           request.weight,
+    quantity:         request.quantity,
+    dimensions:       request.dimensions,
+    incoterm:         request.incoterm,
+    blType:           request.blType,
+    preferredCarrier: request.preferredCarrier,
+  })
+
+  function handleFieldSaved(field: string, newVal: string) {
+    // field is the DB key (e.g. "cargo_type"); map back to camelCase
+    const DB_TO_CAMEL: Record<string, string> = {
+      cargo_type: "cargoType", equipment: "equipment", weight: "weight",
+      quantity: "quantity", dimensions: "dimensions", incoterm: "incoterm",
+      bl_type: "blType", preferred_carrier: "preferredCarrier",
+    }
+    const camel = DB_TO_CAMEL[field] ?? field
+    setFieldValues((prev) => ({ ...prev, [camel]: newVal }))
+  }
+
   // All cargo fields for the details tab
   const cargoFields = [
-    { label: "Cargo Type",   value: request.cargoType },
-    { label: "Equipment",    value: request.equipment },
-    { label: "Weight",       value: request.weight },
-    { label: "Quantity",     value: request.quantity },
-    { label: "Dimensions",   value: request.dimensions },
-    { label: "Incoterm",     value: request.incoterm },
-    { label: "BL Type",      value: request.blType },
-    { label: "Pref. Carrier",value: request.preferredCarrier },
+    { label: "Cargo Type",   value: fieldValues.cargoType },
+    { label: "Equipment",    value: fieldValues.equipment },
+    { label: "Weight",       value: fieldValues.weight },
+    { label: "Quantity",     value: fieldValues.quantity },
+    { label: "Dimensions",   value: fieldValues.dimensions },
+    { label: "Incoterm",     value: fieldValues.incoterm },
+    { label: "BL Type",      value: fieldValues.blType },
+    { label: "Pref. Carrier",value: fieldValues.preferredCarrier },
   ]
 
+  // Locking logic:
+  // - Temporary lock: last conversation message is from "system" (reply sent, awaiting sender)
+  // - Permanent lock: carrier RFQ emails have been sent (status is Sent to Carrier / Quoted / Closed)
   const lastMsg = request.conversation?.[request.conversation.length - 1]
   const awaitingSenderReply = lastMsg?.role === "system"
+  const carrierRfqSent = ["Sent to Carrier", "Quoted", "Closed"].includes(request.status)
+
+  const fieldLockReason: string | null = carrierRfqSent
+    ? "Locked — carrier RFQ already sent"
+    : awaitingSenderReply
+    ? "Waiting for reply from sender"
+    : null
 
   return (
     <div
@@ -543,10 +692,24 @@ export function RequestDetailModal({
                 <div className="ds-card">
                   <div className="ds-card-header">
                     <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h4>
+                    {fieldLockReason && (
+                      <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
+                        <Lock className="h-3 w-3" />
+                        {carrierRfqSent ? "Locked" : "Awaiting reply"}
+                      </span>
+                    )}
                   </div>
-                  <div className="px-5 pb-2">
+                  <div className="group px-5 pb-2">
                     {cargoFields.map((f) => (
-                      <FieldRow key={f.label} label={f.label} value={f.value} />
+                      <EditableFieldRow
+                        key={f.label}
+                        requestId={request.id}
+                        label={f.label}
+                        value={f.value ?? null}
+                        lockReason={fieldLockReason}
+                        onSaved={handleFieldSaved}
+                      />
                     ))}
                   </div>
                 </div>

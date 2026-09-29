@@ -66,14 +66,23 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { id, aog, dgr, status } = body as {
+  const { id, aog, dgr, status, fields } = body as {
     id?: string
     aog?: boolean
     dgr?: boolean
     status?: string
+    // Cargo field edits (keys must be in EDITABLE_FIELDS allowlist)
+    fields?: Record<string, string>
   }
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
+
+  // Cargo fields that an operator is allowed to manually edit
+  const EDITABLE_FIELDS = new Set([
+    "cargo_type", "weight", "quantity", "dimensions",
+    "equipment", "incoterm", "bl_type", "preferred_carrier",
+    "origin_city", "origin_country", "destination_city", "destination_country",
+  ])
 
   const VALID_STATUSES = new Set(["Pending", "Waiting for Approval", "Rejected", "Approved - Carrier, Pending Send", "Approved - Carrier, Sent", "Approved - Reply, Pending Send", "Approved - Reply, Sent", "Sent to Carrier", "Quoted", "Closed"])
 
@@ -81,6 +90,13 @@ export async function PATCH(req: NextRequest) {
   if (typeof aog === "boolean") patch.aog = aog
   if (typeof dgr === "boolean") patch.dgr = dgr
   if (typeof status === "string" && VALID_STATUSES.has(status)) patch.status = status
+  if (fields && typeof fields === "object") {
+    for (const [key, val] of Object.entries(fields)) {
+      if (EDITABLE_FIELDS.has(key) && typeof val === "string") {
+        patch[key] = val.trim() || null
+      }
+    }
+  }
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No valid fields provided" }, { status: 400 })
   }
@@ -111,6 +127,15 @@ export async function PATCH(req: NextRequest) {
       description: `Request status changed to "${patch.status}"`,
       requestId:   id,
       meta:        { new_status: patch.status },
+    })
+  } else if (fields && Object.keys(fields).length > 0) {
+    void logActivity({
+      clientCode:  session.clientCode,
+      eventType:   "request_field_edited",
+      actor:       session.username,
+      description: `Request fields edited: ${Object.keys(fields).join(", ")}`,
+      requestId:   id,
+      meta:        fields,
     })
   } else {
     const flags = Object.entries(patch)
