@@ -50,7 +50,12 @@ export async function POST(req: NextRequest) {
     .insert({ client_code: s.clientCode, r_mail: r_mail.trim(), label: label?.trim() || null, active: true })
     .select("id, r_mail, active, label")
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // 23505 = unique violation: the address already belongs to a client (never say which one).
+    if (error.code === "23505")
+      return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 

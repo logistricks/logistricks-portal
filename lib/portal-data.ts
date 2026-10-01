@@ -128,6 +128,10 @@ export type StatusEvent = {
 
 export type FreightRequest = {
   id: string
+  /** Per-client serial (1, 2, 3 …). Only unique together with the client. */
+  requestNumber?: number | null
+  /** Display reference built from the serial, e.g. "LT-0042". */
+  requestRef?: string
   source: Source
   senderName: string
   senderEmail: string

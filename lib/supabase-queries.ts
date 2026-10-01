@@ -12,6 +12,10 @@ import type { FreightRequest, RequestStatus, Source, Confidence } from "@/lib/po
 
 export interface DbFreightRequest {
   id: string
+  // Per-client serial + generated display ref (migration 038). Optional so the
+  // app keeps working if it is deployed before the migration has been run.
+  request_number?: number | null
+  request_ref?: string | null
   client_code: string
   sender_name: string | null
   sender_email: string | null
@@ -244,6 +248,8 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
 
   return {
     id: row.id,
+    requestNumber: row.request_number ?? null,
+    requestRef:    row.request_ref ?? `LT-${row.id.slice(0, 8).toUpperCase()}`,
     source: normalizeSource(row.source),
     senderName:        row.sender_name        ?? "Unknown",
     senderEmail:       row.sender_email       ?? "",

@@ -42,13 +42,7 @@ export async function GET(
       id, sort_order, status, step_status, notes, decided_at, created_at,
       can_edit_template, can_edit_cc, submitted_by, assigned_to,
       assigned_usernames, cycle_id, email_type,
-      freight_requests (
-        id, sender_name, sender_email, origin_city, origin_country,
-        destination_city, destination_country, cargo_type, weight,
-        dimensions, equipment, incoterm, bl_type, urgency,
-        received_at, status, aog, dgr, client_code,
-        is_sea, is_air, is_land, special_requirements, suggested_reply
-      ),
+      freight_requests ( * ),
       approval_cycles ( id, name ),
       approval_step_responses ( id, username, response, notes, created_at )
     `)
@@ -105,7 +99,7 @@ export async function GET(
 
   const freight_request = {
     id:                   _fr.id,
-    reference_number:     `REQ-${_fr.id.slice(0, 8).toUpperCase()}`,
+    reference_number:     _fr.request_ref ?? `REQ-${_fr.id.slice(0, 8).toUpperCase()}`,
     status:               _fr.status,
     commodity:            _fr.cargo_type ?? null,
     weight_kg:            _fr.weight ? parseFloat(_fr.weight) || null : null,

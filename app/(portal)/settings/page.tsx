@@ -458,7 +458,10 @@ export default function SettingsPage() {
     const { data, error } = await supabase.from("client_receiver_emails")
       .insert({ client_code: clientCode, r_mail: newMail.trim(), label: newMailLabel.trim() || null, active: true })
       .select("id, r_mail, active, label").single()
-    if (error) setError(error.message)
+    if (error) {
+      // 23505 = unique violation: the address is already registered (possibly to another client).
+      setError(error.code === "23505" ? "This email address is already registered and cannot be added." : error.message)
+    }
     else { setEmails((p) => [...p, data]); setNewMail(""); setNewMailLabel("") }
     setAddingMail(false)
   }

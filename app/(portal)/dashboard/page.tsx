@@ -378,7 +378,7 @@ export default function DashboardPage() {
                     >
                       <td>
                         <div className="font-semibold tabular-nums text-[13px] font-mono" style={{ color: "var(--text-primary)" }}>
-                          {r.id?.toString().padStart(4, "0") ? `LT-${r.id}` : r.id}
+                          {r.requestRef ?? (r.id ? `LT-${r.id}` : "")}
                         </div>
                         <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
                           <SourceBadge source={r.source} />

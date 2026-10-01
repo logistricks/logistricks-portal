@@ -65,7 +65,7 @@ export async function POST(
   const requestId = params.id
   const { data: freightReq, error: reqErr } = await db
     .from("freight_requests")
-    .select("id, client_code, sender_name, sender_email, raw_message, received_at, confidence")
+    .select("*") // includes request_ref once migration 038 has run; falls back below until then
     .eq("id", requestId)
     .maybeSingle()
 
@@ -139,7 +139,7 @@ export async function POST(
   const vars: Record<string, string> = {
     sender_name:    freightReq.sender_name ?? "there",
     sender_email:   freightReq.sender_email ?? "",
-    request_ref:    requestId.slice(0, 8).toUpperCase(),
+    request_ref:    (freightReq as { request_ref?: string | null }).request_ref ?? requestId.slice(0, 8).toUpperCase(),
     missing_fields: missingParts.length > 0
       ? missingParts.join(", ")
       : "None — all required information was received.",

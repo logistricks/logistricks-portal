@@ -613,6 +613,9 @@ export function RequestDetailModal({
             <div className="flex items-center gap-3 min-w-0">
               <SourceBadge source={request.source} />
               <div className="min-w-0">
+                {request.requestRef && (
+                  <p className="font-mono text-[11px] font-medium text-white/55" style={{ letterSpacing: "0.02em" }}>{request.requestRef}</p>
+                )}
                 <p className="font-semibold text-white truncate">{request.senderName}</p>
                 <p className="text-xs text-white/60 mt-0.5">{request.receivedExact}</p>
               </div>

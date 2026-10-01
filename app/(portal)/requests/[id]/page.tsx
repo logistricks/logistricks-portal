@@ -409,7 +409,7 @@ export default function RequestDetailPage() {
               className="font-mono text-[13px] font-medium mb-0.5"
               style={{ color: "rgba(255,255,255,0.55)", letterSpacing: "0.02em" }}
             >
-              {request.id ? `LT-${request.id}` : ""}
+              {request.requestRef ?? (request.id ? `LT-${request.id}` : "")}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-white">{request.senderName}</h1>

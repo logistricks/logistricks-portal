@@ -59,7 +59,12 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // 23505 = unique violation: the mailbox already belongs to a client (never say which one).
+    if (error.code === "23505")
+      return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ id: data.id })
 }
 
@@ -87,7 +92,11 @@ export async function PUT(req: NextRequest) {
     .eq("id", id)
     .eq("client_code", session.clientCode)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === "23505")
+      return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }
 

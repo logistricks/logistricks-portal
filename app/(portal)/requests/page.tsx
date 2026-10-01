@@ -88,7 +88,7 @@ export default function RequestsPage() {
       if (sourceFilter !== "All Sources" && r.source !== sourceFilter) return false
       if (search) {
         const q = search.toLowerCase()
-        const hay = `${r.senderName} ${r.cargoType} ${r.originCity} ${r.destinationCity}`.toLowerCase()
+        const hay = `${r.requestRef ?? ""} ${r.senderName} ${r.cargoType} ${r.originCity} ${r.destinationCity}`.toLowerCase()
         if (!hay.includes(q)) return false
       }
       return true
@@ -321,7 +321,7 @@ export default function RequestsPage() {
                       />
                     </td>
                     <td className="px-4 py-3 font-mono tabular-nums text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {r.id ? `LT-${r.id}` : ""}
+                      {r.requestRef ?? (r.id ? `LT-${r.id}` : "")}
                     </td>
                     <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
                     <td className="px-4 py-3">
