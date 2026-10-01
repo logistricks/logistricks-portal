@@ -373,8 +373,14 @@ export default function SettingsPage() {
       if (data?.role) setRole(data.role as UserRole)
     }).catch(() => {})
 
-    supabase.from("client_receiver_emails").select("id, r_mail, active, label").eq("client_code", cc).order("created_at")
-      .then(({ data }) => { setEmails(data ?? []); setEmailsLoading(false) })
+    fetch("/api/settings/emails")
+      .then(async (r) => {
+        const d = await r.json().catch(() => null)
+        if (!r.ok) throw new Error(d?.error ?? "Could not load receiver emails")
+        setEmails(Array.isArray(d) ? d : [])
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setEmailsLoading(false))
 
     supabase.from("client_whatsapp_numbers").select("id, number, active, label").eq("client_code", cc).order("created_at")
       .then(({ data }) => { setNumbers(data ?? []); setNumsLoading(false) })
@@ -439,30 +445,36 @@ export default function SettingsPage() {
   }, [themeColors])
 
   // Email actions
+  async function emailApi(method: "POST" | "PATCH" | "DELETE", body: object) {
+    const res = await fetch("/api/settings/emails", {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.error ?? "Request failed")
+    return data
+  }
   async function toggleEmail(row: ReceiverEmail) {
     setEmailBusy(row.id); const next = !row.active
-    const { error } = await supabase.from("client_receiver_emails").update({ active: next }).eq("id", row.id)
-    if (error) setError(error.message)
-    else setEmails((p) => p.map((e) => e.id === row.id ? { ...e, active: next } : e))
+    try {
+      await emailApi("PATCH", { id: row.id, active: next })
+      setEmails((p) => p.map((e) => e.id === row.id ? { ...e, active: next } : e))
+    } catch (e) { setError((e as Error).message) }
     setEmailBusy(null)
   }
   async function deleteEmail(id: string) {
     setEmailBusy(id)
-    const { error } = await supabase.from("client_receiver_emails").delete().eq("id", id)
-    if (error) setError(error.message)
-    else setEmails((p) => p.filter((e) => e.id !== id))
+    try {
+      await emailApi("DELETE", { id })
+      setEmails((p) => p.filter((e) => e.id !== id))
+    } catch (e) { setError((e as Error).message) }
     setEmailBusy(null)
   }
   async function addEmail() {
     if (!newMail.trim()) return; setAddingMail(true)
-    const { data, error } = await supabase.from("client_receiver_emails")
-      .insert({ client_code: clientCode, r_mail: newMail.trim(), label: newMailLabel.trim() || null, active: true })
-      .select("id, r_mail, active, label").single()
-    if (error) {
-      // 23505 = unique violation: the address is already registered (possibly to another client).
-      setError(error.code === "23505" ? "This email address is already registered and cannot be added." : error.message)
-    }
-    else { setEmails((p) => [...p, data]); setNewMail(""); setNewMailLabel("") }
+    try {
+      const row = await emailApi("POST", { r_mail: newMail.trim(), label: newMailLabel.trim() || null })
+      setEmails((p) => [...p, row]); setNewMail(""); setNewMailLabel("")
+    } catch (e) { setError((e as Error).message) }
     setAddingMail(false)
   }
 

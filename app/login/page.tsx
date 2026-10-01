@@ -147,8 +147,7 @@ export default function LoginPage() {
                 type="text"
                 autoComplete="organization"
                 autoFocus
-                placeholder="SABIC-001"
-                value={clientCode}
+                                value={clientCode}
                 onChange={(e) => setClientCode(e.target.value)}
                 required
                 className="h-10 w-full rounded-[3px] px-[11px] text-[13px] outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6]"
@@ -184,8 +183,7 @@ export default function LoginPage() {
                 id="username"
                 type="text"
                 autoComplete="username"
-                placeholder={clientCode.trim() ? "your username" : "enter client code first"}
-                disabled={!clientCode.trim()}
+                                disabled={!clientCode.trim()}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -220,8 +218,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••••••"
-                disabled={!clientCode.trim()}
+                                disabled={!clientCode.trim()}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
