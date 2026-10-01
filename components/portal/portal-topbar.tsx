@@ -19,6 +19,7 @@ export function PortalTopbar() {
 
   const [pendingCount, setPendingCount]   = useState<number>(0)
   const [approvalCount, setApprovalCount] = useState<number>(0)
+  const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
   const [displayName, setDisplayName]     = useState<string>("")
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -33,6 +34,10 @@ export function PortalTopbar() {
         if (!res.ok) return
         const data = await res.json()
         setPendingCount(data.pending ?? 0)
+        fetch("/api/carrier-quotes/unlinked?count=1")
+          .then((r) => (r.ok ? r.json() : { count: 0 }))
+          .then((d: { count?: number }) => setUnlinkedCount(d.count ?? 0))
+          .catch(() => {})
         fetch("/api/approval-requests?view=mine")
           .then((r) => (r.ok ? r.json() : []))
           .then((rows: unknown[]) => setApprovalCount(rows.length))
@@ -52,6 +57,7 @@ export function PortalTopbar() {
   const nav = [
     { label: "Dashboard",   href: "/dashboard",       exact: true },
     { label: "Requests",    href: "/requests",         badge: pendingCount },
+    { label: "Non-linked Quotes", href: "/unlinked-quotes", badge: unlinkedCount },
     { label: "Approvals",   href: "/approvals",        badge: approvalCount },
     { label: "Auto Reply",  href: "/auto-reply-logs" },
     { label: "Users",       href: "/users" },

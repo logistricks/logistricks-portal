@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CheckSquare, FileText, LayoutDashboard, MailCheck, Settings2, Users } from "lucide-react"
+import { CheckSquare, FileText, LayoutDashboard, MailCheck, Settings2, Unlink, Users } from "lucide-react"
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Requests", href: "/requests", icon: FileText },
+  { label: "Quotes", href: "/unlinked-quotes", icon: Unlink },
   { label: "Approvals", href: "/approvals", icon: CheckSquare },
   { label: "Users", href: "/users", icon: Users },
   { label: "Settings", href: "/settings", icon: Settings2 },

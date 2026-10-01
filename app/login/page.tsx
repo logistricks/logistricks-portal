@@ -146,6 +146,7 @@ export default function LoginPage() {
                 id="clientCode"
                 type="text"
                 autoComplete="organization"
+                autoFocus
                 placeholder="SABIC-001"
                 value={clientCode}
                 onChange={(e) => setClientCode(e.target.value)}
@@ -183,11 +184,12 @@ export default function LoginPage() {
                 id="username"
                 type="text"
                 autoComplete="username"
-                placeholder="your username"
+                placeholder={clientCode.trim() ? "your username" : "enter client code first"}
+                disabled={!clientCode.trim()}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="h-10 w-full rounded-[3px] px-[11px] text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6]"
+                className="h-10 w-full rounded-[3px] px-[11px] text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6] disabled:cursor-not-allowed disabled:opacity-60"
                 style={{
                   background: "#f7f9fc",
                   border: "1px solid #cdd6e2",
@@ -219,10 +221,11 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 placeholder="••••••••"
+                disabled={!clientCode.trim()}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="h-10 w-full rounded-[3px] px-[11px] text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6]"
+                className="h-10 w-full rounded-[3px] px-[11px] text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[#bdc9d6] disabled:cursor-not-allowed disabled:opacity-60"
                 style={{
                   background: "#f7f9fc",
                   border: "1px solid #cdd6e2",
