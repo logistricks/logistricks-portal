@@ -9,10 +9,15 @@ import {
   XCircle,
   AlertTriangle,
   TrendingDown,
+  Bot,
+  Trash2,
+  Unlink,
+  User,
 } from "lucide-react"
-import type { CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
+import type { CarrierQuote, CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { fetchQuotesForRequest } from "@/lib/carrier-quotes-queries"
 import { createClient } from "@/lib/supabase"
+import { ConfirmStepsDialog, type ConfirmStep } from "@/components/portal/confirm-steps-dialog"
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -45,23 +50,113 @@ function StatusIcon({ status }: { status: CarrierQuoteRequest["status"] }) {
   return <Send className="h-4 w-4 text-[#94A3B8]" />
 }
 
+/** "Linked by AI: Yes / No" — who attached this quote to the request. */
+function LinkedByBadge({ quote }: { quote: CarrierQuote }) {
+  if (quote.linkedByAi === null) return null
+  return quote.linkedByAi ? (
+    <span
+      className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold"
+      style={{ background: "rgba(59,130,246,0.12)", color: "#3b82f6" }}
+      title="Matched to this request automatically"
+    >
+      <Bot className="h-3 w-3" /> Linked by AI: Yes
+    </span>
+  ) : (
+    <span
+      className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold"
+      style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}
+      title={quote.linkedBy ? `Linked manually by ${quote.linkedBy}` : "Linked manually"}
+    >
+      <User className="h-3 w-3" /> Linked by AI: No
+    </span>
+  )
+}
+
+function rateLabel(q: CarrierQuote): string {
+  if (q.rateUsd != null) return `$${q.rateUsd.toLocaleString("en-US")}`
+  if (q.rateOriginal != null) return `${q.rateOriginal.toLocaleString()} ${q.rateCurrency}`
+  return "no rate"
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────
 
 interface Props {
   freightRequestId: string
+  /** Closed / completed request: unlink and delete are disabled. */
+  locked?: boolean
+  /** Called after a quote was unlinked or deleted, so siblings can refresh. */
+  onChanged?: () => void
 }
 
-export function QuoteComparisonPanel({ freightRequestId }: Props) {
+export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged }: Props) {
   const [rows, setRows]       = useState<CarrierQuoteRequest[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const supabase = createClient()
-    fetchQuotesForRequest(supabase, freightRequestId).then((data) => {
-      setRows(data)
-      setLoading(false)
-    })
-  }, [freightRequestId])
+  const [pending, setPending] = useState<{
+    quoteId: number
+    action: "unlink" | "delete"
+    carrierName: string
+    rate: string
+  } | null>(null)
+  const [actionBusy, setActionBusy]   = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  async function load() {
+    const data = await fetchQuotesForRequest(createClient(), freightRequestId)
+    setRows(data)
+    setLoading(false)
+  }
+
+  useEffect(() => { void load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [freightRequestId])
+
+  async function runAction() {
+    if (!pending) return
+    setActionBusy(true); setActionError(null)
+    try {
+      const res = await fetch(`/api/carrier-quotes/${pending.action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quote_id: pending.quoteId }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error ?? `Server error ${res.status}`)
+      }
+      setPending(null)
+      await load()
+      onChanged?.()
+    } catch (e) {
+      setActionError((e as Error).message)
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  const confirmSteps: ConfirmStep[] = !pending ? [] : pending.action === "unlink"
+    ? [
+        {
+          title: "Unlink this quote?",
+          body: <>The quote from <strong>{pending.carrierName}</strong> ({pending.rate}) will be taken off this request and moved to Non-linked Quotes. You can link it again later.</>,
+          confirmLabel: "Continue",
+        },
+        {
+          title: "Confirm unlink",
+          body: <>Final check: this request will no longer count the <strong>{pending.carrierName}</strong> quote.</>,
+          confirmLabel: "Unlink quote",
+        },
+      ]
+    : [
+        {
+          title: "Delete this quote?",
+          body: <>The quote from <strong>{pending.carrierName}</strong> ({pending.rate}) will be removed from the system.</>,
+          confirmLabel: "Continue",
+        },
+        {
+          title: "Delete permanently",
+          body: <>This is the final confirmation. The <strong>{pending.carrierName}</strong> quote will be deleted for good and cannot be recovered.</>,
+          confirmLabel: "Delete quote",
+        },
+      ]
 
   if (loading) {
     return (
@@ -192,6 +287,33 @@ export function QuoteComparisonPanel({ freightRequestId }: Props) {
                       {row.quote.notes}
                     </p>
                   )}
+
+                  {/* Who linked it + unlink / delete */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                    <LinkedByBadge quote={row.quote} />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={locked}
+                        title={locked ? "Closed or completed requests can't be changed" : "Move this quote back to Non-linked Quotes"}
+                        onClick={() => setPending({ quoteId: row.quote!.id, action: "unlink", carrierName: row.carrierName, rate: rateLabel(row.quote!) })}
+                        className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                      >
+                        <Unlink className="h-3 w-3" /> Unlink
+                      </button>
+                      <button
+                        type="button"
+                        disabled={locked}
+                        title={locked ? "Closed or completed requests can't be changed" : "Delete this quote from the system"}
+                        onClick={() => setPending({ quoteId: row.quote!.id, action: "delete", carrierName: row.carrierName, rate: rateLabel(row.quote!) })}
+                        className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"
+                        style={{ borderColor: "rgba(220,38,38,0.35)" }}
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 border-t border-[#F1F5F9] pt-3 text-xs text-[#94A3B8] dark:border-[#1A2A40]">
@@ -208,6 +330,15 @@ export function QuoteComparisonPanel({ freightRequestId }: Props) {
           )
         })}
       </div>
+
+      <ConfirmStepsDialog
+        open={pending !== null}
+        steps={confirmSteps}
+        busy={actionBusy}
+        error={actionError}
+        onConfirm={runAction}
+        onCancel={() => { setPending(null); setActionError(null) }}
+      />
     </div>
   )
 }

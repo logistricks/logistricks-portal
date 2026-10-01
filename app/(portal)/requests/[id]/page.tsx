@@ -450,7 +450,7 @@ export default function RequestDetailPage() {
       {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 p-6" style={{ background: "var(--page-bg)" }}>
         {activeTab === "quotes" ? (
-          <QuoteComparisonPanel requestId={request.id} />
+          <QuoteComparisonPanel freightRequestId={request.id} locked={request.status === "Closed"} />
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
 

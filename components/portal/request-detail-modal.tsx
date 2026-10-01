@@ -680,7 +680,12 @@ export function RequestDetailModal({
 
           {activeTab === "quotes" && (
             <div className="p-5">
-              <QuoteComparisonPanel freightRequestId={request.id} key={rfqRefreshSignal} />
+              <QuoteComparisonPanel
+                freightRequestId={request.id}
+                key={rfqRefreshSignal}
+                locked={request.status === "Closed"}
+                onChanged={() => setRfqRefreshSignal((n) => n + 1)}
+              />
               <QuotationBuilder request={request} refreshSignal={rfqRefreshSignal} />
             </div>
           )}

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Palette, Pin, PinOff, Settings, Users } from "lucide-react"
+import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Palette, Pin, PinOff, Settings, Unlink, Users } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 function initials(name: string): string {
@@ -27,6 +27,7 @@ export function PortalSidebar({
 
   const [pendingCount, setPendingCount] = useState<number>(0)
   const [approvalCount, setApprovalCount] = useState<number>(0)
+  const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
   const [displayName, setDisplayName]   = useState<string>("")
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -45,6 +46,11 @@ export function PortalSidebar({
         if (!res.ok) return
         const data = await res.json()
         setPendingCount(data.pending ?? 0)
+        // Carrier quotes waiting to be linked to a request
+        fetch("/api/carrier-quotes/unlinked?count=1")
+          .then(r => r.ok ? r.json() : { count: 0 })
+          .then((d: { count?: number }) => setUnlinkedCount(d.count ?? 0))
+          .catch(() => {})
         // Fetch pending approvals for current user
         fetch("/api/approval-requests?view=mine")
           .then(r => r.ok ? r.json() : [])
@@ -64,6 +70,7 @@ export function PortalSidebar({
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Requests",  href: "/requests",  icon: FileText, badge: pendingCount },
     { label: "Carriers",  href: "/carriers",  icon: Building2 },
+    { label: "Non-linked Quotes", href: "/unlinked-quotes", icon: Unlink, badge: unlinkedCount },
     { label: "Templates", href: "/templates", icon: Mail },
     { label: "Approvals",    href: "/approvals",  icon: CheckSquare, badge: approvalCount },
     { label: "Activity Log", href: "/activity", icon: Activity },

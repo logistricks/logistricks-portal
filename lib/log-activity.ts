@@ -24,6 +24,9 @@ export type ActivityEventType =
   | "quotation_template_deleted"
   | "quotation_created"
   | "quotation_sent"
+  | "carrier_quote_linked"
+  | "carrier_quote_unlinked"
+  | "carrier_quote_deleted"
 
 function adminClient() {
   return createClient(

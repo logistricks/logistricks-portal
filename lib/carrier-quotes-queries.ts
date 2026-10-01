@@ -37,6 +37,10 @@ export interface CarrierQuote {
   freeDays: number | null
   notes: string | null
   receivedAt: string
+  /** true = linked automatically, false = linked by a user, null = unknown / older data */
+  linkedByAi: boolean | null
+  linkMethod: string | null
+  linkedBy: string | null
 }
 
 export interface SendRfqPayload {
@@ -51,9 +55,9 @@ export async function fetchQuotesForRequest(
   supabase: SupabaseClient,
   freightRequestId: string,
 ): Promise<CarrierQuoteRequest[]> {
-  const { data, error } = await supabase
-    .from("carrier_quote_requests")
-    .select(`
+  // linked_by_ai / link_method / linked_by exist once migration 039 has run; until then
+  // fall back to the older column list so the panel keeps working.
+  const buildSelect = (withLinkColumns: boolean) => `
       id,
       freight_request_id,
       carrier_id,
@@ -62,7 +66,7 @@ export async function fetchQuotesForRequest(
       status,
       sent_at,
       responded_at,
-      carriers ( name, email ),
+      carriers ( carrier_name, email ),
       carrier_quotes (
         id,
         carrier_id,
@@ -73,11 +77,18 @@ export async function fetchQuotesForRequest(
         validity_date,
         free_days,
         notes,
-        received_at
+        received_at${withLinkColumns ? ",\n        linked_by_ai,\n        link_method,\n        linked_by" : ""}
       )
-    `)
-    .eq("freight_request_id", freightRequestId)
-    .order("sent_at", { ascending: true })
+    `
+  const run = (withLinkColumns: boolean) =>
+    supabase
+      .from("carrier_quote_requests")
+      .select(buildSelect(withLinkColumns))
+      .eq("freight_request_id", freightRequestId)
+      .order("sent_at", { ascending: true })
+
+  let { data, error } = await run(true)
+  if (error) ({ data, error } = await run(false))
 
   if (error) {
     console.error("[carrier-quotes] fetchQuotesForRequest:", error.message)
@@ -88,7 +99,7 @@ export async function fetchQuotesForRequest(
     id: row.id,
     freightRequestId: row.freight_request_id,
     carrierId: row.carrier_id,
-    carrierName: row.carriers?.name ?? "Unknown Carrier",
+    carrierName: row.carriers?.carrier_name ?? "Unknown Carrier",
     carrierEmail: row.carriers?.email ?? "",
     emailThreadId: row.email_thread_id,
     emailMessageId: row.email_message_id,
@@ -99,7 +110,7 @@ export async function fetchQuotesForRequest(
       ? {
           id: row.carrier_quotes[0].id,
           carrierId: row.carrier_quotes[0].carrier_id,
-          carrierName: row.carriers?.name ?? "Unknown",
+          carrierName: row.carriers?.carrier_name ?? "Unknown",
           rateUsd: row.carrier_quotes[0].rate_usd,
           rateCurrency: row.carrier_quotes[0].rate_currency,
           rateOriginal: row.carrier_quotes[0].rate_original,
@@ -108,6 +119,9 @@ export async function fetchQuotesForRequest(
           freeDays: row.carrier_quotes[0].free_days,
           notes: row.carrier_quotes[0].notes,
           receivedAt: row.carrier_quotes[0].received_at,
+          linkedByAi: row.carrier_quotes[0].linked_by_ai ?? null,
+          linkMethod: row.carrier_quotes[0].link_method ?? null,
+          linkedBy:   row.carrier_quotes[0].linked_by ?? null,
         }
       : null,
   }))
