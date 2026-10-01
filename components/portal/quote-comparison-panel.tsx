@@ -11,12 +11,15 @@ import {
   TrendingDown,
   Bot,
   Trash2,
+  ChevronDown,
+  ChevronUp,
   Unlink,
   User,
 } from "lucide-react"
 import type { CarrierQuote, CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { fetchQuotesForRequest } from "@/lib/carrier-quotes-queries"
 import { createClient } from "@/lib/supabase"
+import { QuoteChips, QuoteDetails, hasExtendedData } from "@/components/portal/quote-details"
 import { ConfirmStepsDialog, type ConfirmStep } from "@/components/portal/confirm-steps-dialog"
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -98,6 +101,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
     carrierName: string
     rate: string
   } | null>(null)
+  const [expanded, setExpanded]     = useState<Set<number>>(new Set())
   const [actionBusy, setActionBusy]   = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -281,11 +285,43 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                     </div>
                   )}
 
+                  <div className="pt-1"><QuoteChips ext={row.quote.ext} /></div>
+
+                  {/* Chargeable weight headline */}
+                  {row.quote.ext.chargeableWeight != null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Chargeable</span>
+                      <span className="text-xs font-semibold text-[#0F172A] dark:text-[#E2E8F0]">
+                        {row.quote.ext.chargeableWeight.toLocaleString("en-US", { maximumFractionDigits: 3 })} {row.quote.ext.chargeableUnit === "rt" ? "RT" : "kg"}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Notes */}
                   {row.quote.notes && (
                     <p className="mt-1 rounded bg-[#F8FAFC] px-2 py-1.5 text-[11px] leading-relaxed text-[#64748B] dark:bg-[#0E1A2E] dark:text-[#94A3B8]">
                       {row.quote.notes}
                     </p>
+                  )}
+
+                  {hasExtendedData(row.quote.ext) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setExpanded((prev) => {
+                          const next = new Set(prev); const id = row.quote!.id
+                          if (next.has(id)) next.delete(id); else next.add(id)
+                          return next
+                        })}
+                        className="flex w-full items-center justify-center gap-1 rounded border py-1 text-[11px] font-semibold"
+                        style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}
+                      >
+                        {expanded.has(row.quote.id)
+                          ? <><ChevronUp className="h-3 w-3" /> Hide full details</>
+                          : <><ChevronDown className="h-3 w-3" /> Show full details</>}
+                      </button>
+                      {expanded.has(row.quote.id) && <QuoteDetails ext={row.quote.ext} />}
+                    </>
                   )}
 
                   {/* Who linked it + unlink / delete */}

@@ -31,6 +31,7 @@ import {
   UrgencyBadge,
 } from "@/components/portal/badges"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
+import { QuotationBuilder } from "@/components/portal/quotation-builder"
 import {
   type Carrier,
   type CarrierRow,
@@ -268,6 +269,7 @@ export default function RequestDetailPage() {
   const [messageBody, setMessageBody] = useState("")
   const [activeTab, setActiveTab]   = useState<"details" | "quotes">("details")
   const [rawOpen, setRawOpen]       = useState(false)
+  const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
   const [sending, setSending]       = useState(false)
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
@@ -450,7 +452,15 @@ export default function RequestDetailPage() {
       {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 p-6" style={{ background: "var(--page-bg)" }}>
         {activeTab === "quotes" ? (
-          <QuoteComparisonPanel freightRequestId={request.id} locked={request.status === "Closed"} />
+          <div>
+            <QuoteComparisonPanel
+              key={rfqRefreshSignal}
+              freightRequestId={request.id}
+              locked={request.status === "Closed"}
+              onChanged={() => setRfqRefreshSignal((n) => n + 1)}
+            />
+            <QuotationBuilder request={request} refreshSignal={rfqRefreshSignal} />
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
 

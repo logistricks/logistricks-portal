@@ -41,6 +41,107 @@ export interface CarrierQuote {
   linkedByAi: boolean | null
   linkMethod: string | null
   linkedBy: string | null
+  /** Extended extraction fields (migration 040). All optional / null when the carrier did not state them. */
+  ext: CarrierQuoteExt
+}
+
+export interface QuoteFlag { code: string; field: string | null; severity: "info" | "warn" | "error"; message: string }
+export interface ChargeLineView {
+  carrier_label?: string | null; canonical_code?: string | null; category?: string | null
+  basis?: string | null; unit_rate?: number | null; quantity?: number | null; amount?: number | null
+  currency?: string | null; inclusion?: string | null; condition_note?: string | null
+}
+
+export interface CarrierQuoteExt {
+  carrierQuoteRef?: string | null
+  responseType?: string | null
+  quoteStatus?: string | null
+  version?: number | null
+  mode?: string | null
+  serviceLevel?: string | null
+  quoteDate?: string | null
+  validFrom?: string | null
+  isAllIn?: boolean | null
+  taxIncluded?: boolean | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  totalAmountStated?: number | null
+  minimumCharge?: number | null
+  commodity?: string | null
+  hsCode?: string | null
+  pieces?: number | null
+  packagingType?: string | null
+  grossWeight?: number | null
+  weightUnit?: string | null
+  grossWeightKg?: number | null
+  volumeCbm?: number | null
+  volumetricWeightKg?: number | null
+  chargeableWeight?: number | null
+  chargeableWeightStated?: number | null
+  chargeableUnit?: string | null
+  chargeableBasis?: string | null
+  stackable?: boolean | null
+  declaredValue?: number | null
+  temperatureControl?: string | null
+  hazmat?: Record<string, unknown> | null
+  specialHandling?: string | null
+  containerType?: string | null
+  containerCount?: number | null
+  originPlace?: string | null
+  destinationPlace?: string | null
+  incoterm?: string | null
+  incotermPlace?: string | null
+  etd?: string | null
+  eta?: string | null
+  frequency?: string | null
+  directOrConnecting?: string | null
+  equipmentType?: string | null
+  spaceConfirmed?: boolean | null
+  freeDaysDemurrage?: number | null
+  freeDaysDetention?: number | null
+  perDiemNote?: string | null
+  charges?: ChargeLineView[] | null
+  paymentTerms?: string | null
+  insuranceOffered?: boolean | null
+  liabilityLimit?: string | null
+  cancellationTerms?: string | null
+  exclusions?: string | null
+  subjectToConditions?: string | null
+  requiredDocuments?: string | null
+  reviewStatus?: string | null
+  validationFlags?: QuoteFlag[]
+  modeDetails?: Record<string, unknown> | null
+}
+
+/** Maps a raw carrier_quotes row (select *) to the extended view model. Missing columns just become undefined. */
+export function mapQuoteExt(q: any): CarrierQuoteExt {
+  const n = (v: any) => (v === null || v === undefined ? null : Number(v))
+  return {
+    carrierQuoteRef: q.carrier_quote_ref ?? null, responseType: q.response_type ?? null,
+    quoteStatus: q.quote_status ?? null, version: n(q.version), mode: q.mode ?? null,
+    serviceLevel: q.service_level ?? null, quoteDate: q.quote_date ?? null, validFrom: q.valid_from ?? null,
+    isAllIn: q.is_all_in ?? null, taxIncluded: q.tax_included ?? null, taxAmount: n(q.tax_amount),
+    totalAmount: n(q.total_amount), totalAmountStated: n(q.total_amount_stated), minimumCharge: n(q.minimum_charge),
+    commodity: q.commodity_description ?? null, hsCode: q.hs_code ?? null, pieces: n(q.pieces),
+    packagingType: q.packaging_type ?? null, grossWeight: n(q.gross_weight), weightUnit: q.weight_unit ?? null,
+    grossWeightKg: n(q.gross_weight_kg), volumeCbm: n(q.volume_cbm), volumetricWeightKg: n(q.volumetric_weight_kg),
+    chargeableWeight: n(q.chargeable_weight), chargeableWeightStated: n(q.chargeable_weight_stated),
+    chargeableUnit: q.chargeable_unit ?? null, chargeableBasis: q.chargeable_basis ?? null,
+    stackable: q.stackable ?? null, declaredValue: n(q.declared_value), temperatureControl: q.temperature_control ?? null,
+    hazmat: q.hazmat ?? null, specialHandling: q.special_handling ?? null, containerType: q.container_type ?? null,
+    containerCount: n(q.container_count), originPlace: q.origin_place ?? null, destinationPlace: q.destination_place ?? null,
+    incoterm: q.incoterm ?? null, incotermPlace: q.incoterm_place ?? null, etd: q.etd ?? null, eta: q.eta ?? null,
+    frequency: q.frequency ?? null, directOrConnecting: q.direct_or_connecting ?? null,
+    equipmentType: q.equipment_type ?? null, spaceConfirmed: q.space_confirmed ?? null,
+    freeDaysDemurrage: n(q.free_days_demurrage), freeDaysDetention: n(q.free_days_detention),
+    perDiemNote: q.per_diem_note ?? null, charges: Array.isArray(q.charges) ? q.charges : null,
+    paymentTerms: q.payment_terms ?? null, insuranceOffered: q.insurance_offered ?? null,
+    liabilityLimit: q.liability_limit ?? null, cancellationTerms: q.cancellation_terms ?? null,
+    exclusions: q.exclusions ?? null, subjectToConditions: q.subject_to_conditions ?? null,
+    requiredDocuments: q.required_documents ?? null, reviewStatus: q.review_status ?? null,
+    validationFlags: Array.isArray(q.validation_flags) ? q.validation_flags : [],
+    modeDetails: q.mode_details ?? null,
+  }
 }
 
 export interface SendRfqPayload {
@@ -55,9 +156,11 @@ export async function fetchQuotesForRequest(
   supabase: SupabaseClient,
   freightRequestId: string,
 ): Promise<CarrierQuoteRequest[]> {
-  // linked_by_ai / link_method / linked_by exist once migration 039 has run; until then
-  // fall back to the older column list so the panel keeps working.
-  const buildSelect = (withLinkColumns: boolean) => `
+  // carrier_quotes ( * ) picks up every column that exists, so this keeps working
+  // before and after migrations 039 / 040 have been run.
+  const { data, error } = await supabase
+    .from("carrier_quote_requests")
+    .select(`
       id,
       freight_request_id,
       carrier_id,
@@ -67,28 +170,10 @@ export async function fetchQuotesForRequest(
       sent_at,
       responded_at,
       carriers ( carrier_name, email ),
-      carrier_quotes (
-        id,
-        carrier_id,
-        rate_usd,
-        rate_currency,
-        rate_original,
-        transit_days,
-        validity_date,
-        free_days,
-        notes,
-        received_at${withLinkColumns ? ",\n        linked_by_ai,\n        link_method,\n        linked_by" : ""}
-      )
-    `
-  const run = (withLinkColumns: boolean) =>
-    supabase
-      .from("carrier_quote_requests")
-      .select(buildSelect(withLinkColumns))
-      .eq("freight_request_id", freightRequestId)
-      .order("sent_at", { ascending: true })
-
-  let { data, error } = await run(true)
-  if (error) ({ data, error } = await run(false))
+      carrier_quotes ( * )
+    `)
+    .eq("freight_request_id", freightRequestId)
+    .order("sent_at", { ascending: true })
 
   if (error) {
     console.error("[carrier-quotes] fetchQuotesForRequest:", error.message)
@@ -122,6 +207,7 @@ export async function fetchQuotesForRequest(
           linkedByAi: row.carrier_quotes[0].linked_by_ai ?? null,
           linkMethod: row.carrier_quotes[0].link_method ?? null,
           linkedBy:   row.carrier_quotes[0].linked_by ?? null,
+          ext:        mapQuoteExt(row.carrier_quotes[0]),
         }
       : null,
   }))
