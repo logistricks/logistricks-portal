@@ -27,9 +27,32 @@ function auth(req: NextRequest) {
   return c ? getSession(c) : null
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+/** Is this mailbox already used by ANY client (receiver emails or connected sources)? Never reveals which. */
+async function mailboxTaken(email: string): Promise<boolean> {
+  const a = admin()
+  const lower = email.toLowerCase()
+  const [r, m] = await Promise.all([
+    a.from("client_receiver_emails").select("id").ilike("r_mail", lower).limit(1),
+    a.from("email_sources").select("id").or(`ms_email.ilike.${lower},imap_username.ilike.${lower}`).limit(1),
+  ])
+  return (r.data?.length ?? 0) > 0 || (m.data?.length ?? 0) > 0
+}
+
 export async function GET(req: NextRequest) {
   const s = auth(req)
   if (!s) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  const check = req.nextUrl.searchParams.get("check")
+  if (check !== null) {
+    const email = check.trim()
+    if (!EMAIL_RE.test(email)) return NextResponse.json({ valid: false, available: false, reason: "Enter a valid email address." })
+    const taken = await mailboxTaken(email)
+    return NextResponse.json({
+      valid: true, available: !taken,
+      reason: taken ? "This email address is already registered and cannot be added." : null,
+    })
+  }
   const { data, error } = await admin()
     .from("client_receiver_emails")
     .select("id, r_mail, active, label")
@@ -45,6 +68,9 @@ export async function POST(req: NextRequest) {
   if (s.role === "viewer") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   const { r_mail, label } = await req.json().catch(() => ({}))
   if (!r_mail?.trim()) return NextResponse.json({ error: "Email required" }, { status: 400 })
+  if (!EMAIL_RE.test(r_mail.trim())) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 })
+  if (await mailboxTaken(r_mail.trim()))
+    return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
   const { data, error } = await admin()
     .from("client_receiver_emails")
     .insert({ client_code: s.clientCode, r_mail: r_mail.trim(), label: label?.trim() || null, active: true })

@@ -8,7 +8,7 @@
  * sets an HTTP-only HMAC-signed cookie on success.
  * No direct Supabase calls here — no anon key exposure.
  */
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
@@ -18,6 +18,11 @@ export default function LoginPage() {
   const [password, setPassword]     = useState("")
   const [error, setError]           = useState("")
   const [loading, setLoading]       = useState(false)
+  const [why, setWhy]               = useState("")
+
+  useEffect(() => {
+    try { setWhy(new URLSearchParams(window.location.search).get("why") ?? "") } catch { /* */ }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -120,6 +125,14 @@ export default function LoginPage() {
 
         {/* Form body */}
         <div className="px-[22px] pb-[26px] pt-6">
+          {why && !error && (
+            <div
+              className="mb-4 rounded-[3px] px-[11px] py-2 text-[12.5px]"
+              style={{ background: "rgba(232,130,26,0.08)", border: "1px solid rgba(232,130,26,0.3)", color: "#9a5a10" }}
+            >
+              Please sign in again. <span style={{ opacity: 0.7 }}>({why})</span>
+            </div>
+          )}
           {error && (
             <div
               className="mb-4 rounded-[3px] px-[11px] py-2 text-[12.5px] text-red-600"

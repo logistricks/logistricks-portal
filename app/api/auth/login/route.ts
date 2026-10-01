@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     res.cookies.set("portal_session", token, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax",
       path:     "/",
       maxAge:   28800,
     })

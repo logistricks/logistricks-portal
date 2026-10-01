@@ -13,18 +13,18 @@ async function base64urlDecode(str: string): Promise<Uint8Array> {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0))
 }
 
-async function verifySession(
-  cookie: string,
-): Promise<{ username: string; clientCode: string } | null> {
+type Verdict = { ok: true } | { ok: false; reason: string }
+
+async function verifySession(cookie: string): Promise<Verdict> {
   try {
     const dotIndex = cookie.lastIndexOf(".")
-    if (dotIndex === -1) return null
+    if (dotIndex === -1) return { ok: false, reason: "malformed" }
 
     const payload = cookie.slice(0, dotIndex)
     const sig = cookie.slice(dotIndex + 1)
 
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!secret) return null
+    if (!secret) return { ok: false, reason: "no-secret" }
 
     const enc = new TextEncoder()
     const key = await crypto.subtle.importKey(
@@ -37,16 +37,16 @@ async function verifySession(
 
     const sigBytes = await base64urlDecode(sig)
     const valid = await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(payload))
-    if (!valid) return null
+    if (!valid) return { ok: false, reason: "bad-signature" }
 
     const json = new TextDecoder().decode(await base64urlDecode(payload))
     const data = JSON.parse(json)
-    if (!data.username || !data.clientCode || !data.exp) return null
-    if (Date.now() > data.exp) return null
+    if (!data.username || !data.clientCode || !data.exp) return { ok: false, reason: "incomplete" }
+    if (Date.now() > data.exp) return { ok: false, reason: "expired" }
 
-    return { username: data.username, clientCode: data.clientCode }
+    return { ok: true }
   } catch {
-    return null
+    return { ok: false, reason: "error" }
   }
 }
 
@@ -59,13 +59,15 @@ export async function middleware(request: NextRequest) {
   if (!cookie) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = "/login"
+    loginUrl.search = "?why=no-cookie"
     return NextResponse.redirect(loginUrl)
   }
 
   const session = await verifySession(cookie)
-  if (!session) {
+  if (!session.ok) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = "/login"
+    loginUrl.search = `?why=${session.reason}`
     const res = NextResponse.redirect(loginUrl)
     res.cookies.delete("portal_session")
     return res

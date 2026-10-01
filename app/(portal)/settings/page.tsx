@@ -333,6 +333,8 @@ export default function SettingsPage() {
   const [newMail, setNewMail]             = useState("")
   const [newMailLabel, setNewMailLabel]   = useState("")
   const [addingMail, setAddingMail]       = useState(false)
+  const [addMailOpen, setAddMailOpen]     = useState(false)
+  const [mailCheck, setMailCheck]         = useState<{ state: "idle" | "checking" | "ok" | "bad"; msg?: string }>({ state: "idle" })
 
   // WhatsApp state
   const [numbers, setNumbers]         = useState<WhatsappNumber[]>([])
@@ -469,12 +471,26 @@ export default function SettingsPage() {
     } catch (e) { setError((e as Error).message) }
     setEmailBusy(null)
   }
+  function closeAddMail() { setAddMailOpen(false); setNewMail(""); setNewMailLabel(""); setMailCheck({ state: "idle" }) }
+  useEffect(() => {
+    const v = newMail.trim()
+    if (!addMailOpen || !v) { setMailCheck({ state: "idle" }); return }
+    setMailCheck({ state: "checking" })
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/settings/emails?check=${encodeURIComponent(v)}`)
+        const d = await r.json()
+        setMailCheck(d.valid && d.available ? { state: "ok" } : { state: "bad", msg: d.reason ?? d.error ?? "Cannot use this address." })
+      } catch { setMailCheck({ state: "bad", msg: "Could not verify this address. Try again." }) }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [newMail, addMailOpen])
   async function addEmail() {
-    if (!newMail.trim()) return; setAddingMail(true)
+    if (!newMail.trim() || mailCheck.state !== "ok") return; setAddingMail(true)
     try {
       const row = await emailApi("POST", { r_mail: newMail.trim(), label: newMailLabel.trim() || null })
-      setEmails((p) => [...p, row]); setNewMail(""); setNewMailLabel("")
-    } catch (e) { setError((e as Error).message) }
+      setEmails((p) => [...p, row]); closeAddMail()
+    } catch (e) { setMailCheck({ state: "bad", msg: (e as Error).message }) }
     setAddingMail(false)
   }
 
@@ -620,10 +636,49 @@ export default function SettingsPage() {
   function renderSection() {
     if (active === "emails") return (
       <div>
-        <div className="mb-5">
-          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Receiver Emails</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Inbound addresses monitored for incoming freight requests. Only active addresses are processed.</p>
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Receiver Emails</h2>
+            <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Inbound addresses monitored for incoming freight requests. Only active addresses are processed.</p>
+          </div>
+          {role !== "viewer" && (
+            <button onClick={() => setAddMailOpen(true)} aria-label="Add receiver email" title="Add receiver email"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white transition-all hover:opacity-90"
+              style={{ background: "var(--brand-accent)" }}>
+              <Plus className="h-5 w-5" />
+            </button>
+          )}
         </div>
+        {addMailOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeAddMail}>
+            <div className="w-full max-w-sm rounded-xl border p-5 shadow-xl" onClick={(e) => e.stopPropagation()}
+              style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>Add receiver email</h3>
+                <button onClick={closeAddMail} aria-label="Close" style={{ color: "var(--text-muted)" }}><X className="h-4 w-4" /></button>
+              </div>
+              <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Email address</label>
+              <Input type="email" placeholder="" value={newMail} onChange={setNewMail}
+                onKeyDown={(e) => e.key === "Enter" && addEmail()} className="w-full" />
+              <div className="mt-1.5 min-h-[18px] text-xs">
+                {mailCheck.state === "checking" && <span style={{ color: "var(--text-muted)" }}>Checking…</span>}
+                {mailCheck.state === "ok" && <span className="text-green-600">Available</span>}
+                {mailCheck.state === "bad" && <span className="text-red-600">{mailCheck.msg}</span>}
+              </div>
+              <label className="mb-1 mt-3 block text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Label (optional)</label>
+              <Input value={newMailLabel} onChange={setNewMailLabel} onKeyDown={(e) => e.key === "Enter" && addEmail()} className="w-full" />
+              <div className="mt-5 flex justify-end gap-2">
+                <button onClick={closeAddMail} className="rounded-lg border px-3 py-2 text-xs font-semibold"
+                  style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>Cancel</button>
+                <button onClick={addEmail} disabled={addingMail || mailCheck.state !== "ok"}
+                  className="flex items-center gap-1 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-all disabled:opacity-40"
+                  style={{ background: "var(--brand-accent)" }}>
+                  {addingMail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {emailsLoading
           ? <div className="flex items-center gap-2 py-6 text-sm" style={{ color: "var(--text-secondary)" }}><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
           : (
@@ -635,18 +690,6 @@ export default function SettingsPage() {
                 <ChannelRow key={row.id} primary={row.r_mail} secondary={row.label} active={row.active}
                   busy={emailBusy === row.id} onToggle={() => toggleEmail(row)} onDelete={() => deleteEmail(row.id)} />
               ))}
-              <div className="flex items-center gap-2 px-4 py-3" style={{ background: "var(--table-header-bg)" }}>
-                <Plus className="h-4 w-4 shrink-0" style={{ color: "var(--text-muted)" }} />
-                <Input type="email" placeholder="new@intake.example.com" value={newMail} onChange={setNewMail}
-                  onKeyDown={(e) => e.key === "Enter" && addEmail()} className="flex-1" />
-                <Input placeholder="Label (optional)" value={newMailLabel} onChange={setNewMailLabel}
-                  onKeyDown={(e) => e.key === "Enter" && addEmail()} className="w-32" />
-                <button onClick={addEmail} disabled={addingMail || !newMail.trim()}
-                  className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: "var(--brand-accent)" }}>
-                  {addingMail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
-                </button>
-              </div>
             </div>
           )
         }
