@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, FileText, Loader2, Mail, Send, Sparkles } from "lucide-react"
+import { CheckCircle2, Copy, ExternalLink, FileText, Loader2, Mail, Send, Sparkles, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { type QuotationTemplate, type FreightRequest } from "@/lib/portal-data"
@@ -19,6 +19,191 @@ interface Quotation {
   status: "draft" | "sent"
   sent_at: string | null
   created_at: string
+}
+
+/** Deep link to a Gmail thread. `#all/` resolves regardless of label or inbox state. */
+function gmailThreadUrl(threadId: string): string {
+  return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(threadId)}`
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Popup shown when sending a quotation to the requester. The price was just
+ * built in the portal, so the email is sent by the user from their own mailbox:
+ * the popup copies the text and jumps straight to the requester's original
+ * thread so the reply lands in the same conversation.
+ */
+function SendQuotationModal({
+  quotation,
+  recipient,
+  threadId,
+  onClose,
+  onSaved,
+  onMarkSent,
+}: {
+  quotation: Quotation
+  recipient: string
+  threadId: string | null
+  onClose: () => void
+  onSaved: (id: number, subject: string, body: string) => void
+  onMarkSent: (id: number) => Promise<void>
+}) {
+  const [subject, setSubject] = useState(quotation.generated_subject ?? "")
+  const [body, setBody]       = useState(quotation.generated_body ?? "")
+  const [notice, setNotice]   = useState<string | null>(null)
+  const [opened, setOpened]   = useState(false)
+  const [marking, setMarking] = useState(false)
+
+  const dirty = subject !== (quotation.generated_subject ?? "") || body !== (quotation.generated_body ?? "")
+
+  // Persist edits so the stored quotation matches what was actually sent.
+  async function saveEdits() {
+    if (!dirty) return
+    const res = await fetch("/api/quotations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: quotation.id, generated_subject: subject, generated_body: body }),
+    })
+    if (res.ok) onSaved(quotation.id, subject, body)
+  }
+
+  async function handleOpenThread() {
+    if (!threadId) return
+    const copied = await copyText(body)
+    window.open(gmailThreadUrl(threadId), "_blank", "noopener")
+    setOpened(true)
+    setNotice(copied
+      ? "Message copied. Click Reply in the thread and paste it."
+      : "Couldn't copy automatically — use Copy message, then paste it into the reply.")
+    void saveEdits()
+  }
+
+  function handleOpenMailApp() {
+    window.open(
+      `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      "_blank",
+    )
+    setOpened(true)
+    void saveEdits()
+  }
+
+  async function handleCopy(what: "subject" | "body") {
+    const ok = await copyText(what === "subject" ? subject : body)
+    setNotice(ok ? `${what === "subject" ? "Subject" : "Message"} copied.` : "Copy failed — select the text and copy it manually.")
+  }
+
+  async function handleMarkSent() {
+    setMarking(true)
+    await saveEdits()
+    await onMarkSent(quotation.id)
+    setMarking(false)
+    onClose()
+  }
+
+  const inputStyle = { borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-xl shadow-2xl"
+        style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Send quotation to requester"
+      >
+        <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--divider)" }}>
+          <div>
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Send quotation to requester</h3>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Final price ${quotation.final_price_usd?.toLocaleString("en-US", { minimumFractionDigits: 2 })} · review, then send from your mailbox
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5" style={{ color: "var(--text-muted)" }}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3 overflow-y-auto px-5 py-4">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>To</label>
+            <div className="flex h-10 items-center rounded-md border px-3 text-sm" style={inputStyle}>{recipient}</div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Subject</label>
+              <button type="button" onClick={() => handleCopy("subject")} className="inline-flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>
+                <Copy className="h-3 w-3" /> Copy
+              </button>
+            </div>
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-10 w-full rounded-md border px-3 text-sm" style={inputStyle} />
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Message</label>
+              <button type="button" onClick={() => handleCopy("body")} className="inline-flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>
+                <Copy className="h-3 w-3" /> Copy message
+              </button>
+            </div>
+            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className="w-full rounded-md border px-3 py-2 text-sm leading-relaxed" style={inputStyle} />
+          </div>
+
+          {notice && (
+            <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}>{notice}</p>
+          )}
+          {!threadId && (
+            <p className="rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-400" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
+              This request has no linked email thread, so the message will open as a new email instead.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t px-5 py-4" style={{ borderColor: "var(--divider)" }}>
+          <button
+            type="button"
+            onClick={handleMarkSent}
+            disabled={marking}
+            className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold disabled:opacity-50"
+            style={{ borderColor: "var(--card-border)", color: opened ? "var(--text-primary)" : "var(--text-muted)" }}
+          >
+            {marking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            I&apos;ve sent it — mark as sent
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenMailApp}
+              className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold"
+              style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+            >
+              <Mail className="h-3.5 w-3.5" /> New email
+            </button>
+            {threadId && (
+              <button
+                type="button"
+                onClick={handleOpenThread}
+                className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold text-white"
+                style={{ background: "var(--brand-accent)" }}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Copy &amp; open email thread
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function QuotationBuilder({
@@ -39,7 +224,7 @@ export function QuotationBuilder({
   const [markupAmount, setMarkupAmount] = useState<string>("0")
   const [templateId, setTemplateId]     = useState<number | null>(null)
   const [building, setBuilding]         = useState(false)
-  const [sendingId, setSendingId]       = useState<number | null>(null)
+  const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
 
   async function load() {
     setLoading(true); setError(null)
@@ -111,25 +296,29 @@ export function QuotationBuilder({
     }
   }
 
-  async function handleSendToRequester(q: Quotation) {
+  function handleSendToRequester(q: Quotation) {
     if (!request.senderEmail) { setError("This request has no requester email on file."); return }
-    setSendingId(q.id)
-    try {
-      window.open(
-        `mailto:${request.senderEmail}?subject=${encodeURIComponent(q.generated_subject ?? "")}&body=${encodeURIComponent(q.generated_body ?? "")}`,
-        "_blank",
-      )
-      const res = await fetch("/api/quotations", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: q.id, status: "sent" }),
-      })
-      if (res.ok) {
-        setQuotations((list) => list.map((x) => x.id === q.id ? { ...x, status: "sent", sent_at: new Date().toISOString() } : x))
-      }
-    } finally {
-      setSendingId(null)
+    setError(null)
+    setSendingQuotation(q)
+  }
+
+  // Only called once the user confirms they actually sent the email.
+  async function handleMarkSent(id: number) {
+    const res = await fetch("/api/quotations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "sent" }),
+    })
+    if (res.ok) {
+      setQuotations((list) => list.map((x) => x.id === id ? { ...x, status: "sent", sent_at: new Date().toISOString() } : x))
+    } else {
+      setError("Couldn't mark the quotation as sent. Try again.")
     }
+  }
+
+  function handleEditsSaved(id: number, subject: string, body: string) {
+    setQuotations((list) => list.map((x) => x.id === id ? { ...x, generated_subject: subject, generated_body: body } : x))
+    setSendingQuotation((cur) => cur && cur.id === id ? { ...cur, generated_subject: subject, generated_body: body } : cur)
   }
 
   if (loading) {
@@ -257,11 +446,10 @@ export function QuotationBuilder({
                 {q.status === "draft" && (
                   <button
                     onClick={() => handleSendToRequester(q)}
-                    disabled={sendingId === q.id}
-                    className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold"
                     style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
                   >
-                    {sendingId === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    <Send className="h-3.5 w-3.5" />
                     Send to Requester
                   </button>
                 )}
@@ -269,6 +457,17 @@ export function QuotationBuilder({
             </div>
           ))}
         </div>
+      )}
+
+      {sendingQuotation && (
+        <SendQuotationModal
+          quotation={sendingQuotation}
+          recipient={request.senderEmail}
+          threadId={request.gmailThreadId}
+          onClose={() => setSendingQuotation(null)}
+          onSaved={handleEditsSaved}
+          onMarkSent={handleMarkSent}
+        />
       )}
     </div>
   )
