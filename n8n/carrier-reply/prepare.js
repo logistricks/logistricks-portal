@@ -10,6 +10,11 @@ function prepare(inp) {
     .filter((a) => a && a.text)
     .map((a) => `--- Attachment: ${a.filename || "file"} ---\n${String(a.text).slice(0, 15000)}`)
     .join("\n\n")
+  // Attached files the model can read directly (PDF / images), sent as base64: [{filename, mime_type, data_base64}]
+  const files = (inp.attachments || [])
+    .filter((a) => a && a.data_base64 && /^(application\/pdf|image\/(png|jpe?g|webp))$/i.test(String(a.mime_type || "")) && String(a.data_base64).length < 8_000_000)
+    .slice(0, 4)
+    .map((a) => ({ filename: a.filename || "file", mime_type: String(a.mime_type).toLowerCase(), data: String(a.data_base64).replace(/^data:[^,]*,/, "") }))
   return {
     client_code: inp.client_code,
     from_email: String(inp.from_email || "").trim().toLowerCase(),
@@ -22,6 +27,8 @@ function prepare(inp) {
     quoted_text: cut > 0 ? body.slice(cut).trim().slice(0, 6000) : "",
     raw_text: body.slice(0, 20000),
     attachments_text: att,
+    files,
+    file_names: files.map((f) => f.filename),
   }
 }
 module.exports = { prepare }

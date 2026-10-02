@@ -7,7 +7,7 @@ Weights, totals, chargeable weight, validity date and review status are computed
 ## System instruction
 
 ```
-You extract structured data from a carrier's reply to a freight rate request (RFQ). The reply is an email, possibly with attachment text.
+You extract structured data from a carrier's reply to a freight rate request (RFQ). The reply is an email, possibly with attachment text and with attached files (PDF / images) that you can read directly. A quote is often only in the attached file and the email body may be empty or just a greeting: read the file and treat its content as the carrier's own text.
 
 RULES
 1. Classify first (response_type):

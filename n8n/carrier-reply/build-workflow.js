@@ -33,6 +33,10 @@ const SCHEMA = ${JSON.stringify(schema)}
 const text = 'Carrier email\\nFrom: ' + p.from_email + '\\nSubject: ' + p.subject + '\\nReceived: ' + p.received_at + '\\n\\n' + p.fresh_text
   + (p.quoted_text ? '\\n\\n=== QUOTED EARLIER MESSAGES (find references only) ===\\n' + p.quoted_text : '')
   + (p.attachments_text ? '\\n\\n' + p.attachments_text : '')
+// PDFs / images attached to the email are handed to the model as files, so it reads them itself.
+const files = p.files || []
+const parts = [{ text: text + (files.length ? '\\n\\nAttached files (read them; the quote may be only in the file): ' + files.map((f) => f.filename).join(', ') : '') }]
+for (const f of files) parts.push({ inline_data: { mime_type: f.mime_type, data: f.data } })
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + cfg.gemini_model + ':generateContent?key=' + cfg.gemini_key
@@ -44,7 +48,7 @@ async function call(attempt, useSchema) {
   try {
     const response = await this.helpers.httpRequest({
       method: 'POST', url, headers: { 'Content-Type': 'application/json' }, json: true,
-      body: { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text }] }], generationConfig: gen },
+      body: { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts }], generationConfig: gen },
     })
     if (!response.candidates) throw new Error('No candidates returned: ' + JSON.stringify(response))
     const aiText = response.candidates[0].content.parts[0].text

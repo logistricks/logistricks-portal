@@ -12,7 +12,8 @@ One workflow for all clients. The portal (or any mail reader) POSTs each carrier
 ```json
 { "client_code": "DEMO", "from_email": "ops@carrier.com", "subject": "RE: ... [RFQ-1a2b3c4d-7-ab12cd]",
   "body_text": "...", "message_id": "<...>", "thread_id": "...", "received_at": "2026-10-01T08:30:00Z",
-  "attachments": [{ "filename": "rates.pdf", "text": "extracted text" }] }
+  "attachments": [{ "filename": "rates.pdf", "mime_type": "application/pdf", "data_base64": "<base64 of the file>" },
+                  { "filename": "rates.xlsx", "text": "extracted text" }] }
 ```
 Matching: the `RFQ-xxxxxxxx-N-xxxxxx` token (from the RFQ email) is found in subject/body; the portal then falls back to request+carrier and thread id. No match → stored as a Non-linked Quote.
 
@@ -26,4 +27,4 @@ The portal's response: `{ ok, linked, link_method | reason, carrier_quote_id, re
 - `run-tests.ts` — `npx tsx n8n/carrier-reply/run-tests.ts` checks mapping + maths against the expectations (no network). To test the model itself, POST each `test-emails/*.json` `input` to the webhook and compare with `expect`.
 
 ## Not covered yet
-PDF/Excel attachment text extraction (pass extracted text in `attachments`), a second-model cross-check, and mail intake (on hold).
+Excel / Word attachments (pass their extracted text in `attachments[].text`). PDFs and images (png/jpg/webp, up to 4 per email) are sent as base64 and read by the model directly, a second-model cross-check, and mail intake (on hold).
