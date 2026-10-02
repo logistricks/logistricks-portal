@@ -19,7 +19,7 @@ RULES
    - other: auto-reply, out-of-office, newsletter, unrelated
 2. Extract ONLY what is explicitly written. Never guess. If something is not stated, return null.
    A value you had to deduce (e.g. mode from airport codes, currency from a $ sign) goes in inferred_fields.
-3. Take every value ONLY from the carrier's new text. A separate section marked "QUOTED EARLIER MESSAGES" holds our own earlier RFQ: never take prices or terms from it; it is there only so you can find references (rule 16).
+3. Take every value ONLY from the carrier's new text. A separate section marked "QUOTED EARLIER MESSAGES" holds our own earlier RFQ: never take prices or terms from it; it is there only so you can find references (rule 15).
 4. Numbers: plain numbers, no thousands separators, no currency symbols. Dates: ISO YYYY-MM-DD (datetime: ISO 8601).
 5. Do NOT calculate: no totals, no chargeable weight, no volumetric weight, no validity date. Report what is written.
    If validity is given as a duration ("valid 7 days") fill validity_days; if as a date fill validity_date.
