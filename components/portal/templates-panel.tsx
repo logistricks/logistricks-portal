@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Check, CheckCheck, Copy, Loader2, Mail, MessageCircle, MessageSquareReply, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { TemplateEditor } from "@/components/portal/template-editor"
+import { QuotationTemplatesPanel } from "@/components/portal/quotation-templates-panel"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 
-type Tab = "All" | "Email" | "WhatsApp"
-const tabs: Tab[] = ["All", "Email", "WhatsApp"]
+type Tab = "All" | "Email" | "WhatsApp" | "Quotation"
+const tabs: Tab[] = ["All", "Email", "WhatsApp", "Quotation"]
 
 function rowToTemplate(row: TemplateRow): Template {
   return {
@@ -240,6 +241,32 @@ export function TemplatesPanel() {
       active: true, updated_at: new Date().toISOString(),
     })
     setEditorOpen(true)
+  }
+
+  const tabBar = (
+    <div className="flex gap-1.5">
+      {tabs.map((t) => (
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className="rounded-full border px-4 py-1.5 text-[13px] font-semibold transition-colors"
+          style={tab === t
+            ? { background: "var(--text-primary)", color: "#fff", borderColor: "var(--text-primary)" }
+            : { background: "var(--card-bg)", color: "var(--text-secondary)", borderColor: "var(--card-border)" }}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (tab === "Quotation") {
+    return (
+      <div className="space-y-5">
+        <div className="flex">{tabBar}</div>
+        <QuotationTemplatesPanel />
+      </div>
+    )
   }
 
   return (

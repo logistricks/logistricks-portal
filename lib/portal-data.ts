@@ -113,6 +113,12 @@ export type QuotationTemplate = {
   active: boolean
   created_at: string
   updated_at: string
+  format?: "text" | "html"
+  body_html?: string | null
+  description?: string | null
+  applies_to_mode?: "any" | "sea" | "air" | "land"
+  source_filename?: string | null
+  options?: Record<string, unknown> | null
 }
 
 export type ShipmentField = {

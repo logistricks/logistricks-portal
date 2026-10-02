@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, Copy, ExternalLink, FileText, Loader2, Mail, Send, Sparkles, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { type QuotationTemplate, type FreightRequest } from "@/lib/portal-data"
@@ -19,11 +19,41 @@ interface Quotation {
   status: "draft" | "sent"
   sent_at: string | null
   created_at: string
+  generated_html?: string | null
+  generated_format?: "text" | "html" | null
+  quotation_number?: string | null
+  valid_until?: string | null
+  currency?: string | null
 }
 
 /** Deep link to a Gmail thread. `#all/` resolves regardless of label or inbox state. */
 function gmailThreadUrl(threadId: string): string {
   return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(threadId)}`
+}
+
+/** Copies formatted HTML (pastes with layout into Gmail / Outlook) with a plain-text fallback. */
+async function copyHtml(html: string, text: string): Promise<boolean> {
+  try {
+    if (typeof ClipboardItem === "undefined") return false
+    await navigator.clipboard.write([new ClipboardItem({
+      "text/html": new Blob([html], { type: "text/html" }),
+      "text/plain": new Blob([text], { type: "text/plain" }),
+    })])
+    return true
+  } catch {
+    return false
+  }
+}
+
+function printHtml(html: string) {
+  const w = window.open("", "_blank")
+  if (!w) return
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><style>body{margin:24px;font-family:Arial,Helvetica,sans-serif}table{border-collapse:collapse}</style></head><body>${html}</body></html>`)
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 300)
+}
+
+function htmlFrame(html: string) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1e293b}table{border-collapse:collapse}img{max-width:100%}</style></head><body>${html}</body></html>`
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -62,7 +92,8 @@ function SendQuotationModal({
   const [opened, setOpened]   = useState(false)
   const [marking, setMarking] = useState(false)
 
-  const dirty = subject !== (quotation.generated_subject ?? "") || body !== (quotation.generated_body ?? "")
+  const isHtml = quotation.generated_format === "html" && !!quotation.generated_html
+  const dirty = subject !== (quotation.generated_subject ?? "") || (!isHtml && body !== (quotation.generated_body ?? ""))
 
   // Persist edits so the stored quotation matches what was actually sent.
   async function saveEdits() {
@@ -70,29 +101,34 @@ function SendQuotationModal({
     const res = await fetch("/api/quotations", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: quotation.id, generated_subject: subject, generated_body: body }),
+      body: JSON.stringify(isHtml ? { id: quotation.id, generated_subject: subject } : { id: quotation.id, generated_subject: subject, generated_body: body }),
     })
     if (res.ok) onSaved(quotation.id, subject, body)
   }
 
   async function handleOpenThread() {
     if (!threadId) return
-    const copied = await copyText(body)
+    const copied = isHtml ? await copyHtml(quotation.generated_html!, body) || await copyText(body) : await copyText(body)
     window.open(gmailThreadUrl(threadId), "_blank", "noopener")
     setOpened(true)
     setNotice(copied
-      ? "Message copied. Click Reply in the thread and paste it."
+      ? "Message copied with its formatting. Click Reply in the thread and paste it."
       : "Couldn't copy automatically — use Copy message, then paste it into the reply.")
     void saveEdits()
   }
 
   function handleOpenMailApp() {
     window.open(
-      `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.slice(0, 1800))}`,
       "_blank",
     )
     setOpened(true)
     void saveEdits()
+  }
+
+  async function handleCopyFormatted() {
+    const ok = await copyHtml(quotation.generated_html!, body)
+    setNotice(ok ? "Formatted quotation copied — paste it into your email." : "Your browser couldn't copy formatted text. Use \"Copy plain text\" instead.")
   }
 
   async function handleCopy(what: "subject" | "body") {
@@ -152,10 +188,24 @@ function SendQuotationModal({
             <div className="mb-1 flex items-center justify-between">
               <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Message</label>
               <button type="button" onClick={() => handleCopy("body")} className="inline-flex items-center gap-1 text-xs font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>
-                <Copy className="h-3 w-3" /> Copy message
+                <Copy className="h-3 w-3" /> Copy plain text
               </button>
             </div>
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className="w-full rounded-md border px-3 py-2 text-sm leading-relaxed" style={inputStyle} />
+            {isHtml ? (
+              <div className="space-y-2">
+                <iframe title="Quotation preview" sandbox="" srcDoc={htmlFrame(quotation.generated_html!)} className="h-80 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={handleCopyFormatted} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                    <Copy className="h-3.5 w-3.5" /> Copy formatted
+                  </button>
+                  <button type="button" onClick={() => printHtml(quotation.generated_html!)} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                    <Printer className="h-3.5 w-3.5" /> Print / Save PDF
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className="w-full rounded-md border px-3 py-2 text-sm leading-relaxed" style={inputStyle} />
+            )}
           </div>
 
           {notice && (
@@ -222,7 +272,7 @@ export function QuotationBuilder({
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null)
   const [markupType, setMarkupType]     = useState<"flat" | "percent">("flat")
   const [markupAmount, setMarkupAmount] = useState<string>("0")
-  const [templateId, setTemplateId]     = useState<number | null>(null)
+  const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
 
@@ -238,9 +288,7 @@ export function QuotationBuilder({
       setRows(quoteRows)
       if (tplRes.ok) {
         const tpls: QuotationTemplate[] = await tplRes.json()
-        setTemplates(tpls)
-        const def = tpls.find((t) => t.is_default && t.active)
-        setTemplateId((prev) => prev ?? def?.template_id ?? tpls[0]?.template_id ?? null)
+        setTemplates(tpls.filter((t) => t.active))
       }
       if (quoteDocsRes.ok) setQuotations(await quoteDocsRes.json())
     } catch (e) {
@@ -269,7 +317,7 @@ export function QuotationBuilder({
     : Math.round((baseRate + markupNum) * 100) / 100
 
   async function handleBuild() {
-    if (!selectedRow?.quote || !templateId) return
+    if (!selectedRow?.quote || templates.length === 0) return
     setBuilding(true); setError(null)
     try {
       const res = await fetch("/api/quotations", {
@@ -278,7 +326,7 @@ export function QuotationBuilder({
         body: JSON.stringify({
           freight_request_id: request.id,
           carrier_quote_id: selectedRow.quote.id,
-          quotation_template_id: templateId,
+          quotation_template_id: templateId ?? undefined,
           markup_type: markupType,
           markup_amount: markupNum,
         }),
@@ -365,11 +413,11 @@ export function QuotationBuilder({
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Quotation Template</label>
               <select
                 value={templateId ?? ""}
-                onChange={(e) => setTemplateId(Number(e.target.value))}
+                onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : null)}
                 className="h-10 w-full rounded-md border px-3 text-sm"
                 style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
               >
-                {templates.length === 0 && <option value="">No templates yet</option>}
+                {templates.length === 0 ? <option value="">No templates yet — add one in Templates → Quotation</option> : <option value="">Automatic (matches the mode, else the default)</option>}
                 {templates.map((t) => (
                   <option key={t.template_id} value={t.template_id}>{t.template_name}{t.is_default ? " (Default)" : ""}</option>
                 ))}
@@ -403,6 +451,12 @@ export function QuotationBuilder({
             </div>
           </div>
 
+          {(selectedRow?.quote as { reviewStatus?: string | null } | undefined)?.reviewStatus === "needs_review" && (
+            <p className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--text-primary)" }}>
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              This carrier quote was flagged for review (e.g. totals that don&apos;t add up or inferred values). Check it on the Carrier Quotes tab before sending a price to the requester.
+            </p>
+          )}
           <div className="flex items-center justify-between rounded-lg px-4 py-3" style={{ background: "var(--table-header-bg)" }}>
             <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Base ${baseRate.toLocaleString()} + markup → <strong>Final price</strong>
@@ -414,7 +468,7 @@ export function QuotationBuilder({
 
           <button
             onClick={handleBuild}
-            disabled={building || !templateId}
+            disabled={building || templates.length === 0}
             className="inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: "var(--brand-accent)" }}
           >
@@ -430,15 +484,22 @@ export function QuotationBuilder({
           {quotations.map((q) => (
             <div key={q.id} className="ds-card p-4">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{q.generated_subject || "Quotation"}</span>
+                <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
+                  {q.generated_subject || "Quotation"}
+                  {q.quotation_number && <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>{q.quotation_number}</span>}
+                </span>
                 <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold ${q.status === "sent" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : "bg-[#FFF7ED] text-[#F97316]"}`}>
                   {q.status === "sent" ? <CheckCircle2 className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
                   {q.status === "sent" ? "Sent" : "Draft"}
                 </span>
               </div>
-              <p className="mb-3 whitespace-pre-wrap text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                {q.generated_body}
-              </p>
+              {q.generated_format === "html" && q.generated_html ? (
+                <iframe title={`Quotation ${q.id}`} sandbox="" srcDoc={htmlFrame(q.generated_html)} className="mb-3 h-72 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+              ) : (
+                <p className="mb-3 whitespace-pre-wrap text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                  {q.generated_body}
+                </p>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
                   ${q.final_price_usd?.toLocaleString("en-US", { minimumFractionDigits: 2 })}

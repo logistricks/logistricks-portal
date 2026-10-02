@@ -1,22 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Copy, FileSpreadsheet, Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react"
+import { Copy, FileSpreadsheet, FileUp, Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { type QuotationTemplate } from "@/lib/portal-data"
-
-const PLACEHOLDERS = [
-  ["origin_city", "Origin city"], ["origin_country", "Origin country"],
-  ["destination_city", "Destination city"], ["destination_country", "Destination country"],
-  ["cargo_type", "Cargo type"], ["equipment", "Equipment"], ["weight", "Weight"],
-  ["quantity", "Quantity"], ["dimensions", "Dimensions"], ["incoterm", "Incoterm"],
-  ["bl_type", "BL type"], ["mode", "Mode(s)"], ["urgency", "Urgency"],
-  ["sender_name", "Requester name"], ["sender_email", "Requester email"],
-  ["received_date", "Date received"], ["carrier_name", "Chosen carrier"],
-  ["transit_days", "Transit days"], ["validity_date", "Carrier quote validity"],
-  ["free_days", "Free days"], ["base_rate", "Carrier's base rate"],
-  ["markup", "Markup added"], ["final_price", "Final price (base + markup)"],
-  ["currency", "Currency"], ["quotation_date", "Today's date"],
-]
+import { QuotationTemplateEditor } from "@/components/portal/quotation-template-editor"
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -26,132 +13,6 @@ function relativeTime(iso: string): string {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
-}
-
-function QuotationTemplateEditor({
-  template, onClose, onSave,
-}: {
-  template: QuotationTemplate
-  onClose: () => void
-  onSave: () => void
-}) {
-  const [name, setName]       = useState(template.template_name)
-  const [subject, setSubject] = useState(template.subject)
-  const [body, setBody]       = useState(template.body)
-  const [isDefault, setIsDefault] = useState(template.is_default)
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState<string | null>(null)
-
-  function insertPlaceholder(key: string) {
-    setBody((b) => `${b}{{${key}}}`)
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null); setSaving(true)
-    try {
-      const payload = { template_name: name, subject, body, is_default: isDefault, active: true }
-      const res = await fetch("/api/quotation-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(template.id ? { row_id: template.id, ...payload } : payload),
-      })
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        throw new Error(d.error ?? `Server error ${res.status}`)
-      }
-      onSave()
-    } catch (err) {
-      setError((err as Error).message)
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl shadow-2xl sm:rounded-2xl" style={{ background: "var(--card-bg)" }}>
-        <div className="flex items-center justify-between px-6 py-4" style={{ background: "var(--brand-primary-dark, #0D1B2A)" }}>
-          <h3 className="font-semibold text-white">{template.id ? "Edit Quotation Template" : "New Quotation Template"}</h3>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 space-y-4 overflow-y-auto p-6">
-            {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">{error}</p>}
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>Template Name</label>
-              <input
-                value={name} onChange={(e) => setName(e.target.value)} required
-                className="h-10 w-full rounded-md border px-3 text-sm outline-none"
-                style={{ borderColor: "var(--card-border)", background: "var(--input-bg, transparent)", color: "var(--text-primary)" }}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>Email Subject</label>
-              <input
-                value={subject} onChange={(e) => setSubject(e.target.value)}
-                placeholder="Quotation — {{origin_city}} to {{destination_city}}"
-                className="h-10 w-full rounded-md border px-3 text-sm outline-none"
-                style={{ borderColor: "var(--card-border)", background: "var(--input-bg, transparent)", color: "var(--text-primary)" }}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>Body</label>
-              <textarea
-                value={body} onChange={(e) => setBody(e.target.value)} rows={10} required
-                className="w-full rounded-md border px-3 py-2 text-sm outline-none"
-                style={{ borderColor: "var(--card-border)", background: "var(--input-bg, transparent)", color: "var(--text-primary)" }}
-              />
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Insert placeholder</p>
-              <div className="flex flex-wrap gap-1.5">
-                {PLACEHOLDERS.map(([key, label]) => (
-                  <button
-                    key={key} type="button" title={label} onClick={() => insertPlaceholder(key)}
-                    className="rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors"
-                    style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}
-                  >
-                    {`{{${key}}}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <label className="flex items-center gap-3">
-              <button
-                type="button" role="switch" aria-checked={isDefault}
-                onClick={() => setIsDefault((v) => !v)}
-                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${isDefault ? "bg-[#F97316]" : "bg-[#CBD5E1]"}`}
-              >
-                <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${isDefault ? "translate-x-5" : "translate-x-0"}`} />
-              </button>
-              <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                Default template
-                <span className="ml-1.5 block font-normal" style={{ color: "var(--text-muted)" }}>Used automatically when building a quotation, unless another is chosen</span>
-              </span>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 border-t p-4" style={{ borderColor: "var(--divider)" }}>
-            <button type="button" onClick={onClose} disabled={saving}
-              className="rounded-md border px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving}
-              className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: "var(--brand-accent)" }}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Save Template
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
 }
 
 export function QuotationTemplatesPanel() {
@@ -238,10 +99,10 @@ export function QuotationTemplatesPanel() {
     if (!res.ok) { setError(`Server error ${res.status}`); await load() }
   }
 
-  function openNew() {
+  function openNew(_fromWord = false) {
     setEditing({
       id: 0, template_id: 0, template_name: "", subject: "", body: "",
-      is_default: list.length === 0, active: true,
+      is_default: list.length === 0, active: true, format: "html",
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     })
     setEditorOpen(true)
@@ -256,13 +117,22 @@ export function QuotationTemplatesPanel() {
             Used to auto-build the quotation sent back to the original requester.
           </p>
         </div>
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
-          style={{ background: "var(--brand-accent)" }}
-        >
-          <Plus className="h-4 w-4" /> New Template
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => openNew(true)}
+            className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all"
+            style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+          >
+            <FileUp className="h-4 w-4" /> Import from Word
+          </button>
+          <button
+            onClick={() => openNew()}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+            style={{ background: "var(--brand-accent)" }}
+          >
+            <Plus className="h-4 w-4" /> New Template
+          </button>
+        </div>
       </div>
 
       {!loading && !hasDefault && list.length > 0 && (
@@ -279,7 +149,7 @@ export function QuotationTemplatesPanel() {
         </div>
       ) : list.length === 0 ? (
         <button
-          onClick={openNew}
+          onClick={() => openNew()}
           className="flex min-h-40 w-full flex-col items-center justify-center gap-3 rounded-[10px] border-2 border-dashed p-5 transition-colors"
           style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}
         >
@@ -297,11 +167,19 @@ export function QuotationTemplatesPanel() {
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[14px] font-bold leading-tight" style={{ color: "var(--text-primary)" }}>{t.template_name}</h3>
                   {t.subject ? <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-secondary)" }}>{t.subject}</p> : null}
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}>{t.format === "html" ? "Rich layout" : "Plain text"}</span>
+                    {t.applies_to_mode && t.applies_to_mode !== "any" && (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize" style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}>{t.applies_to_mode}</span>
+                    )}
+                    {t.is_default && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "rgba(249,115,22,0.15)", color: "var(--brand-accent)" }}>Default</span>}
+                    {!t.active && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">Inactive</span>}
+                  </div>
                 </div>
               </div>
 
               <p className="line-clamp-3 flex-1 px-5 pb-4 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                {t.body?.replace(/\s+/g, " ").trim() || <em style={{ color: "var(--text-muted)" }}>No content</em>}
+                {t.description || t.body?.replace(/\s+/g, " ").trim() || <em style={{ color: "var(--text-muted)" }}>No content</em>}
               </p>
 
               <div className="flex items-center gap-1 border-t px-3 py-3" style={{ borderColor: "var(--divider)" }}>

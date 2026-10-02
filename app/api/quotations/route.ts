@@ -13,15 +13,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
 import { logActivity } from "@/lib/log-activity"
+import { buildContext, renderQuotation } from "@/lib/quotation-render"
+import { normalizeOptions } from "@/lib/quotation-variables"
 
 function auth(req: NextRequest) {
   const cookie = req.cookies.get("portal_session")?.value
   if (!cookie) return null
   return getSession(cookie)
-}
-
-function substitute(text: string, map: Record<string, string>): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => map[key] ?? "")
 }
 
 export async function GET(req: NextRequest) {
@@ -79,14 +77,17 @@ export async function POST(req: NextRequest) {
   if (quoteErr || !quoteRow) return NextResponse.json({ error: "Carrier quote not found" }, { status: 404 })
 
   if (!quotationTemplateId) {
-    const { data: defaultTpl } = await admin
+    // Prefer an active template made for this mode, then the default.
+    const mode = String(quoteRow.mode ?? "").toLowerCase()
+    const { data: all } = await admin
       .from("quotation_templates")
-      .select("template_id")
+      .select("*")
       .eq("client_code", session.clientCode)
-      .eq("is_default", true)
       .eq("active", true)
-      .maybeSingle()
-    quotationTemplateId = defaultTpl?.template_id
+    const list = (all ?? []) as { template_id: number; is_default: boolean; applies_to_mode?: string }[]
+    quotationTemplateId =
+      list.find((t) => mode && t.applies_to_mode === mode)?.template_id ??
+      list.find((t) => t.is_default)?.template_id
   }
   if (!quotationTemplateId)
     return NextResponse.json({ error: "No quotation template selected and no default template is set" }, { status: 400 })
@@ -99,53 +100,57 @@ export async function POST(req: NextRequest) {
     .single()
   if (tplErr || !template) return NextResponse.json({ error: "Quotation template not found" }, { status: 404 })
 
-  const baseRate = Number(quoteRow.rate_usd ?? 0)
+  const baseRate = Number(quoteRow.rate_usd ?? quoteRow.total_amount ?? 0)
   const finalPrice = markupType === "percent"
     ? Math.round(baseRate * (1 + markupAmount / 100) * 100) / 100
     : Math.round((baseRate + markupAmount) * 100) / 100
 
   const carrierName = (quoteRow as { carriers?: { carrier_name?: string } }).carriers?.carrier_name ?? ""
 
-  const map: Record<string, string> = {
-    origin_city: request.originCity, origin_country: request.originCountry,
-    destination_city: request.destinationCity, destination_country: request.destinationCountry,
-    cargo_type: request.cargoType, equipment: request.equipment, weight: request.weight,
-    quantity: request.quantity, dimensions: request.dimensions, incoterm: request.incoterm,
-    bl_type: request.blType, mode: request.modes.join(", "), urgency: request.urgency,
-    sender_name: request.senderName, sender_email: request.senderEmail,
-    received_date: request.receivedExact,
-    carrier_name: carrierName,
-    transit_days: quoteRow.transit_days != null ? String(quoteRow.transit_days) : "",
-    validity_date: quoteRow.validity_date ?? "",
-    free_days: quoteRow.free_days != null ? String(quoteRow.free_days) : "",
-    base_rate: baseRate.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    markup: markupType === "percent" ? `${markupAmount}%` : `$${markupAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-    final_price: finalPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    currency: "USD",
-    quotation_date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+  // Company details and the user's display name (best effort — the template falls back to blanks).
+  const [{ data: company }, { data: userRow }, { count: existing }] = await Promise.all([
+    admin.from("clients").select("company_name, contact_email, contact_phone").eq("client_code", session.clientCode).maybeSingle(),
+    admin.from("portal_users").select("display_name").eq("client_code", session.clientCode).eq("username", session.username).maybeSingle(),
+    admin.from("quotations").select("id", { count: "exact", head: true }).eq("freight_request_id", freightRequestId),
+  ])
+  const quotationNumber = `QT-${request.requestRef}-${String((existing ?? 0) + 1).padStart(2, "0")}`
+
+  const options = normalizeOptions((template as { options?: unknown }).options)
+  const { ctx, validUntil, currency } = buildContext({
+    request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options,
+    preparedBy: (userRow as { display_name?: string } | null)?.display_name || session.username,
+    company: company ? { name: company.company_name, email: company.contact_email, phone: company.contact_phone } : undefined,
+    quotationNumber,
+  })
+  const rendered = renderQuotation(template, ctx, options)
+
+  const baseRow = {
+    client_code:            session.clientCode,
+    freight_request_id:     freightRequestId,
+    carrier_quote_id:       carrierQuoteId,
+    quotation_template_id:  quotationTemplateId,
+    base_rate_usd:          baseRate,
+    markup_type:            markupType,
+    markup_amount:          markupAmount,
+    final_price_usd:        finalPrice,
+    generated_subject:      rendered.subject,
+    generated_body:         rendered.text,
+    status:                 "draft",
+    created_by:             session.username,
   }
-
-  const generatedSubject = substitute(template.subject ?? "", map)
-  const generatedBody    = substitute(template.body ?? "", map)
-
-  const { data: inserted, error: insertErr } = await admin
-    .from("quotations")
-    .insert({
-      client_code:            session.clientCode,
-      freight_request_id:     freightRequestId,
-      carrier_quote_id:       carrierQuoteId,
-      quotation_template_id:  quotationTemplateId,
-      base_rate_usd:          baseRate,
-      markup_type:            markupType,
-      markup_amount:          markupAmount,
-      final_price_usd:        finalPrice,
-      generated_subject:      generatedSubject,
-      generated_body:         generatedBody,
-      status:                 "draft",
-      created_by:             session.username,
-    })
-    .select("*")
-    .single()
+  const richRow = {
+    ...baseRow,
+    generated_html:   rendered.html,
+    generated_format: rendered.html ? "html" : "text",
+    quotation_number: quotationNumber,
+    valid_until:      validUntil || null,
+    currency,
+  }
+  let { data: inserted, error: insertErr } = await admin.from("quotations").insert(richRow).select("*").single()
+  if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
+    // Migration 042 not applied yet: store the plain-text quotation.
+    ;({ data: inserted, error: insertErr } = await admin.from("quotations").insert(baseRow).select("*").single())
+  }
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
@@ -154,7 +159,7 @@ export async function POST(req: NextRequest) {
     eventType:   "quotation_created",
     actor:       session.username,
     description: `Built quotation for request (final price $${finalPrice.toLocaleString()})`,
-    meta: { freight_request_id: freightRequestId, quotation_id: inserted.id, final_price_usd: finalPrice },
+    meta: { freight_request_id: freightRequestId, quotation_id: inserted!.id, final_price_usd: finalPrice },
   })
 
   return NextResponse.json(inserted, { status: 201 })
