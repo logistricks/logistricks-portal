@@ -11,7 +11,7 @@ const cfg = {
   portal_url: 'https://logistricks-portal.vercel.app',
   portal_secret: 'CHANGE_ME',
   gemini_key: 'CHANGE_ME',
-  gemini_model: 'gemini-2.5-flash',
+  gemini_model: 'gemini-3.6-flash',
 }
 return [{ json: { ...$input.first().json, cfg } }]`
 
@@ -25,26 +25,47 @@ if (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) r
 if (!body.client_code || !body.from_email) return [{ json: { bad_request: "client_code and from_email are required" } }]
 return [{ json: prepare(body) }]`
 
-const geminiReqCode = `const p = $input.first().json
+const geminiCode = `// Calls Gemini from code (same pattern as the request-intake workflow): retries, tolerant JSON parsing.
+const p = $input.first().json
+const cfg = $('Config').first().json.cfg
 const SYSTEM = ${JSON.stringify(system)}
 const SCHEMA = ${JSON.stringify(schema)}
 const text = 'Carrier email\\nFrom: ' + p.from_email + '\\nSubject: ' + p.subject + '\\nReceived: ' + p.received_at + '\\n\\n' + p.fresh_text
   + (p.quoted_text ? '\\n\\n=== QUOTED EARLIER MESSAGES (find references only) ===\\n' + p.quoted_text : '')
   + (p.attachments_text ? '\\n\\n' + p.attachments_text : '')
-return [{ json: { ...p, gemini_request: {
-  systemInstruction: { parts: [{ text: SYSTEM }] },
-  contents: [{ role: 'user', parts: [{ text }] }],
-  generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA },
-} } }]`
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + cfg.gemini_model + ':generateContent?key=' + cfg.gemini_key
+
+async function call(attempt, useSchema) {
+  const gen = { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
+  if (useSchema) gen.responseSchema = SCHEMA
+  const system = useSchema ? SYSTEM : SYSTEM + '\\n\\nReturn JSON with exactly these fields (schema): ' + JSON.stringify(SCHEMA)
+  try {
+    const response = await this.helpers.httpRequest({
+      method: 'POST', url, headers: { 'Content-Type': 'application/json' }, json: true,
+      body: { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text }] }], generationConfig: gen },
+    })
+    if (!response.candidates) throw new Error('No candidates returned: ' + JSON.stringify(response))
+    const aiText = response.candidates[0].content.parts[0].text
+    let ai
+    try { ai = JSON.parse(aiText) } catch (e) { ai = JSON.parse(aiText.replace(/\`\`\`json|\`\`\`/g, '').trim()) }
+    return [{ json: { ...ai, _model: cfg.gemini_model } }]
+  } catch (e) {
+    const msg = e.message || String(e)
+    if (attempt >= 3) throw new Error('Gemini failed after ' + attempt + ' attempts: ' + msg)
+    await sleep(msg.includes('429') ? attempt * 6000 : attempt * 3000)
+    // If the schema itself is rejected (HTTP 400), retry with the schema described in the prompt instead.
+    return call.call(this, attempt + 1, useSchema && !/400|schema|responseSchema/i.test(msg))
+  }
+}
+return await call.call(this, 1, true)`
 
 const buildCode = `${strip("build-body.js")}
 
 const prep = $('Prepare').first().json
-const resp = $input.first().json
-const text = resp.candidates?.[0]?.content?.parts?.[0]?.text
-if (!text) throw new Error('Gemini returned no content: ' + JSON.stringify(resp).slice(0, 500))
-const ai = JSON.parse(text)
-return [{ json: buildBody(ai, prep, resp.modelVersion || 'gemini') }]`
+const ai = $input.first().json
+return [{ json: buildBody(ai, prep, ai._model || 'gemini') }]`
 
 const userMsg = "={{ 'Carrier email\\nFrom: ' + $json.from_email + '\\nSubject: ' + $json.subject + '\\nReceived: ' + $json.received_at + '\\n\\n' + $json.fresh_text + ($json.quoted_text ? '\\n\\n=== QUOTED EARLIER MESSAGES (find references only) ===\\n' + $json.quoted_text : '') + ($json.attachments_text ? '\\n\\n' + $json.attachments_text : '') }}"
 const geminiBody = "={{ JSON.stringify({ systemInstruction: { parts: [{ text: " + JSON.stringify(system) + " }] }, contents: [{ role: 'user', parts: [{ text: (" + userMsg.slice(3, -2) + ") }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: " + JSON.stringify(schema) + " } }) }}"
@@ -58,13 +79,7 @@ const wf = {
     node("Prepare", "n8n-nodes-base.code", 2, [440, 300], { jsCode: prepareCode }),
     node("Rejected?", "n8n-nodes-base.if", 1, [660, 300], { conditions: { boolean: [{ value1: "={{ !!$json.unauthorized || !!$json.bad_request }}", value2: true }] } }),
     node("Respond rejected", "n8n-nodes-base.respondToWebhook", 1.1, [880, 160], { respondWith: "json", responseBody: "={{ { error: $json.unauthorized ? 'Unauthorized' : $json.bad_request } }}", options: { responseCode: "={{ $json.unauthorized ? 401 : 400 }}" } }),
-    node("Build Gemini request", "n8n-nodes-base.code", 2, [770, 420], { jsCode: geminiReqCode }),
-    node("Gemini extract", "n8n-nodes-base.httpRequest", 4.2, [880, 420], {
-      method: "POST",
-      url: "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + " + CFG + ".gemini_model + ':generateContent' }}",
-      sendHeaders: true, headerParameters: { parameters: [{ name: "x-goog-api-key", value: "={{ " + CFG + ".gemini_key }}" }] },
-      sendBody: true, specifyBody: "json", jsonBody: "={{ JSON.stringify($json.gemini_request) }}", options: { timeout: 90000 },
-    }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 3000 }),
+    node("Gemini extract", "n8n-nodes-base.code", 2, [880, 420], { jsCode: geminiCode }, { retryOnFail: false }),
     node("Build portal body", "n8n-nodes-base.code", 2, [1100, 420], { jsCode: buildCode }),
     node("POST /api/carrier-quotes", "n8n-nodes-base.httpRequest", 4.2, [1320, 420], {
       method: "POST", url: "={{ " + CFG + ".portal_url + '/api/carrier-quotes' }}",
@@ -79,8 +94,7 @@ const wf = {
     "Webhook": { main: [[{ node: "Config", type: "main", index: 0 }]] },
     "Config": { main: [[{ node: "Prepare", type: "main", index: 0 }]] },
     "Prepare": { main: [[{ node: "Rejected?", type: "main", index: 0 }]] },
-    "Rejected?": { main: [[{ node: "Respond rejected", type: "main", index: 0 }], [{ node: "Build Gemini request", type: "main", index: 0 }]] },
-    "Build Gemini request": { main: [[{ node: "Gemini extract", type: "main", index: 0 }]] },
+    "Rejected?": { main: [[{ node: "Respond rejected", type: "main", index: 0 }], [{ node: "Gemini extract", type: "main", index: 0 }]] },
     "Gemini extract": { main: [[{ node: "Build portal body", type: "main", index: 0 }]] },
     "Build portal body": { main: [[{ node: "POST /api/carrier-quotes", type: "main", index: 0 }]] },
     "POST /api/carrier-quotes": { main: [[{ node: "Needs attention?", type: "main", index: 0 }]] },
