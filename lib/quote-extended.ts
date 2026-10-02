@@ -32,6 +32,8 @@ export function buildExtendedFields(body: Record<string, unknown>) {
   const row: Record<string, unknown> = {}
   for (const k of EXT_SCALAR) if (k in body) row[k] = clean(body[k])
   for (const k of EXT_JSON)   if (k in body) row[k] = clean(body[k])
+  // NOT NULL columns with a default: omit when the carrier gave nothing so the default (1) applies.
+  if (row.version == null) delete row.version
 
   const w = computeWeights({
     mode: row.mode as string | null,
