@@ -1,0 +1,70 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "spot@gulfmarine.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-10-ab12c4] Aqaba-Jebel Ali 1x40HC",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-4@carrier.example>",
+    "thread_id": "thread-4",
+    "attachments": [],
+    "body_text": "Hi team,\n\n1 x 40'HC Aqaba to Jebel Ali, FOB:\nOcean freight: USD 2,450 / container\nBAF: USD 180 / container\nTHC origin: USD 220 / container\nBL fee: USD 60 / BL\nAll-in USD 2,910. Transit 28 days. Free time 7 days demurrage / 7 days detention at destination, then USD 75/day.\nValid until 2026-10-20. Subject to equipment availability.\n\nGulf Marine\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote Aqaba-Jebel Ali 1x40HC.\n> Ref: RFQ-1a2b3c4d-10-ab12c4\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "subject_to_equipment",
+    "mode": "sea",
+    "service_level": "FCL",
+    "validity_date": "2026-10-20",
+    "currency": "USD",
+    "transit_days": 28,
+    "container_type": "40HC",
+    "container_count": 1,
+    "incoterm": "FOB",
+    "total_amount_stated": 2910,
+    "is_all_in": true,
+    "free_days_demurrage": 7,
+    "free_days_detention": 7,
+    "per_diem_note": "USD 75/day after free time",
+    "subject_to_conditions": "Subject to equipment availability",
+    "charges": [
+      {
+        "carrier_label": "Ocean freight",
+        "basis": "per_container",
+        "unit_rate": 2450,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "BAF",
+        "canonical_code": "BAF",
+        "basis": "per_container",
+        "unit_rate": 180,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "THC origin",
+        "canonical_code": "THC_ORIGIN",
+        "basis": "per_container",
+        "unit_rate": 220,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "BL fee",
+        "canonical_code": "BL_FEE",
+        "basis": "per_shipment",
+        "unit_rate": 60,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "total_amount": 2910,
+    "review_status": "needs_review",
+    "flags": [
+      "not_firm"
+    ]
+  }
+}

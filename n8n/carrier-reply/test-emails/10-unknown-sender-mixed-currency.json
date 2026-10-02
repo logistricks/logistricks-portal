@@ -1,0 +1,66 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "sales@newforwarder.example",
+    "subject": "Our LCL offer Mersin - Aqaba",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-10@carrier.example>",
+    "thread_id": "thread-10",
+    "attachments": [],
+    "body_text": "Dear Sir,\n\nFollowing our call, offer for LCL Mersin-Aqaba: ocean EUR 55/cbm, THC origin EUR 15/cbm, destination charges USD 40 per shipment, docs USD 30. Valid till 2026-10-25. Cargo 2.5 cbm 1,100 kg.\n\nNew Forwarder Ltd\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote Mersin-Aqaba LCL.\n> Ref: (none)\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "firm",
+    "mode": "sea",
+    "service_level": "LCL",
+    "validity_date": "2026-10-25",
+    "currency": "EUR",
+    "gross_weight": 1100,
+    "weight_unit": "kg",
+    "volume_cbm": 2.5,
+    "origin_place": "Mersin",
+    "destination_place": "Aqaba",
+    "charges": [
+      {
+        "carrier_label": "Ocean",
+        "basis": "per_cbm",
+        "unit_rate": 55,
+        "currency": "EUR",
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "THC origin",
+        "basis": "per_cbm",
+        "unit_rate": 15,
+        "currency": "EUR",
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "Destination charges",
+        "basis": "per_shipment",
+        "unit_rate": 40,
+        "currency": "USD",
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "Docs",
+        "basis": "per_shipment",
+        "unit_rate": 30,
+        "currency": "USD",
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": false,
+    "reason": "carrier_not_recognised",
+    "review_status": "needs_review",
+    "flags": [
+      "mixed_currency"
+    ]
+  }
+}

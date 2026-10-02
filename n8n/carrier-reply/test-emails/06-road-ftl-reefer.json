@@ -1,0 +1,50 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "dispatch@desertroad.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-11-ab12c6] Amman-Riyadh FTL reefer 18t",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-6@carrier.example>",
+    "thread_id": "thread-6",
+    "attachments": [],
+    "body_text": "Dear colleague,\n\nFTL reefer (-18C) Amman -> Riyadh, 18,000 kg frozen food.\nRate USD 1,850 per truck, fuel and border fees included. Transit 3 days. Pickup within 24h of booking. Detention after 8 free hours USD 25/hour.\nValid for 5 days. Firm.\n\nDesert Road Transport\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote Amman-Riyadh FTL reefer 18t.\n> Ref: RFQ-1a2b3c4d-11-ab12c6\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "firm",
+    "mode": "land",
+    "service_level": "FTL",
+    "quote_date": "2026-10-01",
+    "validity_days": 5,
+    "currency": "USD",
+    "transit_days": 3,
+    "gross_weight": 18000,
+    "weight_unit": "kg",
+    "equipment_type": "reefer",
+    "temperature_control": "-18C",
+    "commodity_description": "frozen food",
+    "origin_place": "Amman",
+    "destination_place": "Riyadh",
+    "is_all_in": true,
+    "per_diem_note": "Detention USD 25/hour after 8 free hours",
+    "charges": [
+      {
+        "carrier_label": "FTL rate (incl. fuel, border fees)",
+        "basis": "per_shipment",
+        "unit_rate": 1850,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "chargeable_weight": 18000,
+    "total_amount": 1850,
+    "validity_date": "2026-10-06",
+    "review_status": "auto_accepted",
+    "flags": []
+  }
+}

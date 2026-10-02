@@ -1,0 +1,43 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "ops@skyline-air.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-7-ab12c9] AMM-FRA air 120kg",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-9@carrier.example>",
+    "thread_id": "thread-9",
+    "attachments": [],
+    "body_text": "Hi,\n\nWe cannot do the requested Tuesday flight. We can offer Thursday (flight SK412, dep 2026-10-08 14:00, arr 2026-10-08 19:30) at USD 3.10/kg on chargeable weight, indicative only, subject to space. Please confirm if you want us to hold.\n\nLina\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote AMM-FRA air 120kg.\n> Ref: RFQ-1a2b3c4d-7-ab12c9\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "counter_offer",
+    "quote_status": "indicative",
+    "mode": "air",
+    "currency": "USD",
+    "etd": "2026-10-08T14:00:00",
+    "eta": "2026-10-08T19:30:00",
+    "origin_code": "AMM",
+    "destination_code": "FRA",
+    "subject_to_conditions": "Indicative only, subject to space",
+    "notes": "Offers Thursday flight SK412 instead of Tuesday.",
+    "charges": [
+      {
+        "carrier_label": "Freight",
+        "basis": "per_kg",
+        "unit_rate": 3.1,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "review_status": "needs_review",
+    "flags": [
+      "not_a_quote",
+      "not_firm"
+    ]
+  }
+}

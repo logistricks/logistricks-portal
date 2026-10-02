@@ -1,0 +1,63 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "ops@skyline-air.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-8-ab12c2] AMM-DXB air 120kg",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-2@carrier.example>",
+    "thread_id": "thread-2",
+    "attachments": [],
+    "body_text": "Hello,\n\nAMM-DXB: USD 1.90/kg on 120 kg chargeable. Total USD 228 plus AWB 30. Grand total USD 258.\nShipment is 2 pcs 120x100x100 cm. Valid until 2026-10-12. Space subject to confirmation at booking.\n\nRegards,\nOmar\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote AMM-DXB air 120kg.\n> Ref: RFQ-1a2b3c4d-8-ab12c2\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "subject_to_space",
+    "mode": "air",
+    "validity_date": "2026-10-12",
+    "currency": "USD",
+    "gross_weight": 120,
+    "weight_unit": "kg",
+    "dimensions": [
+      {
+        "length_cm": 120,
+        "width_cm": 100,
+        "height_cm": 100,
+        "pieces": 2
+      }
+    ],
+    "chargeable_weight_stated": 120,
+    "origin_code": "AMM",
+    "destination_code": "DXB",
+    "total_amount_stated": 258,
+    "subject_to_conditions": "Space subject to confirmation at booking",
+    "charges": [
+      {
+        "carrier_label": "Freight",
+        "basis": "per_kg",
+        "unit_rate": 1.9,
+        "quantity": 120,
+        "amount": 228,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "AWB",
+        "basis": "per_shipment",
+        "amount": 30,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "chargeable_weight": 400,
+    "total_amount": 258,
+    "review_status": "needs_review",
+    "flags": [
+      "chargeable_mismatch",
+      "not_firm"
+    ]
+  }
+}

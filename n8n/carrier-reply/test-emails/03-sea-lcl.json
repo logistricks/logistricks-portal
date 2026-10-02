@@ -1,0 +1,63 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "pricing@bluewave-lines.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-9-ab12c3] Aqaba-Hamburg LCL 3.2t 5cbm",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-3@carrier.example>",
+    "thread_id": "thread-3",
+    "attachments": [],
+    "body_text": "Dear Sir,\n\nLCL Aqaba -> Hamburg, 3,200 kg / 5 cbm.\nOcean freight USD 65 per W/M\nOrigin THC USD 18 per W/M\nDocumentation USD 45 per shipment\nTransit about 24 days, weekly sailing (Thursdays). Free time at destination 5 days.\nRates firm, valid to 2026-10-31.\n\nBlueWave Lines\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote Aqaba-Hamburg LCL 3.2t 5cbm.\n> Ref: RFQ-1a2b3c4d-9-ab12c3\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "firm",
+    "mode": "sea",
+    "service_level": "LCL",
+    "validity_date": "2026-10-31",
+    "currency": "USD",
+    "transit_days": 24,
+    "free_days": 5,
+    "frequency": "weekly",
+    "gross_weight": 3200,
+    "weight_unit": "kg",
+    "volume_cbm": 5,
+    "origin_place": "Aqaba",
+    "destination_place": "Hamburg",
+    "charges": [
+      {
+        "carrier_label": "Ocean freight",
+        "canonical_code": "BASE_FREIGHT",
+        "basis": "per_wm",
+        "unit_rate": 65,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "Origin THC",
+        "canonical_code": "THC_ORIGIN",
+        "basis": "per_wm",
+        "unit_rate": 18,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "Documentation",
+        "canonical_code": "DOCS",
+        "basis": "per_shipment",
+        "unit_rate": 45,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "chargeable_weight": 5,
+    "chargeable_unit": "rt",
+    "chargeable_basis": "wm_volume",
+    "total_amount": 460,
+    "review_status": "auto_accepted",
+    "flags": []
+  }
+}

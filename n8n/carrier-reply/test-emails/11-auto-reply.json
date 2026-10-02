@@ -1,0 +1,26 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "ops@skyline-air.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-7-ab12c1] AMM-FRA air 120kg",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-11@carrier.example>",
+    "thread_id": "thread-11",
+    "attachments": [],
+    "body_text": "Thank you for your email. I am out of the office until 12 October with limited access to email. For urgent matters contact dispatch@skyline-air.example.\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote AMM-FRA air 120kg.\n> Ref: RFQ-1a2b3c4d-7-ab12c1\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "other",
+    "notes": "Out-of-office auto-reply until 12 October."
+  },
+  "expect": {
+    "linked": true,
+    "review_status": "needs_review",
+    "flags": [
+      "not_a_quote"
+    ]
+  }
+}

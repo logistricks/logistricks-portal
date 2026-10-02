@@ -132,10 +132,28 @@ export interface PricingResult {
   flags: Flag[]
 }
 
+/** Quantity a charge basis implies, from what the server computed (never from the AI). */
+function impliedQuantity(basis: unknown, ctx: { chargeable_weight?: number | null; chargeable_unit?: string | null; volume_cbm?: number | null; container_count?: number | null; pieces?: number | null }): number | null {
+  const b = String(basis ?? "").toLowerCase().replace(/[^a-z]+/g, " ").trim()
+  if (!b) return null
+  if (/\b(shipment|bl|awb|doc|document|flat|lump)\b/.test(b)) return 1
+  if (/\b(kg|kilo|kgs)\b/.test(b)) return ctx.chargeable_unit === "kg" ? ctx.chargeable_weight ?? null : null
+  if (/\b(wm|rt|revenue ton)\b/.test(b)) return ctx.chargeable_unit === "rt" ? ctx.chargeable_weight ?? null : null
+  if (/\bcbm\b|cubic/.test(b)) return ctx.volume_cbm ?? null
+  if (/\b(container|teu|feu|cntr)\b/.test(b)) return ctx.container_count ?? null
+  if (/\b(pallet|piece|pcs|carton)\b/.test(b)) return ctx.pieces ?? null
+  return null
+}
+
 export function computePricing(input: {
   charges?: unknown
   total_amount_stated?: unknown
   currency?: unknown
+  chargeable_weight?: number | null
+  chargeable_unit?: string | null
+  volume_cbm?: number | null
+  container_count?: number | null
+  pieces?: number | null
 }): PricingResult {
   const flags: Flag[] = []
   if (!Array.isArray(input.charges) || input.charges.length === 0)
@@ -147,8 +165,14 @@ export function computePricing(input: {
   const currencies = new Set<string>()
 
   lines.forEach((c, i) => {
-    const rate = num(c.unit_rate), qty = num(c.quantity)
+    const rate = num(c.unit_rate)
+    let qty = num(c.quantity)
     let amount = num(c.amount)
+    // Carrier gave "USD 2.10/kg" but no quantity: fill it from the computed cargo figures.
+    if (qty === null && rate !== null) {
+      const q = impliedQuantity(c.basis, input)
+      if (q !== null) { qty = q; c.quantity = q }
+    }
     if (rate !== null && qty !== null) {
       const calc = round(rate * qty, 2)
       if (amount === null) amount = calc

@@ -1,0 +1,81 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "ops@skyline-air.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-7-ab12c1] AMM-FRA air 120kg",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-1@carrier.example>",
+    "thread_id": "thread-1",
+    "attachments": [],
+    "body_text": "Hi,\n\nPlease find our rate for AMM-FRA, 2 pcs 120x100x100 cm, 120 kg total, general cargo.\n\nFreight: USD 2.50/kg\nFuel surcharge: USD 0.45/kg\nSecurity: USD 0.12/kg\nAWB fee: USD 35 per shipment\nAll rates on chargeable weight (6000 divisor). Direct flight, transit 1 day, space confirmed.\nQuote reference SK-88123, valid 7 days.\n\nBest regards,\nLina - Skyline Air Cargo\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote AMM-FRA air 120kg.\n> Ref: RFQ-1a2b3c4d-7-ab12c1\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "firm",
+    "carrier_quote_ref": "SK-88123",
+    "mode": "air",
+    "service_level": "standard",
+    "quote_date": "2026-10-01",
+    "validity_days": 7,
+    "currency": "USD",
+    "transit_days": 1,
+    "gross_weight": 120,
+    "weight_unit": "kg",
+    "pieces": 2,
+    "dimensions": [
+      {
+        "length_cm": 120,
+        "width_cm": 100,
+        "height_cm": 100,
+        "pieces": 2
+      }
+    ],
+    "volumetric_divisor": 6000,
+    "origin_code": "AMM",
+    "destination_code": "FRA",
+    "direct_or_connecting": "direct",
+    "space_confirmed": true,
+    "charges": [
+      {
+        "carrier_label": "Freight",
+        "canonical_code": "BASE_FREIGHT",
+        "basis": "per_kg",
+        "unit_rate": 2.5,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "Fuel surcharge",
+        "canonical_code": "FUEL",
+        "basis": "per_kg",
+        "unit_rate": 0.45,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "Security",
+        "canonical_code": "SECURITY",
+        "basis": "per_kg",
+        "unit_rate": 0.12,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "AWB fee",
+        "canonical_code": "AWB_FEE",
+        "basis": "per_shipment",
+        "unit_rate": 35,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "chargeable_weight": 400,
+    "chargeable_basis": "volumetric",
+    "total_amount": 1263,
+    "validity_date": "2026-10-08",
+    "review_status": "auto_accepted",
+    "flags": []
+  }
+}
