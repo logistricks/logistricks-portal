@@ -161,7 +161,7 @@ export interface TemplateOptions {
 }
 
 export const DEFAULT_OPTIONS: TemplateOptions = {
-  charges_style: "detailed",
+  charges_style: "marked_up",
   markup_label: "Service fee",
   delivery: "email_html",
   email_body: "",
@@ -174,7 +174,7 @@ export const DEFAULT_OPTIONS: TemplateOptions = {
 
 export function normalizeOptions(raw: unknown): TemplateOptions {
   const o = (raw && typeof raw === "object" ? raw : {}) as Partial<TemplateOptions>
-  const style = o.charges_style === "marked_up" || o.charges_style === "total_only" ? o.charges_style : "detailed"
+  const style = o.charges_style === "detailed" || o.charges_style === "total_only" ? o.charges_style : "marked_up"
   const label = typeof o.markup_label === "string" && o.markup_label.trim() && o.markup_label.length <= 60 && !/[<>{}]/.test(o.markup_label) ? o.markup_label.trim() : DEFAULT_OPTIONS.markup_label
   const color = typeof o.accent_color === "string" && /^#[0-9a-fA-F]{6}$/.test(o.accent_color) ? o.accent_color : DEFAULT_OPTIONS.accent_color
   const font = typeof o.font_family === "string" && o.font_family.length < 120 && !/[<>{};]/.test(o.font_family) ? o.font_family : DEFAULT_OPTIONS.font_family

@@ -450,8 +450,8 @@ export function QuotationTemplateEditor({
                   <div>
                     <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Charges table style</label>
                     <select value={options.charges_style} onChange={(e) => setOptions({ ...options, charges_style: e.target.value as TemplateOptions["charges_style"] })} className={inputCls} style={inputStyle}>
-                      <option value="detailed">Carrier lines + a separate markup row</option>
-                      <option value="marked_up">Markup spread across lines (one price per line)</option>
+                      <option value="detailed">Carrier lines + a separate markup row (shows your fee)</option>
+                      <option value="marked_up">Markup included in each price (default — fee not shown)</option>
                       <option value="total_only">Total only</option>
                     </select>
                     <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>Applies to {"{{charges_table}}"}.</p>

@@ -117,7 +117,7 @@ export interface ChargeIn {
   carrier_label?: string | null; basis?: string | null; unit_rate?: number | null; quantity?: number | null
   amount?: number | null; inclusion?: string | null; condition_note?: string | null
 }
-interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
+export interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
 
 function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number, markupLabel = "Service fee") {
   const included = charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) !== null)
@@ -193,6 +193,8 @@ export interface BuildInput {
   preparedBy?: string
   company?: { name?: string | null; email?: string | null; phone?: string | null }
   quotationNumber?: string
+  /** Manually edited sell lines — replace the computed ones; the caller sets finalPrice to their sum. */
+  lineOverrides?: { label: string; basis: string; qty: number | null; rate: number | null; amount: number }[]
   now?: Date
 }
 
@@ -207,7 +209,7 @@ export function carrierBase(q: Record<string, any>): number {
   return round2(sum)
 }
 
-export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: string; currency: string } {
+export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: string; currency: string; lines: Line[] } {
   const o = normalizeOptions(input.options)
   const { request: r, quote: q } = input
   const now = input.now ?? new Date()
@@ -216,7 +218,9 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const charges: ChargeIn[] = Array.isArray(q.charges) ? q.charges : []
   const pctOn = input.markupType === "percent" && input.showMarkupPercent === true && input.markupAmount > 0
   const markupRowLabel = pctOn ? `${o.markup_label} (${plain(input.markupAmount)}%)` : o.markup_label
-  const { lines, optional } = sellLines(charges, o.charges_style, finalPrice, markupRowLabel)
+  const computed = sellLines(charges, o.charges_style, finalPrice, markupRowLabel)
+  const optional = computed.optional
+  const lines: Line[] = input.lineOverrides && input.lineOverrides.length && o.charges_style !== "total_only" ? input.lineOverrides : computed.lines
 
   // chargeable weight / validity
   const cw = num(q.chargeable_weight)
@@ -331,7 +335,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     text: terms.map(([k, val]) => `- ${k}: ${val}`).join("\n"),
   }
 
-  return { ctx: { values: v, blocks }, validUntil: validUntilIso, currency }
+  return { ctx: { values: v, blocks }, validUntil: validUntilIso, currency, lines }
 }
 
 export interface RenderedQuotation { subject: string; text: string; html: string | null; format: "text" | "html" | "pdf" }

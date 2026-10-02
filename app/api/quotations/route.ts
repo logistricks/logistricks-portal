@@ -50,9 +50,18 @@ export async function POST(req: NextRequest) {
 
   const freightRequestId  = body.freight_request_id as string | undefined
   const carrierQuoteId    = body.carrier_quote_id as number | undefined
-  const markupType        = (body.markup_type as string) === "percent" ? "percent" : "flat"
-  const markupAmount      = Number(body.markup_amount) || 0
-  const showMarkupPercent = body.show_markup_percent === true
+  let markupType: "flat" | "percent" = (body.markup_type as string) === "percent" ? "percent" : "flat"
+  let markupAmount        = Number(body.markup_amount) || 0
+  let showMarkupPercent   = body.show_markup_percent === true
+  const styleOverride     = body.charges_style === "marked_up" || body.charges_style === "detailed" || body.charges_style === "total_only" ? (body.charges_style as "marked_up" | "detailed" | "total_only") : null
+  // Manually edited prices: [{label, basis, qty, rate, amount}] — the total is their sum.
+  const lineOverrides = Array.isArray(body.line_overrides)
+    ? (body.line_overrides as Record<string, unknown>[]).slice(0, 60).map((l) => {
+        const amount = Math.round((Number(l.amount) || 0) * 100) / 100
+        const qty = Number(l.qty) > 0 ? Number(l.qty) : null
+        return { label: String(l.label ?? "").slice(0, 200) || "Charge", basis: String(l.basis ?? "").slice(0, 60), qty, rate: qty ? Math.round((amount / qty) * 100) / 100 : null, amount }
+      })
+    : null
   let quotationTemplateId = body.quotation_template_id as number | undefined
 
   if (!freightRequestId) return NextResponse.json({ error: "freight_request_id required" }, { status: 400 })
@@ -102,9 +111,13 @@ export async function POST(req: NextRequest) {
   if (tplErr || !template) return NextResponse.json({ error: "Quotation template not found" }, { status: 404 })
 
   const baseRate = carrierBase(quoteRow as Record<string, any>)
-  const finalPrice = markupType === "percent"
+  let finalPrice = markupType === "percent"
     ? Math.round(baseRate * (1 + markupAmount / 100) * 100) / 100
     : Math.round((baseRate + markupAmount) * 100) / 100
+  if (lineOverrides && lineOverrides.length) {
+    finalPrice = Math.round(lineOverrides.reduce((t, l) => t + l.amount, 0) * 100) / 100
+    markupType = "flat"; markupAmount = Math.round((finalPrice - baseRate) * 100) / 100; showMarkupPercent = false
+  }
 
   const carrierName = (quoteRow as { carriers?: { carrier_name?: string } }).carriers?.carrier_name ?? ""
 
@@ -116,9 +129,10 @@ export async function POST(req: NextRequest) {
   ])
   const quotationNumber = `QT-${request.requestRef}-${String((existing ?? 0) + 1).padStart(2, "0")}`
 
-  const options = normalizeOptions((template as { options?: unknown }).options)
-  const { ctx, validUntil, currency } = buildContext({
-    request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options, showMarkupPercent,
+  const baseOptions = normalizeOptions((template as { options?: unknown }).options)
+  const options = styleOverride ? { ...baseOptions, charges_style: styleOverride } : baseOptions
+  const { ctx, validUntil, currency, lines } = buildContext({
+    request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options, showMarkupPercent, lineOverrides: lineOverrides ?? undefined,
     preparedBy: (userRow as { display_name?: string } | null)?.display_name || session.username,
     company: company ? { name: company.company_name, email: company.contact_email, phone: company.contact_phone } : undefined,
     quotationNumber,
@@ -138,6 +152,8 @@ export async function POST(req: NextRequest) {
       quotation_number: quotationNumber,
       final_price_usd: finalPrice,
       base_rate_usd: baseRate,
+      charges_style: options.charges_style,
+      lines,
     })
   }
 

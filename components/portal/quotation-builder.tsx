@@ -288,6 +288,10 @@ function SendQuotationModal({
   )
 }
 
+
+type ChargesStyle = "marked_up" | "detailed" | "total_only"
+type PriceLine = { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
+
 export function QuotationBuilder({
   request,
   refreshSignal,
@@ -311,8 +315,10 @@ export function QuotationBuilder({
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
-  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number } | null>(null)
+  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number; charges_style?: ChargesStyle; lines?: PriceLine[] } | null>(null)
   const [previewing, setPreviewing] = useState(false)
+  const [styleOverride, setStyleOverride] = useState<ChargesStyle | null>(null) // null = what the template says (default: markup inside each price)
+  const [overrides, setOverrides] = useState<PriceLine[] | null>(null)       // manually edited prices; null = automatic
 
   async function load() {
     setLoading(true); setError(null)
@@ -386,9 +392,23 @@ export function QuotationBuilder({
     }, 700)
     return () => clearTimeout(timer)
   }, [selectedQuoteId, markupType, markupNum, showPct])
-  const finalPrice = markupType === "percent"
+  const autoFinal = markupType === "percent"
     ? Math.round(baseRate * (1 + markupNum / 100) * 100) / 100
     : Math.round((baseRate + markupNum) * 100) / 100
+  const finalPrice = overrides ? Math.round(overrides.reduce((t, l) => t + (Number(l.amount) || 0), 0) * 100) / 100 : autoFinal
+  const shownStyle: ChargesStyle = styleOverride ?? preview?.charges_style ?? "marked_up"
+  const editableLines = overrides ?? preview?.lines ?? []
+  function editLine(i: number, patch: Partial<PriceLine>) {
+    setOverrides((cur) => {
+      const base = (cur ?? preview?.lines ?? []).map((l) => ({ ...l }))
+      base[i] = { ...base[i], ...patch }
+      return base
+    })
+  }
+  const removeLine = (i: number) => setOverrides((cur) => (cur ?? preview?.lines ?? []).filter((_, k) => k !== i))
+  const addLine = () => setOverrides((cur) => [...(cur ?? preview?.lines ?? []), { label: "", basis: "", qty: null, rate: null, amount: 0 }])
+  // A different carrier quote starts from automatic prices again.
+  useEffect(() => { setOverrides(null) }, [selectedQuoteId])
 
   // Live preview of the chosen template with the chosen quote and markup (nothing is saved).
   useEffect(() => {
@@ -402,6 +422,7 @@ export function QuotationBuilder({
           body: JSON.stringify({
             preview: true, freight_request_id: request.id, carrier_quote_id: selectedQuoteId,
             quotation_template_id: templateId ?? undefined, markup_type: markupType, markup_amount: Number(markupAmount) || 0, show_markup_percent: showPct,
+            charges_style: styleOverride ?? undefined, line_overrides: overrides ?? undefined,
           }),
         })
         setPreview(res.ok ? await res.json() : null)
@@ -409,7 +430,7 @@ export function QuotationBuilder({
       finally { setPreviewing(false) }
     }, 400)
     return () => { clearTimeout(timer); ctl.abort() }
-  }, [selectedQuoteId, templateId, markupType, markupAmount, showPct, templates.length, request.id])
+  }, [selectedQuoteId, templateId, markupType, markupAmount, showPct, styleOverride, overrides, templates.length, request.id])
 
   async function handleBuild() {
     if (!selectedRow?.quote || templates.length === 0) return
@@ -425,6 +446,8 @@ export function QuotationBuilder({
           markup_type: markupType,
           markup_amount: markupNum,
           show_markup_percent: showPct,
+          charges_style: styleOverride ?? undefined,
+          line_overrides: overrides ?? undefined,
         }),
       })
       if (!res.ok) {
@@ -572,9 +595,44 @@ export function QuotationBuilder({
               This carrier quote was flagged for review (e.g. totals that don&apos;t add up or inferred values). Check it on the Carrier Quotes tab before sending a price to the requester.
             </p>
           )}
+          <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: "var(--card-border)" }}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>How the markup is shown</label>
+              <select
+                value={shownStyle}
+                onChange={(e) => { setStyleOverride(e.target.value as ChargesStyle); setOverrides(null) }}
+                className="h-8 rounded-md border px-2 text-xs"
+                style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+              >
+                <option value="marked_up">Included in each price (no fee line)</option>
+                <option value="detailed">Separate markup row</option>
+                <option value="total_only">Total only</option>
+              </select>
+            </div>
+            {shownStyle !== "total_only" && editableLines.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Customer prices — edit any amount and the total updates.</span>
+                  {overrides && <button type="button" onClick={() => setOverrides(null)} className="text-[11px] font-semibold underline" style={{ color: "var(--text-secondary)" }}>Reset to automatic</button>}
+                </div>
+                {editableLines.map((l, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input value={l.label} onChange={(e) => editLine(i, { label: e.target.value })} placeholder="Description" className="h-8 min-w-0 flex-1 rounded-md border px-2 text-xs" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
+                    <input type="number" step="0.01" value={Number.isFinite(l.amount) ? l.amount : 0} onChange={(e) => editLine(i, { amount: Number(e.target.value) })} className="h-8 w-28 rounded-md border px-2 text-right text-xs tabular-nums" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
+                    <button type="button" onClick={() => removeLine(i)} aria-label="Remove line" className="px-1 text-sm" style={{ color: "var(--text-muted)" }}>×</button>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between">
+                  <button type="button" onClick={addLine} className="text-[11px] font-semibold underline" style={{ color: "var(--text-secondary)" }}>+ Add a line</button>
+                  {overrides && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Manually edited · markup entered above is ignored</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between rounded-lg px-4 py-3" style={{ background: "var(--table-header-bg)" }}>
             <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Base ${baseRate.toLocaleString()} + markup → <strong>Final price</strong>
+              {overrides ? <>Base ${baseRate.toLocaleString()} → edited prices → <strong>Total</strong></> : <>Base ${baseRate.toLocaleString()} + markup → <strong>Final price</strong></>}
             </span>
             <span className="text-lg font-black tabular-nums" style={{ color: "var(--text-primary)" }}>
               ${finalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
