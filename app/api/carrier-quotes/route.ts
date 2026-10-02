@@ -140,14 +140,15 @@ export async function POST(req: NextRequest) {
 
   // Our human request number (e.g. LT-0017) found by the AI in subject/body/attachments.
   let freightRequestId = (body.freight_request_id as string | undefined) ?? null
+  let requestFound = false
   if (!match && !freightRequestId && typeof body.request_ref === "string" && body.request_ref.trim()) {
     const { data: fr } = await admin
       .from("freight_requests")
       .select("id")
-      .eq("client_code", client_code)
+      .ilike("client_code", client_code)
       .eq("request_ref", body.request_ref.trim().toUpperCase())
       .maybeSingle()
-    if (fr) freightRequestId = fr.id
+    if (fr) { freightRequestId = fr.id; requestFound = true }
   }
 
   if (!match && freightRequestId && carrierPk) {
@@ -156,7 +157,6 @@ export async function POST(req: NextRequest) {
       .select(cols)
       .eq("freight_request_id", freightRequestId)
       .eq("carrier_id", carrierPk)
-      .eq("status", "sent")
       .order("sent_at", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -224,8 +224,11 @@ export async function POST(req: NextRequest) {
     }, ext)
 
     if (orphanErr) return NextResponse.json({ error: orphanErr.message }, { status: 500 })
+    const detail = body.request_ref && !requestFound && !body.freight_request_id
+      ? `request ${body.request_ref} not found for client ${client_code}`
+      : freightRequestId && carrierPk ? "request found but no RFQ was sent to this carrier for it" : null
     return NextResponse.json({
-      ok: true, linked: false, reason, carrier_quote_id: orphan?.id,
+      ok: true, linked: false, reason, detail, carrier_quote_id: orphan?.id,
       review_status: ext.review_status, validation_flags: validationFlags,
     })
   }
