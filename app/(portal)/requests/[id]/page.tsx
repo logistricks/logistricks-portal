@@ -729,6 +729,7 @@ export default function RequestDetailPage() {
       </div>
 
       {/* ── Footer action bar ─────────────────────────────────────────────── */}
+      {activeTab !== "quotes" && (
       <div className="shrink-0 px-6 py-4 flex gap-3 flex-wrap" style={{ borderTop: "1px solid var(--divider)", background: "var(--card-bg)" }}>
         <button onClick={() => { setSendMethod("Email"); setActiveTab("details") }}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-white transition-colors"
@@ -755,6 +756,7 @@ export default function RequestDetailPage() {
           )}
         </button>
       </div>
+      )}
     </div>
   )
 }

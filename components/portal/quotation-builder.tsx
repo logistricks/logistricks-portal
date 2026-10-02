@@ -275,6 +275,8 @@ export function QuotationBuilder({
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
+  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string } | null>(null)
+  const [previewing, setPreviewing] = useState(false)
 
   async function load() {
     setLoading(true); setError(null)
@@ -315,6 +317,27 @@ export function QuotationBuilder({
   const finalPrice = markupType === "percent"
     ? Math.round(baseRate * (1 + markupNum / 100) * 100) / 100
     : Math.round((baseRate + markupNum) * 100) / 100
+
+  // Live preview of the chosen template with the chosen quote and markup (nothing is saved).
+  useEffect(() => {
+    if (!selectedQuoteId || templates.length === 0) { setPreview(null); return }
+    const ctl = new AbortController()
+    const timer = setTimeout(async () => {
+      setPreviewing(true)
+      try {
+        const res = await fetch("/api/quotations", {
+          method: "POST", headers: { "Content-Type": "application/json" }, signal: ctl.signal,
+          body: JSON.stringify({
+            preview: true, freight_request_id: request.id, carrier_quote_id: selectedQuoteId,
+            quotation_template_id: templateId ?? undefined, markup_type: markupType, markup_amount: Number(markupAmount) || 0,
+          }),
+        })
+        setPreview(res.ok ? await res.json() : null)
+      } catch { /* aborted or offline */ }
+      finally { setPreviewing(false) }
+    }, 400)
+    return () => { clearTimeout(timer); ctl.abort() }
+  }, [selectedQuoteId, templateId, markupType, markupAmount, templates.length, request.id])
 
   async function handleBuild() {
     if (!selectedRow?.quote || templates.length === 0) return
@@ -465,6 +488,25 @@ export function QuotationBuilder({
               ${finalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </span>
           </div>
+
+          {(preview || previewing) && (
+            <div>
+              <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                Preview{preview?.template_name ? ` — ${preview.template_name}` : ""}
+                {previewing && <Loader2 className="h-3 w-3 animate-spin" />}
+              </p>
+              {preview && (
+                <>
+                  <p className="mb-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>Subject: <span className="font-semibold">{preview.generated_subject}</span></p>
+                  {preview.generated_html ? (
+                    <iframe title="Quotation preview" sandbox="" srcDoc={htmlFrame(preview.generated_html)} className="h-96 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+                  ) : (
+                    <p className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-md border p-3 text-xs" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>{preview.generated_body}</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           <button
             onClick={handleBuild}

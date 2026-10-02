@@ -124,6 +124,21 @@ export async function POST(req: NextRequest) {
   })
   const rendered = renderQuotation(template, ctx, options)
 
+  // Preview only: show what the chosen template produces, without saving anything.
+  if (body.preview === true) {
+    return NextResponse.json({
+      preview: true,
+      template_id: quotationTemplateId,
+      template_name: (template as { template_name?: string }).template_name ?? "",
+      generated_subject: rendered.subject,
+      generated_body: rendered.text,
+      generated_html: rendered.html,
+      generated_format: rendered.html ? "html" : "text",
+      quotation_number: quotationNumber,
+      final_price_usd: finalPrice,
+    })
+  }
+
   const baseRow = {
     client_code:            session.clientCode,
     freight_request_id:     freightRequestId,
