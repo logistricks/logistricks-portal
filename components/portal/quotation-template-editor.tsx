@@ -308,7 +308,7 @@ export function QuotationTemplateEditor({
                 </div>
                 <div className="flex items-center gap-2">
                   {view === "preview" && (
-                    <button type="button" onClick={async () => { setPdfBusy(true); try { await downloadQuotationPdf(renderTemplate(html, sampleContext(options), "html"), "Quotation preview", options.page_size) } catch { setError("Couldn't create the PDF.") } finally { setPdfBusy(false) } }}
+                    <button type="button" onClick={async () => { setPdfBusy(true); try { await downloadQuotationPdf({ html: renderTemplate(html, sampleContext(options), "html"), pageSize: options.page_size, options }, "Quotation preview") } catch (e) { setError((e as Error).message || "Couldn't create the PDF.") } finally { setPdfBusy(false) } }}
                       disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
                       {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
                     </button>

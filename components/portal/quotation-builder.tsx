@@ -103,8 +103,8 @@ function SendQuotationModal({
 
   async function handleDownloadPdf(): Promise<boolean> {
     setPdfBusy(true)
-    try { await downloadQuotationPdf(quotation.generated_html!, pdfName, pageSize); return true }
-    catch { setNotice("Couldn't create the PDF. Use Print / Save PDF instead."); return false }
+    try { await downloadQuotationPdf({ quotationId: quotation.id }, pdfName); return true }
+    catch (e) { setNotice(`Couldn't create the PDF (${(e as Error).message}). Use Print instead.`); return false }
     finally { setPdfBusy(false) }
   }
   const dirty = subject !== (quotation.generated_subject ?? "") || (!isHtml && body !== (quotation.generated_body ?? ""))
@@ -439,6 +439,14 @@ export function QuotationBuilder({
     }
   }
 
+  const [pdfBusyId, setPdfBusyId] = useState<number | null>(null)
+  async function handleCardPdf(q: Quotation) {
+    setPdfBusyId(q.id); setError(null)
+    try { await downloadQuotationPdf({ quotationId: q.id }, `Quotation ${q.quotation_number ?? q.id}`) }
+    catch (e) { setError(`Couldn't create the PDF: ${(e as Error).message}`) }
+    finally { setPdfBusyId(null) }
+  }
+
   function handleSendToRequester(q: Quotation) {
     if (!request.senderEmail) { setError("This request has no requester email on file."); return }
     setError(null)
@@ -612,10 +620,19 @@ export function QuotationBuilder({
                   {q.generated_subject || "Quotation"}
                   {q.quotation_number && <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>{q.quotation_number}</span>}
                 </span>
+                <div className="flex items-center">
+                {q.generated_html && (
+                  <button type="button" onClick={() => handleCardPdf(q)} disabled={pdfBusyId === q.id}
+                    className="mr-2 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+                    style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                    {pdfBusyId === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
+                  </button>
+                )}
                 <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold ${q.status === "sent" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : "bg-[#FFF7ED] text-[#F97316]"}`}>
                   {q.status === "sent" ? <CheckCircle2 className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
                   {q.status === "sent" ? "Sent" : "Draft"}
                 </span>
+                </div>
               </div>
               {q.generated_format === "pdf" && q.generated_html ? (
                 <div className="mb-3 space-y-2">
