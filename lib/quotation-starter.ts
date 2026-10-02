@@ -12,10 +12,12 @@ export const STARTER_HTML = `<h2 style="color:#0D1B2A">Quotation {{quotation_num
 <tr><td><strong>Equipment / quantity</strong></td><td>{{equipment}} {{quantity}}</td></tr>
 <tr><td><strong>Weight</strong></td><td>{{weight}}</td></tr>
 <tr><td><strong>Incoterm</strong></td><td>{{incoterm}}</td></tr>
-<tr><td><strong>Transit time</strong></td><td>{{transit_days|On request}} days</td></tr>
+<tr><td><strong>Transit time</strong></td><td>{{transit_days}} days</td></tr>
+<tr><td><strong>Free days</strong></td><td>{{free_days}} days</td></tr>
 </table>
 <h3>Charges</h3>
 {{charges_table}}
+{{#if optional_charges_list}}<h3>Additional charges (not included above)</h3>{{optional_charges_list}}{{/if}}
 {{#if terms_block}}<h3>Terms</h3>{{terms_block}}{{/if}}
 <p>Please let us know if you would like to proceed.</p>
 <p>Best regards,<br>{{prepared_by}}<br>{{company_name}}<br>{{company_contact_email}} {{company_contact_phone}}</p>`

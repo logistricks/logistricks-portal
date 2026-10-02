@@ -311,7 +311,7 @@ export function QuotationBuilder({
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
-  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string } | null>(null)
+  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number } | null>(null)
   const [previewing, setPreviewing] = useState(false)
 
   async function load() {
@@ -350,8 +350,10 @@ export function QuotationBuilder({
   }, [responded, selectedQuoteId])
 
   const selectedRow = responded.find((r) => r.quote?.id === selectedQuoteId)
-  const baseRate = selectedRow?.quote?.rateUsd ?? 0
+  const baseRateSaved = selectedRow?.quote?.rateUsd ?? 0
   const markupNum = Number(markupAmount) || 0
+  // The server knows the true carrier price (falls back to the charge lines when no headline rate was stored).
+  const baseRate = baseRateSaved || preview?.base_rate_usd || 0
 
   // Load the markup saved for the selected quote (or start at 0).
   useEffect(() => {

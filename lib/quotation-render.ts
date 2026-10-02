@@ -71,7 +71,7 @@ export function renderTemplate(tpl: string, ctx: RenderCtx, mode: "text" | "html
     if (next === out) break
     out = next
   }
-  return out.replace(VAR, (_, key: string, fallback?: string) => {
+  const rendered = out.replace(VAR, (_, key: string, fallback?: string) => {
     const b = ctx.blocks[key]
     if (b) {
       const v = mode === "html" ? b.html : b.text
@@ -81,6 +81,20 @@ export function renderTemplate(tpl: string, ctx: RenderCtx, mode: "text" | "html
     }
     const fb = fallback?.trim() ?? ""
     return mode === "html" ? esc(fb) : fb
+  })
+  return mode === "html" ? pruneEmptyRows(rendered) : rendered
+}
+
+/** Drops detail-table rows whose value cells came out empty (or only a unit like "days"), so blanks never show. */
+function pruneEmptyRows(html: string): string {
+  return html.replace(/<tr\b[^>]*>((?:(?!<\/?tr\b)[\s\S])*?)<\/tr>/gi, (row, inner: string) => {
+    const cells = [...inner.matchAll(/<(td|th)\b[^>]*>([\s\S]*?)<\/\1>/gi)]
+    if (cells.length < 2 || /<th\b/i.test(inner) || /<table\b/i.test(inner)) return row
+    const text = (c: RegExpMatchArray) => c[2].replace(/<[^>]*>/g, "").replace(/&nbsp;|\u00a0/g, " ").trim()
+    const first = text(cells[0])
+    if (!first) return row
+    const emptyVals = cells.slice(1).every((c) => /^(days?|kgs?|cbm)?$/i.test(text(c)))
+    return emptyVals ? "" : row
   })
 }
 
@@ -184,6 +198,15 @@ export interface BuildInput {
 
 const dash = (s: string | null | undefined) => (s && s !== "—" ? s : "")
 
+/** The carrier's price: headline rate, else the computed total, else the sum of the included charge lines. */
+export function carrierBase(q: Record<string, any>): number {
+  const direct = num(q.rate_usd) ?? num(q.total_amount)
+  if (direct !== null && direct > 0) return direct
+  const rows: ChargeIn[] = Array.isArray(q.charges) ? q.charges : []
+  const sum = rows.filter((c) => (c.inclusion ?? "included") === "included").reduce((t, c) => t + (num(c.amount) ?? 0), 0)
+  return round2(sum)
+}
+
 export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: string; currency: string } {
   const o = normalizeOptions(input.options)
   const { request: r, quote: q } = input
@@ -214,6 +237,11 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const markupAmt = input.markupType === "percent" ? round2(input.baseRate * input.markupAmount / 100) : input.markupAmount
   const freeDays = q.free_days != null ? String(q.free_days) : ""
 
+  // What the carrier actually quoted wins over what was asked (a request can say "Air" while the carrier quotes a 40GP container).
+  const sl = String(q.service_level || "")
+  const quotedMode = q.mode ? String(q.mode).replace(/^./, (c: string) => c.toUpperCase()) : /^(fcl|lcl)$/i.test(sl) || q.container_type ? "Sea" : ""
+  const quotedEquip = q.container_type ? `${q.container_count ?? 1} x ${q.container_type}` : ""
+
   const v: Record<string, string> = {
     quotation_number: input.quotationNumber ?? "",
     quotation_date: fmtDate(now.toISOString()),
@@ -225,8 +253,8 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     request_ref: r.requestRef ?? "", received_date: r.receivedExact, urgency: r.urgency,
     origin_city: dash(r.originCity), origin_country: dash(r.originCountry), origin,
     destination_city: dash(r.destinationCity), destination_country: dash(r.destinationCountry), destination,
-    cargo_type: dash(r.cargoType), equipment: dash(r.equipment), weight: dash(r.weight), quantity: dash(r.quantity),
-    dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType), mode: r.modes.join(", "),
+    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip, weight: dash(r.weight), quantity: dash(r.quantity),
+    dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType), mode: quotedMode || r.modes.join(", "),
     special_requirements: (r.specialRequirements ?? []).join("; "),
     carrier_name: input.carrierName, carrier_quote_ref: q.carrier_quote_ref ?? "",
     quote_mode: q.mode ? String(q.mode).replace(/^./, (c: string) => c.toUpperCase()) : "",

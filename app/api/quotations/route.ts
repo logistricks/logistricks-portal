@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
 import { logActivity } from "@/lib/log-activity"
-import { buildContext, renderQuotation } from "@/lib/quotation-render"
+import { buildContext, carrierBase, renderQuotation } from "@/lib/quotation-render"
 import { normalizeOptions } from "@/lib/quotation-variables"
 
 function auth(req: NextRequest) {
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     .single()
   if (tplErr || !template) return NextResponse.json({ error: "Quotation template not found" }, { status: 404 })
 
-  const baseRate = Number(quoteRow.rate_usd ?? quoteRow.total_amount ?? 0)
+  const baseRate = carrierBase(quoteRow as Record<string, any>)
   const finalPrice = markupType === "percent"
     ? Math.round(baseRate * (1 + markupAmount / 100) * 100) / 100
     : Math.round((baseRate + markupAmount) * 100) / 100
@@ -137,6 +137,7 @@ export async function POST(req: NextRequest) {
       generated_format: rendered.format,
       quotation_number: quotationNumber,
       final_price_usd: finalPrice,
+      base_rate_usd: baseRate,
     })
   }
 
