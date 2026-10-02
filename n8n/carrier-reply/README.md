@@ -17,6 +17,12 @@ One workflow for all clients. The portal (or any mail reader) POSTs each carrier
 ```
 Matching: the `RFQ-xxxxxxxx-N-xxxxxx` token (from the RFQ email) is found in subject/body; the portal then falls back to request+carrier and thread id. No match → stored as a Non-linked Quote.
 
+### Real attachments (binary)
+Besides base64 in the JSON, the flow reads attachments as n8n **binary** files, exactly like the Gmail-trigger workflow: send a multipart form (`curl -F`) or put a Gmail node with `downloadAttachments` in front. PDFs and images (png/jpg/webp/heic, up to 15 MB each) are passed to the model as files.
+```
+curl -X POST '<webhook>' -H 'X-Portal-Secret: <secret>' -F client_code=DEMO -F from_email=ops@carrier.com -F subject='RE: ...' -F body_text='Please find our rates attached.' -F attachment=@rates.pdf
+```
+
 ## Output (webhook response)
 The portal's response: `{ ok, linked, link_method | reason, carrier_quote_id, review_status, validation_flags }`.
 

@@ -13,7 +13,7 @@ const cfg = {
   gemini_key: 'CHANGE_ME',
   gemini_model: 'gemini-3.6-flash',
 }
-return [{ json: { ...$input.first().json, cfg } }]`
+return [{ json: { ...$input.first().json, cfg }, binary: $input.first().binary }]`
 
 const CFG = "$('Config').first().json.cfg"
 const prepareCode = `${strip("prepare.js")}
@@ -23,7 +23,11 @@ const body = item.body || item
 const secret = (item.headers && (item.headers["x-portal-secret"] || item.headers["X-Portal-Secret"])) || ""
 if (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) return [{ json: { unauthorized: true } }]
 if (!body.client_code || !body.from_email) return [{ json: { bad_request: "client_code and from_email are required" } }]
-return [{ json: prepare(body) }]`
+const out = prepare(body)
+// Files that arrive as real attachments (multipart upload, or a Gmail node with downloadAttachments) travel as n8n binary.
+const bin = $input.first().binary || {}
+out.file_names = [...out.file_names, ...Object.values(bin).map((b) => b.fileName || 'file')]
+return [{ json: out, binary: $input.first().binary }]`
 
 const geminiCode = `// Calls Gemini from code (same pattern as the request-intake workflow): retries, tolerant JSON parsing.
 const p = $input.first().json
@@ -34,7 +38,17 @@ const text = 'Carrier email\\nFrom: ' + p.from_email + '\\nSubject: ' + p.subjec
   + (p.quoted_text ? '\\n\\n=== QUOTED EARLIER MESSAGES (find references only) ===\\n' + p.quoted_text : '')
   + (p.attachments_text ? '\\n\\n' + p.attachments_text : '')
 // PDFs / images attached to the email are handed to the model as files, so it reads them itself.
-const files = p.files || []
+const files = [...(p.files || [])]
+// Real attachments (n8n binary data, same as the Gmail-trigger workflow): PDFs and images go to the model as files.
+const SUPPORTED = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic', 'image/heif']
+const bin = $input.first().binary || {}
+for (const key of Object.keys(bin)) {
+  const meta = bin[key]
+  if (!SUPPORTED.includes(meta.mimeType || '')) continue
+  if ((Number(meta.fileSize) || 0) > 15 * 1024 * 1024) continue
+  const buffer = await this.helpers.getBinaryDataBuffer(0, key)
+  files.push({ filename: meta.fileName || key, mime_type: meta.mimeType, data: buffer.toString('base64') })
+}
 const parts = [{ text: text + (files.length ? '\\n\\nAttached files (read them; the quote may be only in the file): ' + files.map((f) => f.filename).join(', ') : '') }]
 for (const f of files) parts.push({ inline_data: { mime_type: f.mime_type, data: f.data } })
 
