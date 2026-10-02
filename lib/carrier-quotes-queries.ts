@@ -153,34 +153,25 @@ export interface SendRfqPayload {
 // ─── Fetch quotes for a specific freight request ────────────────────────────
 
 export async function fetchQuotesForRequest(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   freightRequestId: string,
 ): Promise<CarrierQuoteRequest[]> {
-  // carrier_quotes ( * ) picks up every column that exists, so this keeps working
-  // before and after migrations 039 / 040 have been run.
-  const { data, error } = await supabase
-    .from("carrier_quote_requests")
-    .select(`
-      id,
-      freight_request_id,
-      carrier_id,
-      email_thread_id,
-      email_message_id,
-      status,
-      sent_at,
-      responded_at,
-      carriers ( carrier_name, email ),
-      carrier_quotes ( * )
-    `)
-    .eq("freight_request_id", freightRequestId)
-    .order("sent_at", { ascending: true })
-
-  if (error) {
-    console.error("[carrier-quotes] fetchQuotesForRequest:", error.message)
+  // Loaded through the API (service role): the portal has its own session cookie, so the
+  // browser Supabase client is blocked by row-level security and would return nothing.
+  let data: any[] = []
+  try {
+    const res = await fetch(`/api/carrier-quotes/for-request?freight_request_id=${encodeURIComponent(freightRequestId)}`, { cache: "no-store" })
+    if (!res.ok) {
+      console.error("[carrier-quotes] fetchQuotesForRequest:", res.status)
+      return []
+    }
+    data = (await res.json()).rows ?? []
+  } catch (e) {
+    console.error("[carrier-quotes] fetchQuotesForRequest:", e)
     return []
   }
 
-  return (data ?? []).map((row: any) => ({
+  return data.map((row: any) => ({
     id: row.id,
     freightRequestId: row.freight_request_id,
     carrierId: row.carrier_id,
