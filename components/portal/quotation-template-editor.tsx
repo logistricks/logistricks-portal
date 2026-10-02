@@ -405,11 +405,17 @@ export function QuotationTemplateEditor({
                   <div>
                     <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Charges table style</label>
                     <select value={options.charges_style} onChange={(e) => setOptions({ ...options, charges_style: e.target.value as TemplateOptions["charges_style"] })} className={inputCls} style={inputStyle}>
-                      <option value="marked_up">Marked-up lines (customer sees one price per line)</option>
-                      <option value="detailed">Carrier lines + service fee</option>
+                      <option value="detailed">Carrier lines + a separate markup row</option>
+                      <option value="marked_up">Markup spread across lines (one price per line)</option>
                       <option value="total_only">Total only</option>
                     </select>
                     <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>Applies to {"{{charges_table}}"}.</p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Markup row name</label>
+                    <input value={options.markup_label} maxLength={60} onChange={(e) => setOptions({ ...options, markup_label: e.target.value })}
+                      placeholder="Service fee" className={inputCls} style={inputStyle} />
+                    <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>The row that shows your markup in the charges table, e.g. Handling &amp; documentation, Agency fee, Service fee. If the markup is a percentage and ticked to show, it is added after the name: &ldquo;Service fee (10%)&rdquo;.</p>
                   </div>
                   <Toggle on={options.show_unit_rates} onChange={(v) => setOptions({ ...options, show_unit_rates: v })} label="Show unit rates" hint="Adds rate × quantity columns." />
 

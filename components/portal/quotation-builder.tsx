@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
@@ -19,6 +19,7 @@ interface Quotation {
   status: "draft" | "sent"
   sent_at: string | null
   created_at: string
+  show_markup_percent?: boolean | null
   generated_html?: string | null
   generated_format?: "text" | "html" | null
   quotation_number?: string | null
@@ -272,6 +273,10 @@ export function QuotationBuilder({
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null)
   const [markupType, setMarkupType]     = useState<"flat" | "percent">("flat")
   const [markupAmount, setMarkupAmount] = useState<string>("0")
+  const [showPct, setShowPct]     = useState(false)
+  const [markupMap, setMarkupMap] = useState<Record<string, { markup_type: "flat" | "percent"; markup_amount: number; show_markup_percent: boolean }>>({})
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unavailable">("idle")
+  const lastKey = useRef<string>("")
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
@@ -282,12 +287,14 @@ export function QuotationBuilder({
     setLoading(true); setError(null)
     try {
       const supabase = createClient()
-      const [quoteRows, tplRes, quoteDocsRes] = await Promise.all([
+      const [quoteRows, tplRes, quoteDocsRes, markupRes] = await Promise.all([
         fetchQuotesForRequest(supabase, request.id),
         fetch("/api/quotation-templates"),
         fetch(`/api/quotations?freight_request_id=${request.id}`),
+        fetch(`/api/carrier-quotes/markup?freight_request_id=${request.id}`),
       ])
       setRows(quoteRows)
+      if (markupRes.ok) setMarkupMap((await markupRes.json()).markups ?? {})
       if (tplRes.ok) {
         const tpls: QuotationTemplate[] = await tplRes.json()
         setTemplates(tpls.filter((t) => t.active))
@@ -314,6 +321,38 @@ export function QuotationBuilder({
   const selectedRow = responded.find((r) => r.quote?.id === selectedQuoteId)
   const baseRate = selectedRow?.quote?.rateUsd ?? 0
   const markupNum = Number(markupAmount) || 0
+
+  // Load the markup saved for the selected quote (or start at 0).
+  useEffect(() => {
+    if (!selectedQuoteId) return
+    const saved = markupMap[String(selectedQuoteId)]
+    const t = saved?.markup_type ?? "flat", a = String(saved?.markup_amount ?? 0), p = saved?.show_markup_percent ?? false
+    setMarkupType(t); setMarkupAmount(a); setShowPct(p); setSaveState(saved ? "saved" : "idle")
+    lastKey.current = JSON.stringify([selectedQuoteId, t, Number(a) || 0, p])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedQuoteId, markupMap])
+
+  // Save the markup as soon as it is entered, so it is still there when this request is reopened.
+  useEffect(() => {
+    if (!selectedQuoteId) return
+    const key = JSON.stringify([selectedQuoteId, markupType, markupNum, showPct])
+    if (key === lastKey.current) return
+    const timer = setTimeout(async () => {
+      setSaveState("saving")
+      try {
+        const res = await fetch("/api/carrier-quotes/markup", {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ carrier_quote_id: selectedQuoteId, markup_type: markupType, markup_amount: markupNum, show_markup_percent: showPct }),
+        })
+        const d = await res.json().catch(() => ({}))
+        if (res.ok && d.saved) {
+          lastKey.current = key
+          setSaveState("saved")
+        } else setSaveState("unavailable")
+      } catch { setSaveState("unavailable") }
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [selectedQuoteId, markupType, markupNum, showPct])
   const finalPrice = markupType === "percent"
     ? Math.round(baseRate * (1 + markupNum / 100) * 100) / 100
     : Math.round((baseRate + markupNum) * 100) / 100
@@ -329,7 +368,7 @@ export function QuotationBuilder({
           method: "POST", headers: { "Content-Type": "application/json" }, signal: ctl.signal,
           body: JSON.stringify({
             preview: true, freight_request_id: request.id, carrier_quote_id: selectedQuoteId,
-            quotation_template_id: templateId ?? undefined, markup_type: markupType, markup_amount: Number(markupAmount) || 0,
+            quotation_template_id: templateId ?? undefined, markup_type: markupType, markup_amount: Number(markupAmount) || 0, show_markup_percent: showPct,
           }),
         })
         setPreview(res.ok ? await res.json() : null)
@@ -337,7 +376,7 @@ export function QuotationBuilder({
       finally { setPreviewing(false) }
     }, 400)
     return () => { clearTimeout(timer); ctl.abort() }
-  }, [selectedQuoteId, templateId, markupType, markupAmount, templates.length, request.id])
+  }, [selectedQuoteId, templateId, markupType, markupAmount, showPct, templates.length, request.id])
 
   async function handleBuild() {
     if (!selectedRow?.quote || templates.length === 0) return
@@ -352,6 +391,7 @@ export function QuotationBuilder({
           quotation_template_id: templateId ?? undefined,
           markup_type: markupType,
           markup_amount: markupNum,
+          show_markup_percent: showPct,
         }),
       })
       if (!res.ok) {
@@ -463,6 +503,9 @@ export function QuotationBuilder({
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                 {markupType === "percent" ? "Markup %" : "Markup $"}
+                <span className="ml-2 font-normal normal-case tracking-normal">
+                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "unavailable" ? "Not saved — database update pending" : ""}
+                </span>
               </label>
               <input
                 type="number"
@@ -472,6 +515,13 @@ export function QuotationBuilder({
                 style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
               />
             </div>
+
+            {markupType === "percent" && (
+              <label className="flex items-center gap-2 text-sm sm:col-span-2" style={{ color: "var(--text-primary)" }}>
+                <input type="checkbox" checked={showPct} onChange={(e) => setShowPct(e.target.checked)} className="h-4 w-4" />
+                Show the percentage on the quotation (e.g. &ldquo;Service fee (10%)&rdquo;)
+              </label>
+            )}
           </div>
 
           {(selectedRow?.quote as { reviewStatus?: string | null } | undefined)?.reviewStatus === "needs_review" && (
@@ -545,6 +595,9 @@ export function QuotationBuilder({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
                   ${q.final_price_usd?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  <span className="ml-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                    base ${q.base_rate_usd?.toLocaleString("en-US", { minimumFractionDigits: 2 })} + markup {q.markup_type === "percent" ? `${q.markup_amount}%` : `$${q.markup_amount?.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                  </span>
                 </span>
                 {q.status === "draft" && (
                   <button

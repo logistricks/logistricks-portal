@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
   const carrierQuoteId    = body.carrier_quote_id as number | undefined
   const markupType        = (body.markup_type as string) === "percent" ? "percent" : "flat"
   const markupAmount      = Number(body.markup_amount) || 0
+  const showMarkupPercent = body.show_markup_percent === true
   let quotationTemplateId = body.quotation_template_id as number | undefined
 
   if (!freightRequestId) return NextResponse.json({ error: "freight_request_id required" }, { status: 400 })
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
 
   const options = normalizeOptions((template as { options?: unknown }).options)
   const { ctx, validUntil, currency } = buildContext({
-    request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options,
+    request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options, showMarkupPercent,
     preparedBy: (userRow as { display_name?: string } | null)?.display_name || session.username,
     company: company ? { name: company.company_name, email: company.contact_email, phone: company.contact_phone } : undefined,
     quotationNumber,
@@ -160,6 +161,7 @@ export async function POST(req: NextRequest) {
     quotation_number: quotationNumber,
     valid_until:      validUntil || null,
     currency,
+    show_markup_percent: showMarkupPercent,
   }
   let { data: inserted, error: insertErr } = await admin.from("quotations").insert(richRow).select("*").single()
   if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {

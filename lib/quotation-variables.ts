@@ -109,6 +109,8 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
       { key: "base_rate", label: "Carrier's price (cost)", example: "3,540.00", note: "Internal cost — don't put in customer-facing templates." },
       { key: "markup", label: "Markup (as entered)", example: "$310.00" },
       { key: "markup_amount", label: "Markup amount", example: "310.00" },
+      { key: "markup_percent", label: "Markup percentage (blank unless the markup is a %)", example: "" },
+      { key: "markup_label", label: "Markup row name (from template options)", example: "Service fee" },
       { key: "price_per_unit", label: "Price per chargeable unit", example: "9.63" },
       { key: "minimum_charge", label: "Minimum charge", example: "150.00" },
       { key: "tax_note", label: "Tax note", example: "Prices exclude VAT" },
@@ -148,6 +150,7 @@ export const RECOMMENDED_KEYS = ["final_price", "final_price_with_currency", "ch
 
 export interface TemplateOptions {
   charges_style: "marked_up" | "detailed" | "total_only"
+  markup_label: string
   show_unit_rates: boolean
   accent_color: string
   font_family: string
@@ -155,7 +158,8 @@ export interface TemplateOptions {
 }
 
 export const DEFAULT_OPTIONS: TemplateOptions = {
-  charges_style: "marked_up",
+  charges_style: "detailed",
+  markup_label: "Service fee",
   show_unit_rates: false,
   accent_color: "#0D1B2A",
   font_family: "Arial, Helvetica, sans-serif",
@@ -164,12 +168,14 @@ export const DEFAULT_OPTIONS: TemplateOptions = {
 
 export function normalizeOptions(raw: unknown): TemplateOptions {
   const o = (raw && typeof raw === "object" ? raw : {}) as Partial<TemplateOptions>
-  const style = o.charges_style === "detailed" || o.charges_style === "total_only" ? o.charges_style : "marked_up"
+  const style = o.charges_style === "marked_up" || o.charges_style === "total_only" ? o.charges_style : "detailed"
+  const label = typeof o.markup_label === "string" && o.markup_label.trim() && o.markup_label.length <= 60 && !/[<>{}]/.test(o.markup_label) ? o.markup_label.trim() : DEFAULT_OPTIONS.markup_label
   const color = typeof o.accent_color === "string" && /^#[0-9a-fA-F]{6}$/.test(o.accent_color) ? o.accent_color : DEFAULT_OPTIONS.accent_color
   const font = typeof o.font_family === "string" && o.font_family.length < 120 && !/[<>{};]/.test(o.font_family) ? o.font_family : DEFAULT_OPTIONS.font_family
   const vd = Number(o.validity_days)
   return {
     charges_style: style,
+    markup_label: label,
     show_unit_rates: !!o.show_unit_rates,
     accent_color: color,
     font_family: font,

@@ -105,7 +105,7 @@ export interface ChargeIn {
 }
 interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
 
-function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number) {
+function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number, markupLabel = "Service fee") {
   const included = charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) !== null)
   const optional = charges.filter((c) => c.inclusion && c.inclusion !== "included")
   if (style === "total_only" || included.length === 0) return { lines: [] as Line[], optional }
@@ -120,7 +120,7 @@ function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"],
   if (style === "detailed") {
     const fee = round2(final - sum)
     const lines = [...cost]
-    if (Math.abs(fee) >= 0.01) lines.push({ label: fee > 0 ? "Service fee" : "Adjustment", basis: "", qty: null, rate: null, amount: fee })
+    if (Math.abs(fee) >= 0.01) lines.push({ label: fee > 0 ? markupLabel : "Adjustment", basis: "", qty: null, rate: null, amount: fee })
     return { lines, optional }
   }
 
@@ -175,6 +175,7 @@ export interface BuildInput {
   baseRate: number
   finalPrice: number
   options?: unknown
+  showMarkupPercent?: boolean
   preparedBy?: string
   company?: { name?: string | null; email?: string | null; phone?: string | null }
   quotationNumber?: string
@@ -190,7 +191,9 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const currency = String(q.rate_currency || "USD").toUpperCase()
   const finalPrice = input.finalPrice
   const charges: ChargeIn[] = Array.isArray(q.charges) ? q.charges : []
-  const { lines, optional } = sellLines(charges, o.charges_style, finalPrice)
+  const pctOn = input.markupType === "percent" && input.showMarkupPercent === true && input.markupAmount > 0
+  const markupRowLabel = pctOn ? `${o.markup_label} (${plain(input.markupAmount)}%)` : o.markup_label
+  const { lines, optional } = sellLines(charges, o.charges_style, finalPrice, markupRowLabel)
 
   // chargeable weight / validity
   const cw = num(q.chargeable_weight)
@@ -241,6 +244,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     temperature_control: q.temperature_control ?? "", special_handling: q.special_handling ?? "",
     currency, final_price: money(finalPrice), final_price_with_currency: `${currency} ${money(finalPrice)}`,
     base_rate: money(input.baseRate), markup: markupStr, markup_amount: money(markupAmt),
+    markup_percent: input.markupType === "percent" && input.markupAmount > 0 ? `${plain(input.markupAmount)}%` : "", markup_label: o.markup_label,
     price_per_unit: cw && cw > 0 ? money(finalPrice / cw) : "",
     minimum_charge: q.minimum_charge != null ? money(Number(q.minimum_charge)) : "",
     tax_note: q.tax_included === true ? "Prices include tax" : q.tax_included === false ? "Prices exclude tax" : "",
