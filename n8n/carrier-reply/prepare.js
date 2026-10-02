@@ -19,6 +19,7 @@ function prepare(inp) {
     thread_id: inp.thread_id || null,
     rfq_reference: m ? m[0] : null,
     fresh_text: fresh.slice(0, 20000),
+    quoted_text: cut > 0 ? body.slice(cut).trim().slice(0, 6000) : "",
     raw_text: body.slice(0, 20000),
     attachments_text: att,
   }

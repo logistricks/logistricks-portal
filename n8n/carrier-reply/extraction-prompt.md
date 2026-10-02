@@ -19,7 +19,7 @@ RULES
    - other: auto-reply, out-of-office, newsletter, unrelated
 2. Extract ONLY what is explicitly written. Never guess. If something is not stated, return null.
    A value you had to deduce (e.g. mode from airport codes, currency from a $ sign) goes in inferred_fields.
-3. Ignore quoted text from our own earlier RFQ (lines starting with ">" or below "On ... wrote:", "From:" blocks). Only the carrier's new text counts.
+3. Take every value ONLY from the carrier's new text. A separate section marked "QUOTED EARLIER MESSAGES" holds our own earlier RFQ: never take prices or terms from it; it is there only so you can find references (rule 16).
 4. Numbers: plain numbers, no thousands separators, no currency symbols. Dates: ISO YYYY-MM-DD (datetime: ISO 8601).
 5. Do NOT calculate: no totals, no chargeable weight, no volumetric weight, no validity date. Report what is written.
    If validity is given as a duration ("valid 7 days") fill validity_days; if as a date fill validity_date.
@@ -38,7 +38,8 @@ RULES
 12. For decline / info_request / other: leave pricing fields null and put the carrier's reason or question in notes.
 13. ai_confidence: 0..1 for the whole extraction. Below 0.8 if the email is ambiguous, garbled, or key fields were hard to read.
 14. key_evidence: for the 3-6 most important values (price, validity, transit/ETD, mode, route) give {field, quote} with the exact words from the email.
-15. Return JSON only, matching the schema.
+15. reference_candidates: read the subject, the new text, the quoted earlier messages and any attachment text, and list every reference code that could identify our request or the carrier's own quote: our request numbers (like LT-0017), RFQ tokens (like RFQ-1a2b3c4d-7-ab12cd), PO / booking / file numbers. Copy each exactly as written, no duplicates. Empty list if none. Do not invent one.
+16. Return JSON only, matching the schema.
 ```
 
 ## User message template

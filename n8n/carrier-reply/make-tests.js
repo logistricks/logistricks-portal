@@ -77,4 +77,9 @@ mk(11, "auto-reply", { lane: "AMM-FRA air 120kg", from: "ops@skyline-air.example
   body: `Thank you for your email. I am out of the office until 12 October with limited access to email. For urgent matters contact dispatch@skyline-air.example.`,
   ai: { ...base, response_type: "other", notes: "Out-of-office auto-reply until 12 October." },
   expect: { linked: true, review_status: "needs_review", flags: ["not_a_quote"] } })
-console.log("11 test emails written")
+mk(12, "multi-option-ref-lt", { lane: "Genoa/La Spezia-Aqaba 20ft+40HQ", noRef: true, from: "agent@medexpress.example", subject: "RE: [LT-0017] Quotation 20ft + 40HQ Italy to Aqaba",
+  body: `Dear Nour,\n\nOPTION 1 Genoa: ocean USD 1,950/20ft, 2,900/40HQ, ETD 18 Oct, 18 days direct.\nOPTION 2 La Spezia: ocean USD 1,900/20ft, 2,850/40HQ, ETD 21 Oct, 19 days direct.\nBL fee USD 60, customs USD 120 per shipment. Valid until 2026-10-31, subject to equipment availability.\n\nMed Express Line`,
+  ai: { ...base, response_type: "quote", quote_status: "subject_to_equipment", mode: "sea", service_level: "FCL", validity_date: "2026-10-31", currency: "USD", incoterm: "EXW", origin_place: "La Spezia", destination_place: "Aqaba", transit_days: 19, inferred_fields: ["multiple_options"], reference_candidates: ["LT-0017"],
+    charges: [{ carrier_label: "Ocean freight 20ft", basis: "per_container", unit_rate: 1900, quantity: 1, inclusion: "included" }, { carrier_label: "Ocean freight 40HQ", basis: "per_container", unit_rate: 2850, quantity: 1, inclusion: "included" }, { carrier_label: "BL fee", basis: "per_shipment", unit_rate: 60, inclusion: "included" }, { carrier_label: "Customs", basis: "per_shipment", unit_rate: 120, inclusion: "included" }] },
+  expect: { linked: true, request_ref: "LT-0017", total_amount: 4930, review_status: "needs_review", flags: ["not_firm", "inferred_values"] } })
+console.log("12 test emails written")

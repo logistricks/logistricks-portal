@@ -19,12 +19,13 @@ for (const f of fs.readdirSync(dir).sort()) {
   const e = t.expect, errs: string[] = []
   const eq = (k: string, got: unknown, want: unknown) => { if (want !== undefined && got !== want) errs.push(`${k}: got ${got}, want ${want}`) }
   if (/^On .*wrote:/m.test(prep.fresh_text) || /^>/m.test(prep.fresh_text)) errs.push("quoted text not stripped")
-  if (!e.linked === false && !prep.rfq_reference && f !== "10-unknown-sender-mixed-currency.json") errs.push("RFQ token not found")
+  if (e.linked && !prep.rfq_reference && !e.request_ref && f !== "10-unknown-sender-mixed-currency.json") errs.push("RFQ token not found")
   eq("chargeable_weight", row.chargeable_weight, e.chargeable_weight)
   eq("chargeable_unit", row.chargeable_unit, e.chargeable_unit)
   eq("chargeable_basis", row.chargeable_basis, e.chargeable_basis)
   eq("total_amount", row.total_amount, e.total_amount)
   eq("validity_date", body.validity_date, e.validity_date)
+  eq("request_ref", body.request_ref ?? undefined, e.request_ref)
   eq("review_status", row.review_status, e.review_status)
   for (const c of e.flags ?? []) if (!codes.includes(c)) errs.push(`missing flag ${c}`)
   if ((e.flags ?? []).length === 0 && codes.length) errs.push(`unexpected flags ${codes}`)

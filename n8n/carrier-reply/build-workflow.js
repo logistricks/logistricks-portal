@@ -24,7 +24,7 @@ if (!text) throw new Error('Gemini returned no content: ' + JSON.stringify(resp)
 const ai = JSON.parse(text)
 return [{ json: buildBody(ai, prep, resp.modelVersion || 'gemini') }]`
 
-const userMsg = "={{ 'Carrier email\\nFrom: ' + $json.from_email + '\\nSubject: ' + $json.subject + '\\nReceived: ' + $json.received_at + '\\n\\n' + $json.fresh_text + ($json.attachments_text ? '\\n\\n' + $json.attachments_text : '') }}"
+const userMsg = "={{ 'Carrier email\\nFrom: ' + $json.from_email + '\\nSubject: ' + $json.subject + '\\nReceived: ' + $json.received_at + '\\n\\n' + $json.fresh_text + ($json.quoted_text ? '\\n\\n=== QUOTED EARLIER MESSAGES (find references only) ===\\n' + $json.quoted_text : '') + ($json.attachments_text ? '\\n\\n' + $json.attachments_text : '') }}"
 const geminiBody = "={{ JSON.stringify({ systemInstruction: { parts: [{ text: " + JSON.stringify(system) + " }] }, contents: [{ role: 'user', parts: [{ text: (" + userMsg.slice(3, -2) + ") }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: " + JSON.stringify(schema) + " } }) }}"
 
 const node = (name, type, typeVersion, position, parameters, extra = {}) => ({ name, type, typeVersion, position, parameters, ...extra })

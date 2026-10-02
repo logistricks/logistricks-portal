@@ -17,11 +17,16 @@ function addDays(iso, days) {
   return new Date(t + days * 86400000).toISOString().slice(0, 10)
 }
 function buildBody(ai, prep, modelVersion) {
+  // Reference: the regex hit wins; otherwise whatever the model found in subject / body / quoted text / attachments.
+  const cands = [prep.rfq_reference, ...(ai.reference_candidates || [])].filter(Boolean).map((c) => String(c).trim())
+  const rfq = cands.find((c) => /^RFQ-[0-9a-f]{8}-\d+-[0-9a-f]{6}$/i.test(c)) || null
+  const lt = cands.map((c) => (c.match(/\bLT-\d+\b/i) || [])[0]).find(Boolean) || null
   const b = {
     client_code: prep.client_code,
     carrier_email: prep.from_email,
     from_email: prep.from_email,
-    rfq_reference: prep.rfq_reference,
+    rfq_reference: rfq,
+    request_ref: lt ? lt.toUpperCase() : null,
     email_subject: prep.subject,
     email_thread_id: prep.thread_id,
     email_message_id: prep.message_id,

@@ -1,80 +1,377 @@
 {
   "type": "OBJECT",
   "properties": {
-    "response_type": {"type": "STRING", "enum": ["quote","update","counter_offer","decline","info_request","other"]},
-    "quote_status": {"type": "STRING", "nullable": true, "enum": ["firm","indicative","subject_to_space","subject_to_equipment"]},
-    "carrier_quote_ref": {"type": "STRING", "nullable": true},
-    "version": {"type": "INTEGER", "nullable": true},
-    "mode": {"type": "STRING", "nullable": true, "enum": ["air","sea","land"]},
-    "service_level": {"type": "STRING", "nullable": true},
-    "quote_date": {"type": "STRING", "nullable": true},
-    "valid_from": {"type": "STRING", "nullable": true},
-    "validity_date": {"type": "STRING", "nullable": true},
-    "validity_days": {"type": "INTEGER", "nullable": true},
-    "currency": {"type": "STRING", "nullable": true},
-    "total_amount_stated": {"type": "NUMBER", "nullable": true},
-    "minimum_charge": {"type": "NUMBER", "nullable": true},
-    "is_all_in": {"type": "BOOLEAN", "nullable": true},
-    "tax_included": {"type": "BOOLEAN", "nullable": true},
-    "tax_amount": {"type": "NUMBER", "nullable": true},
-    "transit_days": {"type": "INTEGER", "nullable": true},
-    "free_days": {"type": "INTEGER", "nullable": true},
-    "commodity_description": {"type": "STRING", "nullable": true},
-    "hs_code": {"type": "STRING", "nullable": true},
-    "pieces": {"type": "INTEGER", "nullable": true},
-    "packaging_type": {"type": "STRING", "nullable": true},
-    "gross_weight": {"type": "NUMBER", "nullable": true},
-    "weight_unit": {"type": "STRING", "nullable": true},
-    "volume_cbm": {"type": "NUMBER", "nullable": true},
-    "dimensions": {"type": "ARRAY", "nullable": true, "items": {"type": "OBJECT", "properties": {
-      "length_cm": {"type": "NUMBER"}, "width_cm": {"type": "NUMBER"}, "height_cm": {"type": "NUMBER"}, "pieces": {"type": "INTEGER"}}}},
-    "volumetric_divisor": {"type": "INTEGER", "nullable": true},
-    "chargeable_weight_stated": {"type": "NUMBER", "nullable": true},
-    "stackable": {"type": "BOOLEAN", "nullable": true},
-    "declared_value": {"type": "NUMBER", "nullable": true},
-    "temperature_control": {"type": "STRING", "nullable": true},
-    "special_handling": {"type": "STRING", "nullable": true},
-    "container_type": {"type": "STRING", "nullable": true},
-    "container_count": {"type": "INTEGER", "nullable": true},
-    "origin_place": {"type": "STRING", "nullable": true},
-    "destination_place": {"type": "STRING", "nullable": true},
-    "origin_code": {"type": "STRING", "nullable": true},
-    "destination_code": {"type": "STRING", "nullable": true},
-    "incoterm": {"type": "STRING", "nullable": true},
-    "incoterm_place": {"type": "STRING", "nullable": true},
-    "etd": {"type": "STRING", "nullable": true},
-    "eta": {"type": "STRING", "nullable": true},
-    "frequency": {"type": "STRING", "nullable": true},
-    "direct_or_connecting": {"type": "STRING", "nullable": true},
-    "equipment_type": {"type": "STRING", "nullable": true},
-    "space_confirmed": {"type": "BOOLEAN", "nullable": true},
-    "free_days_demurrage": {"type": "INTEGER", "nullable": true},
-    "free_days_detention": {"type": "INTEGER", "nullable": true},
-    "per_diem_note": {"type": "STRING", "nullable": true},
-    "payment_terms": {"type": "STRING", "nullable": true},
-    "insurance_offered": {"type": "BOOLEAN", "nullable": true},
-    "liability_limit": {"type": "STRING", "nullable": true},
-    "cancellation_terms": {"type": "STRING", "nullable": true},
-    "exclusions": {"type": "STRING", "nullable": true},
-    "subject_to_conditions": {"type": "STRING", "nullable": true},
-    "required_documents": {"type": "STRING", "nullable": true},
-    "charges": {"type": "ARRAY", "nullable": true, "items": {"type": "OBJECT", "properties": {
-      "canonical_code": {"type": "STRING", "nullable": true},
-      "carrier_label": {"type": "STRING"},
-      "category": {"type": "STRING", "nullable": true},
-      "basis": {"type": "STRING", "nullable": true},
-      "unit_rate": {"type": "NUMBER", "nullable": true},
-      "quantity": {"type": "NUMBER", "nullable": true},
-      "amount": {"type": "NUMBER", "nullable": true},
-      "currency": {"type": "STRING", "nullable": true},
-      "inclusion": {"type": "STRING", "nullable": true, "enum": ["included","excluded","optional","at_cost","subject_to"]},
-      "condition_note": {"type": "STRING", "nullable": true}}, "required": ["carrier_label"]}},
-    "weight_break_tiers": {"type": "ARRAY", "nullable": true, "items": {"type": "OBJECT", "properties": {
-      "min_kg": {"type": "NUMBER"}, "rate_per_kg": {"type": "NUMBER"}}}},
-    "notes": {"type": "STRING", "nullable": true},
-    "ai_confidence": {"type": "NUMBER"},
-    "inferred_fields": {"type": "ARRAY", "items": {"type": "STRING"}},
-    "key_evidence": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"field": {"type": "STRING"}, "quote": {"type": "STRING"}}}}
+    "response_type": {
+      "type": "STRING",
+      "enum": [
+        "quote",
+        "update",
+        "counter_offer",
+        "decline",
+        "info_request",
+        "other"
+      ]
+    },
+    "quote_status": {
+      "type": "STRING",
+      "nullable": true,
+      "enum": [
+        "firm",
+        "indicative",
+        "subject_to_space",
+        "subject_to_equipment"
+      ]
+    },
+    "carrier_quote_ref": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "version": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "mode": {
+      "type": "STRING",
+      "nullable": true,
+      "enum": [
+        "air",
+        "sea",
+        "land"
+      ]
+    },
+    "service_level": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "quote_date": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "valid_from": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "validity_date": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "validity_days": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "currency": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "total_amount_stated": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "minimum_charge": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "is_all_in": {
+      "type": "BOOLEAN",
+      "nullable": true
+    },
+    "tax_included": {
+      "type": "BOOLEAN",
+      "nullable": true
+    },
+    "tax_amount": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "transit_days": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "free_days": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "commodity_description": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "hs_code": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "pieces": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "packaging_type": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "gross_weight": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "weight_unit": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "volume_cbm": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "dimensions": {
+      "type": "ARRAY",
+      "nullable": true,
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "length_cm": {
+            "type": "NUMBER"
+          },
+          "width_cm": {
+            "type": "NUMBER"
+          },
+          "height_cm": {
+            "type": "NUMBER"
+          },
+          "pieces": {
+            "type": "INTEGER"
+          }
+        }
+      }
+    },
+    "volumetric_divisor": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "chargeable_weight_stated": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "stackable": {
+      "type": "BOOLEAN",
+      "nullable": true
+    },
+    "declared_value": {
+      "type": "NUMBER",
+      "nullable": true
+    },
+    "temperature_control": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "special_handling": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "container_type": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "container_count": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "origin_place": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "destination_place": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "origin_code": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "destination_code": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "incoterm": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "incoterm_place": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "etd": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "eta": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "frequency": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "direct_or_connecting": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "equipment_type": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "space_confirmed": {
+      "type": "BOOLEAN",
+      "nullable": true
+    },
+    "free_days_demurrage": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "free_days_detention": {
+      "type": "INTEGER",
+      "nullable": true
+    },
+    "per_diem_note": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "payment_terms": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "insurance_offered": {
+      "type": "BOOLEAN",
+      "nullable": true
+    },
+    "liability_limit": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "cancellation_terms": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "exclusions": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "subject_to_conditions": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "required_documents": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "charges": {
+      "type": "ARRAY",
+      "nullable": true,
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "canonical_code": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "carrier_label": {
+            "type": "STRING"
+          },
+          "category": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "basis": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "unit_rate": {
+            "type": "NUMBER",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "NUMBER",
+            "nullable": true
+          },
+          "amount": {
+            "type": "NUMBER",
+            "nullable": true
+          },
+          "currency": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "inclusion": {
+            "type": "STRING",
+            "nullable": true,
+            "enum": [
+              "included",
+              "excluded",
+              "optional",
+              "at_cost",
+              "subject_to"
+            ]
+          },
+          "condition_note": {
+            "type": "STRING",
+            "nullable": true
+          }
+        },
+        "required": [
+          "carrier_label"
+        ]
+      }
+    },
+    "weight_break_tiers": {
+      "type": "ARRAY",
+      "nullable": true,
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "min_kg": {
+            "type": "NUMBER"
+          },
+          "rate_per_kg": {
+            "type": "NUMBER"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "ai_confidence": {
+      "type": "NUMBER"
+    },
+    "inferred_fields": {
+      "type": "ARRAY",
+      "items": {
+        "type": "STRING"
+      }
+    },
+    "key_evidence": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "field": {
+            "type": "STRING"
+          },
+          "quote": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "reference_candidates": {
+      "type": "ARRAY",
+      "items": {
+        "type": "STRING"
+      }
+    }
   },
-  "required": ["response_type", "ai_confidence", "inferred_fields", "key_evidence"]
+  "required": [
+    "response_type",
+    "ai_confidence",
+    "inferred_fields",
+    "key_evidence",
+    "reference_candidates"
+  ]
 }

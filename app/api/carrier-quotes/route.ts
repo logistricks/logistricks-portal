@@ -15,6 +15,7 @@
  * Body:
  *   client_code         string   (required — the client whose mailbox received the reply)
  *   rfq_reference       string   (preferred match key — token embedded in the RFQ email)
+ *   request_ref         string   (our request number, e.g. LT-0017 — resolved to the request, then matched by carrier)
  *   freight_request_id  string   (fallback match key, together with the carrier)
  *   carrier_id          number   (logical per-client carrier_id — fallback match key)
  *   carrier_email       string   (used to resolve the carrier when carrier_id is absent)
@@ -137,11 +138,23 @@ export async function POST(req: NextRequest) {
     if (data) { match = data; method = "rfq_reference" }
   }
 
-  if (!match && body.freight_request_id && carrierPk) {
+  // Our human request number (e.g. LT-0017) found by the AI in subject/body/attachments.
+  let freightRequestId = (body.freight_request_id as string | undefined) ?? null
+  if (!match && !freightRequestId && typeof body.request_ref === "string" && body.request_ref.trim()) {
+    const { data: fr } = await admin
+      .from("freight_requests")
+      .select("id")
+      .eq("client_code", client_code)
+      .eq("request_ref", body.request_ref.trim().toUpperCase())
+      .maybeSingle()
+    if (fr) freightRequestId = fr.id
+  }
+
+  if (!match && freightRequestId && carrierPk) {
     const { data } = await admin
       .from("carrier_quote_requests")
       .select(cols)
-      .eq("freight_request_id", body.freight_request_id as string)
+      .eq("freight_request_id", freightRequestId)
       .eq("carrier_id", carrierPk)
       .eq("status", "sent")
       .order("sent_at", { ascending: false })
@@ -200,7 +213,7 @@ export async function POST(req: NextRequest) {
   if (!match) {
     const reason = !carrierPk
       ? "carrier_not_recognised"
-      : (body.rfq_reference || body.freight_request_id)
+      : (body.rfq_reference || freightRequestId || body.request_ref)
         ? "no_matching_rfq"
         : "no_reference_found"
 
