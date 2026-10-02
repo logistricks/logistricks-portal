@@ -665,7 +665,7 @@ export default function RequestDetailPage() {
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: h.done ? "var(--brand-accent)" : "var(--card-border)" }} />
                       <div>
                         <p className="text-xs font-medium" style={{ color: h.done ? "var(--text-primary)" : "var(--text-muted)" }}>{h.label}</p>
-                        {h.time && <p className="text-[10px] font-mono tabular-nums" style={{ color: "var(--text-muted)" }}>{new Date(h.time).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>}
+                        {h.time && !Number.isNaN(Date.parse(h.time)) && <p className="text-[10px] font-mono tabular-nums" style={{ color: "var(--text-muted)" }}>{new Date(h.time).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>}
                       </div>
                     </li>
                   ))}

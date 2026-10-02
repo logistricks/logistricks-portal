@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { requireOperator, lockedReason } from "@/lib/carrier-quote-guards"
 import { logActivity } from "@/lib/log-activity"
+import { syncRequestStatus } from "@/lib/request-status"
 
 export async function POST(req: NextRequest) {
   const guard = await requireOperator(req)
@@ -121,6 +122,8 @@ export async function POST(req: NextRequest) {
       { status: linkErr ? 500 : 409 },
     )
   }
+
+  await syncRequestStatus(admin, requestId)
 
   await logActivity({
     clientCode:  session.clientCode,

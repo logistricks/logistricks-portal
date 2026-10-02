@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { requireOperator, lockedReason, sentQuotationBlock, releaseRfqRow } from "@/lib/carrier-quote-guards"
 import { logActivity } from "@/lib/log-activity"
+import { syncRequestStatus } from "@/lib/request-status"
 
 export async function POST(req: NextRequest) {
   const guard = await requireOperator(req)
@@ -56,6 +57,8 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   await releaseRfqRow(admin, quote.carrier_quote_request_id)
+
+  await syncRequestStatus(admin, quote.freight_request_id)
 
   await logActivity({
     clientCode:  session.clientCode,

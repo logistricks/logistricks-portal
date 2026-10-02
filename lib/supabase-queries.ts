@@ -219,26 +219,49 @@ function normalizeConfidence(c: string): Confidence {
   return "Medium"
 }
 
+const KNOWN_STATUSES: RequestStatus[] = [
+  "Pending", "Waiting for Approval", "Rejected",
+  "Approved - Carrier, Pending Send", "Approved - Carrier, Sent",
+  "Approved - Reply, Pending Send", "Approved - Reply, Sent",
+  "Sent to Carrier", "Quoted", "Closed",
+]
+
+// Every status passes through unchanged. (It used to fall back to "Pending" for the four
+// "Approved - …" states, so those requests looked pending.)
 function normalizeStatus(s: string): RequestStatus {
-  if (s === "Sent to Carrier")       return "Sent to Carrier"
-  if (s === "Quoted")                return "Quoted"
-  if (s === "Closed")                return "Closed"
-  if (s === "Waiting for Approval")  return "Waiting for Approval"
-  if (s === "Rejected")              return "Rejected"
-  if (s === "Approved")              return "Approved"
+  if ((KNOWN_STATUSES as string[]).includes(s)) return s as RequestStatus
+  if (s === "Approved") return "Approved - Carrier, Pending Send" // legacy value
   return "Pending"
 }
 
 
 function buildDefaultHistory(status: string) {
-  const done = (label: string, time: string) => ({ label, time, done: true })
-  const pending = (label: string) => ({ label, time: "—", done: false })
+  const done = (label: string) => ({ label, time: "", done: true })
+  const todo = (label: string) => ({ label, time: "", done: false })
+  const base = [done("Received"), done("Parsed by AI")]
 
-  const base = [done("Received", "—"), done("Parsed by AI", "—")]
-  if (status === "Sent to Carrier") return [...base, done("Sent to Carrier", "—"), pending("Quoted")]
-  if (status === "Quoted")          return [...base, done("Sent to Carrier", "—"), done("Quoted", "—")]
-  if (status === "Closed")          return [...base, done("Sent to Carrier", "—"), done("Quoted", "—")]
-  return [...base, pending("Sent to Carrier"), pending("Quoted")]
+  switch (status) {
+    case "Waiting for Approval":
+      return [...base, todo("Approved"), todo("Sent to Carrier"), todo("Quoted")]
+    case "Rejected":
+      return [...base, done("Rejected")]
+    case "Approved - Carrier, Pending Send":
+      return [...base, done("Approved"), todo("Sent to Carrier"), todo("Quoted")]
+    case "Approved - Carrier, Sent":
+      return [...base, done("Approved"), done("Sent to Carrier"), todo("Quoted")]
+    case "Approved - Reply, Pending Send":
+      return [...base, done("Approved"), todo("Reply sent")]
+    case "Approved - Reply, Sent":
+      return [...base, done("Approved"), done("Reply sent")]
+    case "Sent to Carrier":
+      return [...base, done("Sent to Carrier"), todo("Quoted")]
+    case "Quoted":
+      return [...base, done("Sent to Carrier"), done("Quoted")]
+    case "Closed":
+      return [...base, done("Sent to Carrier"), done("Quoted"), done("Closed")]
+    default:
+      return [...base, todo("Sent to Carrier"), todo("Quoted")]
+  }
 }
 
 // ─── Row → FreightRequest mapper ────────────────────────────────────────────

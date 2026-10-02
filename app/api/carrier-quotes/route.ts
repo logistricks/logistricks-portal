@@ -64,6 +64,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { buildExtendedFields } from "@/lib/quote-extended"
+import { syncRequestStatus } from "@/lib/request-status"
 
 /** Insert with the extended columns; if migration 040 has not run yet, store the base fields only. */
 async function insertQuote(admin: any, base: Record<string, unknown>, ext: Record<string, unknown>) {
@@ -261,9 +262,12 @@ export async function POST(req: NextRequest) {
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
+  const requestStatus = await syncRequestStatus(admin, match.freight_request_id)
+
   return NextResponse.json({
     ok: true,
     linked: true,
+    request_status: requestStatus,
     link_method: method,
     carrier_quote_request_id: match.id,
     carrier_quote_id: quoteRow?.id,
