@@ -151,6 +151,9 @@ export const RECOMMENDED_KEYS = ["final_price", "final_price_with_currency", "ch
 export interface TemplateOptions {
   charges_style: "marked_up" | "detailed" | "total_only"
   markup_label: string
+  delivery: "email_html" | "email_text" | "pdf"
+  email_body: string
+  page_size: "a4" | "letter"
   show_unit_rates: boolean
   accent_color: string
   font_family: string
@@ -160,6 +163,9 @@ export interface TemplateOptions {
 export const DEFAULT_OPTIONS: TemplateOptions = {
   charges_style: "detailed",
   markup_label: "Service fee",
+  delivery: "email_html",
+  email_body: "",
+  page_size: "a4",
   show_unit_rates: false,
   accent_color: "#0D1B2A",
   font_family: "Arial, Helvetica, sans-serif",
@@ -176,6 +182,9 @@ export function normalizeOptions(raw: unknown): TemplateOptions {
   return {
     charges_style: style,
     markup_label: label,
+    delivery: o.delivery === "pdf" || o.delivery === "email_text" ? o.delivery : "email_html",
+    email_body: typeof o.email_body === "string" ? o.email_body.slice(0, 8000) : "",
+    page_size: o.page_size === "letter" ? "letter" : "a4",
     show_unit_rates: !!o.show_unit_rates,
     accent_color: color,
     font_family: font,

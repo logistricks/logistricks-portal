@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
+import { downloadQuotationPdf } from "@/lib/quotation-pdf"
 import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { type QuotationTemplate, type FreightRequest } from "@/lib/portal-data"
 
@@ -21,7 +22,7 @@ interface Quotation {
   created_at: string
   show_markup_percent?: boolean | null
   generated_html?: string | null
-  generated_format?: "text" | "html" | null
+  generated_format?: "text" | "html" | "pdf" | null
   quotation_number?: string | null
   valid_until?: string | null
   currency?: string | null
@@ -79,6 +80,7 @@ function SendQuotationModal({
   onClose,
   onSaved,
   onMarkSent,
+  pageSize,
 }: {
   quotation: Quotation
   recipient: string
@@ -86,6 +88,7 @@ function SendQuotationModal({
   onClose: () => void
   onSaved: (id: number, subject: string, body: string) => void
   onMarkSent: (id: number) => Promise<void>
+  pageSize: "a4" | "letter"
 }) {
   const [subject, setSubject] = useState(quotation.generated_subject ?? "")
   const [body, setBody]       = useState(quotation.generated_body ?? "")
@@ -94,6 +97,16 @@ function SendQuotationModal({
   const [marking, setMarking] = useState(false)
 
   const isHtml = quotation.generated_format === "html" && !!quotation.generated_html
+  const isPdf = quotation.generated_format === "pdf" && !!quotation.generated_html
+  const pdfName = `Quotation ${quotation.quotation_number ?? quotation.id}`
+  const [pdfBusy, setPdfBusy] = useState(false)
+
+  async function handleDownloadPdf(): Promise<boolean> {
+    setPdfBusy(true)
+    try { await downloadQuotationPdf(quotation.generated_html!, pdfName, pageSize); return true }
+    catch { setNotice("Couldn't create the PDF. Use Print / Save PDF instead."); return false }
+    finally { setPdfBusy(false) }
+  }
   const dirty = subject !== (quotation.generated_subject ?? "") || (!isHtml && body !== (quotation.generated_body ?? ""))
 
   // Persist edits so the stored quotation matches what was actually sent.
@@ -109,11 +122,14 @@ function SendQuotationModal({
 
   async function handleOpenThread() {
     if (!threadId) return
+    const pdfOk = isPdf ? await handleDownloadPdf() : true
     const copied = isHtml ? await copyHtml(quotation.generated_html!, body) || await copyText(body) : await copyText(body)
     window.open(gmailThreadUrl(threadId), "_blank", "noopener")
     setOpened(true)
     setNotice(copied
-      ? "Message copied with its formatting. Click Reply in the thread and paste it."
+      ? isPdf
+        ? `Email text copied${pdfOk ? " and the PDF downloaded" : ""}. Click Reply in the thread, paste the text and attach the PDF.`
+        : "Message copied with its formatting. Click Reply in the thread and paste it."
       : "Couldn't copy automatically — use Copy message, then paste it into the reply.")
     void saveEdits()
   }
@@ -192,6 +208,21 @@ function SendQuotationModal({
                 <Copy className="h-3 w-3" /> Copy plain text
               </button>
             </div>
+            {isPdf && (
+              <div className="mb-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>PDF attachment</p>
+                <iframe title="PDF preview" sandbox="" srcDoc={htmlFrame(quotation.generated_html!)} className="h-72 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => void handleDownloadPdf()} disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
+                    {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
+                  </button>
+                  <button type="button" onClick={() => printHtml(quotation.generated_html!)} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                    <Printer className="h-3.5 w-3.5" /> Print
+                  </button>
+                </div>
+                <p className="pt-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Email text</p>
+              </div>
+            )}
             {isHtml ? (
               <div className="space-y-2">
                 <iframe title="Quotation preview" sandbox="" srcDoc={htmlFrame(quotation.generated_html!)} className="h-80 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
@@ -398,8 +429,9 @@ export function QuotationBuilder({
         const d = await res.json().catch(() => ({}))
         throw new Error(d.error ?? `Server error ${res.status}`)
       }
-      const created: Quotation = await res.json()
+      const created: Quotation & { rich_saved?: boolean } = await res.json()
       setQuotations((q) => [created, ...q])
+      if (created.rich_saved === false) setError("The quotation was saved as plain text because the database update for rich quotations hasn't been run (migrations 042 and 043). Run them, then create the quotation again.")
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -585,7 +617,14 @@ export function QuotationBuilder({
                   {q.status === "sent" ? "Sent" : "Draft"}
                 </span>
               </div>
-              {q.generated_format === "html" && q.generated_html ? (
+              {q.generated_format === "pdf" && q.generated_html ? (
+                <div className="mb-3 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>PDF attachment</p>
+                  <iframe title={`Quotation ${q.id}`} sandbox="" srcDoc={htmlFrame(q.generated_html)} className="h-72 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Email text</p>
+                  <p className="whitespace-pre-wrap text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{q.generated_body}</p>
+                </div>
+              ) : q.generated_format === "html" && q.generated_html ? (
                 <iframe title={`Quotation ${q.id}`} sandbox="" srcDoc={htmlFrame(q.generated_html)} className="mb-3 h-72 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
               ) : (
                 <p className="mb-3 whitespace-pre-wrap text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
@@ -623,6 +662,7 @@ export function QuotationBuilder({
           onClose={() => setSendingQuotation(null)}
           onSaved={handleEditsSaved}
           onMarkSent={handleMarkSent}
+          pageSize={(templates.find((t) => t.template_id === sendingQuotation.quotation_template_id)?.options as { page_size?: string } | null)?.page_size === "letter" ? "letter" : "a4"}
         />
       )}
     </div>

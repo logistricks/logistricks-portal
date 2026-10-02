@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
       generated_subject: rendered.subject,
       generated_body: rendered.text,
       generated_html: rendered.html,
-      generated_format: rendered.html ? "html" : "text",
+      generated_format: rendered.format,
       quotation_number: quotationNumber,
       final_price_usd: finalPrice,
     })
@@ -154,17 +154,23 @@ export async function POST(req: NextRequest) {
     status:                 "draft",
     created_by:             session.username,
   }
-  const richRow = {
+  const { show_markup_percent: _unused, ...richNoPct } = {
     ...baseRow,
     generated_html:   rendered.html,
-    generated_format: rendered.html ? "html" : "text",
+    generated_format: rendered.format,
     quotation_number: quotationNumber,
     valid_until:      validUntil || null,
     currency,
     show_markup_percent: showMarkupPercent,
   }
+  const richRow = { ...richNoPct, show_markup_percent: showMarkupPercent }
+  const isMissingCol = (e: { code?: string } | null) => !!e && (e.code === "42703" || e.code === "PGRST204")
   let { data: inserted, error: insertErr } = await admin.from("quotations").insert(richRow).select("*").single()
-  if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
+  if (isMissingCol(insertErr)) {
+    // Migration 043 not applied yet: keep the rich quotation, just without the percentage flag.
+    ;({ data: inserted, error: insertErr } = await admin.from("quotations").insert(richNoPct).select("*").single())
+  }
+  if (isMissingCol(insertErr)) {
     // Migration 042 not applied yet: store the plain-text quotation.
     ;({ data: inserted, error: insertErr } = await admin.from("quotations").insert(baseRow).select("*").single())
   }
@@ -179,7 +185,8 @@ export async function POST(req: NextRequest) {
     meta: { freight_request_id: freightRequestId, quotation_id: inserted!.id, final_price_usd: finalPrice },
   })
 
-  return NextResponse.json(inserted, { status: 201 })
+  const richStored = !!inserted && ("generated_html" in (inserted as object))
+  return NextResponse.json({ ...inserted, rich_saved: richStored }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {

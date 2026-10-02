@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, Bold, Code2, Eraser, Eye, FileUp, Heading2, Italic, Link2,
+  AlignCenter, AlignJustify, AlignLeft, AlignRight, AlertTriangle, Bold, Code2, Download, Eraser, Eye, FileUp, Heading2, Italic, Link2,
   List, ListOrdered, Loader2, Minus, Palette, Pencil, Printer, Redo2, Search, Table2, Underline, Undo2, X,
 } from "lucide-react"
 import { type QuotationTemplate } from "@/lib/portal-data"
 import { VARIABLE_GROUPS, RECOMMENDED_KEYS, DEFAULT_OPTIONS, normalizeOptions, type TemplateOptions } from "@/lib/quotation-variables"
 import { findVariables, htmlDocument, renderTemplate, sampleContext } from "@/lib/quotation-render"
 import { importDocxFile } from "@/lib/quotation-docx"
+import { downloadQuotationPdf } from "@/lib/quotation-pdf"
 import { STARTER_HTML, STARTER_SUBJECT } from "@/lib/quotation-starter"
 
 const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -68,6 +69,7 @@ export function QuotationTemplateEditor({
   const [query, setQuery] = useState("")
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -75,7 +77,8 @@ export function QuotationTemplateEditor({
   const subjectRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const savedRange = useRef<Range | null>(null)
-  const lastFocus = useRef<"subject" | "body">("body")
+  const emailRef = useRef<HTMLTextAreaElement>(null)
+  const lastFocus = useRef<"subject" | "body" | "email">("body")
 
   // Load HTML into the contentEditable whenever the edit view (re)opens.
   useEffect(() => {
@@ -119,6 +122,13 @@ export function QuotationTemplateEditor({
 
   function insertVariable(key: string, block: boolean) {
     const token = `{{${key}}}`
+    if (lastFocus.current === "email" && emailRef.current && !block && options.delivery === "pdf") {
+      const el = emailRef.current
+      const s = el.selectionStart ?? options.email_body.length, e = el.selectionEnd ?? options.email_body.length
+      setOptions({ ...options, email_body: options.email_body.slice(0, s) + token + options.email_body.slice(e) })
+      requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + token.length, s + token.length) })
+      return
+    }
     if (lastFocus.current === "subject" && subjectRef.current && !block) {
       const el = subjectRef.current
       const s = el.selectionStart ?? subject.length, e = el.selectionEnd ?? subject.length
@@ -155,7 +165,7 @@ export function QuotationTemplateEditor({
     finally { setImporting(false); if (fileRef.current) fileRef.current.value = "" }
   }
 
-  const { used, unknown } = useMemo(() => findVariables(subject, html), [subject, html])
+  const { used, unknown } = useMemo(() => findVariables(subject, html, options.delivery === "pdf" ? options.email_body : ""), [subject, html, options.delivery, options.email_body])
   const missingRecommended = !RECOMMENDED_KEYS.some((k) => used.includes(k))
 
   const previewDoc = useMemo(() => {
@@ -164,6 +174,7 @@ export function QuotationTemplateEditor({
     return htmlDocument(renderTemplate(html, ctx, "html"), options)
   }, [view, html, options])
 
+  const previewEmail = useMemo(() => options.delivery === "pdf" ? renderTemplate(options.email_body || "Dear {{sender_first_name}},\n\nPlease find our quotation {{quotation_number}} attached.\n\nBest regards,\n{{prepared_by}}", sampleContext(options), "text") : "", [options])
   const previewSubject = useMemo(() => renderTemplate(subject, sampleContext(options), "text"), [subject, options])
 
   function switchView(next: View) {
@@ -265,6 +276,15 @@ export function QuotationTemplateEditor({
               </div>
 
               <div>
+                <label className="mb-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>How is it sent?</label>
+                <select value={options.delivery} onChange={(e) => setOptions({ ...options, delivery: e.target.value as TemplateOptions["delivery"] })} className={inputCls} style={inputStyle}>
+                  <option value="email_html">Formatted email — this template is the email</option>
+                  <option value="pdf">PDF attachment — this template is the PDF, with a separate email text</option>
+                  <option value="email_text">Plain-text email — no formatting</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="mb-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>Description <span className="font-normal" style={{ color: "var(--text-muted)" }}>(for your team, not shown to customers)</span></label>
                 <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} className={inputCls} style={inputStyle} />
               </div>
@@ -287,6 +307,12 @@ export function QuotationTemplateEditor({
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
+                  {view === "preview" && (
+                    <button type="button" onClick={async () => { setPdfBusy(true); try { await downloadQuotationPdf(renderTemplate(html, sampleContext(options), "html"), "Quotation preview", options.page_size) } catch { setError("Couldn't create the PDF.") } finally { setPdfBusy(false) } }}
+                      disabled={pdfBusy} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                      {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download PDF
+                    </button>
+                  )}
                   {view === "preview" && (
                     <button type="button" onClick={printPreview} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
                       <Printer className="h-3.5 w-3.5" /> Print / PDF
@@ -337,6 +363,25 @@ export function QuotationTemplateEditor({
                 <div className="flex min-h-[360px] flex-1 flex-col gap-2">
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>Preview with sample data · Subject: <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{previewSubject || "—"}</span></p>
                   <iframe title="Preview" sandbox="" srcDoc={previewDoc} className="min-h-[420px] w-full flex-1 rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+                  {options.delivery === "pdf" && (
+                    <div>
+                      <p className="mb-1 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Email text sent with the PDF</p>
+                      <pre className="whitespace-pre-wrap rounded-md border p-3 text-xs" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>{previewEmail}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {options.delivery === "pdf" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    Email text <span className="font-normal" style={{ color: "var(--text-muted)" }}>(the message that goes with the PDF — the template above becomes the PDF)</span>
+                  </label>
+                  <textarea ref={emailRef} value={options.email_body} rows={7} onFocus={() => { lastFocus.current = "email" }}
+                    onChange={(e) => setOptions({ ...options, email_body: e.target.value })}
+                    placeholder={"Dear {{sender_first_name|Sir/Madam}},\n\nPlease find attached our quotation {{quotation_number}} for {{origin}} to {{destination}}.\n\nBest regards,\n{{prepared_by}}\n{{company_name}}"}
+                    className="w-full rounded-md border px-3 py-2 text-sm outline-none" style={inputStyle} />
+                  <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>Click a variable on the right to insert it here. Leave empty to use a short default message.</p>
                 </div>
               )}
 
@@ -431,6 +476,14 @@ export function QuotationTemplateEditor({
                     </div>
                   </div>
 
+                  {options.delivery === "pdf" && (
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-primary)" }}>PDF page size</label>
+                      <select value={options.page_size} onChange={(e) => setOptions({ ...options, page_size: e.target.value as TemplateOptions["page_size"] })} className={inputCls} style={inputStyle}>
+                        <option value="a4">A4</option><option value="letter">US Letter</option>
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="mb-1 block text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Font</label>
                     <select value={options.font_family} onChange={(e) => setOptions({ ...options, font_family: e.target.value })} className={inputCls} style={inputStyle}>

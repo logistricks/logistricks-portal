@@ -306,7 +306,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   return { ctx: { values: v, blocks }, validUntil: validUntilIso, currency }
 }
 
-export interface RenderedQuotation { subject: string; text: string; html: string | null }
+export interface RenderedQuotation { subject: string; text: string; html: string | null; format: "text" | "html" | "pdf" }
 
 export function renderQuotation(
   tpl: { subject: string; body: string; body_html?: string | null; format?: string | null },
@@ -318,14 +318,37 @@ export function renderQuotation(
   if (tpl.format === "html" && tpl.body_html) {
     const inner = renderTemplate(tpl.body_html, ctx, "html")
     const html = `<div style="font-family:${o.font_family};font-size:14px;line-height:1.55;color:#1e293b">${inner}</div>`
-    return { subject, html, text: htmlToPlainText(renderTemplate(tpl.body_html, ctx, "html")) }
+    const plain = htmlToPlainText(inner)
+    if (o.delivery === "pdf") {
+      // The template is the PDF; the email text is its own template.
+      const email = o.email_body.trim()
+        ? renderTemplate(o.email_body, ctx, "text")
+        : `Dear ${ctx.values.sender_first_name || "Sir/Madam"},\n\nPlease find our quotation ${ctx.values.quotation_number || ""} attached.\n\nBest regards,\n${ctx.values.prepared_by || ""}\n${ctx.values.company_name || ""}`.trim()
+      return { subject, html, text: email, format: "pdf" }
+    }
+    if (o.delivery === "email_text") return { subject, html: null, text: plain, format: "text" }
+    return { subject, html, text: plain, format: "html" }
   }
-  return { subject, html: null, text: renderTemplate(tpl.body ?? "", ctx, "text") }
+  return { subject, html: null, text: renderTemplate(tpl.body ?? "", ctx, "text"), format: "text" }
+}
+
+function tableToText(tableHtml: string): string {
+  const cells = (row: string) => [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+    .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim())
+  const rows = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => cells(m[1])).filter((r) => r.some(Boolean))
+  if (!rows.length) return ""
+  const cols = Math.max(...rows.map((r) => r.length))
+  const width = Array.from({ length: cols }, (_, i) => Math.max(...rows.map((r) => (r[i] ?? "").length)))
+  const fmt = (r: string[]) => r.map((c, i) => (i === cols - 1 && cols > 1 && /^[\d,.\-]+$/.test(c) ? c.padStart(width[i]) : c.padEnd(width[i]))).join("  ").trimEnd()
+  const lines = rows.map(fmt)
+  lines.splice(1, 0, "-".repeat(Math.max(...lines.map((l) => l.length))))
+  return "\n" + lines.join("\n") + "\n"
 }
 
 /** Dependency-free HTML → readable plain text (used for the text fallback and mailto links). */
 export function htmlToPlainText(html: string): string {
   return (html ?? "")
+    .replace(/<table[\s\S]*?<\/table>/gi, (t) => tableToText(t))
     .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
     .replace(/<\s*br\s*\/?>/gi, "\n")
     .replace(/<\/(td|th)>\s*/gi, " | ")
