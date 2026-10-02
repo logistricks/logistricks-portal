@@ -25,6 +25,18 @@ if (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) r
 if (!body.client_code || !body.from_email) return [{ json: { bad_request: "client_code and from_email are required" } }]
 return [{ json: prepare(body) }]`
 
+const geminiReqCode = `const p = $input.first().json
+const SYSTEM = ${JSON.stringify(system)}
+const SCHEMA = ${JSON.stringify(schema)}
+const text = 'Carrier email\\nFrom: ' + p.from_email + '\\nSubject: ' + p.subject + '\\nReceived: ' + p.received_at + '\\n\\n' + p.fresh_text
+  + (p.quoted_text ? '\\n\\n=== QUOTED EARLIER MESSAGES (find references only) ===\\n' + p.quoted_text : '')
+  + (p.attachments_text ? '\\n\\n' + p.attachments_text : '')
+return [{ json: { ...p, gemini_request: {
+  systemInstruction: { parts: [{ text: SYSTEM }] },
+  contents: [{ role: 'user', parts: [{ text }] }],
+  generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA },
+} } }]`
+
 const buildCode = `${strip("build-body.js")}
 
 const prep = $('Prepare').first().json
@@ -46,11 +58,12 @@ const wf = {
     node("Prepare", "n8n-nodes-base.code", 2, [440, 300], { jsCode: prepareCode }),
     node("Rejected?", "n8n-nodes-base.if", 1, [660, 300], { conditions: { boolean: [{ value1: "={{ !!$json.unauthorized || !!$json.bad_request }}", value2: true }] } }),
     node("Respond rejected", "n8n-nodes-base.respondToWebhook", 1.1, [880, 160], { respondWith: "json", responseBody: "={{ { error: $json.unauthorized ? 'Unauthorized' : $json.bad_request } }}", options: { responseCode: "={{ $json.unauthorized ? 401 : 400 }}" } }),
+    node("Build Gemini request", "n8n-nodes-base.code", 2, [770, 420], { jsCode: geminiReqCode }),
     node("Gemini extract", "n8n-nodes-base.httpRequest", 4.2, [880, 420], {
       method: "POST",
       url: "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + " + CFG + ".gemini_model + ':generateContent' }}",
       sendHeaders: true, headerParameters: { parameters: [{ name: "x-goog-api-key", value: "={{ " + CFG + ".gemini_key }}" }] },
-      sendBody: true, specifyBody: "json", jsonBody: geminiBody, options: { timeout: 90000 },
+      sendBody: true, specifyBody: "json", jsonBody: "={{ JSON.stringify($json.gemini_request) }}", options: { timeout: 90000 },
     }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 3000 }),
     node("Build portal body", "n8n-nodes-base.code", 2, [1100, 420], { jsCode: buildCode }),
     node("POST /api/carrier-quotes", "n8n-nodes-base.httpRequest", 4.2, [1320, 420], {
@@ -66,7 +79,8 @@ const wf = {
     "Webhook": { main: [[{ node: "Config", type: "main", index: 0 }]] },
     "Config": { main: [[{ node: "Prepare", type: "main", index: 0 }]] },
     "Prepare": { main: [[{ node: "Rejected?", type: "main", index: 0 }]] },
-    "Rejected?": { main: [[{ node: "Respond rejected", type: "main", index: 0 }], [{ node: "Gemini extract", type: "main", index: 0 }]] },
+    "Rejected?": { main: [[{ node: "Respond rejected", type: "main", index: 0 }], [{ node: "Build Gemini request", type: "main", index: 0 }]] },
+    "Build Gemini request": { main: [[{ node: "Gemini extract", type: "main", index: 0 }]] },
     "Gemini extract": { main: [[{ node: "Build portal body", type: "main", index: 0 }]] },
     "Build portal body": { main: [[{ node: "POST /api/carrier-quotes", type: "main", index: 0 }]] },
     "POST /api/carrier-quotes": { main: [[{ node: "Needs attention?", type: "main", index: 0 }]] },
