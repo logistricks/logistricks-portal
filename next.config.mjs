@@ -4,6 +4,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  outputFileTracingIncludes: {
+    "/api/quotations/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   images: {
     unoptimized: true,
   },
