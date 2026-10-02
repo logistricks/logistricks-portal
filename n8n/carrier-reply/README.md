@@ -4,7 +4,7 @@ One workflow for all clients. The portal (or any mail reader) POSTs each carrier
 
 ## Import
 1. n8n → Workflows → Import from file → `carrier-reply-workflow.json`.
-2. n8n environment variables: `PORTAL_URL` (e.g. https://logistricks-portal.vercel.app), `PORTAL_WEBHOOK_SECRET` (same as the portal), `GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-2.5-flash`).
+2. Open the **Config** node and set `portal_secret` (same as the portal's `PORTAL_WEBHOOK_SECRET`), `gemini_key`, and check `portal_url` / `gemini_model`. (n8n blocks `$env` inside nodes by default, so settings live in this one node. Don't commit or share the workflow after filling it in.)
 3. Replace the "Notify team" placeholder node with Slack / email (fires when a quote is non-linked or needs review).
 4. Activate, then use the Production webhook URL: `POST /webhook/carrier-reply` with header `X-Portal-Secret`.
 

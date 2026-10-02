@@ -6,12 +6,22 @@ const schema = JSON.parse(fs.readFileSync("response-schema.json", "utf8"))
 const md = fs.readFileSync("extraction-prompt.md", "utf8")
 const system = md.split("```")[1].replace(/^\n/, "").trim()
 
+const configCode = `// Edit the 4 values below. (n8n blocks environment variables in nodes by default, so settings live here.)
+const cfg = {
+  portal_url: 'https://logistricks-portal.vercel.app',
+  portal_secret: 'CHANGE_ME',
+  gemini_key: 'CHANGE_ME',
+  gemini_model: 'gemini-2.5-flash',
+}
+return [{ json: { ...$input.first().json, cfg } }]`
+
+const CFG = "$('Config').first().json.cfg"
 const prepareCode = `${strip("prepare.js")}
 
 const item = $input.first().json
 const body = item.body || item
 const secret = (item.headers && (item.headers["x-portal-secret"] || item.headers["X-Portal-Secret"])) || ""
-if (!$env.PORTAL_WEBHOOK_SECRET || secret !== $env.PORTAL_WEBHOOK_SECRET) return [{ json: { unauthorized: true } }]
+if (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) return [{ json: { unauthorized: true } }]
 if (!body.client_code || !body.from_email) return [{ json: { bad_request: "client_code and from_email are required" } }]
 return [{ json: prepare(body) }]`
 
@@ -32,27 +42,29 @@ const wf = {
   name: "Logistricks — Carrier reply → quote",
   nodes: [
     node("Webhook", "n8n-nodes-base.webhook", 2, [0, 300], { httpMethod: "POST", path: "carrier-reply", responseMode: "responseNode", options: {} }, { webhookId: "logistricks-carrier-reply" }),
-    node("Prepare", "n8n-nodes-base.code", 2, [220, 300], { jsCode: prepareCode }),
-    node("Rejected?", "n8n-nodes-base.if", 1, [440, 300], { conditions: { boolean: [{ value1: "={{ !!$json.unauthorized || !!$json.bad_request }}", value2: true }] } }),
-    node("Respond rejected", "n8n-nodes-base.respondToWebhook", 1.1, [660, 160], { respondWith: "json", responseBody: "={{ { error: $json.unauthorized ? 'Unauthorized' : $json.bad_request } }}", options: { responseCode: "={{ $json.unauthorized ? 401 : 400 }}" } }),
-    node("Gemini extract", "n8n-nodes-base.httpRequest", 4.2, [660, 420], {
+    node("Config", "n8n-nodes-base.code", 2, [220, 300], { jsCode: configCode }),
+    node("Prepare", "n8n-nodes-base.code", 2, [440, 300], { jsCode: prepareCode }),
+    node("Rejected?", "n8n-nodes-base.if", 1, [660, 300], { conditions: { boolean: [{ value1: "={{ !!$json.unauthorized || !!$json.bad_request }}", value2: true }] } }),
+    node("Respond rejected", "n8n-nodes-base.respondToWebhook", 1.1, [880, 160], { respondWith: "json", responseBody: "={{ { error: $json.unauthorized ? 'Unauthorized' : $json.bad_request } }}", options: { responseCode: "={{ $json.unauthorized ? 401 : 400 }}" } }),
+    node("Gemini extract", "n8n-nodes-base.httpRequest", 4.2, [880, 420], {
       method: "POST",
-      url: "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + ($env.GEMINI_MODEL || 'gemini-2.5-flash') + ':generateContent' }}",
-      sendHeaders: true, headerParameters: { parameters: [{ name: "x-goog-api-key", value: "={{ $env.GEMINI_API_KEY }}" }] },
+      url: "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + " + CFG + ".gemini_model + ':generateContent' }}",
+      sendHeaders: true, headerParameters: { parameters: [{ name: "x-goog-api-key", value: "={{ " + CFG + ".gemini_key }}" }] },
       sendBody: true, specifyBody: "json", jsonBody: geminiBody, options: { timeout: 90000 },
     }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 3000 }),
-    node("Build portal body", "n8n-nodes-base.code", 2, [880, 420], { jsCode: buildCode }),
-    node("POST /api/carrier-quotes", "n8n-nodes-base.httpRequest", 4.2, [1100, 420], {
-      method: "POST", url: "={{ $env.PORTAL_URL + '/api/carrier-quotes' }}",
-      sendHeaders: true, headerParameters: { parameters: [{ name: "X-Portal-Secret", value: "={{ $env.PORTAL_WEBHOOK_SECRET }}" }] },
+    node("Build portal body", "n8n-nodes-base.code", 2, [1100, 420], { jsCode: buildCode }),
+    node("POST /api/carrier-quotes", "n8n-nodes-base.httpRequest", 4.2, [1320, 420], {
+      method: "POST", url: "={{ " + CFG + ".portal_url + '/api/carrier-quotes' }}",
+      sendHeaders: true, headerParameters: { parameters: [{ name: "X-Portal-Secret", value: "={{ " + CFG + ".portal_secret }}" }] },
       sendBody: true, specifyBody: "json", jsonBody: "={{ JSON.stringify($json) }}", options: { timeout: 30000 },
     }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 3000 }),
-    node("Needs attention?", "n8n-nodes-base.if", 1, [1320, 420], { conditions: { boolean: [{ value1: "={{ $json.linked === false || $json.review_status !== 'auto_accepted' }}", value2: true }] } }),
-    node("Notify team (connect Slack / email)", "n8n-nodes-base.noOp", 1, [1540, 340], {}),
-    node("Respond OK", "n8n-nodes-base.respondToWebhook", 1.1, [1760, 420], { respondWith: "json", responseBody: "={{ $('POST /api/carrier-quotes').first().json }}", options: {} }),
+    node("Needs attention?", "n8n-nodes-base.if", 1, [1540, 420], { conditions: { boolean: [{ value1: "={{ $json.linked === false || $json.review_status !== 'auto_accepted' }}", value2: true }] } }),
+    node("Notify team (connect Slack / email)", "n8n-nodes-base.noOp", 1, [1760, 340], {}),
+    node("Respond OK", "n8n-nodes-base.respondToWebhook", 1.1, [1980, 420], { respondWith: "json", responseBody: "={{ $('POST /api/carrier-quotes').first().json }}", options: {} }),
   ],
   connections: {
-    "Webhook": { main: [[{ node: "Prepare", type: "main", index: 0 }]] },
+    "Webhook": { main: [[{ node: "Config", type: "main", index: 0 }]] },
+    "Config": { main: [[{ node: "Prepare", type: "main", index: 0 }]] },
     "Prepare": { main: [[{ node: "Rejected?", type: "main", index: 0 }]] },
     "Rejected?": { main: [[{ node: "Respond rejected", type: "main", index: 0 }], [{ node: "Gemini extract", type: "main", index: 0 }]] },
     "Gemini extract": { main: [[{ node: "Build portal body", type: "main", index: 0 }]] },

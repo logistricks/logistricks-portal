@@ -18,7 +18,7 @@
       "webhookId": "logistricks-carrier-reply"
     },
     {
-      "name": "Prepare",
+      "name": "Config",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -26,7 +26,19 @@
         300
       ],
       "parameters": {
-        "jsCode": "// n8n Code node \"Prepare\" — input: webhook body. Output: one item with the Gemini request pieces.\nfunction prepare(inp) {\n  const body = String(inp.body_text || \"\")\n  // Keep only the carrier's new text: cut at the first quoted-reply marker.\n  const cut = body.search(/^(On .{5,200}wrote:|-{2,}\\s*Original Message|_{5,}|From:\\s.+@.+|>.*)$/m)\n  const fresh = (cut > 0 ? body.slice(0, cut) : body).trim()\n  const hay = [inp.subject || \"\", body].join(\"\\n\")\n  const m = hay.match(/RFQ-[0-9a-f]{8}-\\d+-[0-9a-f]{6}/i)\n  const att = (inp.attachments || [])\n    .filter((a) => a && a.text)\n    .map((a) => `--- Attachment: ${a.filename || \"file\"} ---\\n${String(a.text).slice(0, 15000)}`)\n    .join(\"\\n\\n\")\n  return {\n    client_code: inp.client_code,\n    from_email: String(inp.from_email || \"\").trim().toLowerCase(),\n    subject: inp.subject || \"\",\n    received_at: inp.received_at || new Date().toISOString(),\n    message_id: inp.message_id || null,\n    thread_id: inp.thread_id || null,\n    rfq_reference: m ? m[0] : null,\n    fresh_text: fresh.slice(0, 20000),\n    quoted_text: cut > 0 ? body.slice(cut).trim().slice(0, 6000) : \"\",\n    raw_text: body.slice(0, 20000),\n    attachments_text: att,\n  }\n}\n\nconst item = $input.first().json\nconst body = item.body || item\nconst secret = (item.headers && (item.headers[\"x-portal-secret\"] || item.headers[\"X-Portal-Secret\"])) || \"\"\nif (!$env.PORTAL_WEBHOOK_SECRET || secret !== $env.PORTAL_WEBHOOK_SECRET) return [{ json: { unauthorized: true } }]\nif (!body.client_code || !body.from_email) return [{ json: { bad_request: \"client_code and from_email are required\" } }]\nreturn [{ json: prepare(body) }]"
+        "jsCode": "// Edit the 4 values below. (n8n blocks environment variables in nodes by default, so settings live here.)\nconst cfg = {\n  portal_url: 'https://logistricks-portal.vercel.app',\n  portal_secret: 'CHANGE_ME',\n  gemini_key: 'CHANGE_ME',\n  gemini_model: 'gemini-2.5-flash',\n}\nreturn [{ json: { ...$input.first().json, cfg } }]"
+      }
+    },
+    {
+      "name": "Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// n8n Code node \"Prepare\" — input: webhook body. Output: one item with the Gemini request pieces.\nfunction prepare(inp) {\n  const body = String(inp.body_text || \"\")\n  // Keep only the carrier's new text: cut at the first quoted-reply marker.\n  const cut = body.search(/^(On .{5,200}wrote:|-{2,}\\s*Original Message|_{5,}|From:\\s.+@.+|>.*)$/m)\n  const fresh = (cut > 0 ? body.slice(0, cut) : body).trim()\n  const hay = [inp.subject || \"\", body].join(\"\\n\")\n  const m = hay.match(/RFQ-[0-9a-f]{8}-\\d+-[0-9a-f]{6}/i)\n  const att = (inp.attachments || [])\n    .filter((a) => a && a.text)\n    .map((a) => `--- Attachment: ${a.filename || \"file\"} ---\\n${String(a.text).slice(0, 15000)}`)\n    .join(\"\\n\\n\")\n  return {\n    client_code: inp.client_code,\n    from_email: String(inp.from_email || \"\").trim().toLowerCase(),\n    subject: inp.subject || \"\",\n    received_at: inp.received_at || new Date().toISOString(),\n    message_id: inp.message_id || null,\n    thread_id: inp.thread_id || null,\n    rfq_reference: m ? m[0] : null,\n    fresh_text: fresh.slice(0, 20000),\n    quoted_text: cut > 0 ? body.slice(cut).trim().slice(0, 6000) : \"\",\n    raw_text: body.slice(0, 20000),\n    attachments_text: att,\n  }\n}\n\nconst item = $input.first().json\nconst body = item.body || item\nconst secret = (item.headers && (item.headers[\"x-portal-secret\"] || item.headers[\"X-Portal-Secret\"])) || \"\"\nif (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) return [{ json: { unauthorized: true } }]\nif (!body.client_code || !body.from_email) return [{ json: { bad_request: \"client_code and from_email are required\" } }]\nreturn [{ json: prepare(body) }]"
       }
     },
     {
@@ -34,7 +46,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        440,
+        660,
         300
       ],
       "parameters": {
@@ -53,7 +65,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        660,
+        880,
         160
       ],
       "parameters": {
@@ -69,18 +81,18 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
+        880,
         420
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + ($env.GEMINI_MODEL || 'gemini-2.5-flash') + ':generateContent' }}",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('Config').first().json.cfg.gemini_model + ':generateContent' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "x-goog-api-key",
-              "value": "={{ $env.GEMINI_API_KEY }}"
+              "value": "={{ $('Config').first().json.cfg.gemini_key }}"
             }
           ]
         },
@@ -100,7 +112,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1100,
         420
       ],
       "parameters": {
@@ -112,18 +124,18 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        1320,
         420
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.PORTAL_URL + '/api/carrier-quotes' }}",
+        "url": "={{ $('Config').first().json.cfg.portal_url + '/api/carrier-quotes' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "X-Portal-Secret",
-              "value": "={{ $env.PORTAL_WEBHOOK_SECRET }}"
+              "value": "={{ $('Config').first().json.cfg.portal_secret }}"
             }
           ]
         },
@@ -143,7 +155,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        1320,
+        1540,
         420
       ],
       "parameters": {
@@ -162,7 +174,7 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1540,
+        1760,
         340
       ],
       "parameters": {}
@@ -172,7 +184,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1760,
+        1980,
         420
       ],
       "parameters": {
@@ -184,6 +196,17 @@
   ],
   "connections": {
     "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
       "main": [
         [
           {
