@@ -22,7 +22,8 @@ function buildBody(ai, prep, modelVersion) {
   const rfq = cands.find((c) => /^RFQ-[0-9a-f]{8}-\d+-[0-9a-f]{6}$/i.test(c)) || null
   const lt = cands.map((c) => (c.match(/\bLT-\d+\b/i) || [])[0]).find(Boolean) || null
   const b = {
-    client_code: prep.client_code,
+    client_code: prep.client_code || undefined,
+    to_email: prep.to_email || undefined,
     carrier_email: prep.from_email,
     from_email: prep.from_email,
     rfq_reference: rfq,

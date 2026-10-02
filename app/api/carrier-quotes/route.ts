@@ -13,7 +13,9 @@
  *        where a user links it to a request or deletes it. Nothing is dropped.
  *
  * Body:
- *   client_code         string   (required — the client whose mailbox received the reply)
+ *   client_code         string   (the client whose mailbox received the reply — optional when to_email is sent)
+ *   to_email            string   (the mailbox that received the reply; resolved to client_code via the client's
+ *                                 receiver emails / connected mailboxes when client_code is absent)
  *   rfq_reference       string   (preferred match key — token embedded in the RFQ email)
  *   request_ref         string   (our request number, e.g. LT-0017 — resolved to the request, then matched by carrier)
  *   freight_request_id  string   (fallback match key, together with the carrier)
@@ -91,10 +93,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const client_code = body.client_code as string | undefined
-  if (!client_code) return NextResponse.json({ error: "client_code required" }, { status: 400 })
-
   const admin = adminClient()
+
+  // ── Resolve the client: explicit client_code wins, otherwise the receiving ("to") mailbox ──
+  let client_code = typeof body.client_code === "string" ? body.client_code.trim() : ""
+  if (!client_code) {
+    const toRaw = typeof body.to_email === "string" ? body.to_email : ""
+    const addrs = Array.from(new Set((toRaw.match(/[^\s<>,;"']+@[^\s<>,;"']+/g) || []).map((a) => a.toLowerCase().replace(/[%_,()]/g, ""))))
+    if (!addrs.length) return NextResponse.json({ error: "client_code or to_email required" }, { status: 400 })
+    const found = new Set<string>()
+    for (const a of addrs) {
+      const [r, m] = await Promise.all([
+        admin.from("client_receiver_emails").select("client_code").ilike("r_mail", a).eq("active", true).limit(5),
+        admin.from("email_sources").select("client_code").or(`ms_email.ilike.${a},imap_username.ilike.${a}`).limit(5),
+      ])
+      for (const row of [...(r.data || []), ...(m.data || [])]) if (row.client_code) found.add(String(row.client_code))
+    }
+    if (found.size === 0) return NextResponse.json({ ok: false, reason: "client_not_resolved", error: `no client uses the mailbox ${addrs.join(", ")}` }, { status: 404 })
+    if (found.size > 1) return NextResponse.json({ ok: false, reason: "client_ambiguous", error: `mailbox belongs to several clients: ${Array.from(found).join(", ")}` }, { status: 409 })
+    client_code = Array.from(found)[0]
+  }
 
   // ── Resolve the carrier's primary key (carriers.id) ───────────────────────
   // carrier_quote_requests.carrier_id and carrier_quotes.carrier_id both point at

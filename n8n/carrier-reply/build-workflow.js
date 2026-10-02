@@ -22,7 +22,7 @@ const item = $input.first().json
 const body = item.body || item
 const secret = (item.headers && (item.headers["x-portal-secret"] || item.headers["X-Portal-Secret"])) || ""
 if (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) return [{ json: { unauthorized: true } }]
-if (!body.client_code || !body.from_email) return [{ json: { bad_request: "client_code and from_email are required" } }]
+if ((!body.client_code && !(body.to_email || body.to)) || !body.from_email) return [{ json: { bad_request: "from_email and to_email (or client_code) are required" } }]
 const out = prepare(body)
 // Files that arrive as real attachments (multipart upload, or a Gmail node with downloadAttachments) travel as n8n binary.
 const bin = $input.first().binary || {}

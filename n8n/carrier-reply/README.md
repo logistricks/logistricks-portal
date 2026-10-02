@@ -10,17 +10,19 @@ One workflow for all clients. The portal (or any mail reader) POSTs each carrier
 
 ## Webhook input
 ```json
-{ "client_code": "DEMO", "from_email": "ops@carrier.com", "subject": "RE: ... [RFQ-1a2b3c4d-7-ab12cd]",
+{ "to_email": "quotes@client.com", "from_email": "ops@carrier.com", "subject": "RE: ... [RFQ-1a2b3c4d-7-ab12cd]",
   "body_text": "...", "message_id": "<...>", "thread_id": "...", "received_at": "2026-10-01T08:30:00Z",
   "attachments": [{ "filename": "rates.pdf", "mime_type": "application/pdf", "data_base64": "<base64 of the file>" },
                   { "filename": "rates.xlsx", "text": "extracted text" }] }
 ```
+`to_email` is the mailbox that received the carrier's reply (the Gmail `To` / delivered-to address). The portal resolves it to the client from Settings → Emails (receiver emails) or the connected mailboxes, so no `client_code` is needed. `client_code` is still accepted and wins if sent. An unknown mailbox returns 404 `client_not_resolved` (nothing is stored); a mailbox shared by several clients returns 409 `client_ambiguous`.
+
 Matching: the `RFQ-xxxxxxxx-N-xxxxxx` token (from the RFQ email) is found in subject/body; the portal then falls back to request+carrier and thread id. No match → stored as a Non-linked Quote.
 
 ### Real attachments (binary)
 Besides base64 in the JSON, the flow reads attachments as n8n **binary** files, exactly like the Gmail-trigger workflow: send a multipart form (`curl -F`) or put a Gmail node with `downloadAttachments` in front. PDFs and images (png/jpg/webp/heic, up to 15 MB each) are passed to the model as files.
 ```
-curl -X POST '<webhook>' -H 'X-Portal-Secret: <secret>' -F client_code=DEMO -F from_email=ops@carrier.com -F subject='RE: ...' -F body_text='Please find our rates attached.' -F attachment=@rates.pdf
+curl -X POST '<webhook>' -H 'X-Portal-Secret: <secret>' -F to_email=quotes@client.com -F from_email=ops@carrier.com -F subject='RE: ...' -F body_text='Please find our rates attached.' -F attachment=@rates.pdf
 ```
 
 ## Output (webhook response)

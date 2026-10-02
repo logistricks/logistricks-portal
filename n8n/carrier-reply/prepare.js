@@ -16,7 +16,8 @@ function prepare(inp) {
     .slice(0, 4)
     .map((a) => ({ filename: a.filename || "file", mime_type: String(a.mime_type).toLowerCase(), data: String(a.data_base64).replace(/^data:[^,]*,/, "") }))
   return {
-    client_code: inp.client_code,
+    client_code: inp.client_code || null,
+    to_email: String(inp.to_email || inp.to || "").trim().toLowerCase(),
     from_email: String(inp.from_email || "").trim().toLowerCase(),
     subject: inp.subject || "",
     received_at: inp.received_at || new Date().toISOString(),
