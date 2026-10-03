@@ -309,9 +309,10 @@ export function QuotationBuilder({
   const [markupType, setMarkupType]     = useState<"flat" | "percent">("flat")
   const [markupAmount, setMarkupAmount] = useState<string>("0")
   const [showPct, setShowPct]     = useState(false)
-  const [markupMap, setMarkupMap] = useState<Record<string, { markup_type: "flat" | "percent"; markup_amount: number; show_markup_percent: boolean }>>({})
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unavailable">("idle")
+  const [markupMap, setMarkupMap] = useState<Record<string, { markup_type: "flat" | "percent"; markup_amount: number; show_markup_percent: boolean; charges_style?: ChargesStyle | null; price_lines?: PriceLine[] | null }>>({})
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unavailable" | "partial">("idle")
   const lastKey = useRef<string>("")
+  const savedRef = useRef<typeof markupMap>({}) // what was last saved per quote, so switching quotes back and forth shows current values
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
@@ -331,7 +332,7 @@ export function QuotationBuilder({
         fetch(`/api/carrier-quotes/markup?freight_request_id=${request.id}`),
       ])
       setRows(quoteRows)
-      if (markupRes.ok) setMarkupMap((await markupRes.json()).markups ?? {})
+      if (markupRes.ok) { const m = (await markupRes.json()).markups ?? {}; savedRef.current = m; setMarkupMap(m) }
       if (tplRes.ok) {
         const tpls: QuotationTemplate[] = await tplRes.json()
         setTemplates(tpls.filter((t) => t.active))
@@ -364,34 +365,36 @@ export function QuotationBuilder({
   // Load the markup saved for the selected quote (or start at 0).
   useEffect(() => {
     if (!selectedQuoteId) return
-    const saved = markupMap[String(selectedQuoteId)]
+    const saved = savedRef.current[String(selectedQuoteId)] ?? markupMap[String(selectedQuoteId)]
     const t = saved?.markup_type ?? "flat", a = String(saved?.markup_amount ?? 0), p = saved?.show_markup_percent ?? false
-    setMarkupType(t); setMarkupAmount(a); setShowPct(p); setSaveState(saved ? "saved" : "idle")
-    lastKey.current = JSON.stringify([selectedQuoteId, t, Number(a) || 0, p])
+    const st = saved?.charges_style ?? null, pl = saved?.price_lines?.length ? saved.price_lines : null
+    setMarkupType(t); setMarkupAmount(a); setShowPct(p); setStyleOverride(st); setOverrides(pl); setSaveState(saved ? "saved" : "idle")
+    lastKey.current = JSON.stringify([selectedQuoteId, t, Number(a) || 0, p, st, pl])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedQuoteId, markupMap])
 
   // Save the markup as soon as it is entered, so it is still there when this request is reopened.
   useEffect(() => {
     if (!selectedQuoteId) return
-    const key = JSON.stringify([selectedQuoteId, markupType, markupNum, showPct])
+    const key = JSON.stringify([selectedQuoteId, markupType, markupNum, showPct, styleOverride, overrides])
     if (key === lastKey.current) return
     const timer = setTimeout(async () => {
       setSaveState("saving")
       try {
         const res = await fetch("/api/carrier-quotes/markup", {
           method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ carrier_quote_id: selectedQuoteId, markup_type: markupType, markup_amount: markupNum, show_markup_percent: showPct }),
+          body: JSON.stringify({ carrier_quote_id: selectedQuoteId, markup_type: markupType, markup_amount: markupNum, show_markup_percent: showPct, charges_style: styleOverride, price_lines: overrides }),
         })
         const d = await res.json().catch(() => ({}))
         if (res.ok && d.saved) {
           lastKey.current = key
-          setSaveState("saved")
+          savedRef.current = { ...savedRef.current, [String(selectedQuoteId)]: { markup_type: markupType, markup_amount: markupNum, show_markup_percent: showPct, charges_style: styleOverride, price_lines: overrides } }
+          setSaveState(d.extras_saved === false && (styleOverride || overrides) ? "partial" : "saved")
         } else setSaveState("unavailable")
       } catch { setSaveState("unavailable") }
     }, 700)
     return () => clearTimeout(timer)
-  }, [selectedQuoteId, markupType, markupNum, showPct])
+  }, [selectedQuoteId, markupType, markupNum, showPct, styleOverride, overrides])
   const autoFinal = markupType === "percent"
     ? Math.round(baseRate * (1 + markupNum / 100) * 100) / 100
     : Math.round((baseRate + markupNum) * 100) / 100
@@ -407,8 +410,6 @@ export function QuotationBuilder({
   }
   const removeLine = (i: number) => setOverrides((cur) => (cur ?? preview?.lines ?? []).filter((_, k) => k !== i))
   const addLine = () => setOverrides((cur) => [...(cur ?? preview?.lines ?? []), { label: "", basis: "", qty: null, rate: null, amount: 0 }])
-  // A different carrier quote starts from automatic prices again.
-  useEffect(() => { setOverrides(null) }, [selectedQuoteId])
 
   // Live preview of the chosen template with the chosen quote and markup (nothing is saved).
   useEffect(() => {
@@ -569,7 +570,7 @@ export function QuotationBuilder({
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                 {markupType === "percent" ? "Markup %" : "Markup $"}
                 <span className="ml-2 font-normal normal-case tracking-normal">
-                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "unavailable" ? "Not saved — database update pending" : ""}
+                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "unavailable" ? "Not saved — database update pending" : saveState === "partial" ? "Markup saved — edited prices need database update 045" : ""}
                 </span>
               </label>
               <input
