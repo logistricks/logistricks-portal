@@ -17,6 +17,9 @@ function prepare(inp) {
     .map((a) => ({ filename: a.filename || "file", mime_type: String(a.mime_type).toLowerCase(), data: String(a.data_base64).replace(/^data:[^,]*,/, "") }))
   return {
     client_code: inp.client_code || null,
+    intake_source: inp.intake_source === "manual" ? "manual" : "automatic",
+    intake_filename: inp.intake_filename || null,
+    freight_request_id: inp.freight_request_id || null,
     to_email: String(inp.to_email || inp.to || "").trim().toLowerCase(),
     from_email: String(inp.from_email || "").trim().toLowerCase(),
     subject: inp.subject || "",

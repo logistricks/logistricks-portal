@@ -1,0 +1,291 @@
+{
+  "name": "Logistricks — Manual email → request",
+  "nodes": [
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "request-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "logistricks-request-intake"
+    },
+    {
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Edit the values below. (n8n blocks environment variables in nodes by default, so settings live here.)\nconst cfg = {\n  portal_url: 'https://logistricks-portal.vercel.app',\n  portal_secret: 'CHANGE_ME',\n  gemini_key: 'CHANGE_ME',\n  gemini_model: 'gemini-3.6-flash',\n}\nreturn [{ json: { ...$input.first().json, cfg } }]"
+      }
+    },
+    {
+      "name": "Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const item = $input.first().json\nconst b = item.body || item\nconst secret = (item.headers && (item.headers['x-portal-secret'] || item.headers['X-Portal-Secret'])) || ''\nif (!item.cfg || !item.cfg.portal_secret || secret !== item.cfg.portal_secret) return [{ json: { unauthorized: true } }]\nif (!b.client_code || !b.from_email) return [{ json: { bad_request: 'client_code and from_email are required' } }]\nconst body = String(b.body_text || '')\n// Only the requester's new text: cut at the first quoted-reply marker.\nconst cut = body.search(/^(On .{5,200}wrote:|-{2,}\\s*Original Message|_{5,}|From:\\s.+@.+|>.*)$/m)\nconst fresh = (cut > 0 ? body.slice(0, cut) : body).trim()\nconst files = (b.attachments || [])\n  .filter((a) => a && a.data_base64 && /^(application\\/pdf|image\\/(png|jpe?g|webp))$/i.test(String(a.mime_type || '')) && String(a.data_base64).length < 8000000)\n  .slice(0, 4)\n  .map((a) => ({ filename: a.filename || 'file', mime_type: String(a.mime_type).toLowerCase(), data: String(a.data_base64).replace(/^data:[^,]*,/, '') }))\nreturn [{ json: {\n  client_code: b.client_code, from_email: String(b.from_email).toLowerCase(), from_name: b.from_name || '',\n  subject: b.subject || '', received_at: b.received_at || new Date().toISOString(),\n  fresh_text: fresh.slice(0, 20000), raw_text: body.slice(0, 50000), files,\n  intake_source: b.intake_source === 'manual' ? 'manual' : 'automatic', intake_filename: b.intake_filename || null,\n} }]"
+      }
+    },
+    {
+      "name": "Rejected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.unauthorized || !!$json.bad_request }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Respond rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        160
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.unauthorized ? 'Unauthorized' : $json.bad_request } }}",
+        "options": {
+          "responseCode": "={{ $json.unauthorized ? 401 : 400 }}"
+        }
+      }
+    },
+    {
+      "name": "Gemini extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        420
+      ],
+      "parameters": {
+        "jsCode": "// Calls Gemini from code: retries, tolerant JSON parsing.\nconst p = $input.first().json\nconst cfg = $('Config').first().json.cfg\nconst SYSTEM = \"You extract a freight rate request from an email sent by a client's staff or customer. The email may have attachments (PDF / images) that you can read directly; use them as part of the request.\\n\\nRULES\\n1. Extract ONLY what is explicitly written. Never guess. If something is not stated, return null.\\n2. Take the requester's NEW text only. Ignore signatures, disclaimers and quoted earlier messages.\\n3. modes: any of \\\"sea\\\", \\\"air\\\", \\\"land\\\" that the request asks for. Container sizes (20GP, 40HC), FCL/LCL, ports and B/L terms mean sea; airports, AWB, chargeable weight mean air; trucking / FTL / LTL / cross-border road means land. List a mode you deduced in inferred_fields.\\n4. SEA requests: origin_city is the Port of Loading (POL) and destination_city the Port of Discharge (POD). Put the port name (e.g. \\\"Jebel Ali\\\", \\\"Aqaba\\\", \\\"Shanghai\\\") there, not an inland town. If the email gives a place and a port, use the port.\\n5. incoterm: the 3-letter code (EXW, FOB, CIF, ...), upper case.\\n6. pickup_address: for EXW (ex-works) requests, the full street address where the goods are collected, exactly as written (company, street, city, postcode, country). Null when not given. A city alone is not an address.\\n7. equipment: container type and count as written (e.g. \\\"2 x 40HC\\\"); cargo_type: what is shipped; weight with its unit as written; dimensions as written; quantity (pieces/pallets/containers) as written.\\n8. urgency: \\\"urgent\\\" only if the email asks for urgent / ASAP / immediate handling, otherwise \\\"standard\\\". aog true only for an aircraft-on-ground request; dgr true only for dangerous goods.\\n9. special_requirements: short list of explicit extra requirements (temperature control, insurance, door delivery, customs clearance ...). availability_questions: questions the requester asks about space, schedule or availability.\\n10. confidence: \\\"high\\\" when origin, destination and cargo are clear; \\\"medium\\\" when one is unclear; \\\"low\\\" when several are missing or the mail is not a rate request.\\n11. is_rate_request: false for out-of-office replies, newsletters, invoices, or anything that is not asking for a freight rate.\\n12. inferred_fields: list of fields you had to deduce rather than read.\\n13. Return JSON only, matching the schema.\"\nconst SCHEMA = {\"type\":\"OBJECT\",\"properties\":{\"is_rate_request\":{\"type\":\"BOOLEAN\"},\"sender_name\":{\"type\":\"STRING\",\"nullable\":true},\"sender_phone\":{\"type\":\"STRING\",\"nullable\":true},\"modes\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\",\"enum\":[\"sea\",\"air\",\"land\"]}},\"origin_city\":{\"type\":\"STRING\",\"nullable\":true},\"origin_country\":{\"type\":\"STRING\",\"nullable\":true},\"destination_city\":{\"type\":\"STRING\",\"nullable\":true},\"destination_country\":{\"type\":\"STRING\",\"nullable\":true},\"cargo_type\":{\"type\":\"STRING\",\"nullable\":true},\"equipment\":{\"type\":\"STRING\",\"nullable\":true},\"weight\":{\"type\":\"STRING\",\"nullable\":true},\"quantity\":{\"type\":\"STRING\",\"nullable\":true},\"dimensions\":{\"type\":\"STRING\",\"nullable\":true},\"incoterm\":{\"type\":\"STRING\",\"nullable\":true},\"pickup_address\":{\"type\":\"STRING\",\"nullable\":true},\"bl_type\":{\"type\":\"STRING\",\"nullable\":true},\"preferred_carrier\":{\"type\":\"STRING\",\"nullable\":true},\"urgency\":{\"type\":\"STRING\",\"enum\":[\"standard\",\"urgent\"]},\"aog\":{\"type\":\"BOOLEAN\"},\"dgr\":{\"type\":\"BOOLEAN\"},\"special_requirements\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}},\"availability_questions\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}},\"confidence\":{\"type\":\"STRING\",\"enum\":[\"high\",\"medium\",\"low\"]},\"inferred_fields\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}}},\"required\":[\"is_rate_request\",\"modes\",\"urgency\",\"aog\",\"dgr\",\"confidence\",\"inferred_fields\"]}\nconst text = 'Freight request email\\nFrom: ' + p.from_name + ' <' + p.from_email + '>\\nSubject: ' + p.subject + '\\nReceived: ' + p.received_at + '\\n\\n' + p.fresh_text\nconst parts = [{ text: text + (p.files.length ? '\\n\\nAttached files (read them): ' + p.files.map((f) => f.filename).join(', ') : '') }]\nfor (const f of p.files) parts.push({ inline_data: { mime_type: f.mime_type, data: f.data } })\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms))\nconst url = 'https://generativelanguage.googleapis.com/v1beta/models/' + cfg.gemini_model + ':generateContent?key=' + cfg.gemini_key\nasync function call(attempt, useSchema) {\n  const gen = { temperature: 0, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }\n  if (useSchema) gen.responseSchema = SCHEMA\n  const system = useSchema ? SYSTEM : SYSTEM + '\\n\\nReturn JSON with exactly these fields (schema): ' + JSON.stringify(SCHEMA)\n  try {\n    const response = await this.helpers.httpRequest({\n      method: 'POST', url, headers: { 'Content-Type': 'application/json' }, json: true,\n      body: { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts }], generationConfig: gen },\n    })\n    if (!response.candidates) throw new Error('No candidates returned: ' + JSON.stringify(response))\n    const aiText = response.candidates[0].content.parts[0].text\n    let ai\n    try { ai = JSON.parse(aiText) } catch (e) { ai = JSON.parse(aiText.replace(/```json|```/g, '').trim()) }\n    return [{ json: ai }]\n  } catch (e) {\n    const msg = e.message || String(e)\n    if (attempt >= 3) throw new Error('Gemini failed after ' + attempt + ' attempts: ' + msg)\n    await sleep(msg.includes('429') ? attempt * 6000 : attempt * 3000)\n    return call.call(this, attempt + 1, useSchema && !/400|schema|responseSchema/i.test(msg))\n  }\n}\nreturn await call.call(this, 1, true)"
+      }
+    },
+    {
+      "name": "Build portal body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        420
+      ],
+      "parameters": {
+        "jsCode": "const prep = $('Prepare').first().json\nconst ai = $input.first().json\nif (ai.is_rate_request === false) return [{ json: { skip: true, reason: 'The email is not a freight rate request.' } }]\nconst PASS = ['sender_phone','modes','origin_city','origin_country','destination_city','destination_country','cargo_type','equipment','weight','quantity','dimensions','incoterm','pickup_address','bl_type','preferred_carrier','urgency','aog','dgr','special_requirements','availability_questions','confidence']\nconst b = {\n  client_code: prep.client_code, sender_name: ai.sender_name || prep.from_name || null, sender_email: prep.from_email,\n  received_at: prep.received_at, raw_message: 'Subject: ' + prep.subject + '\\n\\n' + prep.raw_text,\n  intake_source: prep.intake_source, intake_filename: prep.intake_filename,\n}\nfor (const k of PASS) if (ai[k] !== undefined) b[k] = ai[k]\nreturn [{ json: b }]"
+      }
+    },
+    {
+      "name": "Not a request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !!$json.skip }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Respond skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: $json.reason } }}",
+        "options": {
+          "responseCode": 422
+        }
+      }
+    },
+    {
+      "name": "POST /api/requests/intake",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        520
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.cfg.portal_url + '/api/requests/intake' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Portal-Secret",
+              "value": "={{ $('Config').first().json.cfg.portal_secret }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        520
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare": {
+      "main": [
+        [
+          {
+            "node": "Rejected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rejected?": {
+      "main": [
+        [
+          {
+            "node": "Respond rejected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gemini extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini extract": {
+      "main": [
+        [
+          {
+            "node": "Build portal body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build portal body": {
+      "main": [
+        [
+          {
+            "node": "Not a request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not a request?": {
+      "main": [
+        [
+          {
+            "node": "Respond skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "POST /api/requests/intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /api/requests/intake": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

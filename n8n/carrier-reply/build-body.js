@@ -24,6 +24,9 @@ function buildBody(ai, prep, modelVersion) {
   const b = {
     client_code: prep.client_code || undefined,
     to_email: prep.to_email || undefined,
+    intake_source: prep.intake_source || "automatic",
+    intake_filename: prep.intake_filename || undefined,
+    freight_request_id: prep.freight_request_id || undefined,
     carrier_email: prep.from_email,
     from_email: prep.from_email,
     rfq_reference: rfq,

@@ -41,6 +41,7 @@ const FLAG_COLORS: Record<QuoteFlag["severity"], { bg: string; fg: string }> = {
 /** Small header chips: mode, response type, firm/indicative, review state. */
 export function QuoteChips({ ext }: { ext: CarrierQuoteExt }) {
   const chips: { text: string; tone?: "ok" | "warn" | "muted" }[] = []
+  if (ext.intakeSource === "manual") chips.push({ text: "added manually", tone: "muted" })
   if (ext.mode) chips.push({ text: ext.mode.toUpperCase(), tone: "muted" })
   if (ext.responseType && ext.responseType !== "quote") chips.push({ text: label(ext.responseType)!, tone: "warn" })
   if (ext.quoteStatus) chips.push({ text: label(ext.quoteStatus)!, tone: ext.quoteStatus === "firm" ? "ok" : "warn" })

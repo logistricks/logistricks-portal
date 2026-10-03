@@ -31,6 +31,8 @@ import {
   StatusBadge,
   UrgencyBadge,
 } from "@/components/portal/badges"
+import { IntakeBadge } from "@/components/portal/intake-badge"
+import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
 import { QuotationBuilder } from "@/components/portal/quotation-builder"
 import {
@@ -449,7 +451,7 @@ export default function RequestDetailPage() {
               </div>
             </div>
           </div>
-          <SourceBadge source={request.source} />
+          <div className="flex flex-col items-end gap-1.5"><SourceBadge source={request.source} /><IntakeBadge source={request.intakeSource} light />{request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}</div>
         </div>
 
         {/* tabs */}
@@ -471,6 +473,9 @@ export default function RequestDetailPage() {
       <div className="flex-1 p-6" style={{ background: "var(--page-bg)" }}>
         {activeTab === "quotes" ? (
           <div>
+            <div className="mb-4">
+              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} compact onDone={() => setRfqRefreshSignal((n) => n + 1)} />
+            </div>
             <QuoteComparisonPanel
               key={rfqRefreshSignal}
               freightRequestId={request.id}

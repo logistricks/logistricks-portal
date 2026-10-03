@@ -1,5 +1,7 @@
 "use client"
 
+import { IntakeBadge } from "@/components/portal/intake-badge"
+import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { isSeaOnly, exwNeedsAddress, EXW_ALERT } from "@/lib/shipment-labels"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ExternalLink, FileText, Filter, Loader2, Maximize2, RefreshCw, Search, X } from "lucide-react"
@@ -184,6 +186,8 @@ export default function RequestsPage() {
         </button>
       </div>
 
+      <EmailDropZone kind="request" compact onDone={() => load(true)} />
+
       {/* Filter bar */}
       <div className="ds-card">
         <div className="flex flex-wrap items-center gap-2 p-3">
@@ -324,7 +328,7 @@ export default function RequestsPage() {
                     <td className="px-4 py-3 font-mono tabular-nums text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
                       {r.requestRef ?? (r.id ? `LT-${r.id}` : "")}
                     </td>
-                    <td className="px-4 py-3"><SourceBadge source={r.source} /></td>
+                    <td className="px-4 py-3"><div className="flex flex-col items-start gap-1"><SourceBadge source={r.source} /><IntakeBadge source={r.intakeSource} /></div></td>
                     <td className="px-4 py-3">
                       <p className="font-medium" style={{ color: "var(--text-primary)" }}>{r.senderName}</p>
                       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>

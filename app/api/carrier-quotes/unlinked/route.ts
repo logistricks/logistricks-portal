@@ -29,12 +29,7 @@ export async function GET(req: NextRequest) {
   const [quotesRes, carriersRes] = await Promise.all([
     admin
       .from("carrier_quotes")
-      .select(`
-        id, carrier_id, from_email, email_subject, email_thread_id,
-        rate_usd, rate_currency, rate_original, transit_days, validity_date, free_days,
-        notes, raw_reply, unlinked_reason, received_at,
-        carriers:carrier_id ( carrier_name, email )
-      `)
+      .select("*, carriers:carrier_id ( carrier_name, email )")
       .eq("client_code", session.clientCode)
       .is("freight_request_id", null)
       .order("received_at", { ascending: false })
@@ -68,6 +63,7 @@ export async function GET(req: NextRequest) {
     rawReply:        q.raw_reply,
     reason:          q.unlinked_reason ?? null,
     receivedAt:      q.received_at,
+    intakeSource:    q.intake_source ?? "automatic",
   }))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { CheckCircle2, ExternalLink, Inbox, Link2, Loader2, RefreshCw, Search, Trash2, X } from "lucide-react"
+import { IntakeBadge } from "@/components/portal/intake-badge"
+import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { ConfirmStepsDialog } from "@/components/portal/confirm-steps-dialog"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -23,6 +25,7 @@ interface UnlinkedQuote {
   rawReply: string | null
   reason: string | null
   receivedAt: string
+  intakeSource?: string
 }
 
 interface CarrierOption { id: number; name: string; email: string }
@@ -428,6 +431,8 @@ export default function UnlinkedQuotesPage() {
         </button>
       </div>
 
+      <EmailDropZone kind="carrier_reply" compact onDone={() => void load()} />
+
       {notice && (
         <p className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
           <CheckCircle2 className="h-4 w-4 shrink-0" /> {notice}
@@ -474,6 +479,7 @@ export default function UnlinkedQuotesPage() {
                       <td className="px-4 py-3">
                         <p className="font-medium" style={{ color: "var(--text-primary)" }}>{when.relative}</p>
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{when.exact}</p>
+                        <div className="mt-1"><IntakeBadge source={q.intakeSource} /></div>
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium" style={{ color: "var(--text-primary)" }}>{carrierText(q)}</p>
