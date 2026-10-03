@@ -1,7 +1,7 @@
 -- Email notifications: per-client SMTP server, one editable template per event, and a send log.
 
 CREATE TABLE IF NOT EXISTS public.smtp_settings (
-  client_code    VARCHAR(15) PRIMARY KEY REFERENCES clients(client_code),
+  client_code    CITEXT      PRIMARY KEY REFERENCES clients(client_code),
   host           TEXT        NOT NULL DEFAULT '',
   port           INTEGER     NOT NULL DEFAULT 587,
   security       TEXT        NOT NULL DEFAULT 'starttls',   -- ssl | starttls | none
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.smtp_settings (
 
 CREATE TABLE IF NOT EXISTS public.notification_templates (
   id          BIGSERIAL   PRIMARY KEY,
-  client_code VARCHAR(15) NOT NULL REFERENCES clients(client_code),
+  client_code CITEXT      NOT NULL REFERENCES clients(client_code),
   event_key   TEXT        NOT NULL,
   enabled     BOOLEAN     NOT NULL DEFAULT true,
   subject     TEXT        NOT NULL DEFAULT '',
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.notification_templates (
 
 CREATE TABLE IF NOT EXISTS public.notification_log (
   id          BIGSERIAL   PRIMARY KEY,
-  client_code VARCHAR(15) NOT NULL,
+  client_code CITEXT      NOT NULL,
   event_key   TEXT        NOT NULL,
   to_emails   TEXT[]      NOT NULL DEFAULT '{}',
   subject     TEXT,
