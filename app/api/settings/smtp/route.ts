@@ -12,12 +12,12 @@ import { encryptSecret, decryptSecret } from "@/lib/secret-box"
 import { badSmtpHost, sendMail, smtpError, type SmtpConfig } from "@/lib/notify"
 
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/
-const FIELDS = "host, port, security, username, password_enc, from_name, from_email, reply_to, enabled, last_test_at, last_test_ok, last_test_error, updated_at"
 
 function publicView(d: any) {
-  if (!d) return { configured: false, host: "", port: 587, security: "starttls", username: "", has_password: false, from_name: "", from_email: "", reply_to: "", enabled: true }
+  if (!d) return { configured: false, auth_method: "password", ms_tenant_id: "", ms_client_id: "", has_ms_secret: false, host: "", port: 587, security: "starttls", username: "", has_password: false, from_name: "", from_email: "", reply_to: "", enabled: true }
   return {
     configured: !!(d.host && d.from_email), host: d.host, port: d.port, security: d.security, username: d.username, has_password: !!d.password_enc,
+    auth_method: d.auth_method === "oauth2_microsoft" ? "oauth2_microsoft" : "password", ms_tenant_id: d.ms_tenant_id ?? "", ms_client_id: d.ms_client_id ?? "", has_ms_secret: !!d.ms_client_secret_enc,
     from_name: d.from_name, from_email: d.from_email, reply_to: d.reply_to ?? "", enabled: d.enabled !== false,
     last_test_at: d.last_test_at, last_test_ok: d.last_test_ok, last_test_error: d.last_test_error,
   }
@@ -30,6 +30,8 @@ function clean(body: Record<string, any>) {
     host: String(body.host ?? "").trim(), port: Number.isFinite(port) && port > 0 && port < 65536 ? port : (security === "ssl" ? 465 : 587), security,
     username: String(body.username ?? "").trim().slice(0, 200), from_name: String(body.from_name ?? "").trim().slice(0, 120),
     from_email: String(body.from_email ?? "").trim(), reply_to: String(body.reply_to ?? "").trim(), enabled: body.enabled !== false,
+    auth_method: body.auth_method === "oauth2_microsoft" ? "oauth2_microsoft" : "password",
+    ms_tenant_id: String(body.ms_tenant_id ?? "").trim().slice(0, 100), ms_client_id: String(body.ms_client_id ?? "").trim().slice(0, 100),
   }
 }
 
@@ -37,13 +39,17 @@ function problem(c: ReturnType<typeof clean>): string | null {
   const h = badSmtpHost(c.host); if (h) return h
   if (!EMAIL_RE.test(c.from_email)) return "Enter the address emails are sent from (From email)."
   if (c.reply_to && !EMAIL_RE.test(c.reply_to)) return "The reply-to address isn't valid."
+  if (c.auth_method === "oauth2_microsoft") {
+    if (!/^[\w.-]{3,100}$/.test(c.ms_tenant_id)) return "Enter the Directory (tenant) ID from your Microsoft app registration."
+    if (!/^[0-9a-fA-F-]{36}$/.test(c.ms_client_id)) return "Enter the Application (client) ID — a 36-character ID."
+  }
   return null
 }
 
 export async function GET(req: NextRequest) {
   const s = await sessionWithRole(req)
   if (!s) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { data } = await adminClient().from("smtp_settings").select(FIELDS).ilike("client_code", s.session.clientCode).maybeSingle()
+  const { data } = await adminClient().from("smtp_settings").select("*").ilike("client_code", s.session.clientCode).maybeSingle()
   return NextResponse.json(publicView(data))
 }
 
@@ -60,12 +66,19 @@ export async function PUT(req: NextRequest) {
 
   const row: Record<string, unknown> = { client_code: s.session.clientCode, ...c, reply_to: c.reply_to || null, updated_at: new Date().toISOString() }
   if (typeof body.password === "string" && body.password !== "") row.password_enc = encryptSecret(body.password)
-  const { error } = await adminClient().from("smtp_settings").upsert(row, { onConflict: "client_code" })
+  if (typeof body.ms_client_secret === "string" && body.ms_client_secret !== "") row.ms_client_secret_enc = encryptSecret(body.ms_client_secret)
+  let { error } = await adminClient().from("smtp_settings").upsert(row, { onConflict: "client_code" })
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // Migration 047 not run: password sign-in still works, modern authentication needs it.
+    if (c.auth_method === "oauth2_microsoft") return NextResponse.json({ error: "Modern authentication needs a database update first (migration 047). Run it, then save again." }, { status: 500 })
+    for (const k of ["auth_method", "ms_tenant_id", "ms_client_id", "ms_client_secret_enc"]) delete row[k]
+    ;({ error } = await adminClient().from("smtp_settings").upsert(row, { onConflict: "client_code" }))
+  }
   if (error) {
     const missing = error.code === "42P01" || /smtp_settings/.test(error.message)
     return NextResponse.json({ error: missing ? "The database update for email notifications (migration 046) hasn't been run yet." : error.message }, { status: 500 })
   }
-  const { data } = await adminClient().from("smtp_settings").select(FIELDS).ilike("client_code", s.session.clientCode).maybeSingle()
+  const { data } = await adminClient().from("smtp_settings").select("*").ilike("client_code", s.session.clientCode).maybeSingle()
   return NextResponse.json(publicView(data))
 }
 
@@ -81,9 +94,10 @@ export async function POST(req: NextRequest) {
   const bad = problem(c)
   if (bad) return NextResponse.json({ ok: false, error: bad }, { status: 400 })
 
-  const { data: saved } = await admin.from("smtp_settings").select("password_enc").ilike("client_code", s.session.clientCode).maybeSingle()
+  const { data: saved } = await admin.from("smtp_settings").select("*").ilike("client_code", s.session.clientCode).maybeSingle()
   const password = typeof body.password === "string" && body.password !== "" ? body.password : decryptSecret(saved?.password_enc)
-  const cfg: SmtpConfig = { host: c.host, port: c.port, security: c.security as SmtpConfig["security"], username: c.username, password, from_name: c.from_name, from_email: c.from_email, reply_to: c.reply_to || null, enabled: true }
+  const msSecret = typeof body.ms_client_secret === "string" && body.ms_client_secret !== "" ? body.ms_client_secret : decryptSecret(saved?.ms_client_secret_enc)
+  const cfg: SmtpConfig = { auth_method: c.auth_method as SmtpConfig["auth_method"], ms_tenant_id: c.ms_tenant_id, ms_client_id: c.ms_client_id, ms_client_secret: msSecret, host: c.host, port: c.port, security: c.security as SmtpConfig["security"], username: c.username, password, from_name: c.from_name, from_email: c.from_email, reply_to: c.reply_to || null, enabled: true }
   const to = String(body.to ?? "").trim() || s.email || c.from_email
   if (!EMAIL_RE.test(to)) return NextResponse.json({ ok: false, error: "Enter a valid address to send the test to." }, { status: 400 })
 

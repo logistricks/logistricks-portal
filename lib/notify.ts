@@ -15,6 +15,7 @@ import { EVENT_BY_KEY, emailDocument, normalizeRecipients, type NotificationEven
 export interface SmtpConfig {
   host: string; port: number; security: "ssl" | "starttls" | "none"
   username: string; password: string; from_name: string; from_email: string; reply_to: string | null; enabled: boolean
+  auth_method?: "password" | "oauth2_microsoft"; ms_tenant_id?: string; ms_client_id?: string; ms_client_secret?: string
 }
 
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/
@@ -43,22 +44,40 @@ export async function loadSmtp(admin: any, clientCode: string): Promise<SmtpConf
     security: data.security === "ssl" || data.security === "none" ? data.security : "starttls",
     username: data.username || "", password: decryptSecret(data.password_enc),
     from_name: data.from_name || "", from_email: data.from_email, reply_to: data.reply_to || null, enabled: data.enabled !== false,
+    auth_method: data.auth_method === "oauth2_microsoft" ? "oauth2_microsoft" : "password",
+    ms_tenant_id: data.ms_tenant_id || "", ms_client_id: data.ms_client_id || "", ms_client_secret: decryptSecret(data.ms_client_secret_enc),
   }
 }
 
-function transport(cfg: SmtpConfig) {
+/** Microsoft 365 modern authentication: an app-only access token for Exchange Online SMTP (client-credentials flow). */
+async function microsoftToken(cfg: SmtpConfig): Promise<string> {
+  if (!cfg.ms_tenant_id || !cfg.ms_client_id || !cfg.ms_client_secret) throw Object.assign(new Error("Enter the tenant ID, application (client) ID and client secret."), { code: "EAUTHCFG" })
+  const res = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(cfg.ms_tenant_id)}/oauth2/v2.0/token`, {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: cfg.ms_client_id, client_secret: cfg.ms_client_secret, scope: "https://outlook.office365.com/.default", grant_type: "client_credentials" }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  const d = await res.json().catch(() => ({})) as { access_token?: string; error_description?: string }
+  if (!res.ok || !d.access_token) throw Object.assign(new Error(String(d.error_description ?? `Microsoft sign-in failed (${res.status})`).split("\r\n")[0].slice(0, 260)), { code: "EMSTOKEN" })
+  return d.access_token
+}
+
+async function transport(cfg: SmtpConfig) {
+  const oauth = cfg.auth_method === "oauth2_microsoft"
   return nodemailer.createTransport({
     host: cfg.host, port: cfg.port,
     secure: cfg.security === "ssl",
     requireTLS: cfg.security === "starttls",
     ignoreTLS: cfg.security === "none",
-    auth: cfg.username ? { user: cfg.username, pass: cfg.password } : undefined,
+    auth: oauth
+      ? { type: "OAuth2", user: cfg.username || cfg.from_email, accessToken: await microsoftToken(cfg) }
+      : cfg.username ? { user: cfg.username, pass: cfg.password } : undefined,
     connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000,
   })
 }
 
 export async function sendMail(cfg: SmtpConfig, m: { to: string[]; subject: string; html: string; text: string }) {
-  await transport(cfg).sendMail({
+  await (await transport(cfg)).sendMail({
     from: cfg.from_name ? { name: cfg.from_name, address: cfg.from_email } : cfg.from_email,
     to: m.to, replyTo: cfg.reply_to || undefined, subject: m.subject, html: m.html, text: m.text,
   })
@@ -67,6 +86,8 @@ export async function sendMail(cfg: SmtpConfig, m: { to: string[]; subject: stri
 /** A short, readable reason for an SMTP failure. */
 export function smtpError(e: unknown): string {
   const err = e as { code?: string; responseCode?: number; message?: string }
+  if (err.code === "EMSTOKEN" || err.code === "EAUTHCFG") return String(err.message)
+  if (err.code === "EAUTH" && /SmtpClientAuthentication|5\.7\.3|disabled/i.test(String(err.message))) return "Microsoft rejected the sign-in: SMTP AUTH or the app's mailbox permission isn't enabled for this mailbox. See the setup steps on this page."
   if (err.code === "EAUTH" || err.responseCode === 535) return "The server rejected the username or password. For Gmail / Microsoft 365 use an app password."
   if (err.code === "ECONNECTION" || err.code === "ESOCKET" || err.code === "ECONNREFUSED") return "Couldn't connect to the server. Check the server name, port and security setting."
   if (err.code === "ETIMEDOUT" || err.code === "ECONNECTION_TIMEOUT") return "The server didn't answer in time. Check the server name and port."

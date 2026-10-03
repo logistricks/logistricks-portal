@@ -6,12 +6,13 @@ import { AlertTriangle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Send } from "l
 type Smtp = {
   configured: boolean; host: string; port: number; security: "ssl" | "starttls" | "none"; username: string; has_password: boolean
   from_name: string; from_email: string; reply_to: string; enabled: boolean
+  auth_method: "password" | "oauth2_microsoft"; ms_tenant_id: string; ms_client_id: string; has_ms_secret: boolean
   last_test_at?: string | null; last_test_ok?: boolean | null; last_test_error?: string | null
 }
 
 const PRESETS: { name: string; host: string; port: number; security: Smtp["security"]; hint: string }[] = [
   { name: "Gmail", host: "smtp.gmail.com", port: 465, security: "ssl", hint: "Turn on 2-step verification, then create an App password in your Google account and use it as the password." },
-  { name: "Microsoft 365", host: "smtp.office365.com", port: 587, security: "starttls", hint: "SMTP AUTH must be enabled for the mailbox; use the full email address as the username." },
+  { name: "Microsoft 365", host: "smtp.office365.com", port: 587, security: "starttls", hint: "Choose modern authentication (recommended) or a password. SMTP AUTH must be enabled for the mailbox." },
   { name: "Zoho", host: "smtp.zoho.com", port: 465, security: "ssl", hint: "Use an application-specific password if two-factor is on." },
   { name: "Other", host: "", port: 587, security: "starttls", hint: "Ask your email provider for the SMTP server name, port and security type." },
 ]
@@ -32,6 +33,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
   const [f, setF] = useState<Smtp | null>(null)
   const [password, setPassword] = useState("")
+  const [msSecret, setMsSecret] = useState("")
+  const [showHelp, setShowHelp] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [testTo, setTestTo] = useState("")
   const [saving, setSaving] = useState(false)
@@ -43,7 +46,9 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
   if (!f) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--text-muted)" }} /></div>
   const set = (patch: Partial<Smtp>) => setF({ ...f, ...patch })
   const preset = PRESETS.find((p) => p.host && p.host === f.host)
-  const body = () => ({ ...f, password: password || undefined })
+  const oauth = f.auth_method === "oauth2_microsoft"
+  const isMs = /office365|outlook\.com/i.test(f.host) || oauth
+  const body = () => ({ ...f, password: password || undefined, ms_client_secret: msSecret || undefined })
 
   async function save() {
     setMsg(null); setSaving(true)
@@ -51,7 +56,7 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
       const res = await fetch("/api/settings/smtp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body()) })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(d.error ?? "Couldn't save.")
-      setF(d); setPassword(""); setMsg({ ok: true, text: "Saved. Now send a test email to make sure it works." })
+      setF(d); setPassword(""); setMsSecret(""); setMsg({ ok: true, text: "Saved. Now send a test email to make sure it works." })
     } catch (e) { setMsg({ ok: false, text: (e as Error).message }) } finally { setSaving(false) }
   }
 
@@ -87,7 +92,7 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
             {PRESETS.map((p) => {
               const on = p.host ? f.host === p.host : !preset
               return (
-                <button key={p.name} type="button" disabled={!canEdit} onClick={() => set(p.host ? { host: p.host, port: p.port, security: p.security } : { port: p.port, security: p.security })}
+                <button key={p.name} type="button" disabled={!canEdit} onClick={() => set(p.host ? { host: p.host, port: p.port, security: p.security, ...(p.name === "Microsoft 365" ? { auth_method: "oauth2_microsoft" as const } : { auth_method: "password" as const }) } : { port: p.port, security: p.security, auth_method: "password" })}
                   className="rounded-full border px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
                   style={{ borderColor: on ? "var(--brand-accent)" : "var(--card-border)", background: on ? "rgba(232,130,26,0.1)" : "transparent", color: on ? "var(--brand-accent)" : "var(--text-secondary)" }}>{p.name}</button>
               )
@@ -108,18 +113,53 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Username"><input value={f.username} disabled={!canEdit} onChange={(e) => set({ username: e.target.value })} autoComplete="off" placeholder="you@example.com" className={inputCls} style={inputStyle} /></Field>
-          <Field label="Password" hint={f.has_password && !password ? "A password is saved. Type here only to replace it." : undefined}>
-            <div className="relative">
-              <input type={showPw ? "text" : "password"} value={password} disabled={!canEdit} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
-                placeholder={f.has_password ? "••••••••••••" : "App password"} className={`${inputCls} pr-10`} style={inputStyle} />
-              <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-2.5 top-2.5" style={{ color: "var(--text-muted)" }}>
-                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+        {isMs && (
+          <Field label="Sign-in method" hint={oauth ? "Recommended by Microsoft — Basic authentication is being retired for Microsoft 365 mail." : "Works only while Basic authentication is still allowed for your Microsoft 365 tenant."}>
+            <select value={f.auth_method} disabled={!canEdit} onChange={(e) => set({ auth_method: e.target.value as Smtp["auth_method"], host: f.host || "smtp.office365.com", port: 587, security: "starttls" })} className={inputCls} style={inputStyle}>
+              <option value="oauth2_microsoft">Modern authentication (OAuth 2.0 app)</option>
+              <option value="password">Username and password (basic)</option>
+            </select>
           </Field>
-        </div>
+        )}
+
+        {oauth ? (
+          <div className="space-y-4 rounded-lg border p-4" style={{ borderColor: "var(--card-border)", background: "var(--table-header-bg)" }}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Directory (tenant) ID"><input value={f.ms_tenant_id} disabled={!canEdit} onChange={(e) => set({ ms_tenant_id: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" className={inputCls} style={inputStyle} /></Field>
+              <Field label="Application (client) ID"><input value={f.ms_client_id} disabled={!canEdit} onChange={(e) => set({ ms_client_id: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" className={inputCls} style={inputStyle} /></Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Client secret" hint={f.has_ms_secret && !msSecret ? "A secret is saved. Type here only to replace it." : "The secret's value, not its ID."}>
+                <input type="password" value={msSecret} disabled={!canEdit} onChange={(e) => setMsSecret(e.target.value)} autoComplete="new-password" placeholder={f.has_ms_secret ? "••••••••••••" : "Client secret value"} className={inputCls} style={inputStyle} />
+              </Field>
+              <Field label="Mailbox to send as" hint="The Microsoft 365 mailbox, usually the same as From email."><input value={f.username} disabled={!canEdit} onChange={(e) => set({ username: e.target.value })} autoComplete="off" placeholder="notifications@yourcompany.com" className={inputCls} style={inputStyle} /></Field>
+            </div>
+            <button type="button" onClick={() => setShowHelp(!showHelp)} className="text-xs font-semibold underline" style={{ color: "var(--text-secondary)" }}>{showHelp ? "Hide" : "Show"} the one-time Microsoft setup steps</button>
+            {showHelp && (
+              <ol className="ml-4 list-decimal space-y-1.5 text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                <li>In <strong>Microsoft Entra admin centre → App registrations</strong>, create a new registration (single tenant). Copy its <em>Application (client) ID</em> and <em>Directory (tenant) ID</em> here.</li>
+                <li><strong>Certificates &amp; secrets</strong> → New client secret. Copy the secret <em>value</em> into the field above.</li>
+                <li><strong>API permissions</strong> → Add a permission → <em>APIs my organization uses</em> → <em>Office 365 Exchange Online</em> → <em>Application permissions</em> → <code>SMTP.SendAsApp</code>. Then <em>Grant admin consent</em>.</li>
+                <li>In <strong>Exchange Online PowerShell</strong>, register the app and give it the mailbox: <code>New-ServicePrincipal -AppId &lt;client id&gt; -ObjectId &lt;object id of the app under Enterprise applications&gt;</code>, then <code>Add-MailboxPermission -Identity &lt;mailbox&gt; -User &lt;object id&gt; -AccessRights FullAccess</code>.</li>
+                <li>Make sure SMTP AUTH is on for the mailbox: <code>Set-CASMailbox -Identity &lt;mailbox&gt; -SmtpClientAuthenticationDisabled $false</code>.</li>
+                <li>Save here, then press <strong>Send test email</strong>. Permission changes can take up to 30 minutes to apply.</li>
+              </ol>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Username"><input value={f.username} disabled={!canEdit} onChange={(e) => set({ username: e.target.value })} autoComplete="off" placeholder="you@example.com" className={inputCls} style={inputStyle} /></Field>
+            <Field label="Password" hint={f.has_password && !password ? "A password is saved. Type here only to replace it." : undefined}>
+              <div className="relative">
+                <input type={showPw ? "text" : "password"} value={password} disabled={!canEdit} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
+                  placeholder={f.has_password ? "••••••••••••" : "App password"} className={`${inputCls} pr-10`} style={inputStyle} />
+                <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-2.5 top-2.5" style={{ color: "var(--text-muted)" }}>
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </Field>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="From name"><input value={f.from_name} disabled={!canEdit} onChange={(e) => set({ from_name: e.target.value })} placeholder="Logistricks" className={inputCls} style={inputStyle} /></Field>
