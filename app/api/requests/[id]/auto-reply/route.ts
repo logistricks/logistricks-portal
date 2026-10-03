@@ -11,6 +11,7 @@
  *   Wait(auto_reply_delay_min) → POST here → Gmail Send
  */
 
+import { isExw } from "@/lib/shipment-labels"
 import { createHmac } from "crypto"
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
@@ -111,7 +112,7 @@ export async function POST(
 
   const { data: parsedFields } = await db
     .from("freight_requests")
-    .select("origin_city, origin_country, destination_city, destination_country, cargo_type, equipment, weight, incoterm, modes")
+    .select("*")
     .eq("id", requestId)
     .maybeSingle()
 
@@ -124,12 +125,14 @@ export async function POST(
     equipment:          "Equipment",
     weight:             "Weight",
     incoterm:           "Incoterm",
+    pickup_address:     "Pickup address (EXW)",
   }
 
   const criticalFields: string[] = clientSettings?.critical_fields ?? Object.keys(FIELD_LABELS)
   const missingParts: string[]   = []
   if (parsedFields && clientSettings?.require_critical_data) {
     for (const field of criticalFields) {
+      if (field === "pickup_address" && !isExw((parsedFields as Record<string, unknown>).incoterm as string | undefined)) continue
       const val = (parsedFields as Record<string, unknown>)[field]
       if (!val || val === "—") missingParts.push(FIELD_LABELS[field] ?? field)
     }

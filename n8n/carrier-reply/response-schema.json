@@ -192,6 +192,10 @@
       "type": "STRING",
       "nullable": true
     },
+    "pickup_address": {
+      "type": "STRING",
+      "nullable": true
+    },
     "incoterm_place": {
       "type": "STRING",
       "nullable": true

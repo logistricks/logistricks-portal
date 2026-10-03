@@ -7,6 +7,7 @@
  *
  * Template syntax: see lib/quotation-variables.ts.
  */
+import { isSeaOnly, isExw } from "@/lib/shipment-labels"
 import { ALL_VARIABLES, BLOCK_KEYS, VARIABLE_KEYS, type TemplateOptions, normalizeOptions } from "@/lib/quotation-variables"
 
 export interface Block { html: string; text: string }
@@ -174,7 +175,7 @@ export interface RequestIn {
   requestRef?: string; receivedExact: string; urgency: string
   originCity: string; originCountry: string; destinationCity: string; destinationCountry: string
   cargoType: string; equipment: string; weight: string; quantity: string; dimensions: string
-  incoterm: string; blType: string; modes: string[]
+  incoterm: string; blType: string; modes: string[]; pickupAddress?: string
   senderName: string; senderEmail: string; senderPhone: string
   specialRequirements: string[]
 }
@@ -246,7 +247,14 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const quotedMode = q.mode ? String(q.mode).replace(/^./, (c: string) => c.toUpperCase()) : /^(fcl|lcl)$/i.test(sl) || q.container_type ? "Sea" : ""
   const quotedEquip = q.container_type ? `${q.container_count ?? 1} x ${q.container_type}` : ""
 
+  // Sea shipments are described by ports (POL / POD), not a route.
+  const seaShip = isSeaOnly(r.modes ?? []) || quotedMode === "Sea"
+  const pol = seaShip ? (op || dash(r.originCity)) : ""
+  const pod = seaShip ? (dp || dash(r.destinationCity)) : ""
+  const pickup = String(q.pickup_address || r.pickupAddress || "").trim()
+
   const v: Record<string, string> = {
+    pol, pod, pickup_address: isExw(r.incoterm) || isExw(q.incoterm) ? pickup : "",
     quotation_number: input.quotationNumber ?? "",
     quotation_date: fmtDate(now.toISOString()),
     quotation_valid_until: fmtDate(validUntilIso),
@@ -263,7 +271,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     carrier_name: input.carrierName, carrier_quote_ref: q.carrier_quote_ref ?? "",
     quote_mode: q.mode ? String(q.mode).replace(/^./, (c: string) => c.toUpperCase()) : "",
     service_level: q.service_level ?? "", quote_status: status,
-    route: op && dp ? `${op} → ${dp}` : "", origin_port: op, destination_port: dp,
+    route: !seaShip && op && dp ? `${op} → ${dp}` : "", origin_port: op, destination_port: dp,
     direct_or_connecting: q.direct_or_connecting ? String(q.direct_or_connecting).replace(/^./, (c: string) => c.toUpperCase()) : "",
     etd: fmtDate(q.etd), eta: fmtDate(q.eta),
     transit_days: q.transit_days != null ? String(q.transit_days) : "", frequency: q.frequency ?? "",

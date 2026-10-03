@@ -193,15 +193,18 @@ export async function POST(req: NextRequest) {
   }
 
   // A reply may only link to a request of the client whose mailbox received it.
+  let reqCtx: { incoterm?: string | null; pickup_address?: string | null } | undefined
   if (match) {
     const { data: fr } = await admin
       .from("freight_requests")
-      .select("client_code")
+      .select("*")
       .eq("id", match.freight_request_id)
       .maybeSingle()
     if (!fr || String(fr.client_code).toLowerCase() !== client_code.toLowerCase()) {
       match = null
       method = null
+    } else {
+      reqCtx = { incoterm: (fr as any).incoterm ?? null, pickup_address: (fr as any).pickup_address ?? null }
     }
   }
 
@@ -221,7 +224,7 @@ export async function POST(req: NextRequest) {
     email_message_id: body.email_message_id ?? null,
   }
 
-  const { row: ext, flags: validationFlags } = buildExtendedFields(body)
+  const { row: ext, flags: validationFlags } = buildExtendedFields(body, reqCtx)
 
   // Headline rate = the computed total when the AI gave none and the quote is in USD.
   if (quoteFields.rate_usd == null && ext.total_amount != null && String(quoteFields.rate_currency).toUpperCase() === "USD") {

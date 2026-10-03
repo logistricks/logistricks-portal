@@ -21,6 +21,7 @@ import {
   CheckSquare,
 } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
+import { isSeaOnly, exwNeedsAddress, isExw, POL_LABEL, POD_LABEL, EXW_ALERT } from "@/lib/shipment-labels"
 import {
   AogBadge,
   ConfidenceBadge,
@@ -125,6 +126,9 @@ const LABEL_TO_FIELD: Record<string, string> = {
   "Dimensions":          "dimensions",
   "Equipment / Container": "equipment",
   "Incoterm":            "incoterm",
+  "Pickup Address (EXW)": "pickup_address",
+  [POL_LABEL]:           "origin_city",
+  [POD_LABEL]:           "destination_city",
   "BL Type":             "bl_type",
   "Preferred Carrier":   "preferred_carrier",
 }
@@ -280,6 +284,7 @@ export default function RequestDetailPage() {
       cargo_type: "cargoType", equipment: "equipment", weight: "weight",
       quantity: "quantity", dimensions: "dimensions", incoterm: "incoterm",
       bl_type: "blType", preferred_carrier: "preferredCarrier",
+      pickup_address: "pickupAddress", origin_city: "originCity", destination_city: "destinationCity",
     }
     const camel = DB_TO_CAMEL[field] ?? field
     setFieldValues((prev) => ({ ...prev, [camel]: newVal }))
@@ -303,6 +308,9 @@ export default function RequestDetailPage() {
         incoterm:         data.incoterm,
         blType:           data.blType,
         preferredCarrier: data.preferredCarrier,
+        pickupAddress:    data.pickupAddress ?? "",
+        originCity:       data.originCity,
+        destinationCity:  data.destinationCity,
       })
     } catch {
       toastError("Failed to load", "Request not found or not accessible.")
@@ -386,6 +394,9 @@ export default function RequestDetailPage() {
   }
 
   const missingCount = request.missingFields?.length ?? 0
+  const seaOnly = isSeaOnly(request.modes)
+  const curIncoterm = fieldValues.incoterm ?? request.incoterm
+  const exwMissing = exwNeedsAddress(curIncoterm, fieldValues.pickupAddress ?? request.pickupAddress)
   const replyThread: ConversationMessage[] = Array.isArray(request.conversation) ? (request.conversation as ConversationMessage[]) : []
   const emailTemplates  = templates.filter((t) => t.type === "Email"    && t.active)
   const whatsappTemplates = templates.filter((t) => t.type === "WhatsApp" && t.active)
@@ -419,11 +430,18 @@ export default function RequestDetailPage() {
               {dgr && <DgrBadge />}
               <StatusBadge status={request.status} />
             </div>
-            {/* route */}
+            {/* route / POL → POD */}
             <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-white">{request.originFlag} {request.originCity}</span>
+              {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POL</span>}
+              <span className="text-sm font-semibold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
               <ArrowRight className="h-4 w-4 text-white/40" />
-              <span className="text-sm font-semibold text-white">{request.destinationFlag} {request.destinationCity}</span>
+              {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POD</span>}
+              <span className="text-sm font-semibold text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</span>
+              {exwMissing && (
+                <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>
+                  <AlertTriangle className="h-3 w-3" /> {EXW_ALERT}
+                </span>
+              )}
               <div className="flex items-center gap-1.5 ml-2 flex-wrap">
                 {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
                 <UrgencyBadge urgency={request.urgency} />
@@ -479,12 +497,17 @@ export default function RequestDetailPage() {
                   : null
 
                 const displayFields = [
+                  ...(seaOnly ? [
+                    { label: POL_LABEL, camel: "originCity" },
+                    { label: POD_LABEL, camel: "destinationCity" },
+                  ] : []),
                   { label: "Cargo Type",           camel: "cargoType" },
                   { label: "Weight",                camel: "weight" },
                   { label: "Quantity",              camel: "quantity" },
                   { label: "Dimensions",            camel: "dimensions" },
                   { label: "Equipment / Container", camel: "equipment" },
                   { label: "Incoterm",              camel: "incoterm" },
+                  ...(isExw(curIncoterm) ? [{ label: "Pickup Address (EXW)", camel: "pickupAddress" }] : []),
                   { label: "BL Type",               camel: "blType" },
                   { label: "Preferred Carrier",     camel: "preferredCarrier" },
                 ]
@@ -508,6 +531,12 @@ export default function RequestDetailPage() {
                         )}
                       </div>
                     </div>
+                    {exwMissing && (
+                      <div className="mx-5 mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}>
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>Needs attention: incoterm is EXW but there is no pickup address from the requester or a carrier quote. Add one below or ask the requester.</span>
+                      </div>
+                    )}
                     <div className="group px-5 pb-4">
                       {displayFields.map(({ label, camel }) => (
                         <EditableFieldRow

@@ -33,6 +33,9 @@ export interface DbFreightRequest {
   quantity: string | null
   dimensions: string | null
   incoterm: string | null
+  pickup_address?: string | null
+  intake_source?: string | null
+  intake_filename?: string | null
   bl_type: string | null
   preferred_carrier: string | null
   urgency: string
@@ -294,6 +297,9 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
       ...(row.is_land ? ["Land" as const] : []),
     ],
     incoterm:          row.incoterm           ?? "—",
+    pickupAddress:     row.pickup_address     ?? "",
+    intakeSource:      row.intake_source === "manual" ? "manual" : "automatic",
+    intakeFilename:    row.intake_filename    ?? null,
     blType:            row.bl_type            ?? "—",
     preferredCarrier:  row.preferred_carrier  ?? "—",
     urgency:           normalizeUrgency(row.urgency),

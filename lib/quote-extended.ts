@@ -5,6 +5,7 @@
  * everything numeric in code (weights, totals, validation flags, review status).
  * Kept out of the route file so it can be unit-tested without Next.js.
  */
+import { exwNeedsAddress } from "@/lib/shipment-labels"
 import { checkDates, computePricing, computeWeights, type Flag } from "@/lib/quote-math"
 
 export const EXT_SCALAR = [
@@ -13,6 +14,7 @@ export const EXT_SCALAR = [
   "commodity_description","hs_code","pieces","packaging_type","gross_weight","weight_unit","volume_cbm",
   "volumetric_divisor","chargeable_weight_stated","stackable","declared_value","temperature_control",
   "special_handling","container_type","container_count",
+  "pickup_address","intake_source","intake_filename",
   "origin_place","destination_place","origin_code","destination_code","incoterm","incoterm_place",
   "etd","eta","frequency","direct_or_connecting",
   "equipment_type","space_confirmed","free_days_demurrage","free_days_detention","per_diem_note",
@@ -28,12 +30,17 @@ export const EXT_JSON = [
 const clean = (v: unknown) => (v === undefined || v === "" ? null : v)
 
 /** Whitelists the extended fields, then computes weights / totals / flags in code. */
-export function buildExtendedFields(body: Record<string, unknown>) {
+export function buildExtendedFields(
+  body: Record<string, unknown>,
+  reqCtx?: { incoterm?: string | null; pickup_address?: string | null },
+) {
   const row: Record<string, unknown> = {}
   for (const k of EXT_SCALAR) if (k in body) row[k] = clean(body[k])
   for (const k of EXT_JSON)   if (k in body) row[k] = clean(body[k])
   // NOT NULL columns with a default: omit when the carrier gave nothing so the default (1) applies.
   if (row.version == null) delete row.version
+  row.intake_source = row.intake_source === "manual" ? "manual" : "automatic"
+  if (row.intake_filename == null) delete row.intake_filename
 
   const w = computeWeights({
     mode: row.mode as string | null,
@@ -59,6 +66,11 @@ export function buildExtendedFields(body: Record<string, unknown>) {
     flags.push({ code: "not_a_quote", field: "response_type", severity: "info", message: `Carrier reply classified as "${rt}".` })
   if (row.quote_status && row.quote_status !== "firm")
     flags.push({ code: "not_firm", field: "quote_status", severity: "info", message: `Quote is ${row.quote_status}.` })
+
+  // EXW needs a pickup address from the requester or the carrier; otherwise a person must chase it.
+  const incoterm = (row.incoterm as string | null) ?? reqCtx?.incoterm ?? null
+  if (exwNeedsAddress(incoterm, row.pickup_address, reqCtx?.pickup_address))
+    flags.push({ code: "exw_no_address", field: "pickup_address", severity: "warn", message: "EXW shipment: no pickup address from the requester or the carrier." })
 
   // AI self-report: low confidence or values it had to infer always go to a person.
   const conf = typeof body.ai_confidence === "number" ? body.ai_confidence : null

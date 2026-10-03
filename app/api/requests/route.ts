@@ -82,6 +82,7 @@ export async function PATCH(req: NextRequest) {
     "cargo_type", "weight", "quantity", "dimensions",
     "equipment", "incoterm", "bl_type", "preferred_carrier",
     "origin_city", "origin_country", "destination_city", "destination_country",
+    "pickup_address",
   ])
 
   const VALID_STATUSES = new Set(["Pending", "Waiting for Approval", "Rejected", "Approved - Carrier, Pending Send", "Approved - Carrier, Sent", "Approved - Reply, Pending Send", "Approved - Reply, Sent", "Sent to Carrier", "Quoted", "Closed"])

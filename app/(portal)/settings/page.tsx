@@ -25,6 +25,7 @@ const CRITICAL_FIELD_OPTIONS = [
   { key: "equipment",  label: "Equipment / Container" },
   { key: "incoterm",   label: "Incoterm" },
   { key: "bl_type",    label: "BL Type" },
+  { key: "pickup_address", label: "Pickup address (only when EXW)" },
 ]
 
 type SectionKey = "emails" | "smtp" | "whatsapp" | "automation" | "approval" | "theme"

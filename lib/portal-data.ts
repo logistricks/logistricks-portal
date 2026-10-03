@@ -155,6 +155,9 @@ export type FreightRequest = {
   dimensions: string
   modes: Mode[]
   incoterm: string
+  pickupAddress?: string
+  intakeSource?: "automatic" | "manual"
+  intakeFilename?: string | null
   blType: string
   preferredCarrier: string
   urgency: "Standard" | "Urgent"

@@ -7,11 +7,14 @@ export const STARTER_HTML = `<h2 style="color:#0D1B2A">Quotation {{quotation_num
 <p>Thank you for your enquiry. Please find our offer for the shipment below.</p>
 <h3>Shipment</h3>
 <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;border:1px solid #cbd5e1">
-<tr><td style="width:35%"><strong>Route</strong></td><td>{{origin}} → {{destination}}</td></tr>
+{{#if pol}}<tr><td style="width:35%"><strong>Port of Loading (POL)</strong></td><td>{{pol}}</td></tr>
+<tr><td><strong>Port of Discharge (POD)</strong></td><td>{{pod}}</td></tr>{{/if}}
+{{#if route}}<tr><td style="width:35%"><strong>Route</strong></td><td>{{route}}</td></tr>{{/if}}
 <tr><td><strong>Cargo</strong></td><td>{{cargo_type}}</td></tr>
 <tr><td><strong>Equipment / quantity</strong></td><td>{{equipment}} {{quantity}}</td></tr>
 <tr><td><strong>Weight</strong></td><td>{{weight}}</td></tr>
 <tr><td><strong>Incoterm</strong></td><td>{{incoterm}}</td></tr>
+{{#if pickup_address}}<tr><td><strong>Pickup address</strong></td><td>{{pickup_address}}</td></tr>{{/if}}
 <tr><td><strong>Transit time</strong></td><td>{{transit_days}} days</td></tr>
 <tr><td><strong>Free days</strong></td><td>{{free_days}} days</td></tr>
 </table>

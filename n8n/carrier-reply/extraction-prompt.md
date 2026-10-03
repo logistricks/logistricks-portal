@@ -41,7 +41,8 @@ RULES
 14. ai_confidence: 0..1 for the whole extraction. Below 0.8 if the email is ambiguous, garbled, or key fields were hard to read.
 15. key_evidence: for the 3-6 most important values (price, validity, transit/ETD, mode, route) give {field, quote} with the exact words from the email.
 16. reference_candidates: read the subject, the new text, the quoted earlier messages and any attachment text, and list every reference code that could identify our request or the carrier's own quote: our request numbers (like LT-0017), RFQ tokens (like RFQ-1a2b3c4d-7-ab12cd), PO / booking / file numbers. Copy each exactly as written, no duplicates. Empty list if none. Do not invent one.
-17. Return JSON only, matching the schema.
+17. pickup_address: for EXW (ex-works) quotes, the full street address where the cargo is collected, exactly as written (company, street, city, postcode, country). Null if the carrier gives no address; a city or port name alone is not an address.
+18. Return JSON only, matching the schema.
 ```
 
 ## User message template

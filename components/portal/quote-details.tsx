@@ -1,5 +1,6 @@
 "use client"
 
+import { isExw } from "@/lib/shipment-labels"
 import type { ChargeLineView, CarrierQuoteExt, QuoteFlag } from "@/lib/carrier-quotes-queries"
 
 const fmtNum = (n: number | null | undefined, max = 3) =>
@@ -64,7 +65,7 @@ export function QuoteChips({ ext }: { ext: CarrierQuoteExt }) {
 /** True when the quote carries anything beyond the basic rate fields. */
 export function hasExtendedData(ext: CarrierQuoteExt): boolean {
   return Object.entries(ext).some(([k, v]) => {
-    if (k === "version") return false
+    if (k === "version" || k === "intakeSource") return false
     if (k === "validationFlags") return Array.isArray(v) && v.length > 0
     return v !== null && v !== undefined && v !== ""
   })
@@ -72,6 +73,7 @@ export function hasExtendedData(ext: CarrierQuoteExt): boolean {
 
 export function QuoteDetails({ ext }: { ext: CarrierQuoteExt }) {
   const weightUnit = ext.weightUnit ?? "kg"
+  const isSea = /sea|ocean|fcl|lcl/i.test(ext.mode ?? "")
   const chargeableUnit = ext.chargeableUnit === "rt" ? "RT (W/M)" : "kg"
   const charges: ChargeLineView[] = ext.charges ?? []
 
@@ -123,9 +125,10 @@ export function QuoteDetails({ ext }: { ext: CarrierQuoteExt }) {
       ]} />
 
       <Section title="Route & schedule" rows={[
-        ["From", ext.originPlace],
-        ["To", ext.destinationPlace],
+        [isSea ? "POL" : "From", ext.originPlace],
+        [isSea ? "POD" : "To", ext.destinationPlace],
         ["Incoterm", ext.incoterm ? `${ext.incoterm}${ext.incotermPlace ? ` ${ext.incotermPlace}` : ""}` : null],
+        ["Pickup address", isExw(ext.incoterm) ? (ext.pickupAddress || "⚠ Missing — needs attention") : ext.pickupAddress],
         ["ETD", fmtDateTime(ext.etd)],
         ["ETA", fmtDateTime(ext.eta)],
         ["Frequency", ext.frequency],

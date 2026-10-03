@@ -21,6 +21,7 @@
  *   401  { error: "Unauthorized" }
  *   500  { error }
  */
+import { isExw } from "@/lib/shipment-labels"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 
@@ -45,6 +46,7 @@ const FIELD_LABELS: Record<string, string> = {
   equipment:   "Equipment / Container",
   incoterm:    "Incoterm",
   bl_type:     "BL Type",
+  pickup_address: "Pickup address (EXW)",
 }
 
 function parseMissingFields(value: unknown): string {
@@ -132,6 +134,8 @@ export async function POST(req: NextRequest) {
 
   const computedMissingLabels = criticalFields
     .filter((field) => {
+      // Pickup address is only mandatory when the shipment is EXW.
+      if (field === "pickup_address" && !isExw(body.incoterm as string | undefined)) return false
       const val = body[field]
       return val == null || String(val).trim() === "" || String(val).trim() === "[]"
     })

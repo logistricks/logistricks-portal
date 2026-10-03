@@ -91,6 +91,8 @@ export interface CarrierQuoteExt {
   destinationPlace?: string | null
   incoterm?: string | null
   incotermPlace?: string | null
+  pickupAddress?: string | null
+  intakeSource?: string | null
   etd?: string | null
   eta?: string | null
   frequency?: string | null
@@ -130,7 +132,7 @@ export function mapQuoteExt(q: any): CarrierQuoteExt {
     stackable: q.stackable ?? null, declaredValue: n(q.declared_value), temperatureControl: q.temperature_control ?? null,
     hazmat: q.hazmat ?? null, specialHandling: q.special_handling ?? null, containerType: q.container_type ?? null,
     containerCount: n(q.container_count), originPlace: q.origin_place ?? null, destinationPlace: q.destination_place ?? null,
-    incoterm: q.incoterm ?? null, incotermPlace: q.incoterm_place ?? null, etd: q.etd ?? null, eta: q.eta ?? null,
+    incoterm: q.incoterm ?? null, incotermPlace: q.incoterm_place ?? null, pickupAddress: q.pickup_address ?? null, intakeSource: q.intake_source ?? null, etd: q.etd ?? null, eta: q.eta ?? null,
     frequency: q.frequency ?? null, directOrConnecting: q.direct_or_connecting ?? null,
     equipmentType: q.equipment_type ?? null, spaceConfirmed: q.space_confirmed ?? null,
     freeDaysDemurrage: n(q.free_days_demurrage), freeDaysDetention: n(q.free_days_detention),

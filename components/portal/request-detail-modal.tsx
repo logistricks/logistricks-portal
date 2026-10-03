@@ -1,5 +1,6 @@
 "use client"
 
+import { isSeaOnly, exwNeedsAddress, EXW_ALERT } from "@/lib/shipment-labels"
 import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
 import {
@@ -641,13 +642,18 @@ export function RequestDetailModal({
           {/* Route summary row */}
           <div className="mt-3 flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
+              {isSeaOnly(request.modes) && <span className="text-[10px] font-bold uppercase text-white/50">POL</span>}
               <span className="text-sm font-semibold text-white">
                 {request.originFlag} {request.originCity}
               </span>
               <ArrowRight className="h-4 w-4 text-white/40" />
+              {isSeaOnly(request.modes) && <span className="text-[10px] font-bold uppercase text-white/50">POD</span>}
               <span className="text-sm font-semibold text-white">
                 {request.destinationFlag} {request.destinationCity}
               </span>
+              {exwNeedsAddress(request.incoterm, request.pickupAddress) && (
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>⚠ {EXW_ALERT}</span>
+              )}
             </div>
             <div className="flex items-center gap-1.5 ml-auto flex-wrap justify-end">
               {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}

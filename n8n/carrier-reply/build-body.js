@@ -6,7 +6,7 @@ const PASS = [
   "commodity_description","hs_code","pieces","packaging_type","gross_weight","weight_unit","volume_cbm","dimensions",
   "volumetric_divisor","chargeable_weight_stated","stackable","declared_value","temperature_control","special_handling",
   "container_type","container_count","origin_place","destination_place","origin_code","destination_code","incoterm",
-  "incoterm_place","etd","eta","frequency","direct_or_connecting","equipment_type","space_confirmed",
+  "incoterm_place","pickup_address","etd","eta","frequency","direct_or_connecting","equipment_type","space_confirmed",
   "free_days_demurrage","free_days_detention","per_diem_note","payment_terms","insurance_offered","liability_limit",
   "cancellation_terms","exclusions","subject_to_conditions","required_documents","weight_break_tiers","notes",
   "ai_confidence","inferred_fields",

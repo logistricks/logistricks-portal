@@ -1,5 +1,6 @@
 "use client"
 
+import { isSeaOnly, exwNeedsAddress, EXW_ALERT } from "@/lib/shipment-labels"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ExternalLink, FileText, Filter, Loader2, Maximize2, RefreshCw, Search, X } from "lucide-react"
 import Link from "next/link"
@@ -284,7 +285,7 @@ export default function RequestsPage() {
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Ref #</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Source</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Sender</th>
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Route</th>
+                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Route / POL → POD</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Cargo</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Received</th>
                 <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Confidence</th>
@@ -332,8 +333,11 @@ export default function RequestsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="whitespace-nowrap font-medium" style={{ color: "var(--text-primary)" }}>
-                        {r.originFlag} {r.originCity} → {r.destinationFlag} {r.destinationCity}
+                        {isSeaOnly(r.modes) && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {isSeaOnly(r.modes) && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
                       </span>
+                      {exwNeedsAddress(r.incoterm, r.pickupAddress) && (
+                        <p className="mt-0.5 text-[11px] font-bold" style={{ color: "#ef4444" }}>⚠ {EXW_ALERT}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <p style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
