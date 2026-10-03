@@ -13,6 +13,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
+import { after } from "next/server"
+import { notifyApprovalRequested } from "@/lib/notify-hooks"
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 function badInput(msg: string) { return NextResponse.json({ error: msg }, { status: 400 }) }
@@ -219,6 +221,16 @@ export async function POST(req: NextRequest) {
     }))
     if (notifRows.length > 0) {
       await admin.from("notifications").insert(notifRows)
+    }
+    // A "notify only" first step passes straight through, so the second step's approvers are the ones who must act.
+    const secondDef = firstStepDef.committee_mode === "notify_only" ? (steps[1] as any) : null
+    if (secondDef) {
+      const m2 = (secondDef.approval_cycle_step_members ?? []).map((m: any) => m.username)
+      const u2: string[] = m2.length > 0 ? m2 : (secondDef.assigned_to ? [secondDef.assigned_to] : [])
+      if (u2.length > 0) after(() => notifyApprovalRequested(admin, { clientCode: session.clientCode, requestId: request_id, usernames: u2, step: 2, submittedBy: session.username, mode: secondDef.committee_mode }))
+    }
+    if (notifUsernames.length > 0) {
+      after(() => notifyApprovalRequested(admin, { clientCode: session.clientCode, requestId: request_id, usernames: notifUsernames, step: 1, submittedBy: session.username, mode: firstStepDef.committee_mode }))
     }
   }
 

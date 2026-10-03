@@ -20,6 +20,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
+import { after } from "next/server"
+import { notifyApprovalDecided, notifyApprovalRequested } from "@/lib/notify-hooks"
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 function badInput(msg: string) { return NextResponse.json({ error: msg }, { status: 400 }) }
@@ -283,6 +285,9 @@ export async function PATCH(
         request_id:  requestId,
       }))
       if (notifRows.length > 0) await admin.from("notifications").insert(notifRows)
+      if (nextUsernames.length > 0) {
+        after(() => notifyApprovalRequested(admin, { clientCode: session.clientCode, requestId, usernames: nextUsernames, step: ((nextStep as any).sort_order ?? 0) + 1, submittedBy: (ar as any).submitted_by, mode: "any_approves" }))
+      }
 
       void logActivity({
         clientCode:  session.clientCode,
@@ -312,6 +317,8 @@ export async function PATCH(
           : "All approval steps completed — carrier email is ready to send",
         request_id:  requestId,
       })
+
+      after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "approved", decidedBy: session.username, notes }))
 
       void logActivity({
         clientCode:  session.clientCode,
@@ -362,6 +369,8 @@ export async function PATCH(
       body:        `Step ${(ar as any).sort_order} rejected: ${notes}`,
       request_id:  requestId,
     })
+
+    after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "rejected", decidedBy: session.username, notes }))
 
     void logActivity({
       clientCode:  session.clientCode,

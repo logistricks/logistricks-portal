@@ -27,7 +27,8 @@
  *   destination_city  string
  *   destination_country string
  */
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, after, type NextRequest } from "next/server"
+import { notify, requestValues } from "@/lib/notify"
 import { adminClient } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
 
@@ -130,6 +131,13 @@ export async function POST(
       : "Sender reply received (no parseable fields)",
     requestId:   id,
     meta:        { updated_fields: updatedFields, gmail_thread_id },
+  })
+
+  after(async () => {
+    const vals = await requestValues(admin, client_code, id)
+    await notify(admin, client_code, "sender_reply", {
+      ...vals, updated_fields: updatedFields.join(", "), reply_excerpt: String(raw_reply ?? "").replace(/\s+/g, " ").trim().slice(0, 300),
+    }, { requestId: id })
   })
 
   return NextResponse.json({ ok: true, updated_fields: updatedFields })

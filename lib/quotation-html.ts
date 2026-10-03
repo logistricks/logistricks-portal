@@ -12,7 +12,7 @@ const SAFE_VALUE = /^[#\w\s.,%()\-"'/]+$/
 const style = (...props: string[]) => Object.fromEntries(props.map((p) => [p, [SAFE_VALUE]]))
 const STYLES = style(
   "color", "background-color", "background", "font-size", "font-weight", "font-style", "font-family", "text-align",
-  "text-decoration", "line-height", "vertical-align", "width", "height", "min-width", "max-width", "white-space",
+  "text-decoration", "line-height", "vertical-align", "display", "border-radius", "letter-spacing", "text-transform", "border-spacing", "table-layout", "font-family", "width", "height", "min-width", "max-width", "white-space",
   "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
   "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
   "border", "border-top", "border-right", "border-bottom", "border-left", "border-collapse", "border-color", "border-width", "border-style",

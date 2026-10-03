@@ -5,11 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase"
 import {
   AlertTriangle, Check, CheckSquare, ChevronRight, Copy, FileText, GitBranch, Loader2,
-  Mail, MessageCircle, Palette, Plus, RefreshCw, RotateCcw, Settings2,
+  Bell, Mail, MessageCircle, Palette, Plus, RefreshCw, RotateCcw, Server, Settings2,
   Square, Trash2, Truck, X, Zap,
 } from "lucide-react"
 import { TemplatesPanel } from "@/components/portal/templates-panel"
 import { CarriersPanel } from "@/components/portal/carriers-panel"
+import { SmtpPanel } from "@/components/portal/smtp-panel"
+import { NotificationTemplatesPanel } from "@/components/portal/notification-templates-panel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ReceiverEmail  = { id: string; r_mail: string; active: boolean; label: string | null }
@@ -25,7 +27,7 @@ const CRITICAL_FIELD_OPTIONS = [
   { key: "bl_type",    label: "BL Type" },
 ]
 
-type SectionKey = "emails" | "whatsapp" | "automation" | "approval" | "theme"
+type SectionKey = "emails" | "smtp" | "whatsapp" | "automation" | "approval" | "theme"
 
 // ── Theme types & helpers ─────────────────────────────────────────────────────
 interface ThemeColors {
@@ -314,7 +316,7 @@ export default function SettingsPage() {
   const [active, setActive]       = useState<SectionKey>("emails")
   const [clientCode, setClientCode] = useState<string>("")
   const [role, setRole]           = useState<UserRole>("operator")
-  const [topTab, setTopTab]       = useState<"setup" | "theme" | "templates" | "carriers">("setup")
+  const [topTab, setTopTab]       = useState<"setup" | "theme" | "templates" | "notifications" | "carriers">("setup")
   const supabase = createClient()
 
   // Deep-link support: /settings?tab=templates or ?tab=carriers
@@ -322,7 +324,7 @@ export default function SettingsPage() {
     try {
       const params = new URLSearchParams(window.location.search)
       const t = params.get("tab")
-      if (t === "templates" || t === "carriers") setTopTab(t)
+      if (t === "templates" || t === "carriers" || t === "notifications") setTopTab(t)
     } catch { /* */ }
   }, [])
 
@@ -627,6 +629,7 @@ export default function SettingsPage() {
   // Sections — theme only shown to admins
   const SECTIONS: { key: SectionKey; label: string; icon: React.ElementType; desc: string }[] = [
     { key: "emails",     label: "Receiver Emails",  icon: Mail,          desc: "Inbound email addresses"        },
+    { key: "smtp",       label: "Email Server (SMTP)", icon: Server,      desc: "Outgoing notification mailbox"  },
     { key: "whatsapp",   label: "WhatsApp Numbers", icon: MessageCircle, desc: "Inbound WhatsApp sources"       },
     { key: "automation", label: "Automation",        icon: Zap,           desc: "Auto-send & auto-reply rules"   },
     { key: "approval",   label: "Approval Workflow", icon: GitBranch,     desc: "Approval cycles & chains"      },
@@ -695,6 +698,8 @@ export default function SettingsPage() {
         }
       </div>
     )
+
+    if (active === "smtp") return <SmtpPanel canEdit={role === "admin"} />
 
     if (active === "whatsapp") return (
       <div>
@@ -1008,6 +1013,18 @@ export default function SettingsPage() {
           Templates
         </button>
         <button
+          onClick={() => setTopTab("notifications")}
+          className="flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-semibold transition-colors"
+          style={{
+            color: topTab === "notifications" ? "var(--brand-accent)" : "var(--text-secondary)",
+            borderBottom: topTab === "notifications" ? "2px solid var(--brand-accent)" : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          <Bell className="h-4 w-4" />
+          Notification Templates
+        </button>
+        <button
           onClick={() => setTopTab("carriers")}
           className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
           style={{
@@ -1064,6 +1081,9 @@ export default function SettingsPage() {
 
       {/* Templates tab: full-width */}
       {topTab === "templates" && <TemplatesPanel />}
+
+      {/* Notification templates tab: full-width */}
+      {topTab === "notifications" && <NotificationTemplatesPanel onOpenSmtp={() => { setActive("smtp"); setTopTab("setup") }} />}
 
       {/* Carriers tab: full-width */}
       {topTab === "carriers" && <CarriersPanel />}

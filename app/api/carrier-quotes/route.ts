@@ -63,7 +63,8 @@
  *   401 { error: "Unauthorized" }
  *   500 { error }
  */
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, after, type NextRequest } from "next/server"
+import { notifyCarrierQuote } from "@/lib/notify-hooks"
 import { adminClient } from "@/lib/api-session"
 import { buildExtendedFields } from "@/lib/quote-extended"
 import { syncRequestStatus } from "@/lib/request-status"
@@ -246,6 +247,10 @@ export async function POST(req: NextRequest) {
     const detail = body.request_ref && !requestFound && !body.freight_request_id
       ? `request ${body.request_ref} not found for client ${client_code}`
       : freightRequestId && carrierPk ? "request found but no RFQ was sent to this carrier for it" : null
+    after(() => notifyCarrierQuote(admin, {
+      clientCode: client_code, kind: "attention", reason, requestId: freightRequestId ?? null, carrierPk: carrierPk ?? null,
+      body, quote: quoteFields, ext, flags: validationFlags,
+    }))
     return NextResponse.json({
       ok: true, linked: false, reason, detail, carrier_quote_id: orphan?.id,
       review_status: ext.review_status, validation_flags: validationFlags,
@@ -281,6 +286,14 @@ export async function POST(req: NextRequest) {
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
   const requestStatus = await syncRequestStatus(admin, match.freight_request_id)
+
+  // Email the team: a clean quote is good news; a decline, a question or a failed check needs a person.
+  const rt = String(body.response_type ?? "quote")
+  const attention = isDecline ? "decline" : rt === "info_request" ? "info_request" : ext.review_status === "needs_review" ? "needs_review" : null
+  after(() => notifyCarrierQuote(admin, {
+    clientCode: client_code, kind: attention ? "attention" : "received", reason: attention ?? undefined,
+    requestId: match.freight_request_id, carrierPk: match.carrier_id, body, quote: quoteFields, ext, flags: validationFlags,
+  }))
 
   return NextResponse.json({
     ok: true,
