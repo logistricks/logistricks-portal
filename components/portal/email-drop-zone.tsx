@@ -50,11 +50,21 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
     const drop = (e: DragEvent) => {
       if (!has(e)) return
       e.preventDefault(); depth.current = 0; setDragging(false)
+      try { localStorage.setItem("lt_drop_dbg", JSON.stringify({ at: new Date().toISOString(), ua: navigator.userAgent.slice(0, 90), types: Array.from(e.dataTransfer!.types), files: Array.from(e.dataTransfer!.files || []).map((f) => `${f.name}|${f.type}|${f.size}`), uri: (e.dataTransfer!.getData("text/uri-list") || "").slice(0, 120) })) } catch { /* private mode */ }
       takeRef.current(Array.from(e.dataTransfer!.files || []), e.dataTransfer!.getData("text/plain") || "", Array.from(e.dataTransfer!.types), e.dataTransfer!.getData("text/uri-list") || "")
     }
     window.addEventListener("dragenter", enter); window.addEventListener("dragleave", leave)
     window.addEventListener("dragover", over); window.addEventListener("drop", drop)
     return () => { window.removeEventListener("dragenter", enter); window.removeEventListener("dragleave", leave); window.removeEventListener("dragover", over); window.removeEventListener("drop", drop) }
+  }, [])
+
+  // If the page died during a drop, the breadcrumb is still here on the next load: show it.
+  const [crash, setCrash] = useState<string | null>(null)
+  useEffect(() => {
+    try { const v = localStorage.getItem("lt_drop_dbg"); if (v) { setCrash(v); localStorage.removeItem("lt_drop_dbg") } } catch { /* ignore */ }
+    const onErr = (e: ErrorEvent) => { try { const v = JSON.parse(localStorage.getItem("lt_drop_dbg") || "null"); if (v) localStorage.setItem("lt_drop_dbg", JSON.stringify({ ...v, error: `${e.message} @${e.lineno}` })) } catch { /* ignore */ } }
+    window.addEventListener("error", onErr)
+    return () => window.removeEventListener("error", onErr)
   }, [])
 
   // Ctrl/Cmd+V anywhere on the page (outside text fields) starts a pasted email.
@@ -81,6 +91,9 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
 
   /** Step 1: take whatever was dropped / pasted. */
   async function take(files: File[], text = "", types: string[] = [], uri = "") {
+    try { await take2(files, text, types, uri) } finally { try { localStorage.removeItem("lt_drop_dbg") } catch { /* ignore */ } }
+  }
+  async function take2(files: File[], text = "", types: string[] = [], uri = "") {
     setMsg(null)
     const mail = files.find(isMail)
     const others = files.filter((f) => !isMail(f))
@@ -170,6 +183,13 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
             <MailPlus className="mx-auto mb-2 h-8 w-8" />
             <p className="text-base font-semibold">Drop the email anywhere to add it</p>
           </div>
+        </div>
+      )}
+      {crash && (
+        <div className="mb-2 rounded-lg px-3 py-2 text-xs" style={{ background: "rgba(239,68,68,0.1)", color: "#dc2626" }}>
+          <p className="font-semibold">The page reloaded during your last drop. Please send this to support:</p>
+          <pre className="mt-1 whitespace-pre-wrap break-all">{crash}</pre>
+          <button onClick={() => setCrash(null)} className="mt-1 underline">Dismiss</button>
         </div>
       )}
       {!staged && (
