@@ -18,6 +18,8 @@ type Staged = {
   body_text: string
   mailbox: string
   fileAttachments: { filename: string; size: number }[]
+  message_id?: string
+  hint?: string
 }
 
 const isMail = (f: File) => /\.(eml|msg)$/i.test(f.name)
@@ -39,16 +41,16 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   // open the file / link (e.g. Apple Mail's message:// link) and leave the page. A full-page overlay shows while dragging.
   const [dragging, setDragging] = useState(false)
   const depth = useRef(0)
-  const takeRef = useRef<(files: File[], text: string, types: string[]) => void>(() => {})
+  const takeRef = useRef<(files: File[], text: string, types: string[], uri: string) => void>(() => {})
   useEffect(() => {
     const has = (e: DragEvent) => !!e.dataTransfer && e.dataTransfer.types.length > 0
-    const enter = (e: DragEvent) => { if (has(e)) { depth.current++; setDragging(true) } }
+    const enter = (e: DragEvent) => { if (has(e)) { e.preventDefault(); depth.current++; setDragging(true) } }
     const leave = () => { depth.current = Math.max(0, depth.current - 1); if (depth.current === 0) setDragging(false) }
     const over = (e: DragEvent) => { if (has(e)) e.preventDefault() }
     const drop = (e: DragEvent) => {
       if (!has(e)) return
       e.preventDefault(); depth.current = 0; setDragging(false)
-      takeRef.current(Array.from(e.dataTransfer!.files || []), e.dataTransfer!.getData("text/plain") || "", Array.from(e.dataTransfer!.types))
+      takeRef.current(Array.from(e.dataTransfer!.files || []), e.dataTransfer!.getData("text/plain") || "", Array.from(e.dataTransfer!.types), e.dataTransfer!.getData("text/uri-list") || "")
     }
     window.addEventListener("dragenter", enter); window.addEventListener("dragleave", leave)
     window.addEventListener("dragover", over); window.addEventListener("drop", drop)
@@ -78,13 +80,23 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   }
 
   /** Step 1: take whatever was dropped / pasted. */
-  async function take(files: File[], text = "", types: string[] = []) {
+  async function take(files: File[], text = "", types: string[] = [], uri = "") {
     setMsg(null)
     const mail = files.find(isMail)
     const others = files.filter((f) => !isMail(f))
     // More attachments for something already staged.
     if (staged && !mail) {
-      setStaged({ ...staged, extra: [...staged.extra, ...others], body_text: text.trim() && !staged.body_text ? text : staged.body_text })
+      const fill = text.trim() && !staged.body_text.trim()
+      let add: Partial<Staged> = {}
+      if (fill) {
+        const m = await loadMailboxes()
+        const all = Array.from(new Set((text.match(/[^\s<>,;"'()]+@[^\s<>,;"'()]+\.[^\s<>,;"'()]+/g) || []).map((a) => a.toLowerCase())))
+        const fromLine = (text.match(/^From:.*?([^\s<>,;"'()]+@[^\s<>,;"'()]+\.[^\s<>,;"'()]+)/im) || [])[1]?.toLowerCase()
+        add = { body_text: text, hint: undefined,
+          from_email: staged.from_email || fromLine || all.find((a) => !m.includes(a)) || "",
+          mailbox: staged.mailbox || all.find((a) => m.includes(a)) || "" }
+      }
+      setStaged({ ...staged, ...add, extra: [...staged.extra, ...others] })
       return
     }
     if (mail) {
@@ -102,15 +114,29 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
       finally { setBusy("") }
       return
     }
+    // Apple Mail drags only a message: link plus the subject as text — no body, no file.
+    if (/^message:/i.test(uri.trim())) {
+      const m = await loadMailboxes()
+      let mid = ""; try { mid = decodeURIComponent(uri.trim().replace(/^message:/i, "")) } catch { /* keep empty */ }
+      setStaged({
+        file: null, extra: others, from_email: "", subject: text.trim().split("\n")[0] ?? "", body_text: "",
+        mailbox: m.length === 1 ? m[0] : "", fileAttachments: [], message_id: mid || undefined,
+        hint: "Apple Mail only shares the subject, not the email itself. Open the email in Mail, press Cmd+A then Cmd+C, and paste it here with Cmd+V (click outside the boxes first). Add the PDF too if there is one.",
+      })
+      return
+    }
     if (text.trim() || others.length) {
       const m = await loadMailboxes()
-      const sender = (text.match(/[^\s<>,;"']+@[^\s<>,;"']+\.[^\s<>,;"']+/) || [""])[0].toLowerCase()
-      setStaged({ file: null, extra: others, from_email: sender, subject: (text.match(/^Subject:\s*(.+)$/im) || [])[1] ?? "", body_text: text, mailbox: m.length === 1 ? m[0] : "", fileAttachments: [] })
+      const all = Array.from(new Set((text.match(/[^\s<>,;"'()]+@[^\s<>,;"'()]+\.[^\s<>,;"'()]+/g) || []).map((a) => a.toLowerCase())))
+      const fromLine = (text.match(/^From:.*?([^\s<>,;"'()]+@[^\s<>,;"'()]+\.[^\s<>,;"'()]+)/im) || [])[1]?.toLowerCase()
+      const box = all.find((a) => m.includes(a)) ?? (m.length === 1 ? m[0] : "")
+      const sender = fromLine ?? all.find((a) => !m.includes(a)) ?? ""
+      setStaged({ file: null, extra: others, from_email: sender, subject: (text.match(/^Subject:\s*(.+)$/im) || [])[1] ?? "", body_text: text, mailbox: box, fileAttachments: [] })
       return
     }
     setMsg({ ok: false, text: `That drag didn't carry a file or text${types.length ? ` (it only carried: ${types.join(", ")})` : ""}. Your mail app handed over a link, not the email itself. Drag the email onto your desktop first, or copy its text and paste it here (Ctrl/Cmd+V).` })
   }
-  takeRef.current = (f, t, ty) => { void take(f, t, ty) }
+  takeRef.current = (f, t, ty, u) => { void take(f, t, ty, u) }
 
   /** Step 2: run the workflow. */
   async function process() {
@@ -121,7 +147,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
     if (freightRequestId) fd.set("freight_request_id", freightRequestId)
     if (staged.file) fd.set("file", staged.file)
     for (const f of staged.extra) fd.append("extra", f)
-    fd.set("overrides", JSON.stringify({ from_email: staged.from_email, subject: staged.subject, body_text: staged.body_text, mailbox: staged.mailbox }))
+    fd.set("overrides", JSON.stringify({ from_email: staged.from_email, subject: staged.subject, body_text: staged.body_text, mailbox: staged.mailbox, message_id: staged.message_id }))
     try {
       const r = await fetch("/api/inbound/email", { method: "POST", body: fd })
       const j = await r.json().catch(() => ({}))
@@ -177,6 +203,9 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
             </p>
             <button onClick={() => { setStaged(null); setMsg(null) }} aria-label="Cancel" style={{ color: "var(--text-muted)" }}><X className="h-4 w-4" /></button>
           </div>
+          {staged.hint && (
+            <p className="rounded px-2 py-1.5" style={{ background: "rgba(245,158,11,0.12)", color: "#b45309" }}>{staged.hint}</p>
+          )}
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="space-y-1"><span style={{ color: "var(--text-muted)" }}>Sender email</span>
               <input value={staged.from_email} onChange={(e) => upd({ from_email: e.target.value })} className={field} style={fstyle} placeholder="name@company.com" /></label>
@@ -205,7 +234,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => { setStaged(null); setMsg(null) }} className="rounded px-3 py-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-            <button onClick={() => void process()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email}
+            <button onClick={() => void process()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
               className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
               {busy === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {busy === "processing" ? "Processing…" : kind === "request" ? "Process request" : "Process quote"}

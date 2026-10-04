@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
     subject: ov.subject != null ? str(ov.subject) : mail.subject,
     body_text: ov.body_text != null ? String(ov.body_text) : mail.body_text,
     date: str(ov.date) || mail.date,
+    message_id: str(ov.message_id) || mail.message_id,
   }
   const chosen = str(ov.mailbox).toLowerCase()
   const matched = chosen && mailboxes.includes(chosen) ? chosen : fromFile
