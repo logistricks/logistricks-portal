@@ -387,3 +387,82 @@
   html { scroll-behavior: auto; }
   .anim-ship, .anim-plane, .anim-truck, .anim-ship-slow, .anim-float { animation: none; }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Hover & press micro-interactions
+   Simple, fast, theme-aware: everything is driven by --brand-accent, so it
+   follows the colours set in Settings → Theme. Uses the individual `translate`
+   / `scale` properties so it never fights an element's own `transform`.
+   ─────────────────────────────────────────────────────────────────────────── */
+button:not(:disabled), [role="button"], summary, select, label[for], input[type="checkbox"], input[type="radio"] {
+  cursor: pointer;
+}
+button, [role="button"], a[href], summary, select {
+  transition: translate .16s cubic-bezier(.2,.8,.3,1), scale .16s cubic-bezier(.2,.8,.3,1),
+              box-shadow .18s ease, filter .18s ease,
+              background-color .18s ease, color .18s ease, border-color .18s ease, opacity .18s ease;
+}
+
+@media (hover: hover) {
+  /* Buttons: gentle lift + soft accent glow */
+  button:not(:disabled):not([role="tab"]):not([role="menuitem"]):not([role="option"]):not([role="switch"]):hover,
+  [role="button"]:not([aria-disabled="true"]):hover {
+    translate: 0 -1px;
+    box-shadow: 0 6px 14px -6px var(--brand-accent-ring, rgba(232,130,26,.35));
+    filter: brightness(1.04);
+  }
+  /* Icon-only buttons (close, refresh, row actions): a small pop instead of a lift */
+  button:not(:disabled):has(> svg:only-child):hover {
+    translate: 0 0;
+    scale: 1.12;
+    box-shadow: none;
+  }
+  /* Switches / tabs / menu items: just a soft glow, no movement */
+  button[role="switch"]:not(:disabled):hover { box-shadow: 0 0 0 4px var(--brand-accent-ring, rgba(232,130,26,.2)); }
+  button[role="tab"]:hover, button[role="menuitem"]:hover, button[role="option"]:hover { filter: brightness(1.06); }
+
+  /* Icons that sit next to text inside a button nudge slightly */
+  button:not(:disabled):hover > svg:not(:only-child) { transform: translateX(1px) scale(1.06); }
+  button > svg { transition: transform .18s cubic-bezier(.2,.8,.3,1); }
+
+  /* Clickable cards and table rows */
+  a.ds-card:hover, button.ds-card:hover, .ds-card[role="button"]:hover {
+    translate: 0 -2px;
+    box-shadow: 0 10px 24px -12px var(--brand-accent-ring, rgba(232,130,26,.35));
+    border-color: var(--brand-accent);
+  }
+  .ds-table tbody tr { transition: background .12s, box-shadow .16s ease; }
+  .ds-table tbody tr:hover { box-shadow: inset 3px 0 0 var(--brand-accent); }
+
+  /* Plain text links: accent underline that draws in from the left */
+  a[href]:not([class*="bg-"]):not([class*="rounded"]):not([class*="flex"]):not([class*="grid"]):not([class*="block"]):not([class*="ds-"]) {
+    background-image: linear-gradient(var(--brand-accent), var(--brand-accent));
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 0% 1.5px;
+    transition: background-size .22s ease, color .18s ease;
+  }
+  a[href]:not([class*="bg-"]):not([class*="rounded"]):not([class*="flex"]):not([class*="grid"]):not([class*="block"]):not([class*="ds-"]):hover {
+    background-size: 100% 1.5px;
+  }
+}
+
+/* Press feedback (touch and mouse) */
+button:not(:disabled):not([role="switch"]):active, [role="button"]:not([aria-disabled="true"]):active {
+  translate: 0 0;
+  scale: .97;
+  box-shadow: none;
+  filter: brightness(.97);
+  transition-duration: .06s;
+}
+
+/* Keyboard focus follows the theme */
+button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summary:focus-visible, select:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button, [role="button"], a[href], summary, select, button > svg { transition-duration: .01ms !important; }
+  button:hover, [role="button"]:hover, button:active, a.ds-card:hover { translate: none !important; scale: none !important; }
+}
