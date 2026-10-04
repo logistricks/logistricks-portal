@@ -126,7 +126,6 @@ export function Select({
           ref={listRef}
           role="listbox"
           className="absolute left-0 top-full z-50 mt-1 max-h-56 w-full overflow-y-auto rounded border border-[#E2E8F0] bg-white shadow-xl dark:border-[#1E3A5F] dark:bg-[#0D1B2A]"
-          style={{ animation: "sel-in 0.12s ease-out" }}
         >
           {options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-[#94A3B8]">No options</li>

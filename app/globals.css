@@ -466,3 +466,48 @@ button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summ
   button, [role="button"], a[href], summary, select, button > svg { transition-duration: .01ms !important; }
   button:hover, [role="button"]:hover, button:active, a.ds-card:hover { translate: none !important; scale: none !important; }
 }
+
+/* ------------------------------------------------------------------
+   Pop-up entrances — modals, drawers, dropdowns, popovers, toasts.
+   Pure CSS, runs when the element mounts. Uses the individual
+   `translate`/`scale` properties so it never fights an element's own
+   transform. Backdrop tint comes from the element itself, so it fades.
+   ------------------------------------------------------------------ */
+@keyframes lt-fade-in   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lt-pop-in    { from { opacity: 0; translate: 0 10px; scale: .96; } to { opacity: 1; translate: 0 0; scale: 1; } }
+@keyframes lt-drop-in   { from { opacity: 0; translate: 0 -6px; scale: .97; } to { opacity: 1; translate: 0 0; scale: 1; } }
+@keyframes lt-ring-in   { 0% { box-shadow: 0 0 0 0 var(--brand-accent-ring, rgba(232,130,26,.18)); } 100% { box-shadow: 0 0 0 6px transparent; } }
+
+/* Full-screen overlays (modals / dialogs): backdrop fades, panel pops up */
+[class*="fixed"][class*="inset-0"] {
+  animation: lt-fade-in .18s ease-out both;
+}
+[class*="fixed"][class*="inset-0"] > :not([class*="inset-0"]) {
+  animation: lt-pop-in .26s cubic-bezier(.2,.9,.3,1.12) both;
+  transform-origin: 50% 40%;
+}
+
+/* Dropdowns, menus, popovers anchored to a trigger */
+[class*="absolute"][class*="z-50"][class*="shadow"],
+[role="listbox"], [role="menu"] {
+  animation: lt-drop-in .16s cubic-bezier(.2,.8,.3,1) both;
+  transform-origin: top center;
+}
+[class*="absolute"][class*="right-0"][class*="z-50"][class*="shadow"] { transform-origin: top right; }
+
+/* Toasts / alerts: slide in from the right with a brief accent ring */
+[role="alert"] {
+  animation: toast-in .28s cubic-bezier(.2,.9,.3,1.1) both, lt-ring-in .7s ease-out .05s both;
+}
+
+/* Inline messages that appear (errors, success lines) */
+[role="status"] { animation: lt-drop-in .2s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="fixed"][class*="inset-0"],
+  [class*="fixed"][class*="inset-0"] > *,
+  [class*="absolute"][class*="z-50"][class*="shadow"],
+  [role="listbox"], [role="menu"], [role="alert"], [role="status"] {
+    animation-duration: .01ms !important;
+  }
+}

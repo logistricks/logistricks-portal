@@ -95,7 +95,6 @@ function ToastItem({ id, variant, title, message, url, onDismiss }: Toast & { on
     <div
       role="alert"
       className="relative flex w-80 overflow-hidden rounded border border-[#E2E8F0] bg-white shadow-xl dark:border-[#1E3A5F] dark:bg-[#111E33]"
-      style={{ animation: "toast-in 0.18s ease-out" }}
     >
       <div className={`w-1 shrink-0 ${s.bar}`} />
       <div className="flex flex-1 items-start gap-3 px-3.5 py-3">
