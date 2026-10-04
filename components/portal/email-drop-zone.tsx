@@ -39,6 +39,8 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   const [busy, setBusy] = useState<"" | "reading" | "processing">("")
   const [staged, setStaged] = useState<Staged | null>(null)
   const [mailboxes, setMailboxes] = useState<string[]>([])
+  const mbRef = useRef<string[]>([])
+  useEffect(() => { mbRef.current = mailboxes }, [mailboxes])
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   // Anything dropped anywhere on the page is taken by the portal — never by the browser, which would otherwise
@@ -87,12 +89,14 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
     return () => window.removeEventListener("paste", onPaste)
   })
 
+  // Loaded as soon as the page opens, so a drop never has to wait on the network (Safari kills the page if it does).
+  useEffect(() => { void loadMailboxes() }, [])
   async function loadMailboxes(): Promise<string[]> {
-    if (mailboxes.length) return mailboxes
+    if (mbRef.current.length) return mbRef.current
     try {
       const r = await fetch("/api/inbound/email"); const j = await r.json()
       const m: string[] = Array.isArray(j.mailboxes) ? j.mailboxes : []
-      setMailboxes(m); return m
+      mbRef.current = m; setMailboxes(m); return m
     } catch { return [] }
   }
 
@@ -107,14 +111,14 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
     // Treat it like Apple Mail's link: keep the subject from the file name, ask for the body by paste.
     const empty = files.find((f) => isMail(f) && f.size === 0)
     if (empty && !staged) {
-      crumb("empty file path: loading mailboxes")
-      const m = await loadMailboxes()
-      crumb("mailboxes loaded")
+      crumb("empty file path: no waiting")
+      const m = mbRef.current
       setStaged({
         file: null, extra: files.filter((f) => !isMail(f)), from_email: "", mailbox: m.length === 1 ? m[0] : "", fileAttachments: [],
         subject: empty.name.replace(/\.(eml|msg)$/i, "").replace(/\s\d{1,2}$/, "").trim(), body_text: "",
         hint: "Your browser sent the email as an empty placeholder file (Safari does this with Apple Mail), so only the subject came through. Open the email in Mail, press Cmd+A then Cmd+C, and paste it here with Cmd+V (click outside the boxes first). Add the PDF too if there is one. Chrome can read the file directly if you drag from Outlook.",
       })
+      crumb("staged ok")
       return
     }
     const real = files.filter((f) => !(isMail(f) && f.size === 0))
