@@ -49,7 +49,9 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   const depth = useRef(0)
   const takeRef = useRef<(files: File[], text: string, types: string[], uri: string) => void>(() => {})
   useEffect(() => {
-    const has = (e: DragEvent) => !!e.dataTransfer && e.dataTransfer.types.length > 0
+    // A file dropped on the box itself is handled by the browser's own file input (Safari can't read Mail's drags in script).
+    const native = (e: DragEvent) => (e.target as HTMLElement | null)?.dataset?.ltDrop === "1" && !!e.dataTransfer && Array.from(e.dataTransfer.types).indexOf("Files") >= 0
+    const has = (e: DragEvent) => !!e.dataTransfer && e.dataTransfer.types.length > 0 && !native(e)
     const enter = (e: DragEvent) => { if (has(e)) { e.preventDefault(); depth.current++; setDragging(true) } }
     const leave = () => { depth.current = Math.max(0, depth.current - 1); if (depth.current === 0) setDragging(false) }
     const over = (e: DragEvent) => { if (has(e)) e.preventDefault() }
@@ -231,11 +233,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
       )}
       {!staged && (
         <div
-          onDragOver={() => setOver(true)}
-          onDragLeave={() => setOver(false)}
-          onDrop={() => setOver(false)}
-          onClick={() => !busy && input.current?.click()}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${compact ? "px-3 py-2" : "px-4 py-4"}`}
+          className={`relative flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${compact ? "px-3 py-2" : "px-4 py-4"}`}
           style={{ borderColor: over ? "var(--brand-accent)" : "var(--card-border)", background: over ? "rgba(59,130,246,0.06)" : "transparent", color: "var(--text-secondary)" }}
         >
           <span className="flex items-center gap-2">
@@ -248,17 +246,20 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
             <ClipboardPaste className="h-3 w-3" /> Web mail / Apple Mail: copy the email text (Cmd+A, Cmd+C in the email) and paste it here (Cmd/Ctrl+V), then add its PDFs
           </span>
           <button type="button" onClick={(e) => { e.stopPropagation(); void pasteFromClipboard() }}
-            className="mt-1 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold"
+            className="relative z-20 mt-1 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold"
             style={{ borderColor: "var(--card-border)", color: "var(--brand-accent)" }}>
             <ClipboardPaste className="h-3 w-3" /> Paste copied email
           </button>
           {safari && (
             <span className="mt-1 text-center text-[11px] font-normal" style={{ color: "#b45309" }}>
-              Safari: please don&apos;t drag emails out of Apple Mail — Safari reloads the page. Use the copy &amp; paste button above (or Chrome).
+              Safari: drop the email onto this box itself (not elsewhere on the page). If Mail only sends the subject, use the copy &amp; paste button.
             </span>
           )}
-          <input ref={input} type="file" accept=".eml,.msg,.pdf,image/*" multiple hidden onClick={(e) => e.stopPropagation()}
-            onChange={(e) => { if (e.target.files) void take(Array.from(e.target.files)); e.target.value = "" }} />
+          {/* The real drop target: a native file input stretched over the box. Dropping or clicking both land here. */}
+          <input ref={input} data-lt-drop="1" type="file" accept=".eml,.msg,.pdf,image/*" multiple title="Drop an email here or click to choose a file"
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+            onDragEnter={() => setOver(true)} onDragLeave={() => setOver(false)} onDrop={() => setOver(false)}
+            onChange={(e) => { const f = e.target.files ? Array.from(e.target.files) : []; e.target.value = ""; if (f.length) void take(f) }} />
         </div>
       )}
 
