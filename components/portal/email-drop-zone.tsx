@@ -95,8 +95,21 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   }
   async function take2(files: File[], text = "", types: string[] = [], uri = "") {
     setMsg(null)
-    const mail = files.find(isMail)
-    const others = files.filter((f) => !isMail(f))
+    // Safari hands over Mail's message as a placeholder file of 0 bytes that cannot be read (uploading it kills the page).
+    // Treat it like Apple Mail's link: keep the subject from the file name, ask for the body by paste.
+    const empty = files.find((f) => isMail(f) && f.size === 0)
+    if (empty && !staged) {
+      const m = await loadMailboxes()
+      setStaged({
+        file: null, extra: files.filter((f) => !isMail(f)), from_email: "", mailbox: m.length === 1 ? m[0] : "", fileAttachments: [],
+        subject: empty.name.replace(/\.(eml|msg)$/i, "").replace(/\s\d{1,2}$/, "").trim(), body_text: "",
+        hint: "Your browser sent the email as an empty placeholder file (Safari does this with Apple Mail), so only the subject came through. Open the email in Mail, press Cmd+A then Cmd+C, and paste it here with Cmd+V (click outside the boxes first). Add the PDF too if there is one. Chrome can read the file directly if you drag from Outlook.",
+      })
+      return
+    }
+    const real = files.filter((f) => !(isMail(f) && f.size === 0))
+    const mail = real.find(isMail)
+    const others = real.filter((f) => !isMail(f))
     // More attachments for something already staged.
     if (staged && !mail) {
       const fill = text.trim() && !staged.body_text.trim()
