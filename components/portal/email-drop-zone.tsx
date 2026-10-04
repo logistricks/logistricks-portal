@@ -22,6 +22,10 @@ type Staged = {
   hint?: string
 }
 
+/** Appends a step to the drop breadcrumb (read back on the next load if the page died mid-drop). */
+function crumb(step: string) {
+  try { const v = JSON.parse(localStorage.getItem("lt_drop_dbg") || "null"); if (v) { v.steps = [...(v.steps || []), step]; localStorage.setItem("lt_drop_dbg", JSON.stringify(v)) } } catch { /* ignore */ }
+}
 const isMail = (f: File) => /\.(eml|msg)$/i.test(f.name)
 const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
 
@@ -51,7 +55,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
       if (!has(e)) return
       e.preventDefault(); depth.current = 0; setDragging(false)
       try { localStorage.setItem("lt_drop_dbg", JSON.stringify({ at: new Date().toISOString(), ua: navigator.userAgent.slice(0, 90), types: Array.from(e.dataTransfer!.types), files: Array.from(e.dataTransfer!.files || []).map((f) => `${f.name}|${f.type}|${f.size}`), uri: (e.dataTransfer!.getData("text/uri-list") || "").slice(0, 120) })) } catch { /* private mode */ }
-      takeRef.current(Array.from(e.dataTransfer!.files || []), e.dataTransfer!.getData("text/plain") || "", Array.from(e.dataTransfer!.types), e.dataTransfer!.getData("text/uri-list") || "")
+      crumb("drop recorded (v4); calling take"); takeRef.current(Array.from(e.dataTransfer!.files || []), e.dataTransfer!.getData("text/plain") || "", Array.from(e.dataTransfer!.types), e.dataTransfer!.getData("text/uri-list") || "")
     }
     window.addEventListener("dragenter", enter); window.addEventListener("dragleave", leave)
     window.addEventListener("dragover", over); window.addEventListener("drop", drop)
@@ -64,7 +68,10 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
     try { const v = localStorage.getItem("lt_drop_dbg"); if (v) { setCrash(v); localStorage.removeItem("lt_drop_dbg") } } catch { /* ignore */ }
     const onErr = (e: ErrorEvent) => { try { const v = JSON.parse(localStorage.getItem("lt_drop_dbg") || "null"); if (v) localStorage.setItem("lt_drop_dbg", JSON.stringify({ ...v, error: `${e.message} @${e.lineno}` })) } catch { /* ignore */ } }
     window.addEventListener("error", onErr)
-    return () => window.removeEventListener("error", onErr)
+    const bu = () => crumb("beforeunload — the page is navigating away or reloading")
+    const ph = () => crumb("pagehide")
+    window.addEventListener("beforeunload", bu); window.addEventListener("pagehide", ph)
+    return () => { window.removeEventListener("error", onErr); window.removeEventListener("beforeunload", bu); window.removeEventListener("pagehide", ph) }
   }, [])
 
   // Ctrl/Cmd+V anywhere on the page (outside text fields) starts a pasted email.
@@ -94,12 +101,15 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
     try { await take2(files, text, types, uri) } finally { try { localStorage.removeItem("lt_drop_dbg") } catch { /* ignore */ } }
   }
   async function take2(files: File[], text = "", types: string[] = [], uri = "") {
+    crumb("take2 start")
     setMsg(null)
     // Safari hands over Mail's message as a placeholder file of 0 bytes that cannot be read (uploading it kills the page).
     // Treat it like Apple Mail's link: keep the subject from the file name, ask for the body by paste.
     const empty = files.find((f) => isMail(f) && f.size === 0)
     if (empty && !staged) {
+      crumb("empty file path: loading mailboxes")
       const m = await loadMailboxes()
+      crumb("mailboxes loaded")
       setStaged({
         file: null, extra: files.filter((f) => !isMail(f)), from_email: "", mailbox: m.length === 1 ? m[0] : "", fileAttachments: [],
         subject: empty.name.replace(/\.(eml|msg)$/i, "").replace(/\s\d{1,2}$/, "").trim(), body_text: "",
