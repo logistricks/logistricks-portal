@@ -141,12 +141,14 @@ function EditableFieldRow({
   value,
   lockReason,
   onSaved,
+  optional,
 }: {
   requestId: string
   label: string
   value: string | null
   lockReason: string | null
   onSaved: (field: string, newVal: string) => void
+  optional?: boolean
 }) {
   const display = value && value !== "—" ? value : null
   const [editing, setEditing]   = useState(false)
@@ -211,8 +213,8 @@ function EditableFieldRow({
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-end gap-1.5">
-          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: display ? "var(--text-primary)" : "#ef4444" }}>
-            {display ?? "— Missing"}
+          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: display ? "var(--text-primary)" : optional ? "var(--text-muted)" : "#ef4444" }}>
+            {display ?? (optional ? "— only needed for EXW" : "— Missing")}
           </span>
           {LABEL_TO_FIELD[label] && (
             lockReason ? (
@@ -512,7 +514,7 @@ export default function RequestDetailPage() {
                   { label: "Dimensions",            camel: "dimensions" },
                   { label: "Equipment / Container", camel: "equipment" },
                   { label: "Incoterm",              camel: "incoterm" },
-                  ...(isExw(curIncoterm) ? [{ label: "Pickup Address (EXW)", camel: "pickupAddress" }] : []),
+                  { label: "Pickup Address (EXW)", camel: "pickupAddress" },
                   { label: "BL Type",               camel: "blType" },
                   { label: "Preferred Carrier",     camel: "preferredCarrier" },
                 ]
@@ -551,6 +553,7 @@ export default function RequestDetailPage() {
                           value={fieldValues[camel] ?? null}
                           lockReason={fieldLockReason}
                           onSaved={handleFieldSaved}
+                          optional={camel === "pickupAddress" && !isExw(curIncoterm)}
                         />
                       ))}
                     </div>

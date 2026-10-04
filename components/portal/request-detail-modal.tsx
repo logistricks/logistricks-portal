@@ -1,6 +1,6 @@
 "use client"
 
-import { isSeaOnly, exwNeedsAddress, EXW_ALERT } from "@/lib/shipment-labels"
+import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
 import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
 import {
@@ -83,6 +83,8 @@ const FIELD_MAP: Record<string, { getValue: (r: FreightRequest) => string | null
   equipment:  { getValue: (r) => r.equipment,  label: "Equipment / container type" },
   incoterm:   { getValue: (r) => r.incoterm,   label: "Incoterm" },
   bl_type:    { getValue: (r) => r.blType,     label: "BL type" },
+  // Only required when the shipment is EXW (non-EXW counts as filled).
+  pickup_address: { getValue: (r) => (isExw(r.incoterm) ? (r.pickupAddress || null) : "n/a"), label: "Pickup address (EXW)" },
 }
 
 /* ── Sub-components ─────────────────────────────────────────── */
@@ -108,6 +110,7 @@ const LABEL_TO_FIELD: Record<string, string> = {
   "Quantity":      "quantity",
   "Dimensions":    "dimensions",
   "Incoterm":      "incoterm",
+  "Pickup address (EXW)": "pickup_address",
   "BL Type":       "bl_type",
   "Pref. Carrier": "preferred_carrier",
 }
@@ -118,12 +121,14 @@ function EditableFieldRow({
   value,
   lockReason,
   onSaved,
+  optional,
 }: {
   requestId: string
   label: string
   value: string | null
   lockReason: string | null   // null = editable; string = tooltip message
   onSaved: (field: string, newVal: string) => void
+  optional?: boolean
 }) {
   const display = parseArrayField(value)
   const missing = !display || display === "—"
@@ -189,8 +194,8 @@ function EditableFieldRow({
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-end gap-1.5">
-          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: missing ? "#ef4444" : "var(--text-primary)" }}>
-            {missing ? "— Missing" : display}
+          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: missing ? (optional ? "var(--text-muted)" : "#ef4444") : "var(--text-primary)" }}>
+            {missing ? (optional ? "— only needed for EXW" : "— Missing") : display}
           </span>
           {LABEL_TO_FIELD[label] && (
             lockReason ? (
@@ -560,6 +565,7 @@ export function RequestDetailModal({
     incoterm:         request.incoterm,
     blType:           request.blType,
     preferredCarrier: request.preferredCarrier,
+    pickupAddress:    request.pickupAddress ?? "",
   })
 
   function handleFieldSaved(field: string, newVal: string) {
@@ -567,7 +573,7 @@ export function RequestDetailModal({
     const DB_TO_CAMEL: Record<string, string> = {
       cargo_type: "cargoType", equipment: "equipment", weight: "weight",
       quantity: "quantity", dimensions: "dimensions", incoterm: "incoterm",
-      bl_type: "blType", preferred_carrier: "preferredCarrier",
+      bl_type: "blType", preferred_carrier: "preferredCarrier", pickup_address: "pickupAddress",
     }
     const camel = DB_TO_CAMEL[field] ?? field
     setFieldValues((prev) => ({ ...prev, [camel]: newVal }))
@@ -581,6 +587,7 @@ export function RequestDetailModal({
     { label: "Quantity",     value: fieldValues.quantity },
     { label: "Dimensions",   value: fieldValues.dimensions },
     { label: "Incoterm",     value: fieldValues.incoterm },
+    { label: "Pickup address (EXW)", value: fieldValues.pickupAddress },
     { label: "BL Type",      value: fieldValues.blType },
     { label: "Pref. Carrier",value: fieldValues.preferredCarrier },
   ]
@@ -723,6 +730,7 @@ export function RequestDetailModal({
                         value={f.value ?? null}
                         lockReason={fieldLockReason}
                         onSaved={handleFieldSaved}
+                        optional={f.label === "Pickup address (EXW)" && !isExw(fieldValues.incoterm)}
                       />
                     ))}
                   </div>
