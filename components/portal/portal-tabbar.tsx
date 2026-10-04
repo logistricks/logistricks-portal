@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CheckSquare, FileText, LayoutDashboard, MailCheck, Settings2, Unlink, Users } from "lucide-react"
+import { CheckSquare, FileText, LayoutDashboard, BarChart3, MailCheck, Settings2, Unlink, Users } from "lucide-react"
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const nav = [
   { label: "Quotes", href: "/unlinked-quotes", icon: Unlink },
   { label: "Approvals", href: "/approvals", icon: CheckSquare },
   { label: "Users", href: "/users", icon: Users },
+  { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings", icon: Settings2 },
   { label: "Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
 ]

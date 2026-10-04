@@ -1,5 +1,6 @@
 "use client"
 
+import { BrandingCard } from "@/components/portal/branding-card"
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase"
@@ -845,6 +846,8 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
           {/* Controls */}
           <div className="space-y-4 lg:col-span-2">
+            <BrandingCard />
+
             {/* Color variables */}
             <div className="rounded-xl border p-5" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
               <h3 className="mb-0.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Color Variables</h3>

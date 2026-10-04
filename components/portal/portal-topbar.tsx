@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
+import { useBranding } from "@/lib/use-branding"
 import { NotificationBell } from "@/components/portal/notification-bell"
 
 function initials(name: string): string {
@@ -21,6 +22,7 @@ export function PortalTopbar() {
   const [approvalCount, setApprovalCount] = useState<number>(0)
   const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
   const [displayName, setDisplayName]     = useState<string>("")
+  const branding = useBranding()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export function PortalTopbar() {
     { label: "Approvals",   href: "/approvals",        badge: approvalCount },
     { label: "Auto Reply",  href: "/auto-reply-logs" },
     { label: "Users",       href: "/users" },
+    { label: "Reports",     href: "/reports" },
     { label: "Settings",    href: "/settings",         exact: true },
   ]
 
@@ -79,19 +82,17 @@ export function PortalTopbar() {
       >
         {/* Logo */}
         <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 select-none">
-          <img
-            src="/logistricks-mark.svg"
-            alt="Logistricks"
-            width={36}
-            height={36}
-            style={{ display: "block", flexShrink: 0 }}
-          />
-          <div className="hidden sm:block">
+          {branding.logo && (
+            <span className="flex h-9 shrink-0 items-center rounded-md bg-white px-1.5">
+              <img src={branding.logo} alt={branding.displayName || "Logo"} className="max-h-7 max-w-[120px] object-contain" />
+            </span>
+          )}
+          <div>
             <div
               className="text-[17px] font-black tracking-tight text-white leading-none"
               style={{ fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "0.02em" }}
             >
-              Logis<span style={{ color: "#E8821A" }}>tricks</span>
+              LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span>
             </div>
             <div className="text-[9px] font-semibold uppercase tracking-[0.15em] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
               Freight Portal

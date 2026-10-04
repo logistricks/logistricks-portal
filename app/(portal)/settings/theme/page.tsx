@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, Copy, RefreshCw, RotateCcw } from "lucide-react"
+import { BrandingCard } from "@/components/portal/branding-card"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface ThemeColors {
@@ -328,6 +329,8 @@ export default function ThemeSettingsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* ── Left: Controls ── */}
         <div className="space-y-5 lg:col-span-2">
+          <BrandingCard />
+
           {/* Color variables */}
           <div className="ds-card p-5">
             <h2 className="mb-0 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Color Variables</h2>
