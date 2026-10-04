@@ -35,12 +35,24 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   const [mailboxes, setMailboxes] = useState<string[]>([])
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
-  // A file dropped anywhere outside the zone would make the browser open it and leave the page: block that.
+  // Anything dropped anywhere on the page is taken by the portal — never by the browser, which would otherwise
+  // open the file / link (e.g. Apple Mail's message:// link) and leave the page. A full-page overlay shows while dragging.
+  const [dragging, setDragging] = useState(false)
+  const depth = useRef(0)
+  const takeRef = useRef<(files: File[], text: string, types: string[]) => void>(() => {})
   useEffect(() => {
-    const stop = (e: DragEvent) => { if (e.dataTransfer?.types?.includes("Files")) e.preventDefault() }
-    window.addEventListener("dragover", stop)
-    window.addEventListener("drop", stop)
-    return () => { window.removeEventListener("dragover", stop); window.removeEventListener("drop", stop) }
+    const has = (e: DragEvent) => !!e.dataTransfer && e.dataTransfer.types.length > 0
+    const enter = (e: DragEvent) => { if (has(e)) { depth.current++; setDragging(true) } }
+    const leave = () => { depth.current = Math.max(0, depth.current - 1); if (depth.current === 0) setDragging(false) }
+    const over = (e: DragEvent) => { if (has(e)) e.preventDefault() }
+    const drop = (e: DragEvent) => {
+      if (!has(e)) return
+      e.preventDefault(); depth.current = 0; setDragging(false)
+      takeRef.current(Array.from(e.dataTransfer!.files || []), e.dataTransfer!.getData("text/plain") || "", Array.from(e.dataTransfer!.types))
+    }
+    window.addEventListener("dragenter", enter); window.addEventListener("dragleave", leave)
+    window.addEventListener("dragover", over); window.addEventListener("drop", drop)
+    return () => { window.removeEventListener("dragenter", enter); window.removeEventListener("dragleave", leave); window.removeEventListener("dragover", over); window.removeEventListener("drop", drop) }
   }, [])
 
   // Ctrl/Cmd+V anywhere on the page (outside text fields) starts a pasted email.
@@ -66,7 +78,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
   }
 
   /** Step 1: take whatever was dropped / pasted. */
-  async function take(files: File[], text = "") {
+  async function take(files: File[], text = "", types: string[] = []) {
     setMsg(null)
     const mail = files.find(isMail)
     const others = files.filter((f) => !isMail(f))
@@ -96,8 +108,9 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
       setStaged({ file: null, extra: others, from_email: sender, subject: (text.match(/^Subject:\s*(.+)$/im) || [])[1] ?? "", body_text: text, mailbox: m.length === 1 ? m[0] : "", fileAttachments: [] })
       return
     }
-    setMsg({ ok: false, text: "That drag didn't carry a file or text. Drop an .eml / .msg file, or copy the email text and paste it here (Ctrl/Cmd+V)." })
+    setMsg({ ok: false, text: `That drag didn't carry a file or text${types.length ? ` (it only carried: ${types.join(", ")})` : ""}. Your mail app handed over a link, not the email itself. Drag the email onto your desktop first, or copy its text and paste it here (Ctrl/Cmd+V).` })
   }
+  takeRef.current = (f, t, ty) => { void take(f, t, ty) }
 
   /** Step 2: run the workflow. */
   async function process() {
@@ -125,14 +138,19 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
 
   return (
     <div>
+      {dragging && (
+        <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center" style={{ background: "rgba(15,23,42,0.55)" }}>
+          <div className="rounded-2xl border-2 border-dashed px-10 py-8 text-center text-white" style={{ borderColor: "var(--brand-accent)", background: "rgba(15,23,42,0.85)" }}>
+            <MailPlus className="mx-auto mb-2 h-8 w-8" />
+            <p className="text-base font-semibold">Drop the email anywhere to add it</p>
+          </div>
+        </div>
+      )}
       {!staged && (
         <div
-          onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+          onDragOver={() => setOver(true)}
           onDragLeave={() => setOver(false)}
-          onDrop={(e) => {
-            e.preventDefault(); e.stopPropagation(); setOver(false)
-            void take(Array.from(e.dataTransfer.files || []), e.dataTransfer.getData("text/plain") || "")
-          }}
+          onDrop={() => setOver(false)}
           onClick={() => !busy && input.current?.click()}
           className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${compact ? "px-3 py-2" : "px-4 py-4"}`}
           style={{ borderColor: over ? "var(--brand-accent)" : "var(--card-border)", background: over ? "rgba(59,130,246,0.06)" : "transparent", color: "var(--text-secondary)" }}
