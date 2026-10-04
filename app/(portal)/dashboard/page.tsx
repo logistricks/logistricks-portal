@@ -5,31 +5,20 @@ import { useEffect, useMemo, useState } from "react"
 import {
   ArrowUpRight,
   ArrowDownRight,
-  Calendar,
-  Clock,
   Download,
-  Inbox,
+  Maximize2,
   MoreHorizontal,
+  RefreshCw,
   Search,
-  DollarSign,
-  PackageCheck,
 } from "lucide-react"
 import { SourceBadge, StatusBadge } from "@/components/portal/badges"
 import { type FreightRequest } from "@/lib/portal-data"
 import { type DashboardStats, formatRelative } from "@/lib/supabase-queries"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
-
-interface MonthlyCount {
-  month: string
-  shipments: number
-  delivered: number
-  isCurrent: boolean
-}
-
-interface ExtendedStats extends DashboardStats {
-  monthlyCounts?: MonthlyCount[]
-}
+import { BigDashboard, KpiTile, MainCharts, RangeFilter, useDashboard } from "@/components/portal/dashboard-parts"
+import { makeRange, money, hours, type DashRange } from "@/lib/dashboard-range"
+import { CHART_COLORS } from "@/components/portal/charts"
 
 interface ActivityItem {
   id: number
@@ -38,117 +27,13 @@ interface ActivityItem {
   event_type: string
 }
 
-function KPICard({
-  label, value, delta, deltaPositive, color, icon: Icon, loading,
-}: {
-  label: string
-  value: number | string
-  delta?: string
-  deltaPositive?: boolean
-  color: string
-  icon: React.ElementType
-  loading?: boolean
-}) {
-  return (
-    <div className="ds-card p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]"
-          style={{ backgroundColor: color + "18" }}
-        >
-          <Icon className="h-[18px] w-[18px]" style={{ color }} />
-        </div>
-        {delta && !loading && (
-          <span
-            className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-            style={
-              deltaPositive
-                ? { background: "rgba(22,163,74,0.1)", color: "#16a34a" }
-                : { background: "rgba(220,38,38,0.1)", color: "#dc2626" }
-            }
-          >
-            {deltaPositive
-              ? <ArrowUpRight className="h-3 w-3" />
-              : <ArrowDownRight className="h-3 w-3" />}
-            {delta}
-          </span>
-        )}
-        {delta && loading && <Skeleton h={20} w={48} />}
-      </div>
-      {loading ? (
-        <Skeleton h={30} w={72} className="mb-1" />
-      ) : (
-        <p
-          className="text-[28px] font-bold tabular-nums leading-tight mb-1"
-          style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}
-        >
-          {value}
-        </p>
-      )}
-      <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-        {label}
-      </p>
-    </div>
-  )
-}
-
-function MonthlyBarChart({ data, loading }: { data: MonthlyCount[]; loading?: boolean }) {
-  const max = Math.max(...data.map((d) => Math.max(d.shipments, d.delivered)), 1)
-
-  if (loading || data.length === 0) {
-    const placeholders = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-    return (
-      <div className="flex items-end gap-1.5" style={{ height: 76 }}>
-        {placeholders.map((m, i) => (
-          <div key={m} className="flex flex-1 flex-col items-center gap-1">
-            <div className="w-full flex-1 flex flex-col justify-end">
-              <div
-                className="w-full rounded-t animate-pulse"
-                style={{ height: `${20 + (i * 12) % 70}%`, background: "var(--card-border)" }}
-              />
-            </div>
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{m}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex items-end gap-1.5" style={{ height: 76 }}>
-      {data.map((d) => {
-        const pShips = (d.shipments / max) * 100
-        const pDel = (d.delivered / max) * 100
-        return (
-          <div key={d.month} className="group relative flex flex-1 gap-[3px] items-end">
-            <div
-              className="flex-1 rounded-t transition-all duration-500"
-              style={{ height: `${pShips}%`, minHeight: d.shipments > 0 ? 3 : 0, background: "var(--brand-navy)", opacity: 0.8 }}
-              title={`${d.shipments} shipments`}
-            />
-            <div
-              className="flex-1 rounded-t transition-all duration-500"
-              style={{ height: `${pDel}%`, minHeight: d.delivered > 0 ? 3 : 0, background: "var(--brand-accent)" }}
-              title={`${d.delivered} delivered`}
-            />
-            <span
-              className="absolute -bottom-[18px] left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap"
-              style={{ color: d.isCurrent ? "var(--brand-accent)" : "var(--text-muted)" }}
-            >
-              {d.month}
-            </span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 const STATUS_FILTER_TABS = ["All", "New", "Pending", "Sent", "Quoted", "Delivered"]
 
 export default function DashboardPage() {
   const { error: toastError } = useToast()
-  const [stats, setStats] = useState<ExtendedStats | null>(null)
+  const [range, setRange] = useState<DashRange>(() => makeRange("month"))
+  const [big, setBig] = useState(false)
+  const { data: dash, loading: dashLoading, refreshing, error: dashError, reload } = useDashboard(range)
   const [recent, setRecent] = useState<FreightRequest[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -158,16 +43,9 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, reqRes, activityRes] = await Promise.all([
-          fetch("/api/stats"),
-          fetch("/api/requests"),
-          fetch("/api/activity?limit=5"),
-        ])
-        if (!statsRes.ok) throw new Error("Failed to load stats")
+        const [reqRes, activityRes] = await Promise.all([fetch("/api/requests"), fetch("/api/activity?limit=5")])
         if (!reqRes.ok) throw new Error("Failed to load requests")
-        const statsData = await statsRes.json()
         const reqData = await reqRes.json()
-        setStats(statsData)
         setRecent(Array.isArray(reqData) ? reqData : [])
         if (activityRes.ok) {
           const activityData = await activityRes.json()
@@ -180,17 +58,32 @@ export default function DashboardPage() {
       }
     }
     load()
+    const t = setInterval(() => { if (!document.hidden) load() }, 30_000)
+    return () => clearInterval(t)
   }, [toastError])
 
-  const total = stats?.total ?? 0
-  const pending = stats?.pending ?? 0
-  const active = stats?.active ?? 0
-  const deliveredThisMonth = stats?.deliveredThisMonth ?? 0
-  const revenueThisMonthLabel = stats?.revenueThisMonthLabel ?? "$0"
-  const monthlyCounts = stats?.monthlyCounts ?? []
+  useEffect(() => { if (dashError) toastError("Dashboard metrics failed", dashError) }, [dashError, toastError])
 
-  const filteredRecent = useMemo(() => {
-    let rows = recent
+  const total = recent.length
+  const inRange = useMemo(
+    () => recent.filter((r) => { const t = Date.parse(r.receivedIso); return isNaN(t) || (t >= range.from && t < range.to) }),
+    [recent, range.from, range.to],
+  )
+  const series = dash?.series ?? []
+  const col = (k: "requests" | "quotes" | "value") => series.map((x) => Number(x[k]) || 0)
+
+  function exportCsv() {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`
+    const rows = [["Ref", "Sender", "Origin", "Destination", "Cargo", "Status", "Received"],
+      ...filteredRecentAll.map((r) => [r.requestRef, r.senderName, r.originCity, r.destinationCity, r.cargoType, r.status, r.receivedIso])]
+    const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv" })
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(blob); a.download = `requests-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  const filteredRecentAll = useMemo(() => {
+    let rows = inRange
     if (activeTab !== "All") {
       rows = rows.filter((r) => {
         const s = r.status?.toLowerCase() ?? ""
@@ -210,83 +103,50 @@ export default function DashboardPage() {
           r.cargoType?.toLowerCase().includes(q)
       )
     }
-    return rows.slice(0, 8)
-  }, [recent, activeTab, search])
-
-  const now = new Date()
-  const monthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  const dateRangeLabel = `${monthStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${monthEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+    return rows
+  }, [inRange, activeTab, search])
+  const filteredRecent = useMemo(() => filteredRecentAll.slice(0, 8), [filteredRecentAll])
 
   return (
     <div className="portal-page p-6 space-y-5">
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2
-            className="text-[22px] font-bold tracking-tight"
-            style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}
-          >
+          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
             Shipment Overview
           </h2>
-          <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-            {monthLabel} · All active and recent freight
+          <p className="mt-0.5 flex items-center gap-2 text-[13px]" style={{ color: "var(--text-secondary)" }}>
+            {range.label} · live from your database
+            <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} style={{ color: "var(--text-muted)" }} />
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-medium transition-colors"
-            style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            {dateRangeLabel}
+        <div className="flex flex-wrap items-center gap-2">
+          <RangeFilter range={range} onChange={setRange} compact />
+          <button type="button" onClick={() => setBig(true)}
+            className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-semibold"
+            style={{ borderColor: "var(--brand-accent)", color: "var(--brand-accent)", background: "var(--card-bg)" }}>
+            <Maximize2 className="h-3.5 w-3.5" />
+            Full dashboard
           </button>
-          <button
-            className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-medium transition-colors"
-            style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}
-          >
+          <button type="button" onClick={exportCsv}
+            className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-medium"
+            style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
             <Download className="h-3.5 w-3.5" />
             Export
           </button>
         </div>
       </div>
 
-      {/* KPI Row — 4 tiles */}
+      {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPICard
-          loading={loading}
-          label="Active Shipments"
-          value={active}
-          delta={stats?.todayDelta ?? undefined}
-          deltaPositive
-          color="#E8821A"
-          icon={Inbox}
-        />
-        <KPICard
-          loading={loading}
-          label="Pending Quotes"
-          value={pending}
-          delta={pending > 0 ? "Needs attention" : undefined}
-          deltaPositive={false}
-          color="#dc2626"
-          icon={Clock}
-        />
-        <KPICard
-          loading={loading}
-          label="Delivered This Month"
-          value={deliveredThisMonth}
-          color="#16a34a"
-          icon={PackageCheck}
-        />
-        <KPICard
-          loading={loading}
-          label="Revenue This Month"
-          value={revenueThisMonthLabel}
-          color="#7c3aed"
-          icon={DollarSign}
-        />
+        <KpiTile loading={dashLoading && !dash} label="Requests received" kpi={dash?.kpis.requests} spark={col("requests")} />
+        <KpiTile loading={dashLoading && !dash} label="Carrier quotes" kpi={dash?.kpis.carrierQuotes} spark={col("quotes")} color={CHART_COLORS[1]} />
+        <KpiTile loading={dashLoading && !dash} label="Quoted value" kpi={dash?.kpis.quotedValue} format={money} spark={col("value")} color={CHART_COLORS[3]} hint="Sum of final prices on quotations sent" />
+        <KpiTile loading={dashLoading && !dash} label="Median time to quote" kpi={dash?.kpis.hoursToQuote} format={hours} lowerIsBetter color={CHART_COLORS[2]} hint="Request received → first quotation prepared" />
       </div>
+
+      {/* The 3 main charts */}
+      <MainCharts data={dash} loading={dashLoading} />
 
       {/* Main grid: table left, sidebar right */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
@@ -423,7 +283,7 @@ export default function DashboardPage() {
             style={{ borderTop: "1px solid var(--divider)" }}
           >
             <span className="text-[12.5px]" style={{ color: "var(--text-secondary)" }}>
-              {loading ? "Loading…" : `Showing ${filteredRecent.length} of ${total} requests`}
+              {loading ? "Loading…" : `Showing ${filteredRecent.length} of ${filteredRecentAll.length} in this period (${total} total)`}
             </span>
             <Link
               href="/requests"
@@ -437,28 +297,6 @@ export default function DashboardPage() {
 
         {/* Sidebar: Chart + Recent Activity */}
         <div className="flex flex-col gap-5">
-          {/* Monthly volume chart */}
-          <div className="ds-card">
-            <div className="ds-card-header">
-              <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                Monthly Volume
-              </span>
-            </div>
-            <div className="px-5 pt-3.5 pb-2">
-              <div className="flex gap-4 mb-3">
-                <span className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                  <span className="h-2 w-2 rounded-[2px]" style={{ background: "var(--brand-navy)", opacity: 0.8 }} />
-                  Shipments
-                </span>
-                <span className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                  <span className="h-2 w-2 rounded-[2px]" style={{ background: "var(--brand-accent)" }} />
-                  Delivered
-                </span>
-              </div>
-              <MonthlyBarChart data={monthlyCounts} loading={loading} />
-            </div>
-          </div>
-
           {/* Recent Activity */}
           <div className="ds-card">
             <div className="ds-card-header">
@@ -508,6 +346,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      {big && (
+        <BigDashboard range={range} onRange={setRange} data={dash} loading={dashLoading} refreshing={refreshing} onReload={reload} onClose={() => setBig(false)} />
+      )}
     </div>
   )
 }
