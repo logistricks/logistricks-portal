@@ -91,6 +91,16 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
 
   // Loaded as soon as the page opens, so a drop never has to wait on the network (Safari kills the page if it does).
   useEffect(() => { void loadMailboxes() }, [])
+  const [safari, setSafari] = useState(false)
+  useEffect(() => { setSafari(/^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent)) }, [])
+  async function pasteFromClipboard() {
+    setMsg(null)
+    try {
+      const text = await navigator.clipboard.readText()
+      if (!text.trim()) { setMsg({ ok: false, text: "The clipboard is empty. In your mail app open the email, press Cmd+A then Cmd+C, and try again." }); return }
+      await take([], text)
+    } catch { setMsg({ ok: false, text: "Your browser blocked clipboard access. Click on the page (not in a box) and press Cmd+V (Ctrl+V on Windows) instead." }) }
+  }
   async function loadMailboxes(): Promise<string[]> {
     if (mbRef.current.length) return mbRef.current
     try {
@@ -235,8 +245,18 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
               : "Drop a carrier's reply email (.eml / .msg) — or click to choose a file"}
           </span>
           <span className="flex items-center gap-1 text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
-            <ClipboardPaste className="h-3 w-3" /> Web mail: copy the email text and paste it here (Ctrl/Cmd+V), then add its PDFs
+            <ClipboardPaste className="h-3 w-3" /> Web mail / Apple Mail: copy the email text (Cmd+A, Cmd+C in the email) and paste it here (Cmd/Ctrl+V), then add its PDFs
           </span>
+          <button type="button" onClick={(e) => { e.stopPropagation(); void pasteFromClipboard() }}
+            className="mt-1 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold"
+            style={{ borderColor: "var(--card-border)", color: "var(--brand-accent)" }}>
+            <ClipboardPaste className="h-3 w-3" /> Paste copied email
+          </button>
+          {safari && (
+            <span className="mt-1 text-center text-[11px] font-normal" style={{ color: "#b45309" }}>
+              Safari: please don&apos;t drag emails out of Apple Mail — Safari reloads the page. Use the copy &amp; paste button above (or Chrome).
+            </span>
+          )}
           <input ref={input} type="file" accept=".eml,.msg,.pdf,image/*" multiple hidden onClick={(e) => e.stopPropagation()}
             onChange={(e) => { if (e.target.files) void take(Array.from(e.target.files)); e.target.value = "" }} />
         </div>
