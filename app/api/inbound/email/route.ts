@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File) && mode === "preview") return NextResponse.json({ error: "Drop an .eml or .msg email file." }, { status: 400 })
   if (file instanceof File && file.size > MAX_FILE) return NextResponse.json({ error: "File is larger than 25 MB." }, { status: 413 })
 
-  const empty: ParsedEmail = { from_email: "", from_name: "", to: [], cc: [], recipients: [], subject: "", date: null, message_id: null, body_text: "", attachments: [] }
+  const empty: ParsedEmail = { from_email: "", from_name: "", to: [], cc: [], recipients: [], subject: "", date: null, message_id: null, in_reply_to: null, references: [], body_text: "", attachments: [] }
   let mail: ParsedEmail = empty
   if (file instanceof File) {
     try { mail = await parseEmailFile(file.name, Buffer.from(await file.arrayBuffer())) }
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
   const payload = {
     client_code: clientCode, to_email: matched, from_email: merged.from_email, from_name: merged.from_name,
     subject: merged.subject, body_text: merged.body_text, received_at: merged.date ?? new Date().toISOString(),
-    message_id: merged.message_id, attachments: atts,
+    message_id: merged.message_id, in_reply_to: mail.in_reply_to, references: mail.references, to: mail.to, cc: mail.cc, attachments: atts,
     intake_source: "manual", intake_filename: file instanceof File ? file.name : "pasted text",
     added_by: s.session.username, freight_request_id: freightRequestId ?? undefined,
   }

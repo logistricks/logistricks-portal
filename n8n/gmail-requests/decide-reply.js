@@ -1,4 +1,4 @@
-// n8n Code node "Decide Reply"  (Run Once for All Items)
+// n8n Code node "Decide Reply"  (Run Once for All Items) — lives in the CORE workflow.
 // Input : the portal's /api/inbound/resolve response (HTTP Request3 → output is $json.body because Full Response is on).
 // Output: ONE item { decision: 'reply'|'new'|'review', request, method, confidence, reason, record, ... }
 //         or NO item (the run stops) for duplicate / unknown mailbox / carrier replies.
@@ -8,7 +8,7 @@ const AUTO_LINK = 0.8;                                    // >= this → treat a
 const REVIEW_MIN = 0.5;                                   // between REVIEW_MIN and AUTO_LINK → new request flagged "possible reply"
 
 const res = $input.first().json.body || {};
-const email = $('Normalize Email').first().json;
+const email = $('Gmail Trigger').first().json;      // in the Core workflow the trigger node is named "Gmail Trigger"
 
 // Stop quietly when there is nothing for this workflow to do.
 if (['duplicate', 'unknown_mailbox', 'carrier_reply'].includes(res.decision)) return [];

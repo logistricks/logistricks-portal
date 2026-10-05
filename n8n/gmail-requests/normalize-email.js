@@ -1,5 +1,7 @@
-// n8n Code node "Normalize Email"  (Run Once for All Items)
-// Input : the "Gmail Full" node (Gmail → Get, Simple OFF). Output: ONE provider-independent email object.
+// n8n Code node "Normalize Email"  (Run Once for All Items) — lives in the GMAIL doorway workflow.
+// Input : the "Gmail Full" node (Gmail → Get, Simple OFF, Download Attachments ON).
+// Output: ONE provider-independent email object (+ the attachments as binary) to hand to the Core workflow.
+// The Gmail-style aliases (id, threadId, From, To, Subject, snippet, text) let the Core keep its old expressions.
 // Later, the Outlook / IMAP / dropped-email workflows only have to produce this same shape.
 const g = $input.first().json;
 const trig = $('Gmail Trigger').first().json;
@@ -32,6 +34,17 @@ return [{
     provider_thread_id: trig.threadId || g.threadId || '',
     received_at: g.date ? new Date(g.date).toISOString() : new Date().toISOString(),
     body_text: g.text || trig.snippet || '',
-    attachment_count: Array.isArray(g.attachments) ? g.attachments.length : 0,
+    attachment_count: Object.keys($input.first().binary || {}).length,
+    // aliases for the Core workflow's existing expressions
+    id: trig.id || g.id || '',
+    threadId: trig.threadId || g.threadId || '',
+    From: fromRaw,
+    To: to,
+    Subject: g.subject || trig.Subject || '',
+    snippet: trig.snippet || '',
+    text: g.text || trig.snippet || '',
+    intake_source: 'automatic',
+    intake_filename: null,
   },
+  binary: $input.first().binary || {},
 }];

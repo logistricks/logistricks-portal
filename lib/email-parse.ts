@@ -12,6 +12,8 @@ export interface ParsedEmail {
   subject: string
   date: string | null
   message_id: string | null
+  in_reply_to: string | null
+  references: string[]
   body_text: string
   attachments: ParsedAttachment[]
 }
@@ -49,6 +51,8 @@ async function parseEml(buf: Buffer): Promise<ParsedEmail> {
     subject: m.subject || "",
     date: m.date ? m.date.toISOString() : null,
     message_id: m.messageId || null,
+    in_reply_to: m.inReplyTo || null,
+    references: ([] as string[]).concat((m.references as any) ?? []).map(String),
     body_text: (m.text || (m.html ? htmlToText(String(m.html)) : "")).trim(),
     attachments: (m.attachments || [])
       .filter((a) => a.content && a.size <= MAX_ATT && !a.related)
@@ -83,6 +87,8 @@ async function parseMsg(buf: Buffer): Promise<ParsedEmail> {
     subject: String(d.subject || ""),
     date: d.messageDeliveryTime ? new Date(d.messageDeliveryTime).toISOString() : d.clientSubmitTime ? new Date(d.clientSubmitTime).toISOString() : null,
     message_id: (String(d.headers || "").match(/^Message-ID:\s*(<[^>]+>)/im) || [])[1] || null,
+    in_reply_to: (String(d.headers || "").match(/^In-Reply-To:\s*(<[^>]+>)/im) || [])[1] || null,
+    references: (String(d.headers || "").match(/^References:\s*((?:[^\r\n]|\r?\n[ \t])+)/im)?.[1].match(/<[^>]+>/g)) || [],
     body_text: String(d.body || (d.bodyHtml ? htmlToText(String(d.bodyHtml)) : "")).trim(),
     attachments,
   }
