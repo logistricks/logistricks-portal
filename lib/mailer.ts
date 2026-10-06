@@ -129,7 +129,29 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
 
   const domain = (cfg.from_email.split("@")[1] || "logistricks.local").toLowerCase()
   const messageId = `${randomUUID()}@${domain}`
-  const inReplyTo = a.purpose === "reply" && fr.message_id ? `<${fr.message_id}>` : undefined
+  // Thread the reply under the client's own email: In-Reply-To = their latest message exactly as received
+  // (migration 054), References = the first message of the request + that one. Falls back to the stored lower-cased id.
+  let inReplyTo: string | undefined
+  let references: string | undefined
+  if (a.purpose === "reply") {
+    const ids: string[] = []
+    try {
+      let rows: any[] | null = null
+      const r1 = await admin.from("inbound_emails").select("message_id, message_id_raw, kind, received_at").eq("freight_request_id", a.freightRequestId).ilike("client_code", clientCode).eq("direction", "in").in("kind", ["request", "requester_reply"]).order("received_at", { ascending: true }).limit(20)
+      rows = r1.error ? null : r1.data
+      if (!rows) {
+        const r2 = await admin.from("inbound_emails").select("message_id, kind, received_at").eq("freight_request_id", a.freightRequestId).ilike("client_code", clientCode).eq("direction", "in").in("kind", ["request", "requester_reply"]).order("received_at", { ascending: true }).limit(20)
+        rows = r2.data
+      }
+      for (const x of rows ?? []) { const id = String(x.message_id_raw || x.message_id || "").trim(); if (id) ids.push(id) }
+    } catch { /* fall back below */ }
+    if (!ids.length && fr.message_id) ids.push(String(fr.message_id))
+    if (ids.length) {
+      const uniq = Array.from(new Set([ids[0], ids[ids.length - 1]]))
+      inReplyTo = `<${ids[ids.length - 1]}>`
+      references = uniq.map((i) => `<${i}>`).join(" ")
+    }
+  }
 
   try {
     await (await transport(cfg)).sendMail({
@@ -137,11 +159,11 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
       to: sendTo, cc: sendCc.length ? sendCc : undefined, replyTo: cfg.reply_to || undefined,
       subject: sendSubject, text, html: a.purpose === "reply" && a.html ? a.html : plainToHtml(text),
       messageId: `<${messageId}>`,
-      ...(inReplyTo ? { inReplyTo, references: inReplyTo } : {}),
+      ...(inReplyTo ? { inReplyTo, references } : {}),
       // RFC 3834: tells other auto-responders not to answer our automatic acknowledgements (no mail loops)
       ...(a.purpose === "reply" ? { headers: { "Auto-Submitted": "auto-replied" } } : {}),
     })
-    await log("sent", { message_id: messageId, in_reply_to: inReplyTo ? fr.message_id : null, redirected, sent_at: new Date().toISOString() })
+    await log("sent", { message_id: messageId, in_reply_to: inReplyTo ? inReplyTo.replace(/^<|>$/g, "") : null, redirected, sent_at: new Date().toISOString() })
     return { status: "sent", message_id: messageId, recipients: sendTo }
   } catch (e) {
     const msg = smtpError(e)

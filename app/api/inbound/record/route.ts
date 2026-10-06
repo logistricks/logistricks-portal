@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
   if (!clientCode) return NextResponse.json({ error: "client_code or a known mailbox required" }, { status: 400 })
 
   const messageId = normId(b.message_id) || null
+  // exactly as received (only the angle brackets removed) — used to thread our replies under this email
+  const messageIdRaw = String(b.message_id ?? "").trim().replace(/^<+|>+$/g, "").trim().slice(0, 500) || null
   const reqId = t(b.freight_request_id, 64)
   const row = {
     client_code: clientCode,
@@ -40,10 +42,12 @@ export async function POST(req: NextRequest) {
     review_status: ["auto", "needs_review", "confirmed", "rejected"].includes(b.review_status) ? b.review_status : "auto",
     ai_decision: b.ai_decision && typeof b.ai_decision === "object" ? b.ai_decision : null,
   }
-  const q = messageId
-    ? admin.from("inbound_emails").upsert(row, { onConflict: "client_code,message_id", ignoreDuplicates: false }).select("id").maybeSingle()
-    : admin.from("inbound_emails").insert(row).select("id").maybeSingle()
-  const { data, error } = await q
+  const save = (r: Record<string, unknown>) => messageId
+    ? admin.from("inbound_emails").upsert(r, { onConflict: "client_code,message_id", ignoreDuplicates: false }).select("id").maybeSingle()
+    : admin.from("inbound_emails").insert(r).select("id").maybeSingle()
+  let { data, error } = await save({ ...row, message_id_raw: messageIdRaw })
+  // before migration 054 the column does not exist: store without it rather than failing
+  if (error && /message_id_raw/.test(error.message)) ({ data, error } = await save(row))
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (reqId && row.kind === "request") {
