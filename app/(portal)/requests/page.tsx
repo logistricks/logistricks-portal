@@ -2,6 +2,7 @@
 
 import { IntakeBadge } from "@/components/portal/intake-badge"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
+import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress, EXW_ALERT } from "@/lib/shipment-labels"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ExternalLink, FileText, Filter, Loader2, Maximize2, RefreshCw, Search, X } from "lucide-react"
@@ -173,6 +174,8 @@ export default function RequestsPage() {
             {requests.length}
           </span>
         </div>
+        <div className="flex items-center gap-2">
+        <IntakeLogButton />
         <button
           onClick={() => load()}
           title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
@@ -184,6 +187,7 @@ export default function RequestsPage() {
           <RefreshCw className="h-3.5 w-3.5" />
           Refresh
         </button>
+        </div>
       </div>
 
       <EmailDropZone kind="request" compact onDone={() => load(true)} />

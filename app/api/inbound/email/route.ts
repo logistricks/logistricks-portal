@@ -11,13 +11,16 @@
  * 1. Parses the email file.
  * 2. Validates that one of its recipient addresses is a mailbox set up for the signed-in client
  *    (Settings → Emails), so a mail for another client / an unknown mailbox is rejected.
- * 3. Hands the mail to the n8n webhook workflow for its kind — the same extraction + portal steps as
+ * 3. Hands the mail to the n8n webhook workflow for its kind, WAITS for it to finish (or fail), logs the run in
+ *    intake_logs and reports what actually happened (request created / linked as a reply / error).
+ *    Hands the mail to the n8n webhook workflow for its kind — the same extraction + portal steps as
  *    the automatic mailbox flows, only the trigger differs. Everything is stamped intake_source = "manual".
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { parseEmailFile, type ParsedEmail } from "@/lib/email-parse"
+import { normId } from "@/lib/inbound-match"
 
 export const runtime = "nodejs"
 export const maxDuration = 120
@@ -123,6 +126,14 @@ export async function POST(req: NextRequest) {
     if (dup && dup.length) return NextResponse.json({ ok: false, reason: "duplicate", error: "This email was already processed (same Message-ID)." }, { status: 409 })
   }
 
+  if (kind === "request" && merged.message_id) {
+    const { data: dupIn } = await admin.from("inbound_emails").select("id, freight_request_id").eq("client_code", clientCode).eq("message_id", normId(merged.message_id)).limit(1)
+    if (dupIn && dupIn.length) {
+      await admin.from("intake_logs").insert({ client_code: clientCode, kind, source: "manual", filename: file instanceof File ? file.name : "pasted text", from_email: merged.from_email, subject: merged.subject, message_id: normId(merged.message_id), status: "ignored", stage: "duplicate", error: "Already processed (same Message-ID).", created_by: s.session.username, finished_at: new Date().toISOString(), duration_ms: 0, freight_request_id: dupIn[0].freight_request_id ?? null })
+      return NextResponse.json({ ok: false, reason: "duplicate", error: "This email was already processed (same Message-ID)." }, { status: 409 })
+    }
+  }
+
   const url = kind === "request" ? process.env.N8N_REQUEST_INTAKE_WEBHOOK_URL : process.env.N8N_CARRIER_REPLY_WEBHOOK_URL
   const secret = process.env.PORTAL_WEBHOOK_SECRET
   if (!url || !secret) {
@@ -140,18 +151,104 @@ export async function POST(req: NextRequest) {
     added_by: s.session.username, freight_request_id: freightRequestId ?? undefined,
   }
 
+  // ── log the run, hand over to n8n and wait for the outcome ──
+  const started = Date.now()
+  const filename = file instanceof File ? file.name : "pasted text"
+  const { data: logRow } = await admin.from("intake_logs").insert({
+    client_code: clientCode, kind, source: "manual", filename, from_email: merged.from_email, subject: merged.subject,
+    message_id: merged.message_id ? normId(merged.message_id) : null, status: "running", stage: "sent_to_n8n",
+    created_by: s.session.username, freight_request_id: freightRequestId,
+  }).select("id").maybeSingle()
+  const logId: string | null = logRow?.id ?? null
+  const finish = async (status: string, patch: Record<string, unknown>) => {
+    if (!logId) return
+    await admin.from("intake_logs").update({ status, finished_at: new Date().toISOString(), duration_ms: Date.now() - started, ...patch }).eq("id", logId)
+  }
+
   let res: Response
   try {
     res = await fetch(url, {
       method: "POST", headers: { "Content-Type": "application/json", "X-Portal-Secret": secret },
-      body: JSON.stringify(payload), signal: AbortSignal.timeout(110_000),
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(100_000),
     })
   } catch (e) {
-    return NextResponse.json({ ok: false, reason: "workflow_unreachable", error: `Could not reach the n8n workflow: ${e instanceof Error ? e.message : e}` }, { status: 502 })
+    const msg = e instanceof Error && e.name === "TimeoutError"
+      ? "n8n did not finish within 100 seconds. It may still be running — check the execution in n8n."
+      : `Could not reach the n8n workflow: ${e instanceof Error ? e.message : e}`
+    await finish("failed", { stage: "n8n_unreachable", error: msg })
+    return NextResponse.json({ ok: false, reason: "workflow_unreachable", error: msg, log_id: logId }, { status: 502 })
   }
   const text = await res.text()
   let out: any = null
   try { out = JSON.parse(text) } catch { /* not json */ }
-  if (!res.ok) return NextResponse.json({ ok: false, reason: "workflow_error", error: out?.error || out?.message || text.slice(0, 300) || `Workflow returned ${res.status}` }, { status: 502 })
-  return NextResponse.json({ ok: true, kind, mailbox: matched, subject: merged.subject, from: merged.from_email, attachments: atts.length, result: out ?? text.slice(0, 300) })
+  if (!res.ok) {
+    const msg = out?.error || out?.message || text.slice(0, 300) || `Workflow returned ${res.status}`
+    await finish("failed", { stage: "n8n_error", http_status: res.status, error: msg, n8n_response: text.slice(0, 20000) })
+    return NextResponse.json({ ok: false, reason: "workflow_error", error: `n8n reported an error: ${msg}`, log_id: logId }, { status: 502 })
+  }
+  // n8n can answer "started" straight away (webhook set to respond immediately) — then the portal waits for the
+  // outcome itself by watching for the records the workflow writes.
+  const answeredEarly = /workflow (was )?started/i.test(text) || !text.trim()
+  const outcome = await waitForOutcome(admin, { clientCode, kind, messageId: merged.message_id ? normId(merged.message_id) : null, filename, since: started - 2000, patient: answeredEarly, deadline: started + 112_000 })
+  const resultObj = { ...(out && typeof out === "object" ? { n8n: out } : {}), ...outcome.result }
+  if (outcome.found) {
+    await finish("success", { stage: "n8n_done", http_status: res.status, n8n_response: text.slice(0, 20000), result: resultObj, freight_request_id: outcome.result.request_id ?? freightRequestId })
+    return NextResponse.json({ ok: true, kind, mailbox: matched, subject: merged.subject, from: merged.from_email, attachments: atts.length, result: { ...(out && typeof out === "object" ? out : {}), ...outcome.result }, log_id: logId })
+  }
+  // n8n finished without error but nothing new was recorded: stopped by a filter / duplicate rule, or still running.
+  const note = answeredEarly
+    ? "n8n accepted the email but no record appeared within the wait time. Check the execution in n8n (it may still be running or may have stopped early)."
+    : "n8n finished without creating a record. It may have stopped on a rule (duplicate, unknown mailbox, filter). Check the execution in n8n."
+  await finish("unconfirmed", { stage: "no_record", http_status: res.status, n8n_response: text.slice(0, 20000), error: note, result: resultObj })
+  return NextResponse.json({ ok: false, reason: "no_record", error: note, log_id: logId }, { status: 202 })
+}
+
+/** Looks for what the workflow wrote for this email; polls for it when n8n answered before finishing. */
+async function waitForOutcome(
+  admin: any,
+  a: { clientCode: string; kind: string; messageId: string | null; filename: string; since: number; patient: boolean; deadline: number },
+): Promise<{ found: boolean; result: Record<string, any> }> {
+  const sinceIso = new Date(a.since).toISOString()
+  const look = async (): Promise<Record<string, any> | null> => {
+    if (a.kind === "carrier_reply") {
+      let q = admin.from("carrier_quotes").select("*").eq("client_code", a.clientCode).gte("created_at", sinceIso)
+      q = a.messageId ? q.eq("email_message_id", a.messageId) : q.eq("intake_filename", a.filename)
+      const { data } = await q.order("created_at", { ascending: false }).limit(1)
+      const r = data?.[0]
+      return r ? { outcome: "carrier_quote", quote_id: r.id, request_id: r.freight_request_id ?? null, review_status: r.review_status ?? null, linked: !!r.freight_request_id } : null
+    }
+    // requests: the inbound_emails row says how it was matched; freight_requests says what was created.
+    let rec: any = null
+    if (a.messageId) {
+      const { data } = await admin.from("inbound_emails").select("kind, match_method, match_confidence, match_reason, review_status, freight_request_id").eq("client_code", a.clientCode).eq("message_id", a.messageId).limit(1)
+      rec = data?.[0] ?? null
+    }
+    let fq = admin.from("freight_requests").select("id, request_ref, related_request_id, created_at").eq("client_code", a.clientCode).gte("created_at", sinceIso)
+    fq = a.messageId ? fq.eq("message_id", a.messageId) : fq.eq("intake_filename", a.filename).eq("intake_source", "manual")
+    const { data: fr } = await fq.order("created_at", { ascending: false }).limit(1)
+    const req = fr?.[0] ?? null
+    if (!req && !rec?.freight_request_id) return null
+    let ref: string | null = req?.request_ref ?? null
+    const reqId = req?.id ?? rec?.freight_request_id ?? null
+    if (!ref && reqId) {
+      const { data: r2 } = await admin.from("freight_requests").select("request_ref").eq("id", reqId).maybeSingle()
+      ref = r2?.request_ref ?? null
+    }
+    const isReply = rec?.kind === "requester_reply"
+    return {
+      outcome: isReply ? "linked_as_reply" : req?.related_request_id ? "new_possible_reply" : "new_request",
+      request_id: reqId, request_ref: ref, related_request_id: req?.related_request_id ?? null,
+      match_method: rec?.match_method ?? null, match_confidence: rec?.match_confidence ?? null,
+      match_reason: rec?.match_reason ?? null, review_status: rec?.review_status ?? null,
+    }
+  }
+  const first = await look()
+  if (first) return { found: true, result: first }
+  if (!a.patient) return { found: false, result: {} }
+  while (Date.now() < a.deadline) {
+    await new Promise((r) => setTimeout(r, 2500))
+    const r = await look()
+    if (r) return { found: true, result: r }
+  }
+  return { found: false, result: {} }
 }
