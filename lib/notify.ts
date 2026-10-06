@@ -62,7 +62,7 @@ async function microsoftToken(cfg: SmtpConfig): Promise<string> {
   return d.access_token
 }
 
-async function transport(cfg: SmtpConfig) {
+export async function transport(cfg: SmtpConfig) {
   const oauth = cfg.auth_method === "oauth2_microsoft"
   return nodemailer.createTransport({
     host: cfg.host, port: cfg.port,

@@ -14,6 +14,9 @@
  *   missing_fields     string | string[]  (optional)
  *   ... (all other shipment fields)
  *
+ * Optional  send: true  — the portal ALSO sends the reply itself through the client's email server (recommended;
+ *            n8n then needs no mail node). Responses then include { sent, status, message_id }.
+ *
  * Responses:
  *   200  { to, subject, html, reply_type }   — ready to send
  *   200  { skipped: true, reason }           — no template / disabled
@@ -24,6 +27,8 @@
 import { isExw } from "@/lib/shipment-labels"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
+import { sendClientMail } from "@/lib/mailer"
+import { htmlToPlainText } from "@/lib/quotation-render"
 
 type VarMap = Record<string, string>
 
@@ -218,6 +223,22 @@ export async function POST(req: NextRequest) {
   const bodyText   = substituteVars(template.body ?? "", vars)
   const html       = wrapHtml(subject, bodyText)
 
+  // ── Optional: send it from here, through the client's own email server ────
+  let sendInfo: Record<string, unknown> = {}
+  if (body.send === true) {
+    const out = await sendClientMail(admin, {
+      clientCode: client_code, purpose: "reply", freightRequestId: freight_request_id,
+      to: [sender_email], subject, text: htmlToPlainText(html), html,
+      idempotencyKey: freight_request_id ? `reply:${freight_request_id}:${replyType}` : null,
+    })
+    if (out.status === "skipped") return NextResponse.json({ skipped: true, reason: out.reason ?? "smtp_not_configured", sent: false })
+    if (out.status !== "sent" && out.status !== "duplicate") {
+      return NextResponse.json({ sent: false, status: out.status, error: out.reason ?? "The reply could not be sent" }, { status: out.status === "rejected" ? 422 : 502 })
+    }
+    sendInfo = { sent: true, status: out.status, message_id: out.message_id ?? null }
+    if (out.status === "duplicate") return NextResponse.json({ to: sender_email, subject, reply_type: replyType, ...sendInfo })
+  }
+
   // ── Update freight_request: mark replied + append to conversation ────────
   if (freight_request_id) {
     // Fetch existing conversation
@@ -272,5 +293,5 @@ export async function POST(req: NextRequest) {
     console.error("auto_reply_logs insert failed:", logError.message)
   }
 
-  return NextResponse.json({ to: sender_email, subject, html, reply_type: replyType })
+  return NextResponse.json({ to: sender_email, subject, html, reply_type: replyType, ...sendInfo })
 }

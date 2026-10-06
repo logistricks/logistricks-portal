@@ -99,6 +99,10 @@ export async function resolveInbound(admin: any, e: InboundEmail) {
     const { data } = await admin.from("inbound_emails").select("freight_request_id").eq("client_code", clientCode).in("message_id", refsIds).not("freight_request_id", "is", null).limit(5)
     const ids = Array.from(new Set((data ?? []).map((x: any) => x.freight_request_id)))
     if (ids.length === 1) { const r = await reply(ids[0] as string, "headers", 0.99, "In-Reply-To / References point to a stored email of this request"); if (r) return r }
+    // our own outgoing emails (RFQs, auto-replies) sent through the portal mail gateway
+    const { data: out } = await admin.from("outbound_emails").select("freight_request_id").eq("client_code", clientCode).in("message_id", refsIds).not("freight_request_id", "is", null).limit(5)
+    const outIds = Array.from(new Set((out ?? []).map((x: any) => x.freight_request_id)))
+    if (outIds.length === 1) { const r = await reply(outIds[0] as string, "headers", 0.99, "In-Reply-To / References point to an email we sent for this request"); if (r) return r }
     const { data: fr } = await admin.from("freight_requests").select("id").eq("client_code", clientCode).in("message_id", refsIds).limit(2)
     if (fr?.length === 1) { const r = await reply(fr[0].id, "headers", 0.99, "In-Reply-To / References point to the original request email"); if (r) return r }
   }
