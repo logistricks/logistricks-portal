@@ -92,7 +92,7 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
   const map: Record<string, string> = {
     sender_name: req.senderName, origin: `${req.originCity}, ${req.originCountry}`,
     destination: `${req.destinationCity}, ${req.destinationCountry}`, cargo_type: req.cargoType,
-    weight: req.weight ?? "", equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "",
+    weight: req.weight ?? "", equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "", request_ref: req.requestRef ?? "",
     carrier_name: carrier?.name ?? "", missing_fields: (req.missingFields ?? []).join(", "),
   }
   return applyTemplate(t.body, map, { keepUnknown: true })

@@ -194,15 +194,19 @@ export async function POST(req: NextRequest) {
 
   // pickup address: from the call, else from the saved request (column exists from migration 048)
   let pickupAddress = parseField(body.pickup_address)
-  if (!pickupAddress && freight_request_id) {
+  let requestRef = parseField(body.request_ref)
+  if ((!pickupAddress || !requestRef) && freight_request_id) {
     try {
-      const { data: fr } = await admin.from("freight_requests").select("pickup_address").eq("id", freight_request_id).maybeSingle()
-      pickupAddress = String((fr as { pickup_address?: string | null } | null)?.pickup_address ?? "")
+      const { data: fr } = await admin.from("freight_requests").select("pickup_address, request_ref").eq("id", freight_request_id).maybeSingle()
+      const row = fr as { pickup_address?: string | null; request_ref?: string | null } | null
+      if (!pickupAddress) pickupAddress = String(row?.pickup_address ?? "")
+      if (!requestRef) requestRef = String(row?.request_ref ?? "")
     } catch { /* column not there yet */ }
   }
 
   const vars: VarMap = {
     pickup_address:         pickupAddress,
+    request_ref:            requestRef,
     sender_name:            parseField(body.sender_name)          || parseField(body.sender_email),
     sender_email:           parseField(body.sender_email),
     origin_city:            parseField(body.origin_city),

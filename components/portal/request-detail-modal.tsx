@@ -1,7 +1,7 @@
 "use client"
 
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
-import { applyTemplate } from "@/lib/template-render"
+import { applyTemplate, templateHasRef } from "@/lib/template-render"
 import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
 import {
@@ -520,35 +520,32 @@ export function RequestDetailModal({
       if (selectedCarrierIds.length === 0) return
       if (userHasCycle) { setShowApprovalConfirm("Email"); return }
       const t = templates.find((x) => String(x.template_id) === templateId)
-      const subj = encodeURIComponent(t?.subject ?? "")
 
       // Register the RFQ send so it shows up in the quote-comparison panel and
       // carrier replies can be correlated back to this request. Best-effort —
       // if this fails we still send the emails.
       const carrierIdNums = selectedCarrierIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n))
-      let references: Record<number, string> = {}
       try {
         const res = await fetch("/api/rfq", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ freight_request_id: request.id, carrier_ids: carrierIdNums }),
         })
-        if (res.ok) {
-          const data = await res.json()
-          for (const item of data.items ?? []) references[item.carrier_id] = item.rfq_reference
-        }
+        await res.text()
       } catch { /* non-fatal — proceed with sending regardless */ }
 
       for (const cid of selectedCarrierIds) {
         const c = carriers.find((x) => String(x.carrier_id) === cid)
         if (!c?.email) continue
-        let perCarrierBody = templateId
+        const perCarrierBody = templateId
           ? renderTemplateBody(templateId, request, c, templates)
           : messageBody
-        const ref = references[c.carrier_id]
-        if (ref) perCarrierBody += `\n\nRef: ${ref}`
+        // Subject: variables filled per carrier. The request number (LT-0034) is what carriers quote back; it is part of
+        // the template (Request Ref # variable). A template without it still gets it, in the subject, so replies link.
+        let subjectText = stripHtml(applyTemplate(t?.subject ?? "", templateVars(request, c), { keepUnknown: false }))
+        if (request.requestRef && !(t && templateHasRef(t))) subjectText = `${subjectText} [${request.requestRef}]`.trim()
         const ccList = c.cc_emails ?? []
-        let href = `mailto:${c.email}?subject=${subj}&body=${encodeURIComponent(perCarrierBody)}`
+        let href = `mailto:${c.email}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(stripHtml(perCarrierBody))}`
         if (ccList.length > 0) href += `&cc=${encodeURIComponent(ccList.join(","))}`
         window.open(href, "_blank")
       }
@@ -1191,10 +1188,9 @@ export function RequestDetailModal({
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
-function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier | undefined, templates: Template[]): string {
-  const t = templates.find((x) => String(x.template_id) === tId)
-  if (!t) return ""
-  const map: Record<string, string> = {
+function templateVars(req: FreightRequest, carrier: Carrier | undefined): Record<string, string> {
+  return {
+    request_ref: req.requestRef ?? "",
     origin_city: req.originCity, origin_country: req.originCountry,
     destination_city: req.destinationCity, destination_country: req.destinationCountry,
     cargo_type: req.cargoType, equipment: req.equipment, weight: req.weight,
@@ -1205,7 +1201,12 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
     contact_name: carrier?.person_name ?? "there", carrier_name: carrier?.carrier_name ?? "",
     carrier_email: carrier?.email ?? "", carrier_phone: carrier?.number ?? "",
   }
-  return applyTemplate(t.body, map, { keepUnknown: true })
+}
+
+function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier | undefined, templates: Template[]): string {
+  const t = templates.find((x) => String(x.template_id) === tId)
+  if (!t) return ""
+  return applyTemplate(t.body, templateVars(req, carrier), { keepUnknown: true })
 }
 
 function parseArrayField(value: string | null | undefined): string {
@@ -1227,6 +1228,7 @@ function stripHtml(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ")
+    .replace(/\u200b/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
 }

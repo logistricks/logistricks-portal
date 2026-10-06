@@ -422,6 +422,7 @@ export const templateVariables = [
     vars: [
       ["sender_name", "Client Name"],
       ["sender_email", "Client Email"],
+      ["request_ref", "Request Ref # (e.g. LT-0034)"],
       ["received_date", "Date Received"],
       ["preferred_carrier", "Preferred Carrier"],
     ],

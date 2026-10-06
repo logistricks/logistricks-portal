@@ -5,6 +5,7 @@ import { AlertTriangle, Check, CheckCheck, Copy, Loader2, Mail, MessageCircle, M
 import { TemplateEditor } from "@/components/portal/template-editor"
 import { QuotationTemplatesPanel } from "@/components/portal/quotation-templates-panel"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
+import { templateHasRef } from "@/lib/template-render"
 
 type Tab = "All" | "Email" | "WhatsApp" | "Quotation"
 const tabs: Tab[] = ["All", "Email", "WhatsApp", "Quotation"]
@@ -324,6 +325,15 @@ export function TemplatesPanel() {
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[14px] font-bold leading-tight" style={{ color: "var(--text-primary)" }}>{t.template_name}</h3>
                   {t.subject ? <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-secondary)" }}>{t.subject}</p> : null}
+                  {t.type === "Email" && !templateHasRef(t) && (
+                    <span
+                      className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                      style={{ background: "rgba(245,158,11,0.14)", color: "#b45309" }}
+                      title="This template does not show the Request Ref # (e.g. LT-0034). Open it and add the Request Ref # variable so carrier replies can be linked to the request. Until then the number is added to the subject automatically."
+                    >
+                      <AlertTriangle className="h-3 w-3" /> No Ref # variable
+                    </span>
+                  )}
                 </div>
               </div>
 

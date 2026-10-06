@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react"
 import { templateVariables, type Carrier, type Template } from "@/lib/portal-data"
+import { templateHasRef } from "@/lib/template-render"
 
 // ── Rich-text editor ─────────────────────────────────────────────────────────
 
@@ -129,6 +130,12 @@ export function TemplateEditor({
   const [openGroups, setOpenGroups]     = useState<string[]>(templateVariables.map((g) => g.group))
   const editorRef = useRef<HTMLDivElement>(null)
   const isEmail = type === "Email"
+  // Does the template show the request number (Request Ref # variable)? Carriers quote it back, replies are matched on it.
+  const [hasRef, setHasRef] = useState(() => templateHasRef(template))
+  const refreshRefFlag = useCallback(() => {
+    setHasRef(templateHasRef({ subject, body: editorRef.current?.innerHTML ?? "" }))
+  }, [subject])
+  useEffect(() => { refreshRefFlag() }, [subject, refreshRefFlag])
 
   // Initialize editor content
   useEffect(() => {
@@ -158,6 +165,7 @@ export function TemplateEditor({
     const pill = `<span class="tpl-var" contenteditable="false" data-var="${name}" style="display:inline-block;background:rgba(232,130,26,0.12);color:#E8821A;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">${token}</span>`
     editorRef.current?.focus()
     insertHtmlAtCursor(pill + "​")
+    refreshRefFlag()
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -176,6 +184,7 @@ export function TemplateEditor({
       sel?.addRange(range)
     }
     insertHtmlAtCursor(pill + "​")
+    refreshRefFlag()
   }
 
   // "If EXW" block: the line inside only reaches the carrier when the request is EXW and has a pickup address.
@@ -345,6 +354,7 @@ export function TemplateEditor({
               contentEditable
               suppressContentEditableWarning
               onDrop={handleDrop}
+              onInput={refreshRefFlag}
               onDragOver={(e) => e.preventDefault()}
               className="flex-1 p-5 text-sm leading-relaxed outline-none"
               style={{
@@ -354,6 +364,16 @@ export function TemplateEditor({
               }}
               data-placeholder="Start typing your message… or drag variables from the right panel."
             />
+
+            {isEmail && !hasRef && (
+              <div className="mx-5 mb-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)", color: "#b45309" }}>
+                <span aria-hidden>⚠</span>
+                <span>
+                  <strong>No Request Ref # in this template.</strong> Add the <em>Request Ref #</em> variable (right panel, Request Info) where you want it, e.g. &ldquo;Ref: LT-0034&rdquo;.
+                  Carriers quote it back and replies are linked to the request by it. Until you add it, it is appended to the subject line automatically.
+                </span>
+              </div>
+            )}
 
             {!isEmail && (
               <div className="px-5 pb-2 text-right text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
