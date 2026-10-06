@@ -16,6 +16,7 @@ import {
   List,
   ListOrdered,
   Loader2,
+  MapPin,
   MessageSquareReply,
   Strikethrough,
   Table,
@@ -177,6 +178,15 @@ export function TemplateEditor({
     insertHtmlAtCursor(pill + "​")
   }
 
+  // "If EXW" block: the line inside only reaches the carrier when the request is EXW and has a pickup address.
+  function insertExwBlock() {
+    const chip = (kind: "start" | "end", label: string) =>
+      `<span class="tpl-cond" contenteditable="false" data-cond="${kind}" style="display:inline-block;background:rgba(37,99,235,0.12);color:#2563EB;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;font-family:monospace;margin:0 1px;cursor:default;">${label}</span>`
+    const pill = `<span class="tpl-var" contenteditable="false" data-var="pickup_address" style="display:inline-block;background:rgba(232,130,26,0.12);color:#E8821A;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{pickup_address}}</span>`
+    editorRef.current?.focus()
+    insertHtmlAtCursor(`<div>${chip("start", "if EXW")}Pickup address:&nbsp;${pill}${chip("end", "end if")}</div>​`)
+  }
+
   function insertTable() {
     const table = `<table style="width:100%;border-collapse:collapse;margin:8px 0;">
 <thead><tr>
@@ -209,6 +219,7 @@ export function TemplateEditor({
     { icon: List,         label: "Bullets", action: () => execFmt("insertUnorderedList") },
     { icon: ListOrdered,  label: "Numbers", action: () => execFmt("insertOrderedList") },
     "sep",
+    { icon: MapPin,       label: "EXW address block (shown only when the request is EXW)", action: insertExwBlock },
     { icon: Table,        label: "Table",   action: insertTable },
     { icon: Link2,        label: "Link",    action: insertLink },
     "sep",

@@ -403,6 +403,7 @@ export const templateVariables = [
       ["equipment", "Equipment"],
       ["mode", "Transport Mode"],
       ["incoterm", "Incoterm"],
+      ["pickup_address", "Pickup Address (EXW only)"],
       ["bl_type", "BL Type"],
       ["urgency", "Urgency Level"],
     ],

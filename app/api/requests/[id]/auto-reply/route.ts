@@ -12,6 +12,7 @@
  */
 
 import { isExw } from "@/lib/shipment-labels"
+import { applyTemplate } from "@/lib/template-render"
 import { createHmac } from "crypto"
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
@@ -42,7 +43,7 @@ function admin() {
 
 /** Fill {{variable}} placeholders in a template string */
 function fillTemplate(text: string, vars: Record<string, string>): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`)
+  return applyTemplate(text, vars, { keepUnknown: true })
 }
 
 export async function POST(
@@ -142,6 +143,8 @@ export async function POST(
   const vars: Record<string, string> = {
     sender_name:    freightReq.sender_name ?? "there",
     sender_email:   freightReq.sender_email ?? "",
+    incoterm:       String((parsedFields as Record<string, unknown> | null)?.incoterm ?? ""),
+    pickup_address: String((parsedFields as Record<string, unknown> | null)?.pickup_address ?? ""),
     request_ref:    (freightReq as { request_ref?: string | null }).request_ref ?? requestId.slice(0, 8).toUpperCase(),
     missing_fields: missingParts.length > 0
       ? missingParts.join(", ")

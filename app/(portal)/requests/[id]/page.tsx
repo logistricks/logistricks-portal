@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { isSeaOnly, exwNeedsAddress, isExw, POL_LABEL, POD_LABEL, EXW_ALERT } from "@/lib/shipment-labels"
+import { applyTemplate } from "@/lib/template-render"
 import {
   AogBadge,
   ConfidenceBadge,
@@ -91,10 +92,10 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
   const map: Record<string, string> = {
     sender_name: req.senderName, origin: `${req.originCity}, ${req.originCountry}`,
     destination: `${req.destinationCity}, ${req.destinationCountry}`, cargo_type: req.cargoType,
-    weight: req.weight ?? "", equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "",
+    weight: req.weight ?? "", equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "",
     carrier_name: carrier?.name ?? "", missing_fields: (req.missingFields ?? []).join(", "),
   }
-  return t.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => map[key] ?? `{{${key}}}`)
+  return applyTemplate(t.body, map, { keepUnknown: true })
 }
 
 const FIELD_MAP: Record<string, { getValue: (r: FreightRequest) => string | null; label: string }> = {

@@ -1,6 +1,7 @@
 "use client"
 
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
+import { applyTemplate } from "@/lib/template-render"
 import { useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
 import {
@@ -1198,13 +1199,13 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
     destination_city: req.destinationCity, destination_country: req.destinationCountry,
     cargo_type: req.cargoType, equipment: req.equipment, weight: req.weight,
     quantity: req.quantity, dimensions: req.dimensions, incoterm: req.incoterm,
-    bl_type: req.blType, mode: req.modes.join(", "), urgency: req.urgency,
+    bl_type: req.blType, mode: req.modes.join(", "), urgency: req.urgency, pickup_address: req.pickupAddress ?? "",
     sender_name: req.senderName, sender_email: req.senderEmail,
     received_date: req.receivedExact, preferred_carrier: req.preferredCarrier,
     contact_name: carrier?.person_name ?? "there", carrier_name: carrier?.carrier_name ?? "",
     carrier_email: carrier?.email ?? "", carrier_phone: carrier?.number ?? "",
   }
-  return t.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => map[key] ?? `{{${key}}}`)
+  return applyTemplate(t.body, map, { keepUnknown: true })
 }
 
 function parseArrayField(value: string | null | undefined): string {

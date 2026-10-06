@@ -25,6 +25,7 @@
  *   500  { error }
  */
 import { isExw } from "@/lib/shipment-labels"
+import { applyTemplate } from "@/lib/template-render"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sendClientMail } from "@/lib/mailer"
@@ -73,7 +74,7 @@ function parseMissingFields(value: unknown): string {
 }
 
 function substituteVars(text: string, vars: VarMap): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "")
+  return applyTemplate(text, vars)
 }
 
 function wrapHtml(_subject: string, bodyContent: string): string {
@@ -191,7 +192,17 @@ export async function POST(req: NextRequest) {
 
   const missingFieldsLabel = computedMissingLabels.join(", ") || parseMissingFields(body.missing_fields)
 
+  // pickup address: from the call, else from the saved request (column exists from migration 048)
+  let pickupAddress = parseField(body.pickup_address)
+  if (!pickupAddress && freight_request_id) {
+    try {
+      const { data: fr } = await admin.from("freight_requests").select("pickup_address").eq("id", freight_request_id).maybeSingle()
+      pickupAddress = String((fr as { pickup_address?: string | null } | null)?.pickup_address ?? "")
+    } catch { /* column not there yet */ }
+  }
+
   const vars: VarMap = {
+    pickup_address:         pickupAddress,
     sender_name:            parseField(body.sender_name)          || parseField(body.sender_email),
     sender_email:           parseField(body.sender_email),
     origin_city:            parseField(body.origin_city),
