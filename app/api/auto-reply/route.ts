@@ -227,8 +227,8 @@ export async function POST(req: NextRequest) {
   const vars: VarMap = {
     pickup_address:         pickupAddress,
     request_ref:            requestRef,
-    sender_name:            parseField(body.sender_name)          || "Sir/Madam",
-    sender_email:           parseField(body.sender_email),
+    sender_name:            parseField(body.sender_name)          || parseField(saved.sender_name) || "Sir/Madam",
+    sender_email:           parseField(body.sender_email)         || parseField(saved.sender_email),
     origin_city:            parseField(body.origin_city),
     origin_country:         parseField(body.origin_country),
     destination_city:       parseField(body.destination_city),
