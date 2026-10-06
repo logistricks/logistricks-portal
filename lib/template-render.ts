@@ -29,8 +29,21 @@ export function applyTemplate(text: string, vars: Record<string, string>, opts: 
   if (!show) s = s.replace(LONE_BLOCK, "")
   s = s.replace(ANY_BLOCK, (_m, inner: string) => (show ? inner : ""))
   s = s.replace(/\{\{[#/]if_exw\}\}/g, "")                       // a lone marker never reaches a recipient
-  return s.replace(/\{\{(\w+)\}\}/g, (_m, key: string) =>
-    key === "pickup_address" ? pickup : key in vars ? (vars[key] ?? "") : opts.keepUnknown ? `{{${key}}}` : "")
+
+  const isHtml = /<[a-z][^>]*>/i.test(s)
+  const esc = (v: string) => (isHtml ? v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : v)
+  const value = (key: string): string | null =>
+    key === "pickup_address" ? pickup : key in vars ? (vars[key] ?? "") : opts.keepUnknown ? null : ""
+
+  // Variable chips from the editor (orange pills) become plain text — the pill styling must never reach a recipient.
+  s = s.replace(/<span[^>]*data-var="(\w+)"[^>]*>[\s\S]*?<\/span>/gi, (_m, key: string) => {
+    const v = value(key)
+    return v === null ? `{{${key}}}` : esc(v)
+  })
+  return s.replace(/\{\{(\w+)\}\}/g, (_m, key: string) => {
+    const v = value(key)
+    return v === null ? `{{${key}}}` : esc(v)
+  })
 }
 
 /** True when the template shows the request number (variable chip or typed {{request_ref}}) in its body or subject. */
