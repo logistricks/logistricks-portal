@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
   const client_code        = body.client_code as string | undefined
   const sender_email       = body.sender_email as string | undefined
-  const freight_request_id = body.freight_request_id as string | undefined
+  let   freight_request_id = (body.freight_request_id as string | undefined) || undefined
   const gmail_thread_id    = body.gmail_thread_id as string | undefined
 
   if (!client_code)   return NextResponse.json({ error: "client_code required" }, { status: 400 })
@@ -129,6 +129,12 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (clientErr) return NextResponse.json({ error: clientErr.message }, { status: 500 })
+
+  // No request id sent (e.g. on the reply path): find the request by its mail thread.
+  if (!freight_request_id && gmail_thread_id) {
+    const { data: byThread } = await admin.from("freight_requests").select("id").eq("client_code", client_code).eq("gmail_thread_id", gmail_thread_id).order("received_at", { ascending: false }).limit(1)
+    if (byThread?.[0]?.id) freight_request_id = byThread[0].id as string
+  }
 
   // ── Determine missing fields ──────────────────────────────────────────────
   // Only compute missing when require_critical_data is actually enabled.
