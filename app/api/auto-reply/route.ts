@@ -195,12 +195,14 @@ export async function POST(req: NextRequest) {
   // pickup address: from the call, else from the saved request (column exists from migration 048)
   let pickupAddress = parseField(body.pickup_address)
   let requestRef = parseField(body.request_ref)
-  if ((!pickupAddress || !requestRef) && freight_request_id) {
+  let originalSubject = ""
+  if (freight_request_id) {
     try {
-      const { data: fr } = await admin.from("freight_requests").select("pickup_address, request_ref").eq("id", freight_request_id).maybeSingle()
-      const row = fr as { pickup_address?: string | null; request_ref?: string | null } | null
+      const { data: fr } = await admin.from("freight_requests").select("pickup_address, request_ref, subject").eq("id", freight_request_id).maybeSingle()
+      const row = fr as { pickup_address?: string | null; request_ref?: string | null; subject?: string | null } | null
       if (!pickupAddress) pickupAddress = String(row?.pickup_address ?? "")
       if (!requestRef) requestRef = String(row?.request_ref ?? "")
+      originalSubject = String(row?.subject ?? "").replace(/^=+/, "").trim()
     } catch { /* column not there yet */ }
   }
 
@@ -234,7 +236,12 @@ export async function POST(req: NextRequest) {
   }
 
   const rawSubject = template.subject ?? `Re: Freight Request — ${vars.origin_city} → ${vars.destination_city}`
-  const subject    = substituteVars(rawSubject, vars)
+  // A reply that the portal sends itself continues the client's own email thread: "Re: <their subject>".
+  // (Mail apps only thread messages with the same subject, so a different subject would arrive as a brand-new email.)
+  const threadSubject = body.send === true && originalSubject
+    ? (/^\s*(re|aw|sv|rv)\s*:/i.test(originalSubject) ? originalSubject : `Re: ${originalSubject}`)
+    : ""
+  const subject    = threadSubject || substituteVars(rawSubject, vars)
   const bodyText   = substituteVars(template.body ?? "", vars)
   const html       = wrapHtml(subject, bodyText)
 
