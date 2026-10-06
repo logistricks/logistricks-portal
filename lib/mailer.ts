@@ -77,12 +77,11 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
 
   // who may receive this?
   if (a.purpose === "rfq") {
-    const { data: cs } = await admin.from("carriers").select("email, cc_emails").ilike("client_code", clientCode)
+    // CC addresses are stored as their own carrier rows (is_cc = true), so one column covers both.
+    const { data: cs, error: csErr } = await admin.from("carriers").select("email").ilike("client_code", clientCode)
+    if (csErr) return reject(`carrier_lookup_failed: ${csErr.message}`.slice(0, 200))
     const allowed = new Set<string>()
-    for (const c of cs ?? []) {
-      if (c.email) allowed.add(String(c.email).trim().toLowerCase())
-      for (const x of c.cc_emails ?? []) allowed.add(String(x).trim().toLowerCase())
-    }
+    for (const c of cs ?? []) if (c.email) allowed.add(String(c.email).trim().toLowerCase())
     const bad = [...to, ...cc].filter((e) => !allowed.has(e))
     if (bad.length) return reject(`recipient_not_a_carrier_of_this_client: ${bad.slice(0, 3).join(", ")}`)
   } else {
