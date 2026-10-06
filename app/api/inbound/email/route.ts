@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
   if (!url || !secret) {
     return NextResponse.json({
       ok: false, reason: "workflow_not_configured",
-      error: `Set ${kind === "request" ? "N8N_REQUEST_INTAKE_WEBHOOK_URL" : "N8N_CARRIER_REPLY_WEBHOOK_URL"} (and PORTAL_WEBHOOK_SECRET) in the portal's environment variables to enable manual email intake.`,
+      error: "Adding emails by hand is not set up yet. Ask your administrator to finish the email processing setup.",
     }, { status: 503 })
   }
 
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
   const filename = file instanceof File ? file.name : "pasted text"
   const { data: logRow } = await admin.from("intake_logs").insert({
     client_code: clientCode, kind, source: "manual", filename, from_email: merged.from_email, subject: merged.subject,
-    message_id: merged.message_id ? normId(merged.message_id) : null, status: "running", stage: "sent_to_n8n",
+    message_id: merged.message_id ? normId(merged.message_id) : null, status: "running", stage: "sent",
     created_by: s.session.username, freight_request_id: freightRequestId,
   }).select("id").maybeSingle()
   const logId: string | null = logRow?.id ?? null
@@ -173,9 +173,9 @@ export async function POST(req: NextRequest) {
     })
   } catch (e) {
     const msg = e instanceof Error && e.name === "TimeoutError"
-      ? "n8n did not finish within 100 seconds. It may still be running — check the execution in n8n."
-      : `Could not reach the n8n workflow: ${e instanceof Error ? e.message : e}`
-    await finish("failed", { stage: "n8n_unreachable", error: msg })
+      ? "Processing is taking longer than expected. It may still be running — check the Intake log in a minute."
+      : `Email processing could not be reached: ${e instanceof Error ? e.message : e}`
+    await finish("failed", { stage: "unreachable", error: msg })
     return NextResponse.json({ ok: false, reason: "workflow_unreachable", error: msg, log_id: logId }, { status: 502 })
   }
   const text = await res.text()
@@ -183,22 +183,22 @@ export async function POST(req: NextRequest) {
   try { out = JSON.parse(text) } catch { /* not json */ }
   if (!res.ok) {
     const msg = out?.error || out?.message || text.slice(0, 300) || `Workflow returned ${res.status}`
-    await finish("failed", { stage: "n8n_error", http_status: res.status, error: msg, n8n_response: text.slice(0, 20000) })
-    return NextResponse.json({ ok: false, reason: "workflow_error", error: `n8n reported an error: ${msg}`, log_id: logId }, { status: 502 })
+    await finish("failed", { stage: "workflow_error", http_status: res.status, error: msg, n8n_response: text.slice(0, 20000) })
+    return NextResponse.json({ ok: false, reason: "workflow_error", error: `Processing failed: ${msg}`, log_id: logId }, { status: 502 })
   }
   // n8n can answer "started" straight away (webhook set to respond immediately) — then the portal waits for the
   // outcome itself by watching for the records the workflow writes.
   const answeredEarly = /workflow (was )?started/i.test(text) || !text.trim()
   const outcome = await waitForOutcome(admin, { clientCode, kind, messageId: merged.message_id ? normId(merged.message_id) : null, filename, since: started - 2000, patient: answeredEarly, deadline: started + 112_000 })
-  const resultObj = { ...(out && typeof out === "object" ? { n8n: out } : {}), ...outcome.result }
+  const resultObj = { ...(out && typeof out === "object" ? { response: out } : {}), ...outcome.result }
   if (outcome.found) {
-    await finish("success", { stage: "n8n_done", http_status: res.status, n8n_response: text.slice(0, 20000), result: resultObj, freight_request_id: outcome.result.request_id ?? freightRequestId })
+    await finish("success", { stage: "done", http_status: res.status, n8n_response: text.slice(0, 20000), result: resultObj, freight_request_id: outcome.result.request_id ?? freightRequestId })
     return NextResponse.json({ ok: true, kind, mailbox: matched, subject: merged.subject, from: merged.from_email, attachments: atts.length, result: { ...(out && typeof out === "object" ? out : {}), ...outcome.result }, log_id: logId })
   }
   // n8n finished without error but nothing new was recorded: stopped by a filter / duplicate rule, or still running.
   const note = answeredEarly
-    ? "n8n accepted the email but no record appeared within the wait time. Check the execution in n8n (it may still be running or may have stopped early)."
-    : "n8n finished without creating a record. It may have stopped on a rule (duplicate, unknown mailbox, filter). Check the execution in n8n."
+    ? "The email was accepted but no result appeared in time. It may still be processing — check the Intake log again shortly."
+    : "Processing finished without creating a record. The email may have been skipped by a rule (duplicate, unknown mailbox or filter)."
   await finish("unconfirmed", { stage: "no_record", http_status: res.status, n8n_response: text.slice(0, 20000), error: note, result: resultObj })
   return NextResponse.json({ ok: false, reason: "no_record", error: note, log_id: logId }, { status: 202 })
 }

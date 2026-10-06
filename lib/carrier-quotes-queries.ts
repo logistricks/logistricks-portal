@@ -230,7 +230,7 @@ export async function sendRfqToCarriers(payload: SendRfqPayload): Promise<{ ok: 
     })
     if (!res.ok) {
       const text = await res.text()
-      return { ok: false, error: `n8n returned ${res.status}: ${text}` }
+      return { ok: false, error: `The request could not be completed (${res.status}): ${text}` }
     }
     return { ok: true }
   } catch (err: any) {

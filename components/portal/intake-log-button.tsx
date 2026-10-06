@@ -69,7 +69,7 @@ export function IntakeLogButton() {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} title="Email intake log — what was sent to n8n and what came back"
+      <button onClick={() => setOpen(true)} title="Email intake log — what happened to each email you added"
         className="relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
         style={{ color: "var(--text-secondary)", border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
         {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "#2563eb" }} /> : <Activity className="h-3.5 w-3.5" />}
@@ -86,7 +86,7 @@ export function IntakeLogButton() {
             <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: "1px solid var(--divider)" }}>
               <div>
                 <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>Email intake log</p>
-                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Emails dropped on this page: what was sent to n8n and what it did.</p>
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Emails added on this page and what happened to each.</p>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => void load()} title="Refresh" className="rounded p-1.5" style={{ color: "var(--text-secondary)" }}>
@@ -133,7 +133,7 @@ export function IntakeLogButton() {
                       <div className="space-y-2 px-5 pb-4 pl-12 text-xs" style={{ color: "var(--text-secondary)" }}>
                         <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1">
                           <dt style={{ color: "var(--text-muted)" }}>Stage</dt><dd>{l.stage ?? "—"}</dd>
-                          <dt style={{ color: "var(--text-muted)" }}>n8n HTTP status</dt><dd>{l.http_status ?? "—"}</dd>
+                          <dt style={{ color: "var(--text-muted)" }}>Status code</dt><dd>{l.http_status ?? "—"}</dd>
                           <dt style={{ color: "var(--text-muted)" }}>File</dt><dd>{l.filename ?? "—"}</dd>
                           <dt style={{ color: "var(--text-muted)" }}>Added by</dt><dd>{l.created_by ?? "—"}</dd>
                           {res.match_method && (<><dt style={{ color: "var(--text-muted)" }}>Matched by</dt><dd>{res.match_method}{res.match_confidence != null ? ` (${Math.round(res.match_confidence * 100)}%)` : ""}</dd></>)}
@@ -143,7 +143,7 @@ export function IntakeLogButton() {
                         <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded p-2 text-[11px]" style={{ background: "var(--page-bg, rgba(100,116,139,0.08))", border: "1px solid var(--card-border)" }}>
                           {JSON.stringify(res, null, 2) === "{}" ? "—" : JSON.stringify(res, null, 2)}
                         </pre>
-                        <p className="font-semibold" style={{ color: "var(--text-muted)" }}>Raw response from n8n</p>
+                        <p className="font-semibold" style={{ color: "var(--text-muted)" }}>Raw response</p>
                         <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded p-2 text-[11px]" style={{ background: "var(--page-bg, rgba(100,116,139,0.08))", border: "1px solid var(--card-border)" }}>
                           {f ? (f.n8n_response || "—") : "Loading…"}
                         </pre>

@@ -83,7 +83,7 @@ export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }
     setError(null)
     try {
       const webhookUrl = process.env.NEXT_PUBLIC_N8N_RFQ_WEBHOOK_URL
-      if (!webhookUrl) throw new Error("n8n webhook URL not configured (NEXT_PUBLIC_N8N_RFQ_WEBHOOK_URL)")
+      if (!webhookUrl) throw new Error("Sending to carriers is not set up yet. Ask your administrator to configure it.")
       const res = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

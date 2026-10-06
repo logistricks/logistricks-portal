@@ -139,7 +139,7 @@ export const NOTIFICATION_EVENTS: NotificationEvent[] = [
   {
     key: "new_request", label: "New request received", short: "A client request arrived", group: "Requests", icon: "inbox",
     description: "Tells your team a new shipment request has come in.",
-    when: "When the mail workflow creates a new freight request (n8n calls the portal's notify endpoint).",
+    when: "When the mail workflow creates a new freight request (the mail workflow calls the portal's notify endpoint).",
     defaultSubject: "New request {{request_ref}} — {{origin}} to {{destination}}",
     defaultHtml: design({
       eyebrow: "New request", title: "A new request has arrived",

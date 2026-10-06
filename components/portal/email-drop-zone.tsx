@@ -305,7 +305,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
             <button onClick={() => void process()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
               className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
               {busy === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {busy === "processing" ? "Waiting for n8n… (up to 2 min)" : kind === "request" ? "Process request" : "Process quote"}
+              {busy === "processing" ? "Processing…" : kind === "request" ? "Process request" : "Process quote"}
             </button>
           </div>
         </div>

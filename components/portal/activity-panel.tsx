@@ -99,7 +99,7 @@ function ActorBadge({ actor }: { actor: string }) {
           : "bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] dark:bg-[var(--brand-accent)]/10"
       }`}
     >
-      {actor}
+      {actor === "n8n" ? "system" : actor}
     </span>
   )
 }
