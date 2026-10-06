@@ -34,6 +34,10 @@ return [{
     provider_thread_id: trig.threadId || g.threadId || '',
     received_at: g.date ? new Date(g.date).toISOString() : new Date().toISOString(),
     body_text: g.text || trig.snippet || '',
+    // automation markers (used by the Filter Code nodes)
+    auto_submitted: String(hdr('auto-submitted') || ''),
+    precedence: String(hdr('precedence') || ''),
+    list_unsubscribe: String(hdr('list-unsubscribe') || ''),
     attachment_count: Object.keys($input.first().binary || {}).length,
     // aliases for the Core workflow's existing expressions
     id: trig.id || g.id || '',
