@@ -367,7 +367,7 @@ export function TemplateEditor({
                             background: on ? "rgba(232,130,26,0.08)" : "var(--card-bg)",
                             color: on ? "var(--brand-accent)" : "var(--text-secondary)",
                           }}>
-                          {c.name}
+                          {c.carrier_name}
                         </button>
                       )
                     })}
