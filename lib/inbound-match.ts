@@ -71,7 +71,10 @@ export async function resolveInbound(admin: any, e: InboundEmail) {
   // 2. a carrier we sent an RFQ to → hand over to the carrier-reply flow
   if (from) {
     const { data: cs } = await admin.from("carriers").select("id").eq("client_code", clientCode).ilike("email", from).limit(5)
-    if (cs?.length) {
+    // A carrier's address alone is not enough (it may also send us a fresh request): only treat it as a carrier
+    // reply when the mail looks like a reply — header references, a Re:/AW: subject, or one of our RFQ codes.
+    const looksLikeReply = refsIds.length > 0 || /^\s*(re|aw|sv|rv)\s*:/i.test(String(e.subject ?? "")) || /RFQ-[0-9a-f]{8}-\d+-[0-9a-f]{6}/i.test(text)
+    if (cs?.length && looksLikeReply) {
       const { data: rfqs } = await admin.from("carrier_quote_requests").select("id, freight_request_id, rfq_reference, sent_at, status").in("carrier_id", cs.map((c: any) => c.id)).order("sent_at", { ascending: false }).limit(10)
       if (rfqs?.length) return { ...base, decision: "carrier_reply" as const, method: "carrier_sender", confidence: 0.8, rfqs }
     }
