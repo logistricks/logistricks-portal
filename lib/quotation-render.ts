@@ -116,14 +116,15 @@ export function findVariables(...templates: string[]): { used: string[]; unknown
 
 export interface ChargeIn {
   carrier_label?: string | null; basis?: string | null; unit_rate?: number | null; quantity?: number | null
-  amount?: number | null; inclusion?: string | null; condition_note?: string | null
+  amount?: number | null; inclusion?: string | null; condition_note?: string | null; currency?: string | null
 }
 export interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
 
 function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number, markupLabel = "Service fee") {
   const included = charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) !== null)
   const optional = charges.filter((c) => c.inclusion && c.inclusion !== "included")
-  if (style === "total_only" || included.length === 0) return { lines: [] as Line[], optional }
+  // Lines in different currencies cannot be shown as one price list or scaled to the total: show the all-in total only.
+  if (style === "total_only" || included.length === 0 || mixedCurrency(included)) return { lines: [] as Line[], optional }
 
   const base = (c: ChargeIn): Line => ({
     label: c.carrier_label ?? "Charge", basis: BASIS_LABEL[c.basis ?? ""] ?? (c.basis ?? ""),
@@ -205,9 +206,19 @@ const dash = (s: string | null | undefined) => (s && s !== "—" ? s : "")
 export function carrierBase(q: Record<string, any>): number {
   const direct = num(q.rate_usd) ?? num(q.total_amount)
   if (direct !== null && direct > 0) return direct
+  // The carrier's own stated total in USD (kept even when its lines are in several currencies).
+  const stated = num(q.rate_original)
+  if (stated !== null && stated > 0 && String(q.rate_currency || "USD").toUpperCase() === "USD") return stated
   const rows: ChargeIn[] = Array.isArray(q.charges) ? q.charges : []
-  const sum = rows.filter((c) => (c.inclusion ?? "included") === "included").reduce((t, c) => t + (num(c.amount) ?? 0), 0)
-  return round2(sum)
+  const inc = rows.filter((c) => (c.inclusion ?? "included") === "included")
+  // Never add amounts in different currencies together.
+  if (mixedCurrency(inc)) return 0
+  return round2(inc.reduce((t, c) => t + (num(c.amount) ?? 0), 0))
+}
+
+/** True when the charge lines are not all in one currency. */
+export function mixedCurrency(rows: ChargeIn[]): boolean {
+  return new Set(rows.filter((c) => num(c.amount) !== null).map((c) => String(c.currency || "USD").toUpperCase())).size > 1
 }
 
 export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: string; currency: string; lines: Line[] } {
