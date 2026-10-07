@@ -645,6 +645,11 @@ export default function SettingsPage() {
           <div>
             <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Receiver Emails</h2>
             <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Inbound addresses monitored for incoming freight requests. Only active addresses are processed.</p>
+            {role !== "viewer" && (
+              <Link href="/settings/email-sources" className="mt-2 inline-block text-sm font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>
+                Connect a mailbox (IMAP) &rarr;
+              </Link>
+            )}
           </div>
           {role !== "viewer" && (
             <button onClick={() => setAddMailOpen(true)} aria-label="Add receiver email" title="Add receiver email"

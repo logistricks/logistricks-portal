@@ -1,0 +1,241 @@
+{
+  "name": "01b - IMAP mailbox doorway",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "schedule",
+      "name": "Every minute"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://logistricks-portal.vercel.app/api/mail/poll",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"action\": \"fetch\" }",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "poll-portal-mailboxes",
+      "name": "Poll portal mailboxes",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kfR2UwMkFKF0lC46",
+          "name": "Portal secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "emails",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ],
+      "id": "split",
+      "name": "One item per email"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        720,
+        0
+      ],
+      "id": "loop",
+      "name": "Loop over emails"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const j = { ...$json };\nconst atts = j.attachments || [];\ndelete j.attachments;\nconst binary = {};\nfor (let i = 0; i < atts.length; i++) {\n  binary['attachment_' + i] = await this.helpers.prepareBinaryData(\n    Buffer.from(atts[i].data_base64, 'base64'),\n    atts[i].filename,\n    atts[i].mime_type\n  );\n}\nreturn { json: j, binary };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "convert",
+      "name": "Convert attachments"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "core",
+      "name": "Run Core workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://logistricks-portal.vercel.app/api/mail/poll",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: 'ack', source_id: $('Convert attachments').last().json.source_id, uid: $('Convert attachments').last().json.uid }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        0
+      ],
+      "id": "acknowledge-email",
+      "name": "Acknowledge email",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kfR2UwMkFKF0lC46",
+          "name": "Portal secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "IMAP mailbox doorway\n\n1. Open 'Run Core workflow', choose your Core workflow (the one the Gmail doorway calls).\n2. Check the credential on both HTTP nodes is 'Portal secret'.\n3. Activate.\n\nThe portal reads the mailboxes (Settings > Receiver Emails > Connect a mailbox). An email is only marked as handled after Core finishes; if Core fails, it is offered again on the next poll.",
+        "height": 220,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -280
+      ],
+      "id": "note",
+      "name": "Read me"
+    }
+  ],
+  "connections": {
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Poll portal mailboxes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll portal mailboxes": {
+      "main": [
+        [
+          {
+            "node": "One item per email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per email": {
+      "main": [
+        [
+          {
+            "node": "Loop over emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop over emails": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Convert attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert attachments": {
+      "main": [
+        [
+          {
+            "node": "Run Core workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Core workflow": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acknowledge email": {
+      "main": [
+        [
+          {
+            "node": "Loop over emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
