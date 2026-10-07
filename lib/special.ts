@@ -49,3 +49,18 @@ export function parseSpecial(item: string): SpecialItem {
   if (m && !/^https?$/i.test(m[1])) return { label: m[1].trim(), value: m[2].trim() }
   return { label: null, value: item.trim() }
 }
+
+const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, " ").trim()
+
+/**
+ * Safety net for the AI: drops a special request that only repeats a field the request already has
+ * (e.g. "BL type: Telex" when BL type is already filled). Items that add anything beyond the field are kept.
+ */
+export function dropRepeats(items: string[], fields: unknown[]): string[] {
+  const known = fields.map(norm).filter((f) => f.length >= 3)
+  return items.filter((it) => {
+    const v = norm(parseSpecial(it).value)
+    if (v.length < 3) return true
+    return !known.some((f) => f === v || f.includes(v))
+  })
+}

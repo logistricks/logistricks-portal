@@ -5,7 +5,7 @@
  * automatically scopes every query to the user's client_code.
  */
 
-import { toStringList } from "@/lib/special"
+import { dropRepeats, toStringList } from "@/lib/special"
 import { createClient } from "@/lib/supabase"
 import type { FreightRequest, RequestStatus, Source, Confidence } from "@/lib/portal-data"
 
@@ -314,7 +314,9 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     receivedIso:       receivedAt.toISOString(),
     receivedRelative:  formatRelative(receivedAt),
     receivedExact:     formatExact(receivedAt),
-    specialRequirements:  toStringList(row.special_requirements),
+    specialRequirements:  dropRepeats(toStringList(row.special_requirements), [
+      row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, row.equipment, row.weight, row.quantity, row.dimensions, row.preferred_carrier,
+    ]),
     availabilityQuestions:toStringList(row.availability_questions),
     missingFields:     Array.isArray(row.missing_fields)           ? row.missing_fields           as string[] : [],
     suggestedReply:    row.suggested_reply ?? null,
