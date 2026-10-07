@@ -8,6 +8,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
+import { encryptSecret } from "@/lib/secret-box"
 
 const ALLOWED_FIELDS = [
   "name", "provider", "active",
@@ -24,14 +25,13 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const admin = adminClient()
-  const { data, error } = await admin
-    .from("email_sources")
-    .select("id, name, provider, imap_host, imap_port, imap_username, imap_tls, ms_email, ms_tenant_id, ms_client_id, active, created_at")
-    .eq("client_code", session.clientCode)
-    .order("created_at", { ascending: true })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+  const cols = "id, name, provider, imap_host, imap_port, imap_username, imap_tls, ms_email, ms_tenant_id, ms_client_id, active, created_at"
+  let res: any = await admin.from("email_sources").select(`${cols}, imap_password, imap_password_enc, imap_last_checked_at, imap_last_error`).eq("client_code", session.clientCode).order("created_at", { ascending: true })
+  // migration 055 not run yet: fall back to the old columns
+  if (res.error) res = await admin.from("email_sources").select(`${cols}, imap_password`).eq("client_code", session.clientCode).order("created_at", { ascending: true })
+  if (res.error) return NextResponse.json({ error: res.error.message }, { status: 500 })
+  // never send a password (or its encrypted form) to the browser
+  return NextResponse.json((res.data ?? []).map(({ imap_password, imap_password_enc, ...r }: any) => ({ ...r, has_password: !!(imap_password || imap_password_enc) })))
 }
 
 export async function POST(req: NextRequest) {
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
   for (const f of ALLOWED_FIELDS) {
     if (f in body) payload[f] = body[f]
   }
+  if (typeof payload.imap_password === "string" && payload.imap_password) { payload.imap_password_enc = encryptSecret(payload.imap_password); payload.imap_password = null }
+  else delete payload.imap_password
 
   if (!payload.name || !payload.provider) {
     return NextResponse.json({ error: "name and provider are required" }, { status: 400 })
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) {
+    if (/imap_password_enc/.test(error.message)) return NextResponse.json({ error: "Run migration 055 (secure IMAP) in Supabase first, then save again." }, { status: 500 })
     // 23505 = unique violation: the mailbox already belongs to a client (never say which one).
     if (error.code === "23505")
       return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
@@ -84,13 +87,20 @@ export async function PUT(req: NextRequest) {
   for (const f of ALLOWED_FIELDS) {
     if (f in rest) payload[f] = rest[f]
   }
+  if (typeof payload.imap_password === "string" && payload.imap_password) { payload.imap_password_enc = encryptSecret(payload.imap_password); payload.imap_password = null }
+  else delete payload.imap_password
+  // a changed mailbox/login starts reading from "now" again
+  if ("imap_host" in rest || "imap_username" in rest) { payload.imap_last_uid = null; payload.imap_uidvalidity = null }
 
   const admin = adminClient()
-  const { error } = await admin
+  let { error } = await admin
     .from("email_sources")
     .update(payload)
     .eq("id", id)
     .eq("client_code", session.clientCode)
+  if (error && /imap_password_enc|imap_last_uid|imap_uidvalidity/.test(error.message)) {
+    return NextResponse.json({ error: "Run migration 055 (secure IMAP) in Supabase first, then save again." }, { status: 500 })
+  }
 
   if (error) {
     if (error.code === "23505")

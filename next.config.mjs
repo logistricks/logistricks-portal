@@ -3,7 +3,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "mailparser", "@kenjiuno/msgreader"],
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "mailparser", "imapflow", "@kenjiuno/msgreader"],
   outputFileTracingIncludes: {
     "/api/quotations/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },

@@ -16,6 +16,9 @@ interface EmailSource {
   imap_port?: number
   imap_username?: string
   imap_tls?: boolean
+  has_password?: boolean
+  imap_last_checked_at?: string | null
+  imap_last_error?: string | null
   // MS365
   ms_email?: string
   ms_tenant_id?: string
@@ -76,6 +79,8 @@ export default function EmailSourcesPage() {
   const [error, setError] = useState("")
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [testing, setTesting] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -89,7 +94,7 @@ export default function EmailSourcesPage() {
 
   useEffect(() => { load() }, [])
 
-  function openNew() { setForm({ ...EMPTY_FORM }); setError("") }
+  function openNew() { setForm({ ...EMPTY_FORM }); setError(""); setTestMsg(null) }
   function openEdit(s: EmailSource) {
     setForm({
       id: s.id,
@@ -106,7 +111,21 @@ export default function EmailSourcesPage() {
       ms_client_secret: "",
       ms_email: s.ms_email ?? "",
     })
-    setError("")
+    setError(""); setTestMsg(null)
+  }
+
+  async function testConnection() {
+    if (!form) return
+    setTesting(true); setTestMsg(null)
+    try {
+      const res = await fetch("/api/settings/email-sources/test", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: form.id, imap_host: form.imap_host, imap_port: form.imap_port, imap_username: form.imap_username, imap_password: form.imap_password, imap_tls: form.imap_tls }),
+      })
+      const j = await res.json()
+      setTestMsg(j.ok ? { ok: true, text: `Connected. The inbox has ${j.messages} message${j.messages === 1 ? "" : "s"}. Only emails that arrive from now on are read.` } : { ok: false, text: j.error || "Could not connect." })
+    } catch { setTestMsg({ ok: false, text: "Could not reach the server." }) }
+    finally { setTesting(false) }
   }
 
   function set<K extends keyof FormState>(k: K, v: FormState[K]) {
@@ -222,6 +241,8 @@ export default function EmailSourcesPage() {
                       ? `Microsoft 365 · ${s.ms_email || "—"}`
                       : `IMAP · ${s.imap_host || "—"}`}
                   </p>
+                  {s.provider === "imap" && s.imap_last_error && <p className="text-[11px] text-[#DC2626]">Last check failed: {s.imap_last_error}</p>}
+                  {s.provider === "imap" && !s.imap_last_error && s.imap_last_checked_at && <p className="text-[11px] text-[var(--text-muted)]">Last checked {new Date(s.imap_last_checked_at).toLocaleString()}</p>}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -350,6 +371,14 @@ export default function EmailSourcesPage() {
                 />
                 <span className="text-xs text-[var(--text-secondary)]">Use TLS/SSL (recommended)</span>
               </label>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={testConnection} disabled={testing}
+                  className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[#F8FAFC] disabled:opacity-50 dark:border-[#1E3A5F] dark:hover:bg-[#1E3A5F]">
+                  {testing ? "Testing…" : "Test connection"}
+                </button>
+                {testMsg && <span className={`text-xs ${testMsg.ok ? "text-[#15803D]" : "text-[#DC2626]"}`}>{testMsg.text}</span>}
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)]">The password is stored encrypted and is never shown again. Use an app password if your provider offers one.</p>
             </div>
           )}
 
