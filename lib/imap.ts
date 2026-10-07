@@ -111,3 +111,17 @@ export async function fetchNew(s: ImapSource, limits = { maxEmails: 10, maxBytes
     try { await cl.logout() } catch { /* */ }
   }
 }
+
+/** An IMAP mailbox is also a receiver address: the workflow finds the client by that address. Add it if missing. */
+export async function ensureReceiverEmail(admin: any, clientCode: string, address: string | null | undefined) {
+  const a = String(address ?? "").trim().toLowerCase()
+  if (!a.includes("@")) return
+  try {
+    const { data } = await admin.from("client_receiver_emails").select("id, client_code, active").ilike("r_mail", a).limit(1)
+    if (data?.length) {
+      if (String(data[0].client_code).toLowerCase() === clientCode.toLowerCase() && data[0].active === false) await admin.from("client_receiver_emails").update({ active: true }).eq("id", data[0].id)
+      return
+    }
+    await admin.from("client_receiver_emails").insert({ client_code: clientCode, r_mail: a, label: "IMAP mailbox", active: true })
+  } catch { /* the settings page still lets an admin add it by hand */ }
+}

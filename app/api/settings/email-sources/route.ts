@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { encryptSecret } from "@/lib/secret-box"
+import { ensureReceiverEmail } from "@/lib/imap"
 
 const ALLOWED_FIELDS = [
   "name", "provider", "active",
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+  if (payload.provider === "imap" && payload.active !== false) await ensureReceiverEmail(admin, session.clientCode, String(payload.imap_username ?? ""))
   return NextResponse.json({ id: data.id })
 }
 
@@ -107,6 +109,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "This email address is already registered and cannot be added." }, { status: 409 })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+  if (rest.provider === "imap" && rest.active !== false) await ensureReceiverEmail(admin, session.clientCode, String(rest.imap_username ?? ""))
   return NextResponse.json({ ok: true })
 }
 

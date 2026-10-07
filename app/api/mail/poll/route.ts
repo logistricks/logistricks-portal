@@ -10,7 +10,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
-import { fetchNew, imapError, imapPassword, type ImapSource } from "@/lib/imap"
+import { fetchNew, imapError, imapPassword, ensureReceiverEmail, type ImapSource } from "@/lib/imap"
 import { encryptSecret } from "@/lib/secret-box"
 
 export const runtime = "nodejs"
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     if (!s.imap_password_enc && s.imap_password) {
       await admin.from("email_sources").update({ imap_password_enc: encryptSecret(String(s.imap_password)), imap_password: null }).eq("id", s.id)
     }
+    await ensureReceiverEmail(admin, s.client_code, s.imap_username)
     try {
       const r = await fetchNew(s)
       const patch: Record<string, unknown> = { imap_last_checked_at: new Date().toISOString(), imap_last_error: null }
