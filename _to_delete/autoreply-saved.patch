@@ -1,0 +1,32 @@
+diff --git a/app/api/auto-reply/route.ts b/app/api/auto-reply/route.ts
+index 4e92d35..22d7e53 100644
+--- a/app/api/auto-reply/route.ts
++++ b/app/api/auto-reply/route.ts
+@@ -138,12 +138,24 @@ export async function POST(req: NextRequest) {
+     ? (clientRow.critical_fields as string[])
+     : []
+ 
++  // The saved request is the source of truth: a reply may have just filled fields that the caller did not send.
++  let saved: Record<string, unknown> = {}
++  if (freight_request_id) {
++    try {
++      const { data: row } = await admin.from("freight_requests").select("*").eq("id", freight_request_id).maybeSingle()
++      if (row) saved = row as Record<string, unknown>
++    } catch { /* ignore */ }
++  }
++  const blank = (v: unknown) => v == null || String(v).trim() === "" || String(v).trim() === "[]"
++  const val = (field: string) => (blank(body[field]) ? saved[field] : body[field])
++  for (const f of ["cargo_type", "weight", "dimensions", "equipment", "incoterm", "bl_type", "pickup_address", "quantity", "mode", "urgency", "origin_city", "origin_country", "destination_city", "destination_country"]) {
++    if (blank(body[f]) && !blank(saved[f])) body[f] = saved[f]
++  }
+   const computedMissingLabels = criticalFields
+     .filter((field) => {
+       // Pickup address is only mandatory when the shipment is EXW.
+-      if (field === "pickup_address" && !isExw(body.incoterm as string | undefined)) return false
+-      const val = body[field]
+-      return val == null || String(val).trim() === "" || String(val).trim() === "[]"
++      if (field === "pickup_address" && !isExw(val("incoterm") as string | undefined)) return false
++      return blank(val(field))
+     })
+     .map((field) => FIELD_LABELS[field] ?? field)
+ 

@@ -8,6 +8,8 @@ type Props = {
   freightRequestId?: string
   onDone?: () => void
   compact?: boolean
+  /** One thin line: for pages where the box should stay out of the way. */
+  slim?: boolean
 }
 
 type Staged = {
@@ -33,7 +35,7 @@ const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${M
  * Two steps: (1) drop an .eml / .msg — or paste the email text and drop its PDFs — and check what was read;
  * (2) press Process to run the normal workflow. Works without any mailbox connection.
  */
-export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props) {
+export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<"" | "reading" | "processing">("")
@@ -233,24 +235,24 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact }: Props
       )}
       {!staged && (
         <div
-          className={`relative flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${compact ? "px-3 py-2" : "px-4 py-4"}`}
+          className={`relative flex items-center justify-center rounded-lg border border-dashed text-xs font-medium transition-colors ${slim ? "flex-row flex-wrap gap-x-3 gap-y-1 px-3 py-1.5" : `flex-col gap-1 border-2 ${compact ? "px-3 py-2" : "px-4 py-4"}`}`}
           style={{ borderColor: over ? "var(--brand-accent)" : "var(--card-border)", background: over ? "rgba(59,130,246,0.06)" : "transparent", color: "var(--text-secondary)" }}
         >
           <span className="flex items-center gap-2">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailPlus className="h-4 w-4" />}
             {busy ? "Reading the email…" : kind === "request"
-              ? "Drop a client's request email (.eml / .msg) — or click to choose a file"
+              ? (slim ? "Drop a request email (.eml / .msg) or click" : "Drop a client's request email (.eml / .msg) — or click to choose a file")
               : "Drop a carrier's reply email (.eml / .msg) — or click to choose a file"}
           </span>
-          <span className="flex items-center gap-1 text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
+          <span className={`${slim ? "hidden" : "flex"} items-center gap-1 text-[11px] font-normal`} style={{ color: "var(--text-muted)" }}>
             <ClipboardPaste className="h-3 w-3" /> Web mail / Apple Mail: copy the email text (Cmd+A, Cmd+C in the email) and paste it here (Cmd/Ctrl+V), then add its PDFs
           </span>
           <button type="button" onClick={(e) => { e.stopPropagation(); void pasteFromClipboard() }}
-            className="relative z-20 mt-1 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold"
+            className={`relative z-20 ${slim ? "" : "mt-1"} inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold`}
             style={{ borderColor: "var(--card-border)", color: "var(--brand-accent)" }}>
             <ClipboardPaste className="h-3 w-3" /> Paste copied email
           </button>
-          {safari && (
+          {safari && !slim && (
             <span className="mt-1 text-center text-[11px] font-normal" style={{ color: "#b45309" }}>
               Safari: drop the email onto this box itself (not elsewhere on the page). If Mail only sends the subject, use the copy &amp; paste button.
             </span>

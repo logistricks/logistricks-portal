@@ -1,0 +1,19 @@
+diff --git a/lib/inbound-match.ts b/lib/inbound-match.ts
+index d72e91b..8f9d193 100644
+--- a/lib/inbound-match.ts
++++ b/lib/inbound-match.ts
+@@ -135,6 +135,14 @@ export async function resolveInbound(admin: any, e: InboundEmail) {
+     if (inSubject.length === 1) { const r = await reply(inSubject[0].id, "ref_code", 0.95, `Request number ${inSubject[0].request_ref} in the subject`); if (r) return r }
+   }
+ 
++  // A mail that is not a reply in any technical sense (no reply headers, no Re:/AW: subject, no request number,
++  // not in a known thread) is a NEW request, even when it looks like an earlier one from the same sender.
++  // Similar wording (same route, same cargo, same template of email) must never merge two requests.
++  const replyLike = refsIds.length > 0 || /^\s*(re|aw|sv|rv|fw|fwd)\s*:/i.test(String(e.subject ?? ""))
++  if (!replyLike) {
++    return { ...base, decision: "new" as const, method: "not_a_reply", confidence: 0.9, reason: "No reply headers, no Re: subject and no request number: treated as a new request" }
++  }
++
+   // 6. same sender + same subject, exactly one open request
+   const bySender = rows.filter((r) => from && String(r.sender_email ?? "").toLowerCase() === from)
+   if (subjectN) {

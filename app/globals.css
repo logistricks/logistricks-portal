@@ -511,3 +511,14 @@ button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summ
     animation-duration: .01ms !important;
   }
 }
+
+/* ── Requests list: zebra rows, hover, sticky header ── */
+.rq-table tbody tr.rq-row { background: var(--card-bg); border-top: 1px solid var(--divider); transition: background .12s, box-shadow .16s ease; cursor: pointer; }
+.rq-table tbody tr.rq-row:nth-child(even) { background: color-mix(in srgb, var(--text-primary) 5%, var(--card-bg)); }
+.rq-table tbody tr.rq-row:hover { background: color-mix(in srgb, var(--brand-accent) 10%, var(--card-bg)); box-shadow: inset 3px 0 0 var(--brand-accent); }
+.rq-table tbody tr.rq-row.rq-aog { box-shadow: inset 3px 0 0 #ef4444; }
+.rq-table tbody tr.rq-row.rq-aog:hover { box-shadow: inset 4px 0 0 #ef4444; }
+.rq-table thead th { position: sticky; top: 0; z-index: 1; background: var(--table-header-bg); }
+.rq-chip-btn { transition: background .15s, color .15s, border-color .15s, box-shadow .15s; }
+.rq-chip-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-accent-ring, rgba(232,130,26,.18)); }
+.rq-preview { animation: lt-ring-in 1.8s ease-out 2; }
