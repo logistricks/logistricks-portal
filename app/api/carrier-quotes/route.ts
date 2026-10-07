@@ -68,6 +68,7 @@ import { notifyCarrierQuote } from "@/lib/notify-hooks"
 import { adminClient } from "@/lib/api-session"
 import { buildExtendedFields } from "@/lib/quote-extended"
 import { syncRequestStatus } from "@/lib/request-status"
+import { normId } from "@/lib/inbound-match"
 
 /** Insert with the extended columns; if migration 040 has not run yet, store the base fields only. */
 async function insertQuote(admin: any, base: Record<string, unknown>, ext: Record<string, unknown>) {
@@ -208,7 +209,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // When the carrier's email was actually sent/received (not when we finished reading it), to the second.
+  // Order: the date n8n passes → the date stored for this message when it was first seen → now.
+  const okDate = (v: unknown): string | null => {
+    const t = typeof v === "string" ? Date.parse(v) : NaN
+    return Number.isNaN(t) || t > Date.now() + 5 * 60_000 ? null : new Date(t).toISOString()
+  }
+  let emailAt = okDate(body.received_at)
+  if (!emailAt && body.email_message_id) {
+    const { data: ib } = await admin.from("inbound_emails").select("received_at").ilike("client_code", client_code)
+      .eq("message_id", normId(body.email_message_id)).order("received_at", { ascending: true }).limit(1).maybeSingle()
+    emailAt = okDate(ib?.received_at)
+  }
+
   const quoteFields: Record<string, any> = {
+    ...(emailAt ? { received_at: emailAt } : {}),
     client_code,
     rate_usd:         body.rate_usd ?? null,
     rate_currency:    body.rate_currency ?? "USD",
@@ -264,7 +279,7 @@ export async function POST(req: NextRequest) {
   const isDecline = body.response_type === "decline"
   const updatePatch: Record<string, unknown> = {
     status:       isDecline ? "declined" : "responded",
-    responded_at: new Date().toISOString(),
+    responded_at: emailAt ?? new Date().toISOString(),
   }
   if (body.email_message_id) updatePatch.email_message_id = body.email_message_id
   if (body.email_thread_id)  updatePatch.email_thread_id  = body.email_thread_id

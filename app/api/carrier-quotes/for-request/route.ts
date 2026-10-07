@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     .from("carrier_quote_requests")
     .select(`
       id, freight_request_id, carrier_id, email_thread_id, email_message_id,
-      status, sent_at, responded_at,
+      status, sent_at, responded_at, rfq_reference,
       carriers ( carrier_name, email ),
       carrier_quotes ( * )
     `)
@@ -37,5 +37,19 @@ export async function GET(req: NextRequest) {
     .order("sent_at", { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ rows: data ?? [] })
+  // sent_at = the moment the email actually left our mail server (outbound log), so response times are exact.
+  const rows: any[] = (data ?? []) as any[]
+  try {
+    const { data: outs } = await admin
+      .from("outbound_emails").select("rfq_reference, to_emails, sent_at")
+      .eq("freight_request_id", id).eq("purpose", "rfq").eq("status", "sent").not("sent_at", "is", null)
+    for (const r of rows) {
+      const mail = String(r.carriers?.email ?? "").toLowerCase()
+      const hit = (outs ?? [])
+        .filter((o: any) => (o.rfq_reference && o.rfq_reference === r.rfq_reference) || (mail && (o.to_emails ?? []).map((x: string) => x.toLowerCase()).includes(mail)))
+        .sort((a: any, b: any) => Math.abs(Date.parse(a.sent_at) - Date.parse(r.sent_at)) - Math.abs(Date.parse(b.sent_at) - Date.parse(r.sent_at)))[0]
+      if (hit && Math.abs(Date.parse(hit.sent_at) - Date.parse(r.sent_at)) < 30 * 60_000) r.sent_at = hit.sent_at
+    }
+  } catch { /* keep the recorded times */ }
+  return NextResponse.json({ rows })
 }

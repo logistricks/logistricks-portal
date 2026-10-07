@@ -1,5 +1,6 @@
 "use client"
 
+import { RequestTimeline } from "@/components/portal/request-timeline"
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
 import { applyTemplate, templateHasRef } from "@/lib/template-render"
 import { useEffect, useRef, useState } from "react"
@@ -962,23 +963,7 @@ export function RequestDetailModal({
                     <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
                     <StatusBadge status={request.status} />
                   </div>
-                  <ol className="relative space-y-4 px-5 pb-4" style={{ borderLeft: "none" }}>
-                    {request.history.map((e) => (
-                      <li key={e.label} className="relative flex gap-3">
-                        <span
-                          className="mt-0.5 h-3 w-3 shrink-0 rounded-full ring-2"
-                          style={{
-                            background: e.done ? "var(--brand-accent)" : "var(--card-border)",
-                            ringColor: "var(--card-bg)",
-                          }}
-                        />
-                        <div>
-                          <p className={`text-sm ${e.done ? "font-medium" : "font-normal"}`} style={{ color: e.done ? "var(--text-primary)" : "var(--text-muted)" }}>{e.label}</p>
-                          <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{e.time}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
+                  <RequestTimeline requestId={request.id} refreshKey={request.status} />
                 </div>
 
                 {/* Special flags */}

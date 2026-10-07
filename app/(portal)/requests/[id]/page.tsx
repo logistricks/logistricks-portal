@@ -1,5 +1,6 @@
 "use client"
 
+import { RequestTimeline } from "@/components/portal/request-timeline"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
@@ -697,17 +698,7 @@ export default function RequestDetailPage() {
                   <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Timeline</h4>
                   <StatusBadge status={request.status} />
                 </div>
-                <ul className="space-y-2.5">
-                  {(request.history ?? []).map((h, i) => (
-                    <li key={i} className="flex items-start gap-2.5">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: h.done ? "var(--brand-accent)" : "var(--card-border)" }} />
-                      <div>
-                        <p className="text-xs font-medium" style={{ color: h.done ? "var(--text-primary)" : "var(--text-muted)" }}>{h.label}</p>
-                        {h.time && !Number.isNaN(Date.parse(h.time)) && <p className="text-[10px] font-mono tabular-nums" style={{ color: "var(--text-muted)" }}>{new Date(h.time).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <RequestTimeline requestId={request.id} refreshKey={request.status} />
               </div>
 
               {/* Special flags */}

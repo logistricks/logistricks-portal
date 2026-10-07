@@ -34,6 +34,7 @@ function buildBody(ai, prep, modelVersion) {
     email_subject: prep.subject,
     email_thread_id: prep.thread_id,
     email_message_id: prep.message_id,
+    received_at: prep.received_at,
     raw_reply: prep.raw_text,
     rate_currency: (ai.currency || "USD").toUpperCase(),
     source_type: (prep.file_names || []).length ? "email+file" : "email",

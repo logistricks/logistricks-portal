@@ -101,20 +101,26 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
   if ((count ?? 0) >= PER_MINUTE) return reject("rate_limited")
 
   const log = async (status: "sent" | "failed" | "skipped", extra: Record<string, unknown>) => {
-    const row = {
+    const base = {
       client_code: clientCode, purpose: a.purpose, freight_request_id: a.freightRequestId, rfq_reference: a.rfqReference ?? null,
       to_emails: to, cc_emails: cc, subject, status, idempotency_key: key, ...extra,
     }
-    try {
+    const write = async (row: Record<string, unknown>) => {
       if (key) {
         const { data: prev } = await admin.from("outbound_emails").select("id").ilike("client_code", clientCode).eq("idempotency_key", key).maybeSingle()
-        if (prev) { await admin.from("outbound_emails").update(row).eq("id", prev.id); return }
+        if (prev) return admin.from("outbound_emails").update(row).eq("id", prev.id)
       }
-      await admin.from("outbound_emails").insert(row)
+      return admin.from("outbound_emails").insert(row)
+    }
+    try {
+      // from_email / body_text exist after migration 056; before it, log without them rather than not at all
+      const r = await write({ ...base, from_email: fromAddress, body_text: text.slice(0, 100000) })
+      if (r?.error && /from_email|body_text/.test(r.error.message)) await write(base)
     } catch { /* logging is best effort */ }
   }
 
   const cfg = await loadSmtp(admin, clientCode)
+  const fromAddress: string | null = cfg?.from_email ?? null
   if (!cfg || !cfg.enabled) {
     await log("skipped", { error: "Email server not set up or switched off" })
     return { status: "skipped", reason: "smtp_not_configured" }

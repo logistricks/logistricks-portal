@@ -19,28 +19,32 @@ import {
 import type { CarrierQuote, CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { fetchQuotesForRequest } from "@/lib/carrier-quotes-queries"
 import { createClient } from "@/lib/supabase"
+import { fmtDateTimeSec, fmtDuration } from "@/lib/duration"
 import { QuoteChips, QuoteDetails, hasExtendedData } from "@/components/portal/quote-details"
 import { ConfirmStepsDialog, type ConfirmStep } from "@/components/portal/confirm-steps-dialog"
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function ResponseTimeBadge({ sentAt, respondedAt }: { sentAt: string; respondedAt: string | null }) {
+  // Waiting carriers count up live, to the second; answered ones show the exact time they took.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (respondedAt) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [respondedAt])
   if (!respondedAt) {
-    const hours = Math.floor((Date.now() - new Date(sentAt).getTime()) / 3_600_000)
     return (
-      <span className="inline-flex items-center gap-1 rounded bg-[#FFF7ED] px-2 py-0.5 text-xs font-semibold text-[#F97316]">
+      <span className="inline-flex items-center gap-1 rounded bg-[#FFF7ED] px-2 py-0.5 text-xs font-semibold tabular-nums text-[#F97316]">
         <Clock className="h-3 w-3" />
-        {hours < 1 ? "Waiting" : `${hours}h waiting`}
+        {fmtDuration(Math.max(0, now - new Date(sentAt).getTime()))} waiting
       </span>
     )
   }
-  const hrs = Math.round(
-    (new Date(respondedAt).getTime() - new Date(sentAt).getTime()) / 3_600_000,
-  )
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-[#F0FDF4] px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:bg-emerald-900/20">
+    <span title={`RFQ sent ${fmtDateTimeSec(sentAt)} · answered ${fmtDateTimeSec(respondedAt)}`} className="inline-flex items-center gap-1 rounded bg-[#F0FDF4] px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-600 dark:bg-emerald-900/20">
       <Clock className="h-3 w-3" />
-      {hrs < 1 ? "<1h" : `${hrs}h`} response
+      {fmtDuration(Math.max(0, new Date(respondedAt).getTime() - new Date(sentAt).getTime()))} response
     </span>
   )
 }
