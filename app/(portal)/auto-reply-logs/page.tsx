@@ -163,7 +163,7 @@ export default function AutoReplyLogsPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: "Total Sent",       value: rows.length,                 color: "var(--brand-accent)", bg: "rgba(232,130,26,0.1)",  icon: Mail          },
+          { label: "Total Sent",       value: rows.length,                 color: "var(--brand-accent)", bg: "rgb(var(--brand-accent-rgb) / 0.1)",  icon: Mail          },
           { label: "Acknowledgements", value: counts.acknowledgement ?? 0, color: "#3b82f6",             bg: "rgba(59,130,246,0.1)",  icon: CheckCircle   },
           { label: "Missing Fields",   value: counts.missing_fields  ?? 0, color: "#d97706",             bg: "rgba(245,158,11,0.1)",  icon: AlertTriangle },
           { label: "To Carriers",      value: counts.carrier         ?? 0, color: "#16a34a",             bg: "rgba(22,163,74,0.1)",   icon: Truck         },
@@ -214,7 +214,7 @@ export default function AutoReplyLogsPage() {
                 <span style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
                   padding: "1px 7px", borderRadius: 99,
-                  background: active ? "rgba(232,130,26,0.15)" : "var(--divider)",
+                  background: active ? "rgb(var(--brand-accent-rgb) / 0.15)" : "var(--divider)",
                   color: active ? "var(--brand-accent)" : "var(--text-muted)",
                   fontSize: 10, fontWeight: 700, minWidth: 18,
                 }}>

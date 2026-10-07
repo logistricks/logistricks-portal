@@ -26,7 +26,7 @@ function Toggle({ on, onChange, label, hint, disabled }: { on: boolean; onChange
   return (
     <label className="flex items-start gap-3">
       <button type="button" role="switch" aria-checked={on} disabled={disabled} onClick={() => onChange(!on)}
-        className={`relative mt-0.5 h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-50 ${on ? "bg-[#F97316]" : "bg-[#CBD5E1]"}`}>
+        className={`relative mt-0.5 h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-50 ${on ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}>
         <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${on ? "translate-x-5" : "translate-x-0"}`} />
       </button>
       <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
@@ -271,7 +271,7 @@ export function NotificationTemplatesPanel({ onOpenSmtp }: { onOpenSmtp?: () => 
                   return (
                     <button key={e.key} type="button" onClick={() => choose(e.key)} aria-current={on}
                       className="flex min-w-[220px] items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all lg:min-w-0"
-                      style={{ borderColor: on ? "var(--brand-accent)" : "var(--card-border)", background: on ? "rgba(232,130,26,0.08)" : "var(--card-bg)", boxShadow: on ? "0 0 0 1px var(--brand-accent)" : undefined }}>
+                      style={{ borderColor: on ? "var(--brand-accent)" : "var(--card-border)", background: on ? "rgb(var(--brand-accent-rgb) / 0.08)" : "var(--card-bg)", boxShadow: on ? "0 0 0 1px var(--brand-accent)" : undefined }}>
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: on ? "var(--brand-accent)" : "var(--table-header-bg)", color: on ? "#fff" : "var(--text-secondary)" }}><Icon className="h-4 w-4" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{e.label}</span>

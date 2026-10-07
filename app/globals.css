@@ -87,14 +87,15 @@
   --brand-navy-light:  #243d61;
   --brand-accent:      #E8821A;
   --brand-accent-hover:#d4731a;
-  --brand-accent-ring: rgba(232, 130, 26, 0.18);
+  --brand-accent-rgb:  232 130 26;
+  --brand-accent-ring: rgb(var(--brand-accent-rgb) / 0.18);
 
   /* ── Alias / surface tokens for pages that use them ── */
   --surface:     #ffffff;
   --surface-2:   #f6f8fa;
   --surface-3:   #edf0f4;
   --surface-4:   #e2e6ec;
-  --accent:      #E8821A;
+  --accent:      var(--brand-accent);
   --modal-bg:    #ffffff;
   --toggle-off:  #cbd5e1;
 
@@ -335,7 +336,7 @@
 /* Faint diagonal dot grid used behind the hero */
 .dot-grid {
   background-image: radial-gradient(
-    rgba(249, 115, 22, 0.03) 1.5px,
+    rgb(var(--brand-accent-rgb) / 0.03) 1.5px,
     transparent 1.5px
   );
   background-size: 24px 24px;
@@ -408,7 +409,7 @@ button, [role="button"], a[href], summary, select {
   button:not(:disabled):not([role="tab"]):not([role="menuitem"]):not([role="option"]):not([role="switch"]):hover,
   [role="button"]:not([aria-disabled="true"]):hover {
     translate: 0 -1px;
-    box-shadow: 0 6px 14px -6px var(--brand-accent-ring, rgba(232,130,26,.35));
+    box-shadow: 0 6px 14px -6px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .35));
     filter: brightness(1.04);
   }
   /* Icon-only buttons (close, refresh, row actions): a small pop instead of a lift */
@@ -418,7 +419,7 @@ button, [role="button"], a[href], summary, select {
     box-shadow: none;
   }
   /* Switches / tabs / menu items: just a soft glow, no movement */
-  button[role="switch"]:not(:disabled):hover { box-shadow: 0 0 0 4px var(--brand-accent-ring, rgba(232,130,26,.2)); }
+  button[role="switch"]:not(:disabled):hover { box-shadow: 0 0 0 4px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .2)); }
   button[role="tab"]:hover, button[role="menuitem"]:hover, button[role="option"]:hover { filter: brightness(1.06); }
 
   /* Icons that sit next to text inside a button nudge slightly */
@@ -428,7 +429,7 @@ button, [role="button"], a[href], summary, select {
   /* Clickable cards and table rows */
   a.ds-card:hover, button.ds-card:hover, .ds-card[role="button"]:hover {
     translate: 0 -2px;
-    box-shadow: 0 10px 24px -12px var(--brand-accent-ring, rgba(232,130,26,.35));
+    box-shadow: 0 10px 24px -12px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .35));
     border-color: var(--brand-accent);
   }
   .ds-table tbody tr { transition: background .12s, box-shadow .16s ease; }
@@ -476,7 +477,7 @@ button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summ
 @keyframes lt-fade-in   { from { opacity: 0; } to { opacity: 1; } }
 @keyframes lt-pop-in    { from { opacity: 0; translate: 0 10px; scale: .96; } to { opacity: 1; translate: 0 0; scale: 1; } }
 @keyframes lt-drop-in   { from { opacity: 0; translate: 0 -6px; scale: .97; } to { opacity: 1; translate: 0 0; scale: 1; } }
-@keyframes lt-ring-in   { 0% { box-shadow: 0 0 0 0 var(--brand-accent-ring, rgba(232,130,26,.18)); } 100% { box-shadow: 0 0 0 6px transparent; } }
+@keyframes lt-ring-in   { 0% { box-shadow: 0 0 0 0 var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .18)); } 100% { box-shadow: 0 0 0 6px transparent; } }
 
 /* Full-screen overlays (modals / dialogs): backdrop fades, panel pops up */
 [class*="fixed"][class*="inset-0"] {
@@ -520,5 +521,5 @@ button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summ
 .rq-table tbody tr.rq-row.rq-aog:hover { box-shadow: inset 4px 0 0 #ef4444; }
 .rq-table thead th { position: sticky; top: 0; z-index: 1; background: var(--table-header-bg); }
 .rq-chip-btn { transition: background .15s, color .15s, border-color .15s, box-shadow .15s; }
-.rq-chip-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-accent-ring, rgba(232,130,26,.18)); }
+.rq-chip-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .18)); }
 .rq-preview { animation: lt-ring-in 1.8s ease-out 2; }

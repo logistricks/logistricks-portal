@@ -33,7 +33,7 @@ export default function ReportsPage() {
                 return (
                   <button key={r.id} type="button" onClick={() => setOpen(r)} className="ds-card group flex flex-col gap-3 p-5 text-left">
                     <div className="flex items-start justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "var(--brand-accent-ring, rgba(232,130,26,.14))" }}>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .14))" }}>
                         <Icon className="h-5 w-5" style={{ color: "var(--brand-accent)" }} />
                       </div>
                       {r.snapshot && <span className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--table-header-bg)", color: "var(--text-muted)" }}>Live snapshot</span>}

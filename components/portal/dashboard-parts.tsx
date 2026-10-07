@@ -80,7 +80,7 @@ export function RangeFilter({ range, onChange, compact }: { range: DashRange; on
             onClick={() => (p.key === "custom" ? apply(cFrom, cTo) : onChange(makeRange(p.key)))}
             className="rounded-[5px] px-3 py-1 text-[12px] font-medium"
             style={range.key === p.key
-              ? { background: "var(--brand-accent)", color: "#fff", boxShadow: "0 1px 4px var(--brand-accent-ring, rgba(232,130,26,.3))" }
+              ? { background: "var(--brand-accent)", color: "#fff", boxShadow: "0 1px 4px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .3))" }
               : { background: "transparent", color: "var(--text-secondary)" }}>
             {p.label}
           </button>

@@ -799,7 +799,7 @@ export function RequestDetailModal({
                               <input type="checkbox" checked={onlyCritical} onChange={(e) => setOnlyCritical(e.target.checked)} className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
                               <span className="text-sm" style={{ color: "var(--text-primary)" }}>Only ask for critical missing data</span>
                               {onlyCritical && (
-                                <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "rgba(232,130,26,0.12)", color: "var(--brand-accent)" }}>
+                                <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)" }}>
                                   {criticalFields.join(", ").replace(/_/g, " ")}
                                 </span>
                               )}
@@ -849,7 +849,7 @@ export function RequestDetailModal({
                                         className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors"
                                         style={{
                                           borderBottom: "1px solid var(--divider)",
-                                          background: checked ? "rgba(232,130,26,0.06)" : "transparent",
+                                          background: checked ? "rgb(var(--brand-accent-rgb) / 0.06)" : "transparent",
                                         }}
                                       >
                                         <input type="checkbox" checked={checked} onChange={() => toggleCarrier(String(c.carrier_id))} className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
@@ -1055,7 +1055,7 @@ export function RequestDetailModal({
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all"
                 style={{
                   background: isCriticalBlocked
-                    ? "rgba(232,130,26,0.4)"
+                    ? "rgb(var(--brand-accent-rgb) / 0.4)"
                     : sendMethod === "Email"
                     ? "#c8701a"
                     : "var(--brand-accent)",

@@ -96,7 +96,7 @@ function VarPill({ name, label, onInsert }: { name: string; label: string; onIns
       onClick={() => onInsert(name)}
       className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors"
       style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(232,130,26,0.4)"; (e.currentTarget as HTMLElement).style.background = "rgba(232,130,26,0.04)" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgb(var(--brand-accent-rgb) / 0.4)"; (e.currentTarget as HTMLElement).style.background = "rgb(var(--brand-accent-rgb) / 0.04)" }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLElement).style.background = "var(--card-bg)" }}
     >
       <GripVertical className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
@@ -163,7 +163,7 @@ export function TemplateEditor({
 
   function insertVar(name: string) {
     const token = `{{${name}}}`
-    const pill = `<span class="tpl-var" contenteditable="false" data-var="${name}" style="display:inline-block;background:rgba(232,130,26,0.12);color:#E8821A;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">${token}</span>`
+    const pill = `<span class="tpl-var" contenteditable="false" data-var="${name}" style="display:inline-block;background:rgb(var(--brand-accent-rgb) / 0.12);color:var(--brand-accent);border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">${token}</span>`
     editorRef.current?.focus()
     insertHtmlAtCursor(pill + "​")
     refreshRefFlag()
@@ -175,7 +175,7 @@ export function TemplateEditor({
     const match = raw.match(/^\{\{(\w+)\}\}$/)
     if (!match) return
     const name = match[1]
-    const pill = `<span class="tpl-var" contenteditable="false" data-var="${name}" style="display:inline-block;background:rgba(232,130,26,0.12);color:#E8821A;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{${name}}}</span>`
+    const pill = `<span class="tpl-var" contenteditable="false" data-var="${name}" style="display:inline-block;background:rgb(var(--brand-accent-rgb) / 0.12);color:var(--brand-accent);border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{${name}}}</span>`
 
     // Place at drop position
     const range = document.caretRangeFromPoint?.(e.clientX, e.clientY)
@@ -192,7 +192,7 @@ export function TemplateEditor({
   function insertExwBlock() {
     const chip = (kind: "start" | "end", label: string) =>
       `<span class="tpl-cond" contenteditable="false" data-cond="${kind}" style="display:inline-block;background:rgba(37,99,235,0.12);color:#2563EB;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;font-family:monospace;margin:0 1px;cursor:default;">${label}</span>`
-    const pill = `<span class="tpl-var" contenteditable="false" data-var="pickup_address" style="display:inline-block;background:rgba(232,130,26,0.12);color:#E8821A;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{pickup_address}}</span>`
+    const pill = `<span class="tpl-var" contenteditable="false" data-var="pickup_address" style="display:inline-block;background:rgb(var(--brand-accent-rgb) / 0.12);color:var(--brand-accent);border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{pickup_address}}</span>`
     editorRef.current?.focus()
     insertHtmlAtCursor(`<div>${chip("start", "if EXW")}Pickup address:&nbsp;${pill}${chip("end", "end if")}</div>​`)
   }
@@ -201,7 +201,7 @@ export function TemplateEditor({
   function insertSpecialBlock() {
     const chip = (kind: "start" | "end", label: string) =>
       `<span class="tpl-cond" contenteditable="false" data-cond="special-${kind}" style="display:inline-block;background:rgba(37,99,235,0.12);color:#2563EB;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;font-family:monospace;margin:0 1px;cursor:default;">${label}</span>`
-    const pill = `<span class="tpl-var" contenteditable="false" data-var="special_requirements" style="display:inline-block;background:rgba(232,130,26,0.12);color:#E8821A;border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{special_requirements}}</span>`
+    const pill = `<span class="tpl-var" contenteditable="false" data-var="special_requirements" style="display:inline-block;background:rgb(var(--brand-accent-rgb) / 0.12);color:var(--brand-accent);border-radius:4px;padding:1px 6px;font-size:12px;font-weight:600;font-family:monospace;margin:0 1px;cursor:default;">{{special_requirements}}</span>`
     editorRef.current?.focus()
     insertHtmlAtCursor(`<div>${chip("start", "if special requests")}Special requests:&nbsp;${pill}${chip("end", "end if")}</div>​`)
   }
@@ -406,7 +406,7 @@ export function TemplateEditor({
                           className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
                           style={{
                             border: `1px solid ${on ? "var(--brand-accent)" : "var(--card-border)"}`,
-                            background: on ? "rgba(232,130,26,0.08)" : "var(--card-bg)",
+                            background: on ? "rgb(var(--brand-accent-rgb) / 0.08)" : "var(--card-bg)",
                             color: on ? "var(--brand-accent)" : "var(--text-secondary)",
                           }}>
                           {c.carrier_name}

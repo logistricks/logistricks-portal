@@ -401,7 +401,7 @@ export default function ApprovalCyclesPage() {
         ) : cycles.length === 0 ? (
           <div className="text-center py-16 space-y-3">
             <p className="text-[var(--text-secondary)]">No approval cycles yet</p>
-            <button onClick={openCreate} className="bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500">
+            <button onClick={openCreate} className="bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-[var(--brand-accent-hover)]">
               Create your first cycle
             </button>
           </div>

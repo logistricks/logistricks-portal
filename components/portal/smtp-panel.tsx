@@ -94,7 +94,7 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
               return (
                 <button key={p.name} type="button" disabled={!canEdit} onClick={() => set(p.host ? { host: p.host, port: p.port, security: p.security, ...(p.name === "Microsoft 365" ? { auth_method: "oauth2_microsoft" as const } : { auth_method: "password" as const }) } : { port: p.port, security: p.security, auth_method: "password" })}
                   className="rounded-full border px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
-                  style={{ borderColor: on ? "var(--brand-accent)" : "var(--card-border)", background: on ? "rgba(232,130,26,0.1)" : "transparent", color: on ? "var(--brand-accent)" : "var(--text-secondary)" }}>{p.name}</button>
+                  style={{ borderColor: on ? "var(--brand-accent)" : "var(--card-border)", background: on ? "rgb(var(--brand-accent-rgb) / 0.1)" : "transparent", color: on ? "var(--brand-accent)" : "var(--text-secondary)" }}>{p.name}</button>
               )
             })}
           </div>
@@ -169,7 +169,7 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
 
         <label className="flex items-center gap-3 text-sm" style={{ color: "var(--text-primary)" }}>
           <button type="button" role="switch" aria-checked={f.enabled} disabled={!canEdit} onClick={() => set({ enabled: !f.enabled })}
-            className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-50 ${f.enabled ? "bg-[#F97316]" : "bg-[#CBD5E1]"}`}>
+            className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors disabled:opacity-50 ${f.enabled ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}>
             <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${f.enabled ? "translate-x-5" : "translate-x-0"}`} />
           </button>
           Send notification emails

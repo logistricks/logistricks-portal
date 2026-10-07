@@ -133,12 +133,12 @@ export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }
                 const checked = selected.has(c.carrier_id)
                 return (
                   <li key={c.carrier_id}>
-                    <label className={`flex cursor-pointer items-center gap-3 py-3 transition-colors hover:text-[#F97316] ${checked ? "text-[#F97316]" : "text-[#0F172A] dark:text-[#E2E8F0]"}`}>
+                    <label className={`flex cursor-pointer items-center gap-3 py-3 transition-colors hover:text-[var(--brand-accent)] ${checked ? "text-[var(--brand-accent)]" : "text-[#0F172A] dark:text-[#E2E8F0]"}`}>
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggle(c.carrier_id)}
-                        className="h-4 w-4 accent-[#F97316]"
+                        className="h-4 w-4 accent-[var(--brand-accent)]"
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{c.carrier_name} <span className="font-normal text-[#64748B]">— {c.person_name}</span></p>
@@ -170,7 +170,7 @@ export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }
               type="button"
               onClick={handleSend}
               disabled={selected.size === 0 || sending}
-              className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Send RFQ

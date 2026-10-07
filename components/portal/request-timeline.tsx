@@ -9,7 +9,7 @@ const KIND: Record<TimelineEvent["kind"], { color: string; Icon: typeof Mail }> 
   request_sent:    { color: "#3b82f6", Icon: Mail },
   added:           { color: "#64748b", Icon: FilePlus2 },
   requester_reply: { color: "#8b5cf6", Icon: Reply },
-  rfq_sent:        { color: "#e8821a", Icon: Send },
+  rfq_sent:        { color: "var(--brand-accent)", Icon: Send },
   carrier_reply:   { color: "#10b981", Icon: Truck },
   reply_sent:      { color: "#0ea5e9", Icon: Inbox },
   quotation_sent:  { color: "#14b8a6", Icon: FileText },

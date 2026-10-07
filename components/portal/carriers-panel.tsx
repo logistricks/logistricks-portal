@@ -251,7 +251,7 @@ export function CarriersPanel() {
                 title={c.auto_send_rfq ? "Included in automated RFQ send — click to exclude" : "Not included in automated RFQ send — click to include"}
                 className="mb-3.5 flex w-full items-center justify-between rounded-[7px] px-3 py-2 text-xs font-semibold transition-colors"
                 style={c.auto_send_rfq
-                  ? { background: "rgba(232,130,26,0.1)", color: "var(--brand-accent)" }
+                  ? { background: "rgb(var(--brand-accent-rgb) / 0.1)", color: "var(--brand-accent)" }
                   : { background: "var(--table-header-bg)", color: "var(--text-muted)" }}
               >
                 <span>Auto-send RFQ</span>

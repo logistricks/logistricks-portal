@@ -28,7 +28,7 @@ export function PortalTabbar() {
             key={item.href}
             href={item.href}
             className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-colors ${
-              active ? "text-[#F97316]" : "text-[#94A3B8]"
+              active ? "text-[var(--brand-accent)]" : "text-[#94A3B8]"
             }`}
           >
             <Icon className="h-5 w-5" aria-hidden="true" />

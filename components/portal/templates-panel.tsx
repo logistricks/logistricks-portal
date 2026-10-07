@@ -364,8 +364,8 @@ export function TemplatesPanel() {
                 />
                 <TagButton
                   active={t.is_missing_reply_template}
-                  activeClass="bg-orange-50 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300"
-                  inactiveClass="text-[var(--text-muted)] hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-500/10"
+                  activeClass="bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]"
+                  inactiveClass="text-[var(--text-muted)] hover:bg-[var(--brand-accent)]/10 hover:text-[var(--brand-accent)]"
                   icon={AlertTriangle}
                   label="Missing data"
                   title={t.is_missing_reply_template ? "Remove missing-data" : "Set as missing-data reply"}
@@ -414,7 +414,7 @@ export function TemplatesPanel() {
                     onClick={() => { setEditing(t); setEditorOpen(true) }}
                     className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                     style={{ color: "var(--text-muted)" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(232,130,26,0.1)"; (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgb(var(--brand-accent-rgb) / 0.1)"; (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
                   >
                     <Pencil className="h-3.5 w-3.5" />
@@ -426,7 +426,7 @@ export function TemplatesPanel() {
                     onClick={() => handleDuplicate(t)}
                     className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                     style={{ color: "var(--text-muted)" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(232,130,26,0.1)"; (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgb(var(--brand-accent-rgb) / 0.1)"; (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
                   >
                     <Copy className="h-3.5 w-3.5" />

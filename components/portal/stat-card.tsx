@@ -8,7 +8,7 @@ export function StatCard({
   valueClass = "text-[#0D1B2A] dark:text-[#E2E8F0]",
   icon: Icon,
   iconClass,
-  glowColor = "rgba(249,115,22,0.18)",
+  glowColor = "rgb(var(--brand-accent-rgb) / 0.18)",
 }: {
   label: string
   value: string | number
@@ -34,7 +34,7 @@ export function StatCard({
       }}
     >
       {/* Accent bar */}
-      <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: glowColor.includes("249,115,22") ? "#F97316" : glowColor.includes("59,130,246") ? "#3b82f6" : glowColor.includes("34,197,94") ? "#22c55e" : "#F97316" }} />
+      <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: glowColor.includes("59,130,246") ? "#3b82f6" : glowColor.includes("34,197,94") ? "#22c55e" : "var(--brand-accent)" }} />
       <div className="flex items-start justify-between">
         <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-[#64748B] dark:text-[#94A3B8]">{label}</p>
         <div className="flex h-9 w-9 items-center justify-center rounded" style={{ background: glowColor.replace("0.18", "0.12") }}>

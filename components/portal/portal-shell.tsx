@@ -22,6 +22,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
       if (colors.primaryLight) root.style.setProperty("--brand-navy-light",  colors.primaryLight)
       if (colors.accent) {
         root.style.setProperty("--brand-accent",       colors.accent)
+        const m = /^#?([0-9a-f]{6})$/i.exec(colors.accent.trim())
+        if (m) { const v = parseInt(m[1], 16); root.style.setProperty("--brand-accent-rgb", `${(v >> 16) & 255} ${(v >> 8) & 255} ${v & 255}`) }
         const hex = colors.accent.replace("#","")
         const n = parseInt(hex,16)
         const r=Math.min(255,Math.round(((n>>16)&255)*0.9)), g=Math.min(255,Math.round(((n>>8)&255)*0.9)), b=Math.min(255,Math.round((n&255)*0.9))

@@ -147,13 +147,13 @@ export function CarrierModal({
                     value={ccInput}
                     onChange={(e) => setCcInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCc() } }}
-                    className="h-10 flex-1 rounded-md border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
+                    className="h-10 flex-1 rounded-md border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
                   />
                   <button
                     type="button"
                     onClick={addCc}
                     disabled={!ccInput.trim()}
-                    className="flex h-10 items-center gap-1.5 rounded-md border border-[#E2E8F0] px-3 text-sm font-medium text-[#64748B] transition-colors hover:border-[#F97316]/40 hover:text-[#F97316] disabled:opacity-40 dark:border-[#1E3A5F] dark:text-[#94A3B8]"
+                    className="flex h-10 items-center gap-1.5 rounded-md border border-[#E2E8F0] px-3 text-sm font-medium text-[#64748B] transition-colors hover:border-[var(--brand-accent)]/40 hover:text-[var(--brand-accent)] disabled:opacity-40 dark:border-[#1E3A5F] dark:text-[#94A3B8]"
                   >
                     <Plus className="h-4 w-4" /> Add
                   </button>
@@ -171,7 +171,7 @@ export function CarrierModal({
                       type="checkbox"
                       checked={checked}
                       onChange={(e) => setter(e.target.checked)}
-                      className="h-4 w-4 accent-[#F97316]"
+                      className="h-4 w-4 accent-[var(--brand-accent)]"
                     />
                     {label}
                   </label>
@@ -187,7 +187,7 @@ export function CarrierModal({
                 onChange={(e) => setRoutes(e.target.value)}
                 placeholder="e.g. Jordan, UAE, Saudi Arabia, Europe"
                 rows={2}
-                className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
+                className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
               />
             </div>
 
@@ -202,7 +202,7 @@ export function CarrierModal({
                       name="language"
                       checked={lang === langValue(l)}
                       onChange={() => setLang(langValue(l))}
-                      className="h-4 w-4 accent-[#F97316]"
+                      className="h-4 w-4 accent-[var(--brand-accent)]"
                     />
                     {l}
                   </label>
@@ -231,7 +231,7 @@ export function CarrierModal({
                 role="switch"
                 aria-checked={autoSendRfq}
                 onClick={() => setAutoSendRfq((v) => !v)}
-                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${autoSendRfq ? "bg-[#F97316]" : "bg-[#CBD5E1]"}`}
+                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${autoSendRfq ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}
               >
                 <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${autoSendRfq ? "translate-x-5" : "translate-x-0"}`} />
               </button>
@@ -247,14 +247,14 @@ export function CarrierModal({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[#F97316]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
+              className="rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] hover:border-[var(--brand-accent)]/40 disabled:opacity-50 dark:border-[#1E3A5F] dark:bg-transparent dark:text-[#E2E8F0]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-md bg-[#F97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA580C] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Carrier
@@ -292,7 +292,7 @@ function Field({
         placeholder={placeholder}
         required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
+        className="h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8] focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)]/20 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
       />
     </div>
   )

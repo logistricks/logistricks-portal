@@ -193,7 +193,7 @@ export function ActivityPanel() {
           <select
             value={range}
             onChange={(e) => setRange(e.target.value as Range)}
-            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[var(--brand-accent)] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
+            className="h-9 rounded border border-[#D1D9E0] bg-white px-3 text-sm outline-none focus:border-[var(--brand-accent)] focus:shadow-[0_0_0_3px_rgb(var(--brand-accent-rgb) / 0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0]"
           >
             {RANGES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
@@ -238,7 +238,7 @@ export function ActivityPanel() {
             </div>
           </div>
           <div className="ds-card flex items-center gap-3 p-4">
-            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgba(232,130,26,0.12)" }}>
+            <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px]" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)" }}>
               <Mail className="h-[18px] w-[18px]" style={{ color: "var(--brand-accent)" }} />
             </div>
             <div>

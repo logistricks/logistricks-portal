@@ -105,12 +105,12 @@ export function Select({
         }}
         className={[
           "flex w-full items-center justify-between gap-2 rounded border px-3 py-2 text-sm font-medium transition-colors",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F97316]/50",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]/50",
           disabled
             ? "cursor-not-allowed opacity-50 border-[#E2E8F0] bg-[#F8FAFC] text-[#94A3B8] dark:border-[#1E3A5F] dark:bg-[#0A1628] dark:text-[#475569]"
             : open
-              ? "border-[#F97316] bg-white text-[#0D1B2A] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
-              : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:border-[#F97316]/40 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0] dark:hover:border-[#F97316]/30",
+              ? "border-[var(--brand-accent)] bg-white text-[#0D1B2A] dark:bg-[#0D1B2A] dark:text-[#E2E8F0]"
+              : "border-[#E2E8F0] bg-white text-[#0D1B2A] hover:border-[var(--brand-accent)]/40 dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0] dark:hover:border-[var(--brand-accent)]/30",
         ].join(" ")}
       >
         <span className={!selected ? "text-[#94A3B8] dark:text-[#475569]" : ""}>
@@ -147,14 +147,14 @@ export function Select({
                   className={[
                     "flex cursor-pointer items-center justify-between px-3 py-2 text-sm transition-colors",
                     isActive
-                      ? "bg-[#FFF7ED] text-[#EA580C] dark:bg-[#F97316]/10 dark:text-[#F97316]"
+                      ? "bg-[color-mix(in_srgb,var(--brand-accent)_10%,white)] text-[var(--brand-accent-hover)] dark:bg-[var(--brand-accent)]/10 dark:text-[var(--brand-accent)]"
                       : isSel
-                        ? "bg-[#FFF7ED]/50 text-[#EA580C] dark:bg-[#F97316]/5 dark:text-[#FDBA74]"
+                        ? "bg-[color-mix(in_srgb,var(--brand-accent)_5%,white)] text-[var(--brand-accent-hover)] dark:bg-[var(--brand-accent)]/5 dark:text-[var(--brand-accent)]"
                         : "text-[#0D1B2A] hover:bg-[#F8FAFC] dark:text-[#E2E8F0] dark:hover:bg-[#1E3A5F]",
                   ].join(" ")}
                 >
                   <span>{opt.label}</span>
-                  {isSel && <Check className="h-3.5 w-3.5 shrink-0 text-[#F97316]" />}
+                  {isSel && <Check className="h-3.5 w-3.5 shrink-0 text-[var(--brand-accent)]" />}
                 </li>
               )
             })

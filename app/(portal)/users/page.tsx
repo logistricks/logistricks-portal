@@ -72,7 +72,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       aria-checked={checked}
       disabled={disabled}
       onClick={onChange}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F97316] disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-accent)] disabled:cursor-not-allowed disabled:opacity-40 ${
         checked ? "bg-[var(--brand-accent,#E8821A)]" : "bg-[var(--toggle-off)]"
       }`}
     >
@@ -329,7 +329,7 @@ function UserFormModal({
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent,#E8821A)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#EA6C0A] disabled:opacity-60">
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent,#E8821A)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-accent-hover)] disabled:opacity-60">
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {mode === "add" ? "Create User" : "Save Changes"}
             </button>
@@ -523,7 +523,7 @@ export default function UsersPage() {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "rgba(232,130,26,0.12)" }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)" }}>
               <Users className="h-5 w-5 text-[var(--brand-accent)]" />
             </div>
             <div>
@@ -533,7 +533,7 @@ export default function UsersPage() {
           </div>
           <button
             onClick={() => setModal({ kind: "add" })}
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent,#E8821A)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#EA6C0A] transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent,#E8821A)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[var(--brand-accent-hover)] transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add User
@@ -558,7 +558,7 @@ export default function UsersPage() {
               <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Active</p>
             </div>
             <div className="ds-card p-[18px]">
-              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(232,130,26,0.12)" }}>
+              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)" }}>
                 <ShieldCheck className="h-[18px] w-[18px]" style={{ color: "var(--brand-accent)" }} />
               </div>
               <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{adminCount}</p>

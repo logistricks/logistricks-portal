@@ -35,7 +35,7 @@ function ResponseTimeBadge({ sentAt, respondedAt }: { sentAt: string; respondedA
   }, [respondedAt])
   if (!respondedAt) {
     return (
-      <span className="inline-flex items-center gap-1 rounded bg-[#FFF7ED] px-2 py-0.5 text-xs font-semibold tabular-nums text-[#F97316]">
+      <span className="inline-flex items-center gap-1 rounded bg-[color-mix(in_srgb,var(--brand-accent)_10%,white)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--brand-accent)]">
         <Clock className="h-3 w-3" />
         {fmtDuration(Math.max(0, now - new Date(sentAt).getTime()))} waiting
       </span>

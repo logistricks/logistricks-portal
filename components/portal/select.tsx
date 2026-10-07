@@ -41,7 +41,7 @@ export function Select<T extends string = string>({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 items-center gap-2 rounded border border-[#D1D9E0] bg-white pl-3 pr-2.5 text-sm text-[#0F172A] outline-none transition-colors hover:border-[#F97316]/60 focus:border-[#F97316] focus:shadow-[0_0_0_3px_rgba(249,115,22,0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] dark:hover:border-[#F97316]/60"
+        className="flex h-9 items-center gap-2 rounded border border-[#D1D9E0] bg-white pl-3 pr-2.5 text-sm text-[#0F172A] outline-none transition-colors hover:border-[var(--brand-accent)]/60 focus:border-[var(--brand-accent)] focus:shadow-[0_0_0_3px_rgb(var(--brand-accent-rgb) / 0.12)] dark:border-[#1E3A5F] dark:bg-[#111E33] dark:text-[#E2E8F0] dark:hover:border-[var(--brand-accent)]/60"
       >
         <span className="min-w-0 flex-1 whitespace-nowrap">
           {selected ? selected.label : (placeholder ?? "Select…")}
@@ -62,7 +62,7 @@ export function Select<T extends string = string>({
                 onClick={() => { onChange(opt.value); setOpen(false) }}
                 className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
                   active
-                    ? "bg-[#FFF7ED] text-[#F97316] dark:bg-[#F97316]/10 dark:text-[#F97316]"
+                    ? "bg-[color-mix(in_srgb,var(--brand-accent)_10%,white)] text-[var(--brand-accent)] dark:bg-[var(--brand-accent)]/10 dark:text-[var(--brand-accent)]"
                     : "text-[#0F172A] hover:bg-[#F8FAFC] dark:text-[#E2E8F0] dark:hover:bg-[#1E3A5F]/40"
                 }`}
               >

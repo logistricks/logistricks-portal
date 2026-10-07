@@ -74,7 +74,7 @@ function Chip({ tone, icon, children, title }: { tone: "red" | "amber" | "blue" 
 }
 
 const STATUS_TONE: Record<Stage, string> = {
-  Pending: "#e8821a", Waiting: "#d97706", Approved: "#10b981", Rejected: "#ef4444",
+  Pending: "var(--brand-accent)", Waiting: "#d97706", Approved: "#10b981", Rejected: "#ef4444",
   "Sent to Carrier": "#3b82f6", Quoted: "#0ea5e9", Closed: "#64748b",
 }
 
@@ -271,7 +271,7 @@ export default function RequestsPage() {
           <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
             Requests
           </h2>
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums" style={{ background: "rgba(232,130,26,0.12)", color: "var(--brand-accent)" }}>
+          <span className="rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)" }}>
             {requests.length}
           </span>
         </div>
@@ -348,7 +348,7 @@ export default function RequestsPage() {
       {selected.length > 0 && (
         <div
           className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-3"
-          style={{ background: "rgba(232,130,26,0.08)", border: "1px solid rgba(232,130,26,0.25)" }}
+          style={{ background: "rgb(var(--brand-accent-rgb) / 0.08)", border: "1px solid rgb(var(--brand-accent-rgb) / 0.25)" }}
         >
           <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
             {selected.length} selected

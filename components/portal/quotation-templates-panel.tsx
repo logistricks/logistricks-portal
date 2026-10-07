@@ -172,7 +172,7 @@ export function QuotationTemplatesPanel() {
                     {t.applies_to_mode && t.applies_to_mode !== "any" && (
                       <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize" style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}>{t.applies_to_mode}</span>
                     )}
-                    {t.is_default && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "rgba(249,115,22,0.15)", color: "var(--brand-accent)" }}>Default</span>}
+                    {t.is_default && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.15)", color: "var(--brand-accent)" }}>Default</span>}
                     {!t.active && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">Inactive</span>}
                   </div>
                 </div>

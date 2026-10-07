@@ -276,7 +276,7 @@ export function PortalSidebar({
               className="flex h-8 w-8 items-center justify-center rounded text-xs font-bold text-white transition-colors"
               style={{ background: "var(--brand-navy-mid)" }}
               onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(232,130,26,0.2)"
+                ;(e.currentTarget as HTMLButtonElement).style.background = "rgb(var(--brand-accent-rgb) / 0.2)"
                 ;(e.currentTarget as HTMLButtonElement).style.color = "#f87171"
               }}
               onMouseLeave={(e) => {

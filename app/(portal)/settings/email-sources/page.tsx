@@ -196,7 +196,7 @@ export default function EmailSourcesPage() {
           <button
             type="button"
             onClick={openNew}
-            className="flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA6E0D]"
+            className="flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-accent-hover)]"
           >
             <Plus className="h-4 w-4" />
             Add Source
@@ -215,7 +215,7 @@ export default function EmailSourcesPage() {
           <button
             type="button"
             onClick={openNew}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white mx-auto hover:bg-[#EA6E0D]"
+            className="mt-4 flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white mx-auto hover:bg-[var(--brand-accent-hover)]"
           >
             <Plus className="h-4 w-4" />
             Add Source
@@ -367,7 +367,7 @@ export default function EmailSourcesPage() {
                   type="checkbox"
                   checked={form.imap_tls}
                   onChange={(e) => set("imap_tls", e.target.checked)}
-                  className="h-4 w-4 rounded border-[#E2E8F0] accent-[#F97316]"
+                  className="h-4 w-4 rounded border-[#E2E8F0] accent-[var(--brand-accent)]"
                 />
                 <span className="text-xs text-[var(--text-secondary)]">Use TLS/SSL (recommended)</span>
               </label>
@@ -446,7 +446,7 @@ export default function EmailSourcesPage() {
               type="checkbox"
               checked={form.active}
               onChange={(e) => set("active", e.target.checked)}
-              className="h-4 w-4 rounded border-[#E2E8F0] accent-[#F97316]"
+              className="h-4 w-4 rounded border-[#E2E8F0] accent-[var(--brand-accent)]"
             />
             <span className="text-xs text-[var(--text-secondary)]">Active (this mailbox will be monitored)</span>
           </label>
@@ -466,7 +466,7 @@ export default function EmailSourcesPage() {
               type="button"
               onClick={save}
               disabled={busy}
-              className="flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#EA6E0D] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
               {busy ? "Saving…" : "Save"}

@@ -198,7 +198,7 @@ export function NotificationBell() {
       >
         <Bell className="h-[18px] w-[18px]" />
         {unread > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#F97316] text-[9px] font-bold leading-none text-white">
+          <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--brand-accent)] text-[9px] font-bold leading-none text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -249,7 +249,7 @@ export function NotificationBell() {
                   <button
                     type="button"
                     onClick={() => { setPushState("idle"); setPushError(null) }}
-                    className="shrink-0 text-xs font-medium text-[#F97316] hover:text-[#EA6E0D]"
+                    className="shrink-0 text-xs font-medium text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)]"
                   >
                     Retry
                   </button>
@@ -261,7 +261,7 @@ export function NotificationBell() {
                   type="button"
                   onClick={enablePush}
                   disabled={pushState === "requesting"}
-                  className="flex w-full items-center gap-2 text-left text-xs font-medium text-[#F97316] hover:text-[#EA6E0D] disabled:opacity-60"
+                  className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--brand-accent)] hover:text-[var(--brand-accent-hover)] disabled:opacity-60"
                 >
                   <Bell className="h-3.5 w-3.5 shrink-0" />
                   {pushState === "requesting" ? "Requesting permission…" : "Enable push notifications"}
@@ -283,7 +283,7 @@ export function NotificationBell() {
                   <li
                     key={n.id}
                     className={`relative border-b border-[#F1F5F9] last:border-0 dark:border-[#1A2D4A] ${
-                      !n.read_at ? "bg-[#FFF7ED] dark:bg-[#1E2D1A]" : ""
+                      !n.read_at ? "bg-[color-mix(in_srgb,var(--brand-accent)_10%,white)] dark:bg-[#1E2D1A]" : ""
                     }`}
                   >
                     <button
@@ -300,7 +300,7 @@ export function NotificationBell() {
                       <div className="flex items-start gap-3">
                         <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
                           !n.read_at
-                            ? "bg-[#F97316]/15 text-[#F97316]"
+                            ? "bg-[var(--brand-accent)]/15 text-[var(--brand-accent)]"
                             : "bg-[#F1F5F9] text-[#94A3B8] dark:bg-[#1E3A5F]"
                         }`}>
                           <Package className="h-3.5 w-3.5" />
@@ -315,7 +315,7 @@ export function NotificationBell() {
                           <p className="mt-1 text-[10px] text-[#CBD5E1]">{timeAgo(n.created_at)}</p>
                         </div>
                         {!n.read_at && (
-                          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#F97316]" />
+                          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--brand-accent)]" />
                         )}
                       </div>
                     </button>

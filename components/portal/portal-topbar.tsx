@@ -135,7 +135,7 @@ export function PortalTopbar() {
                   <span
                     className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
                     style={{
-                      background: active ? "rgba(255,255,255,0.25)" : "#E8821A",
+                      background: active ? "rgba(255,255,255,0.25)" : "var(--brand-accent)",
                       color: "#ffffff",
                     }}
                   >
@@ -158,7 +158,7 @@ export function PortalTopbar() {
               title={`${displayName} — Log out`}
               className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white transition-colors"
               style={{ background: "rgba(255,255,255,0.1)", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
-              onMouseEnter={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(232,130,26,0.25)" }}
+              onMouseEnter={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgb(var(--brand-accent-rgb) / 0.25)" }}
               onMouseLeave={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)" }}
             >
               {avatarInitials}

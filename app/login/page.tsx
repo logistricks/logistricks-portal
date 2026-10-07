@@ -128,7 +128,7 @@ export default function LoginPage() {
           {why && !error && (
             <div
               className="mb-4 rounded-[3px] px-[11px] py-2 text-[12.5px]"
-              style={{ background: "rgba(232,130,26,0.08)", border: "1px solid rgba(232,130,26,0.3)", color: "#9a5a10" }}
+              style={{ background: "rgb(var(--brand-accent-rgb) / 0.08)", border: "1px solid rgb(var(--brand-accent-rgb) / 0.3)", color: "#9a5a10" }}
             >
               Please sign in again. <span style={{ opacity: 0.7 }}>({why})</span>
             </div>
@@ -264,7 +264,7 @@ export default function LoginPage() {
               onMouseEnter={(e) => {
                 if (!loading) {
                   (e.target as HTMLButtonElement).style.background = "var(--brand-accent-hover)"
-                  ;(e.target as HTMLButtonElement).style.boxShadow = "0 2px 8px rgba(232,130,26,0.3)"
+                  ;(e.target as HTMLButtonElement).style.boxShadow = "0 2px 8px rgb(var(--brand-accent-rgb) / 0.3)"
                 }
               }}
               onMouseLeave={(e) => {

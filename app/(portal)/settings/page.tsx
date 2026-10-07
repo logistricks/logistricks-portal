@@ -184,7 +184,7 @@ function MiniPreview({ colors }: { colors: ThemeColors }) {
 // ── Shared input style ────────────────────────────────────────────────────────
 const inputCls   = "w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all placeholder:text-[var(--text-muted)]"
 const inputStyle = { borderColor: "var(--card-border)", background: "var(--input-bg, var(--card-bg))", color: "var(--text-primary)" }
-const inputFocusStyle = { borderColor: "var(--brand-accent)", boxShadow: "0 0 0 3px rgba(232,130,26,0.12)" }
+const inputFocusStyle = { borderColor: "var(--brand-accent)", boxShadow: "0 0 0 3px rgb(var(--brand-accent-rgb) / 0.12)" }
 
 function Input({ value, onChange, onKeyDown, type = "text", placeholder, className = "" }: {
   value: string; onChange: (v: string) => void; onKeyDown?: (e: React.KeyboardEvent) => void
@@ -781,7 +781,7 @@ export default function SettingsPage() {
                         {criticalFields.map((key) => {
                           const opt = CRITICAL_FIELD_OPTIONS.find((o) => o.key === key)
                           return opt ? (
-                            <span key={key} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: "rgba(232,130,26,0.12)", color: "var(--brand-accent)", border: "1px solid rgba(232,130,26,0.25)" }}>
+                            <span key={key} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)", border: "1px solid rgb(var(--brand-accent-rgb) / 0.25)" }}>
                               <AlertTriangle className="h-3 w-3" />{opt.label}
                             </span>
                           ) : null
@@ -823,7 +823,7 @@ export default function SettingsPage() {
           href="/settings/approval-cycles"
           className="flex items-center justify-between rounded-xl border px-5 py-4 text-sm font-semibold transition-all"
           style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(232,130,26,0.4)"; (e.currentTarget as HTMLAnchorElement).style.background = "rgba(232,130,26,0.04)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgb(var(--brand-accent-rgb) / 0.4)"; (e.currentTarget as HTMLAnchorElement).style.background = "rgb(var(--brand-accent-rgb) / 0.04)" }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLAnchorElement).style.background = "var(--card-bg)" }}
         >
           <span>Manage Approval Cycles</span>
@@ -894,7 +894,7 @@ export default function SettingsPage() {
                     <button key={preset.name} onClick={() => applyPreset(preset)}
                       className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all"
                       style={{
-                        background: isActive ? "rgba(232,130,26,0.08)" : "var(--table-header-bg)",
+                        background: isActive ? "rgb(var(--brand-accent-rgb) / 0.08)" : "var(--table-header-bg)",
                         border: `1px solid ${isActive ? "var(--brand-accent)" : "var(--card-border)"}`,
                         color: "var(--text-primary)",
                       }}>
@@ -1062,7 +1062,7 @@ export default function SettingsPage() {
                     className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all"
                     style={{
                       borderBottom: i < SECTIONS.length - 1 ? "1px solid var(--divider)" : "none",
-                      background: isActive ? "rgba(232,130,26,0.08)" : "transparent",
+                      background: isActive ? "rgb(var(--brand-accent-rgb) / 0.08)" : "transparent",
                       color: isActive ? "var(--brand-accent)" : "var(--text-secondary)",
                       borderLeft: isActive ? "3px solid var(--brand-accent)" : "3px solid transparent",
                     }}
@@ -1072,7 +1072,7 @@ export default function SettingsPage() {
                     <Icon className="h-4 w-4 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold leading-tight">{s.label}</p>
-                      <p className="text-[11px] leading-tight mt-0.5 truncate" style={{ color: isActive ? "rgba(232,130,26,0.7)" : "var(--text-muted)" }}>{s.desc}</p>
+                      <p className="text-[11px] leading-tight mt-0.5 truncate" style={{ color: isActive ? "rgb(var(--brand-accent-rgb) / 0.7)" : "var(--text-muted)" }}>{s.desc}</p>
                     </div>
                   </button>
                 )
