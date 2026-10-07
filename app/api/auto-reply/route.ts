@@ -24,6 +24,7 @@
  *   401  { error: "Unauthorized" }
  *   500  { error }
  */
+import { toStringList } from "@/lib/special"
 import { isExw } from "@/lib/shipment-labels"
 import { applyTemplate } from "@/lib/template-render"
 import { NextResponse, type NextRequest } from "next/server"
@@ -248,7 +249,7 @@ export async function POST(req: NextRequest) {
     carrier_email:          "",
     carrier_phone:          "",
     preferred_carrier:      parseField(body.preferred_carrier),
-    special_requirements:   parseField(body.special_requirements),
+    special_requirements:   toStringList(body.special_requirements ?? saved.special_requirements).join("; "),
     availability_questions: parseField(body.availability_questions),
     missing_fields:         missingFieldsLabel,
   }

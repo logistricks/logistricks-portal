@@ -11,6 +11,7 @@
  *   Wait(auto_reply_delay_min) → POST here → Gmail Send
  */
 
+import { toStringList } from "@/lib/special"
 import { isExw } from "@/lib/shipment-labels"
 import { applyTemplate } from "@/lib/template-render"
 import { createHmac } from "crypto"
@@ -150,6 +151,7 @@ export async function POST(
       ? missingParts.join(", ")
       : "None — all required information was received.",
     delay_min:      String(clientRow.auto_reply_delay_min ?? 0),
+    special_requirements: toStringList((freightReq as { special_requirements?: unknown }).special_requirements).join("; "),
     received_at:    new Date(freightReq.received_at).toLocaleString("en-GB", { timeZone: "UTC" }),
   }
 

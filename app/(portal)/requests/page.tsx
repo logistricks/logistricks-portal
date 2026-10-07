@@ -5,6 +5,7 @@ import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Clock, ExternalLink, Eye, FileText, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, TriangleAlert, X, Zap } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/toast"
 import { SpecialRequestsDialog } from "@/components/portal/special-requests"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
@@ -89,11 +90,9 @@ function StatusPill({ status }: { status: RequestStatus }) {
   )
 }
 
-function openFull(id: string) {
-  window.open(`/requests/${id}`, "_blank", "noopener")
-}
 
 export default function RequestsPage() {
+  const router = useRouter()
   const [requests, setRequests]         = useState<FreightRequest[]>([])
   const [loading, setLoading]           = useState(true)
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null)
@@ -410,9 +409,9 @@ export default function RequestsPage() {
                 return (
                   <tr
                     key={r.id}
-                    onClick={() => openFull(r.id)}
+                    onClick={() => router.push(`/requests/${r.id}`)}
                     className={`rq-row ${r.aog ? "rq-aog" : ""}`}
-                    title="Click to open the full page in a new tab"
+                    title="Click to open the request"
                   >
                     <td className="px-3 py-2.5">
                       <input
