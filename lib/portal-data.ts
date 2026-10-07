@@ -180,6 +180,12 @@ export type FreightRequest = {
   replySentType: "missing_fields" | "complete" | "acknowledgement" | "manual" | null
   replyBody: string | null
   conversation: ConversationMessage[]
+  // Outcome after quoting (migration 057)
+  outcome?: "won" | "lost" | "expired" | "cancelled" | null
+  bookingReference?: string | null
+  wonSellUsd?: number | null
+  wonMarginUsd?: number | null
+  paidAt?: string | null
 }
 
 export type ConversationMessage = {

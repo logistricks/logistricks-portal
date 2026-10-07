@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { ChevronDown, FilePlus2, FileText, Inbox, Loader2, Mail, MailWarning, RefreshCw, Reply, Send, Truck } from "lucide-react"
+import { BadgeCheck, ChevronDown, FilePlus2, FileText, Inbox, Loader2, Mail, MailWarning, RefreshCw, Reply, Send, Truck } from "lucide-react"
 import { fmtDateTimeSec, fmtDuration } from "@/lib/duration"
 import type { TimelineEvent } from "@/app/api/request-timeline/route"
 
@@ -14,6 +14,7 @@ const KIND: Record<TimelineEvent["kind"], { color: string; Icon: typeof Mail }> 
   reply_sent:      { color: "#0ea5e9", Icon: Inbox },
   quotation_sent:  { color: "#14b8a6", Icon: FileText },
   failed:          { color: "#ef4444", Icon: MailWarning },
+  outcome:         { color: "#16a34a", Icon: BadgeCheck },
 }
 
 /** The whole path of a request: every email in and out, to the second, oldest first. Click an email to read it. */

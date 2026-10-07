@@ -1,5 +1,7 @@
 "use client"
 
+import { SpecialRequestsCard } from "@/components/portal/special-requests"
+import { RequestOutcomePanel } from "@/components/portal/request-outcome-panel"
 import { RequestTimeline } from "@/components/portal/request-timeline"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
@@ -279,6 +281,7 @@ export default function RequestDetailPage() {
   const [messageBody, setMessageBody] = useState("")
   const [activeTab, setActiveTab]   = useState<"details" | "quotes">("details")
   const [rawOpen, setRawOpen]       = useState(false)
+  const [specialOpen, setSpecialOpen] = useState(false)
   const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
   const [sending, setSending]       = useState(false)
   const [aog, setAog]               = useState(false)
@@ -487,6 +490,7 @@ export default function RequestDetailPage() {
               onChanged={() => setRfqRefreshSignal((n) => n + 1)}
             />
             <QuotationBuilder request={request} refreshSignal={rfqRefreshSignal} />
+            <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
@@ -563,35 +567,13 @@ export default function RequestDetailPage() {
                 )
               })()}
 
-              {/* Special requirements */}
-              {request.specialRequirements && request.specialRequirements.length > 0 && (
-                <div className="ds-card p-5">
-                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Special Requirements</h4>
-                  <ul className="space-y-1.5">
-                    {request.specialRequirements.map((s, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--brand-accent)" }} />
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Availability questions */}
-              {request.availabilityQuestions && request.availabilityQuestions.length > 0 && (
-                <div className="ds-card p-5">
-                  <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Availability Questions</h4>
-                  <ul className="space-y-1.5">
-                    {request.availabilityQuestions.map((q, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-                        <span className="mt-0.5 text-[10px] font-bold tabular-nums" style={{ color: "var(--text-muted)" }}>{i + 1}.</span>
-                        {q}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {/* Special requests (preview + pop-up) */}
+              <SpecialRequestsCard
+                requirements={request.specialRequirements ?? []}
+                questions={request.availabilityQuestions ?? []}
+                reference={request.requestRef}
+                openState={[specialOpen, setSpecialOpen]}
+              />
 
               {/* Raw message */}
               {request.rawMessage && (

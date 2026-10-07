@@ -60,6 +60,11 @@ export interface DbFreightRequest {
   reply_sent_type: string | null
   reply_body: string | null
   conversation: unknown[]
+  outcome?: string | null
+  booking_reference?: string | null
+  won_sell_usd?: number | null
+  won_margin_usd?: number | null
+  paid_at?: string | null
 }
 
 export interface DashboardStats {
@@ -324,6 +329,11 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     replySentType:     (row.reply_sent_type ?? null) as FreightRequest["replySentType"],
     replyBody:         row.reply_body ?? null,
     conversation:      Array.isArray(row.conversation) ? row.conversation as FreightRequest["conversation"] : [],
+    outcome:           (["won", "lost", "expired", "cancelled"].includes(String(row.outcome)) ? row.outcome : null) as FreightRequest["outcome"],
+    bookingReference:  row.booking_reference ?? null,
+    wonSellUsd:        row.won_sell_usd != null ? Number(row.won_sell_usd) : null,
+    wonMarginUsd:      row.won_margin_usd != null ? Number(row.won_margin_usd) : null,
+    paidAt:            row.paid_at ?? null,
   }
 }
 

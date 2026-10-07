@@ -27,6 +27,8 @@ export type ActivityEventType =
   | "carrier_quote_linked"
   | "carrier_quote_unlinked"
   | "carrier_quote_deleted"
+  | "request_outcome"
+  | "sender_reply_received"
 
 function adminClient() {
   return createClient(

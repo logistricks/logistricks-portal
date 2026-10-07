@@ -10,7 +10,7 @@ export const runtime = "nodejs"
 export type TimelineEvent = {
   id: string
   at: string
-  kind: "request_sent" | "added" | "requester_reply" | "rfq_sent" | "carrier_reply" | "reply_sent" | "quotation_sent" | "failed"
+  kind: "request_sent" | "added" | "requester_reply" | "rfq_sent" | "carrier_reply" | "reply_sent" | "quotation_sent" | "failed" | "outcome"
   title: string
   from: string | null
   to: string | null
@@ -152,6 +152,19 @@ export async function GET(req: NextRequest) {
     ev.push({ id: `qt-${q.id}`, at: new Date(t).toISOString(), kind: "quotation_sent", title: "Quotation sent to requester", from: ourFrom, to: sender,
       subject: q.generated_subject ?? null, body: q.generated_body ? stripHtml(String(q.generated_body)) : null, note: null })
   }
+
+  // 8. the deal: won / lost, booking, invoice, payment (no email — set by a person)
+  const usd = (n: unknown) => n != null ? `USD ${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null
+  if (fr.outcome && ts(fr.outcome_at) != null) {
+    const label: Record<string, string> = { won: "Marked WON", lost: "Marked LOST", expired: "Quote expired", cancelled: "Cancelled" }
+    ev.push({ id: "outcome", at: new Date(fr.outcome_at).toISOString(), kind: "outcome", title: `${label[fr.outcome] ?? fr.outcome}${fr.won_carrier_name ? ` — ${fr.won_carrier_name}` : ""}`,
+      from: fr.outcome_by ?? null, to: null, subject: null, body: fr.outcome_note ?? null,
+      note: [fr.outcome === "won" && fr.won_sell_usd != null ? `Sold at ${usd(fr.won_sell_usd)}` : null, fr.won_margin_usd != null ? `margin ${usd(fr.won_margin_usd)}` : null,
+        fr.outcome_reason ? `Reason: ${String(fr.outcome_reason).replace(/_/g, " ")}` : null].filter(Boolean).join(" · ") || null })
+  }
+  if (ts(fr.booked_at) != null) ev.push({ id: "booked", at: new Date(fr.booked_at).toISOString(), kind: "outcome", title: `Booked${fr.booking_reference ? ` — ref ${fr.booking_reference}` : ""}`, from: null, to: null, subject: null, body: fr.booking_description ?? null, note: null })
+  if (ts(fr.invoiced_at) != null) ev.push({ id: "invoiced", at: new Date(fr.invoiced_at).toISOString(), kind: "outcome", title: "Invoiced", from: null, to: null, subject: null, body: null, note: null })
+  if (ts(fr.paid_at) != null) ev.push({ id: "paid", at: new Date(fr.paid_at).toISOString(), kind: "outcome", title: "Payment received", from: null, to: null, subject: null, body: null, note: null })
 
   ev.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   return NextResponse.json({ events: ev })

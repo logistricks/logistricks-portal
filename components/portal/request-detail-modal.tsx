@@ -1,5 +1,6 @@
 "use client"
 
+import { SpecialRequestsCard } from "@/components/portal/special-requests"
 import { RequestTimeline } from "@/components/portal/request-timeline"
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
 import { applyTemplate, templateHasRef } from "@/lib/template-render"
@@ -263,6 +264,7 @@ export function RequestDetailModal({
   criticalFields?: string[]
 }) {
   const [carriers, setCarriers]     = useState<Carrier[]>([])
+  const [specialOpen, setSpecialOpen] = useState(false)
   const [templates, setTemplates]   = useState<Template[]>([])
   const [sendMethod, setSendMethod] = useState<"Email" | "Reply" | null>(null)
   const [selectedCarrierIds, setSelectedCarrierIds] = useState<string[]>([])
@@ -735,39 +737,13 @@ export function RequestDetailModal({
                   </div>
                 </div>
 
-                {/* Special requirements */}
-                {request.specialRequirements.length > 0 && (
-                  <div className="ds-card">
-                    <div className="ds-card-header">
-                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Special Requirements</h4>
-                    </div>
-                    <ol className="space-y-2 px-5 pb-4">
-                      {request.specialRequirements.map((s, i) => (
-                        <li key={i} className="flex gap-3 rounded-lg px-3 py-2.5 text-sm" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "var(--brand-accent)" }}>{i + 1}</span>
-                          {s}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                {/* Availability questions */}
-                {request.availabilityQuestions.length > 0 && (
-                  <div className="ds-card">
-                    <div className="ds-card-header">
-                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Availability Questions</h4>
-                    </div>
-                    <ul className="space-y-2 px-5 pb-4">
-                      {request.availabilityQuestions.map((q, i) => (
-                        <li key={i} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--text-primary)" }}>
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "var(--brand-accent)" }}>?</span>
-                          {q}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {/* Special requests (preview + pop-up) */}
+                <SpecialRequestsCard
+                  requirements={request.specialRequirements ?? []}
+                  questions={request.availabilityQuestions ?? []}
+                  reference={request.requestRef}
+                  openState={[specialOpen, setSpecialOpen]}
+                />
 
                 {/* Raw message — collapsible */}
                 <div className="ds-card">

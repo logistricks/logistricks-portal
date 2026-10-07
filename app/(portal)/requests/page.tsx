@@ -6,6 +6,7 @@ import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Clock, ExternalLink, Eye, FileText, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, TriangleAlert, X, Zap } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
+import { SpecialRequestsDialog } from "@/components/portal/special-requests"
 import { RequestDetailModal } from "@/components/portal/request-detail-modal"
 import { SendToCarriersModal } from "@/components/portal/send-to-carriers-modal"
 import { type FreightRequest, type RequestStatus } from "@/lib/portal-data"
@@ -107,6 +108,7 @@ export default function RequestsPage() {
   const [selected, setSelected]         = useState<string[]>([])
   const [showRfqModal, setShowRfqModal] = useState(false)
   const [active, setActive]             = useState<FreightRequest | null>(null)
+  const [specialFor, setSpecialFor]       = useState<FreightRequest | null>(null)
   const [bulkBusy, setBulkBusy]         = useState(false)
   const { success, error: toastError }  = useToast()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -451,12 +453,25 @@ export default function RequestsPage() {
                         {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
                         {f.exw && <Chip tone="red" icon={<MapPinOff className="h-3 w-3" />} title="EXW — pickup address missing">EXW address</Chip>}
                         {f.missing > 0 && <Chip tone="amber" title={`Missing: ${r.missingFields.join(", ")}`}>Missing {f.missing}</Chip>}
+                        {(r.specialRequirements?.length ?? 0) > 0 && (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setSpecialFor(r) }} title="Show the special requests" className="rounded-md">
+                            <Chip tone="blue">Special {r.specialRequirements.length}</Chip>
+                          </button>
+                        )}
                         {f.urgent && <Chip tone="blue" icon={<Clock className="h-3 w-3" />}>Urgent</Chip>}
                         {f.low && <Chip tone="slate" title="The AI was not confident reading this request">Low conf.</Chip>}
-                        {!isFlagged(r) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
+                        {!isFlagged(r) && !(r.specialRequirements?.length) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5"><StatusPill status={r.status} /></td>
+                    <td className="px-3 py-2.5">
+                      <StatusPill status={r.status} />
+                      {r.outcome && (
+                        <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
+                          style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
+                          {r.outcome}{r.outcome === "won" && r.paidAt ? " · paid" : ""}
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[12.5px] tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
                       {r.receivedRelative}
                     </td>
@@ -531,6 +546,9 @@ export default function RequestsPage() {
             setSelected([])
           }}
         />
+      )}
+      {specialFor && (
+        <SpecialRequestsDialog requirements={specialFor.specialRequirements ?? []} questions={specialFor.availabilityQuestions ?? []} reference={specialFor.requestRef} onClose={() => setSpecialFor(null)} />
       )}
       {active && (
         <RequestDetailModal
