@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+_to_delete/
+*.lock
+INBLR-Proposal.pdf
+test-lt0017.json
