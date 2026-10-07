@@ -290,7 +290,7 @@ function SendQuotationModal({
 
 
 type ChargesStyle = "marked_up" | "detailed" | "total_only"
-type PriceLine = { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
+type PriceLine = { label: string; basis: string; qty: number | null; rate: number | null; amount: number; currency?: string }
 
 export function QuotationBuilder({
   request,
@@ -316,7 +316,7 @@ export function QuotationBuilder({
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
-  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number; charges_style?: ChargesStyle; lines?: PriceLine[] } | null>(null)
+  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number; charges_style?: ChargesStyle; lines?: PriceLine[]; mixed_currency?: boolean } | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [styleOverride, setStyleOverride] = useState<ChargesStyle | null>(null) // null = what the template says (default: markup inside each price)
   const [overrides, setOverrides] = useState<PriceLine[] | null>(null)       // manually edited prices; null = automatic
@@ -610,7 +610,17 @@ export function QuotationBuilder({
                 <option value="total_only">Total only</option>
               </select>
             </div>
-            {shownStyle !== "total_only" && editableLines.length > 0 && (
+            {shownStyle !== "total_only" && !overrides && preview?.mixed_currency && editableLines.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>This quote has charges in several currencies. They are listed as the carrier stated them; the total is the all-in USD price (carrier total + markup).</p>
+                {editableLines.map((l, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-md px-2 py-1 text-xs" style={{ background: "var(--table-header-bg)", color: "var(--text-primary)" }}>
+                    <span>{l.label}</span><span className="tabular-nums">{l.currency ?? "USD"} {Number(l.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {shownStyle !== "total_only" && editableLines.length > 0 && !(preview?.mixed_currency && !overrides) && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Customer prices — edit any amount and the total updates.</span>

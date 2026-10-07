@@ -2,8 +2,17 @@
 
 import { useEffect } from "react"
 import { Expand, ListChecks, X } from "lucide-react"
+import { parseSpecial } from "@/lib/special"
 
 type Props = { requirements: string[]; questions?: string[]; reference?: string }
+
+/** "Label: value" items show as a labelled field; anything else as plain text. */
+function Item({ text }: { text: string }) {
+  const p = parseSpecial(text)
+  return p.label
+    ? <span className="min-w-0"><span className="block text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{p.label}</span><span className="whitespace-pre-wrap break-words">{p.value}</span></span>
+    : <span className="whitespace-pre-wrap break-words">{text}</span>
+}
 
 /** Full list in a pop-up — special requests can be long, so the page only shows a preview. */
 export function SpecialRequestsDialog({ requirements, questions = [], reference, onClose }: Props & { onClose: () => void }) {
@@ -29,7 +38,7 @@ export function SpecialRequestsDialog({ requirements, questions = [], reference,
               : <ol className="space-y-2">{requirements.map((s, i) => (
                   <li key={i} className="flex gap-3 rounded-lg px-3 py-2.5 text-sm" style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }}>
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "var(--brand-accent)" }}>{i + 1}</span>
-                    <span className="whitespace-pre-wrap break-words">{s}</span>
+                    <Item text={s} />
                   </li>))}</ol>}
           </section>
           {questions.length > 0 && (
@@ -72,7 +81,7 @@ export function SpecialRequestsCard({ requirements, questions = [], reference, o
           {preview.map((s, i) => (
             <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--brand-accent)" }} />
-              <span className="line-clamp-2 break-words">{s}</span>
+              <span className="line-clamp-2 break-words">{(() => { const p = parseSpecial(s); return p.label ? <><b className="font-semibold" style={{ color: "var(--text-primary)" }}>{p.label}:</b> {p.value}</> : s })()}</span>
             </li>
           ))}
           {total > preview.length && (

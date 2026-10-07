@@ -461,6 +461,11 @@ export default function RequestDetailPage() {
           <div className="flex flex-col items-end gap-1.5"><SourceBadge source={request.source} /><IntakeBadge source={request.intakeSource} light />{request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}</div>
         </div>
 
+        {/* outcome & booking: the decision on this request, always at the top */}
+        <div className="px-6 pb-3">
+          <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
+        </div>
+
         {/* tabs */}
         <div className="flex px-6 gap-1">
           {(["details", "quotes"] as const).map((t) => (
@@ -490,7 +495,6 @@ export default function RequestDetailPage() {
               onChanged={() => setRfqRefreshSignal((n) => n + 1)}
             />
             <QuotationBuilder request={request} refreshSignal={rfqRefreshSignal} />
-            <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">

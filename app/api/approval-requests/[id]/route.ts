@@ -17,6 +17,7 @@
  *   2. Mark step rejected, skip remaining steps
  *   3. Return freight_request to Pending, notify submitter
  */
+import { toStringList } from "@/lib/special"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
@@ -112,9 +113,7 @@ export async function GET(
     incoterms:            _fr.incoterm ?? null,
     is_aog:               !!_fr.aog,
     is_dgr:               !!_fr.dgr,
-    special_instructions: Array.isArray(_fr.special_requirements) && _fr.special_requirements.length > 0
-                            ? _fr.special_requirements.join("; ")
-                            : null,
+    special_instructions: toStringList(_fr.special_requirements).join("; ") || null,
     submitted_by:         (ar as any).submitted_by ?? null,
     submitted_at:         (ar as any).created_at ?? null,
     sender_name:          _fr.sender_name ?? null,

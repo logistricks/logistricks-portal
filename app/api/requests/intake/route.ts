@@ -6,6 +6,7 @@
  * fields are missing, EXW needs a pickup address, and the team gets the new-request notification.
  * The row is stamped intake_source = "manual" so the portal can show it was added by hand.
  */
+import { toStringList } from "@/lib/special"
 import { NextResponse, after, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { notify, requestValues } from "@/lib/notify"
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
     confidence: ["High", "Medium", "Low"].find((c) => c.toLowerCase() === String(b.confidence).toLowerCase()) ?? "Medium",
     is_sea: modes.includes("sea"), is_air: modes.includes("air"), is_land: modes.includes("land"),
     status: "Pending", is_done: false,
-    special_requirements: list(b.special_requirements), availability_questions: list(b.availability_questions),
+    special_requirements: toStringList(b.special_requirements), availability_questions: toStringList(b.availability_questions),
     aog: b.aog === true, dgr: b.dgr === true,
   }
 

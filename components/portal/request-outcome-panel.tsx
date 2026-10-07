@@ -24,7 +24,7 @@ function Check({ on, onChange, disabled, children, tone = "var(--brand-accent)" 
 }
 
 /** After quoting: what happened to the deal — won (which carrier quote, at what price), what was booked, invoiced, paid. */
-export function RequestOutcomePanel({ requestId, refreshSignal }: { requestId: string; refreshSignal?: number }) {
+export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requestId: string; refreshSignal?: number; status?: string }) {
   const [loading, setLoading] = useState(true)
   const [options, setOptions] = useState<Option[]>([])
   const [canEdit, setCanEdit] = useState(true)
@@ -105,13 +105,15 @@ export function RequestOutcomePanel({ requestId, refreshSignal }: { requestId: s
   }
 
   if (loading) return null
+  // Only once there is something to decide: a quote came in, the RFQ is out, or an outcome was already saved.
+  if (!options.length && !saved.outcome && !["Sent to Carrier", "Quoted", "Closed"].includes(status ?? "")) return null
   const dis = !canEdit
   const tone = outcome === "won" ? "#16a34a" : outcome === "lost" ? "#ef4444" : "#64748b"
 
   return (
-    <div className="ds-card mt-5 overflow-hidden">
+    <div className="ds-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid var(--divider)" }}>
-        <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: "var(--text-primary)" }}><Trophy className="h-4 w-4" style={{ color: "var(--brand-accent)" }} /> Outcome &amp; booking</h4>
+        <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: "var(--text-primary)" }}><Trophy className="h-4 w-4" style={{ color: "var(--brand-accent)" }} /> Outcome &amp; Booking</h4>
         {saved.outcome && <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome}</span>}
       </div>
       <div className="space-y-4 px-5 py-4">

@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   const baseOptions = normalizeOptions((template as { options?: unknown }).options)
   const options = styleOverride ? { ...baseOptions, charges_style: styleOverride } : baseOptions
-  const { ctx, validUntil, currency, lines } = buildContext({
+  const { ctx, validUntil, currency, lines, mixed } = buildContext({
     request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options, showMarkupPercent, lineOverrides: lineOverrides ?? undefined,
     preparedBy: (userRow as { display_name?: string } | null)?.display_name || session.username,
     company: company ? { name: company.company_name, email: company.contact_email, phone: company.contact_phone } : undefined,
@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
       base_rate_usd: baseRate,
       charges_style: options.charges_style,
       lines,
+      mixed_currency: mixed,
     })
   }
 

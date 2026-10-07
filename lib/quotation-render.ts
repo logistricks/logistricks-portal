@@ -7,6 +7,7 @@
  *
  * Template syntax: see lib/quotation-variables.ts.
  */
+import { parseSpecial } from "@/lib/special"
 import { isSeaOnly, isExw } from "@/lib/shipment-labels"
 import { ALL_VARIABLES, BLOCK_KEYS, VARIABLE_KEYS, type TemplateOptions, normalizeOptions } from "@/lib/quotation-variables"
 
@@ -118,13 +119,21 @@ export interface ChargeIn {
   carrier_label?: string | null; basis?: string | null; unit_rate?: number | null; quantity?: number | null
   amount?: number | null; inclusion?: string | null; condition_note?: string | null; currency?: string | null
 }
-export interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number }
+export interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number; currency?: string }
 
 function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number, markupLabel = "Service fee") {
   const included = charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) !== null)
   const optional = charges.filter((c) => c.inclusion && c.inclusion !== "included")
-  // Lines in different currencies cannot be shown as one price list or scaled to the total: show the all-in total only.
-  if (style === "total_only" || included.length === 0 || mixedCurrency(included)) return { lines: [] as Line[], optional }
+  if (style === "total_only" || included.length === 0) return { lines: [] as Line[], optional, mixed: false }
+  // Lines in different currencies are never added together or scaled to the total: each is listed in its own
+  // currency as the carrier stated it, and the all-in price follows as the total.
+  if (mixedCurrency(included)) {
+    const lines: Line[] = included.map((c) => ({
+      label: c.carrier_label ?? "Charge", basis: BASIS_LABEL[c.basis ?? ""] ?? (c.basis ?? ""),
+      qty: num(c.quantity), rate: num(c.unit_rate), amount: num(c.amount) as number, currency: String(c.currency || "USD").toUpperCase(),
+    }))
+    return { lines, optional, mixed: true }
+  }
 
   const base = (c: ChargeIn): Line => ({
     label: c.carrier_label ?? "Charge", basis: BASIS_LABEL[c.basis ?? ""] ?? (c.basis ?? ""),
@@ -137,7 +146,7 @@ function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"],
     const fee = round2(final - sum)
     const lines = [...cost]
     if (Math.abs(fee) >= 0.01) lines.push({ label: fee > 0 ? markupLabel : "Adjustment", basis: "", qty: null, rate: null, amount: fee })
-    return { lines, optional }
+    return { lines, optional, mixed: false }
   }
 
   // marked_up: spread the total across the carrier's lines so the customer sees one sell price per line.
@@ -153,7 +162,7 @@ function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"],
     lines[big].amount = round2(lines[big].amount + drift)
     if (lines[big].qty) lines[big].rate = round2(lines[big].amount / (lines[big].qty as number))
   }
-  return { lines, optional }
+  return { lines, optional, mixed: false }
 }
 
 // ── blocks ───────────────────────────────────────────────────────────────────
@@ -221,7 +230,7 @@ export function mixedCurrency(rows: ChargeIn[]): boolean {
   return new Set(rows.filter((c) => num(c.amount) !== null).map((c) => String(c.currency || "USD").toUpperCase())).size > 1
 }
 
-export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: string; currency: string; lines: Line[] } {
+export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: string; currency: string; lines: Line[]; mixed: boolean } {
   const o = normalizeOptions(input.options)
   const { request: r, quote: q } = input
   const now = input.now ?? new Date()
@@ -321,16 +330,27 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   }
 
   if (lines.length) {
-    const rates = o.show_unit_rates && lines.some((l) => l.qty !== null && l.rate !== null)
-    const heads = rates ? ["Description", "Basis", "Qty", "Rate", `Amount (${currency})`] : ["Description", "Basis", `Amount (${currency})`]
+    const mixed = computed.mixed && lines === computed.lines
+    const cur = (l: Line) => (mixed ? l.currency ?? currency : currency)
+    const amt = (l: Line) => (mixed ? `${cur(l)} ${money(l.amount)}` : money(l.amount))
+    const rates = !mixed && o.show_unit_rates && lines.some((l) => l.qty !== null && l.rate !== null)
+    const head = mixed ? "Amount" : `Amount (${currency})`
+    const heads = rates ? ["Description", "Basis", "Qty", "Rate", head] : ["Description", "Basis", head]
     const rows = lines.map((l) => rates
-      ? [l.label, l.basis, l.qty !== null ? plain(l.qty) : "", l.rate !== null ? money(l.rate) : "", money(l.amount)]
-      : [l.label, l.basis, money(l.amount)])
-    const total = rates ? [totalLabel, "", "", "", money(finalPrice)] : [totalLabel, "", money(finalPrice)]
+      ? [l.label, l.basis, l.qty !== null ? plain(l.qty) : "", l.rate !== null ? money(l.rate) : "", amt(l)]
+      : [l.label, l.basis, amt(l)])
+    const finalStr = mixed ? `${currency} ${money(finalPrice)}` : money(finalPrice)
+    const tl = mixed ? `Total all-in (${currency})` : totalLabel
+    const total = rates ? [tl, "", "", "", finalStr] : [tl, "", finalStr]
     const right = rates ? [2, 3, 4] : [2]
-    blocks.charges_table = { html: tableHtml(heads, rows, o.accent_color, right, total), text: "" }
-    blocks.charges_table.text = [...lines.map((l) => `- ${l.label}${l.basis ? ` (${l.basis})` : ""}: ${currency} ${money(l.amount)}`), `Total: ${currency} ${money(finalPrice)}`].join("\n")
-    blocks.charges_list = { html: `<ul>${lines.map((l) => `<li>${esc(l.label)}: ${esc(currency)} ${money(l.amount)}</li>`).join("")}</ul>`, text: blocks.charges_table.text }
+    const cs = Array.from(new Set(lines.map((l) => cur(l))))
+    const note = mixed ? `Charges are quoted in ${cs.join(" and ")}; the total is the all-in price in ${currency}.` : ""
+    blocks.charges_table = {
+      html: tableHtml(heads, rows, o.accent_color, right, total) + (note ? `<p style="margin:6px 0 0;font-size:12px;color:#64748b">${esc(note)}</p>` : ""),
+      text: "",
+    }
+    blocks.charges_table.text = [...lines.map((l) => `- ${l.label}${l.basis ? ` (${l.basis})` : ""}: ${cur(l)} ${money(l.amount)}`), `Total: ${currency} ${money(finalPrice)}`, ...(note ? [note] : [])].join("\n")
+    blocks.charges_list = { html: `<ul>${lines.map((l) => `<li>${esc(l.label)}: ${esc(cur(l))} ${money(l.amount)}</li>`).join("")}</ul>`, text: blocks.charges_table.text }
   } else {
     blocks.charges_table = blocks.summary_table
     blocks.charges_list = { html: "", text: `Total: ${currency} ${money(finalPrice)}` }
@@ -340,7 +360,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   blocks.optional_charges_list = { html: opt.length ? `<ul>${opt.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "", text: opt.map((s) => `- ${s}`).join("\n") }
 
   const sr = r.specialRequirements ?? []
-  blocks.special_requirements_list = { html: sr.length ? `<ul>${sr.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "", text: sr.map((s) => `- ${s}`).join("\n") }
+  blocks.special_requirements_list = { html: sr.length ? `<ul>${sr.map((s) => { const p = parseSpecial(s); return `<li>${p.label ? `<strong>${esc(p.label)}:</strong> ${esc(p.value)}` : esc(s)}</li>` }).join("")}</ul>` : "", text: sr.map((s) => `- ${s}`).join("\n") }
 
   const free = [freeDays && `${freeDays} free days`, v.free_days_demurrage && `${v.free_days_demurrage} days demurrage`, v.free_days_detention && `${v.free_days_detention} days detention`, v.per_diem_note].filter(Boolean).join(", ")
   const terms: [string, string][] = ([
@@ -354,7 +374,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     text: terms.map(([k, val]) => `- ${k}: ${val}`).join("\n"),
   }
 
-  return { ctx: { values: v, blocks }, validUntil: validUntilIso, currency, lines }
+  return { ctx: { values: v, blocks }, validUntil: validUntilIso, currency, lines, mixed: computed.mixed && lines === computed.lines }
 }
 
 export interface RenderedQuotation { subject: string; text: string; html: string | null; format: "text" | "html" | "pdf" }
