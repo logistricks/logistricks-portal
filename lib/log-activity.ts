@@ -30,6 +30,9 @@ export type ActivityEventType =
   | "request_outcome"
   | "sender_reply_received"
   | "rfq_sent"
+  | "carrier_quote_disregarded"
+  | "carrier_quote_reactivated"
+  | "quotation_forwarded"
 
 function adminClient() {
   return createClient(

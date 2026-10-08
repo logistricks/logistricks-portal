@@ -15,9 +15,11 @@ import {
   ChevronUp,
   Unlink,
   User,
+  EyeOff,
+  RotateCcw,
 } from "lucide-react"
 import type { CarrierQuote, CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
-import { fetchQuotesForRequest } from "@/lib/carrier-quotes-queries"
+import { fetchQuotesForRequest, isActiveQuote } from "@/lib/carrier-quotes-queries"
 import { createClient } from "@/lib/supabase"
 import { fmtDateTimeSec, fmtDuration } from "@/lib/duration"
 import { QuoteChips, QuoteDetails, hasExtendedData } from "@/components/portal/quote-details"
@@ -93,15 +95,17 @@ interface Props {
   locked?: boolean
   /** Called after a quote was unlinked or deleted, so siblings can refresh. */
   onChanged?: () => void
+  /** Reports the carrier quotes that are still active (not disregarded) whenever they load or change. */
+  onActiveQuotes?: (quotes: CarrierQuote[]) => void
 }
 
-export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged }: Props) {
+export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged, onActiveQuotes }: Props) {
   const [rows, setRows]       = useState<CarrierQuoteRequest[]>([])
   const [loading, setLoading] = useState(true)
 
   const [pending, setPending] = useState<{
     quoteId: number
-    action: "unlink" | "delete"
+    action: "unlink" | "delete" | "disregard" | "reactivate"
     carrierName: string
     rate: string
   } | null>(null)
@@ -113,6 +117,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
     const data = await fetchQuotesForRequest(createClient(), freightRequestId)
     setRows(data)
     setLoading(false)
+    onActiveQuotes?.(data.map((r) => r.quote).filter((q): q is CarrierQuote => isActiveQuote(q)))
   }
 
   useEffect(() => { void load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [freightRequestId])
@@ -121,10 +126,11 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
     if (!pending) return
     setActionBusy(true); setActionError(null)
     try {
-      const res = await fetch(`/api/carrier-quotes/${pending.action}`, {
+      const isDis = pending.action === "disregard" || pending.action === "reactivate"
+      const res = await fetch(`/api/carrier-quotes/${isDis ? "disregard" : pending.action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quote_id: pending.quoteId }),
+        body: JSON.stringify(isDis ? { quote_id: pending.quoteId, disregard: pending.action === "disregard" } : { quote_id: pending.quoteId }),
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
@@ -140,7 +146,33 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
     }
   }
 
-  const confirmSteps: ConfirmStep[] = !pending ? [] : pending.action === "unlink"
+  const confirmSteps: ConfirmStep[] = !pending ? [] : pending.action === "disregard"
+    ? [
+        {
+          title: "Disregard this quote?",
+          body: <>The quote from <strong>{pending.carrierName}</strong> ({pending.rate}) will be greyed out. It can no longer be used to build a quotation or be sent to the original sender. You can reactivate it at any time.</>,
+          confirmLabel: "Continue",
+        },
+        {
+          title: "Confirm disregard",
+          body: <>Final check: <strong>{pending.carrierName}</strong> will stop counting as an active quotation on this request.</>,
+          confirmLabel: "Disregard quote",
+        },
+      ]
+    : pending.action === "reactivate"
+    ? [
+        {
+          title: "Reactivate this quote?",
+          body: <>The quote from <strong>{pending.carrierName}</strong> ({pending.rate}) will count again and can be used in a quotation.</>,
+          confirmLabel: "Continue",
+        },
+        {
+          title: "Confirm reactivation",
+          body: <>Final check: reactivate the <strong>{pending.carrierName}</strong> quote.</>,
+          confirmLabel: "Reactivate quote",
+        },
+      ]
+    : pending.action === "unlink"
     ? [
         {
           title: "Unlink this quote?",
@@ -183,7 +215,8 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
     )
   }
 
-  const respondedRows = rows.filter((r) => r.status === "responded" && r.quote)
+  const respondedRows = rows.filter((r) => r.status === "responded" && isActiveQuote(r.quote))
+  const disregardedCount = rows.filter((r) => r.quote?.disregarded).length
   const bestRate      = respondedRows.length
     ? Math.min(...respondedRows.map((r) => r.quote!.rateUsd ?? Infinity))
     : null
@@ -195,8 +228,9 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
         <span>{rows.length} carrier{rows.length !== 1 ? "s" : ""} contacted</span>
         <span className="text-[#CBD5E1]">·</span>
         <span className="text-emerald-600 dark:text-emerald-400">
-          {respondedRows.length} responded
+          {respondedRows.length} active quote{respondedRows.length !== 1 ? "s" : ""}
         </span>
+        {disregardedCount > 0 && (<><span className="text-[#CBD5E1]">·</span><span>{disregardedCount} disregarded</span></>)}
         <span className="text-[#CBD5E1]">·</span>
         <span>{rows.filter((r) => r.status === "sent").length} pending</span>
       </div>
@@ -204,16 +238,23 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
       {/* Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {rows.map((row) => {
-          const isBest = row.quote?.rateUsd != null && row.quote.rateUsd === bestRate
+          const off = row.quote?.disregarded === true
+          const isBest = !off && row.quote?.rateUsd != null && row.quote.rateUsd === bestRate
           return (
             <div
               key={row.id}
               className={`relative overflow-hidden rounded border bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:bg-[#111E33] ${
+                off ? "opacity-60 grayscale " : ""}${
                 isBest
                   ? "border-emerald-400 dark:border-emerald-500"
                   : "border-[#E2E8F0] dark:border-[#1E3A5F]"
               }`}
             >
+              {off && (
+                <div className="absolute right-0 top-0 rounded-bl bg-slate-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  Disregarded
+                </div>
+              )}
               {isBest && (
                 <div className="absolute right-0 top-0 rounded-bl bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                   Best Rate
@@ -331,7 +372,17 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                   {/* Who linked it + unlink / delete */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                     <LinkedByBadge quote={row.quote} />
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={locked}
+                        title={locked ? "Closed or completed requests can't be changed" : off ? "Make this quote active again" : "Grey this quote out so it can't be used or sent"}
+                        onClick={() => setPending({ quoteId: row.quote!.id, action: off ? "reactivate" : "disregard", carrierName: row.carrierName, rate: rateLabel(row.quote!) })}
+                        className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
+                      >
+                        {off ? <><RotateCcw className="h-3 w-3" /> Reactivate</> : <><EyeOff className="h-3 w-3" /> Disregard</>}
+                      </button>
                       <button
                         type="button"
                         disabled={locked}

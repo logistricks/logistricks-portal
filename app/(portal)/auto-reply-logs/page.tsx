@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Loader2, Mail, RefreshCw, AlertTriangle, Truck, CheckCircle, Info } from "lucide-react"
 
-type LogType = "acknowledgement" | "missing_fields" | "carrier"
+type LogType = "acknowledgement" | "missing_fields" | "carrier" | "quotation"
 type Range   = "today" | "7d" | "30d" | "all"
 
 interface LogRow {
@@ -22,6 +22,7 @@ const TABS: { key: LogType | "all"; label: string; icon: React.ElementType }[] =
   { key: "acknowledgement", label: "Acknowledgements", icon: CheckCircle   },
   { key: "missing_fields",  label: "Missing Fields",   icon: AlertTriangle },
   { key: "carrier",         label: "To Carriers",      icon: Truck         },
+  { key: "quotation",       label: "Quotations",       icon: Mail          },
 ]
 
 const RANGES: { label: string; value: Range }[] = [
@@ -35,6 +36,7 @@ const TYPE_CONFIG: Record<LogType, { bg: string; color: string; label: string; i
   acknowledgement: { bg: "rgba(59,130,246,0.12)",  color: "#3b82f6", label: "Acknowledgement", icon: CheckCircle   },
   missing_fields:  { bg: "rgba(245,158,11,0.12)",  color: "#d97706", label: "Missing Fields",  icon: AlertTriangle },
   carrier:         { bg: "rgba(22,163,74,0.1)",    color: "#16a34a", label: "To Carrier",      icon: Truck         },
+  quotation:       { bg: "rgba(139,92,246,0.12)",  color: "#7c3aed", label: "Quotation",       icon: Mail          },
 }
 
 function formatTime(iso: string): { relative: string; exact: string } {

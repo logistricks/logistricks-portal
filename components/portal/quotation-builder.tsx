@@ -7,7 +7,7 @@ import { downloadQuotationPdf } from "@/lib/quotation-pdf"
 import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { type QuotationTemplate, type FreightRequest } from "@/lib/portal-data"
 
-interface Quotation {
+export interface Quotation {
   id: number
   carrier_quote_id: number | null
   quotation_template_id: number
@@ -73,7 +73,7 @@ async function copyText(text: string): Promise<boolean> {
  * the popup copies the text and jumps straight to the requester's original
  * thread so the reply lands in the same conversation.
  */
-function SendQuotationModal({
+export function SendQuotationModal({
   quotation,
   recipient,
   threadId,
@@ -348,7 +348,7 @@ export function QuotationBuilder({
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [request.id, refreshSignal])
 
   const responded = useMemo(
-    () => rows.filter((r) => r.status === "responded" && r.quote),
+    () => rows.filter((r) => r.status === "responded" && r.quote && !r.quote.disregarded),
     [rows],
   )
 

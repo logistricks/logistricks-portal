@@ -85,6 +85,8 @@ export async function POST(req: NextRequest) {
     .eq("freight_request_id", freightRequestId)
     .single()
   if (quoteErr || !quoteRow) return NextResponse.json({ error: "Carrier quote not found" }, { status: 404 })
+  if ((quoteRow as { disregarded?: boolean }).disregarded === true)
+    return NextResponse.json({ error: "This carrier quote was disregarded. Reactivate it before building a quotation." }, { status: 400 })
 
   if (!quotationTemplateId) {
     // Prefer an active template made for this mode, then the default.

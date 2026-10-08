@@ -64,3 +64,17 @@ export function dropRepeats(items: string[], fields: unknown[]): string[] {
     return !known.some((f) => f === v || f.includes(v))
   })
 }
+
+/**
+ * Plain value that may have been stored as an array: ["40ft Dry Container","40ft Reefer Container"] (real array or
+ * a JSON string of one) becomes "40ft Dry Container, 40ft Reefer Container". Anything else is returned trimmed.
+ */
+export function joinList(v: unknown, sep = ", "): string {
+  if (v == null) return ""
+  if (Array.isArray(v)) return v.map((x) => joinList(x, sep)).filter(Boolean).join(sep)
+  const t = String(v).trim()
+  if (t.startsWith("[") && t.endsWith("]")) {
+    try { const a = JSON.parse(t); if (Array.isArray(a)) return joinList(a, sep) } catch { /* plain text */ }
+  }
+  return t
+}

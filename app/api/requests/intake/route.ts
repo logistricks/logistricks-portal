@@ -6,6 +6,7 @@
  * fields are missing, EXW needs a pickup address, and the team gets the new-request notification.
  * The row is stamped intake_source = "manual" so the portal can show it was added by hand.
  */
+import { joinList } from "@/lib/special"
 import { toStringList } from "@/lib/special"
 import { NextResponse, after, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
@@ -19,7 +20,7 @@ const LABELS: Record<string, string> = {
   incoterm: "Incoterm", bl_type: "BL Type", pickup_address: "Pickup address (EXW)",
 }
 const s = (v: unknown, max: number) => {
-  const t = Array.isArray(v) ? v.join(", ") : String(v ?? "").trim()
+  const t = joinList(v)
   return t && t.toLowerCase() !== "null" ? t.slice(0, max) : null
 }
 const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [])

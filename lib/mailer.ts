@@ -29,6 +29,7 @@ export interface SendArgs {
   html?: string                    // trusted, portal-generated HTML only (auto-replies). Never taken from n8n.
   idempotencyKey?: string | null
   rfqReference?: string | null
+  attachments?: { filename: string; content: Buffer; contentType?: string }[]   // portal-generated files only (quotation PDF)
 }
 export interface SendOutcome {
   status: "sent" | "duplicate" | "skipped" | "failed" | "rejected"
@@ -165,6 +166,7 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
       to: sendTo, cc: sendCc.length ? sendCc : undefined, replyTo: cfg.reply_to || undefined,
       subject: sendSubject, text, html: a.purpose === "reply" && a.html ? a.html : plainToHtml(text),
       messageId: `<${messageId}>`,
+      ...(a.attachments?.length ? { attachments: a.attachments.slice(0, 3) } : {}),
       ...(inReplyTo ? { inReplyTo, references } : {}),
       // RFC 3834: tells other auto-responders not to answer our automatic acknowledgements (no mail loops)
       ...(a.purpose === "reply" ? { headers: { "Auto-Submitted": "auto-replied" } } : {}),

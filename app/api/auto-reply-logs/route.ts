@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data ?? [])
 }
 
-const VALID_TYPES = new Set(["acknowledgement", "missing_fields", "carrier"])
+const VALID_TYPES = new Set(["acknowledgement", "missing_fields", "carrier", "quotation"])
 
 export async function POST(req: NextRequest) {
   const secret    = req.headers.get("x-portal-secret")

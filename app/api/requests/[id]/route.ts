@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
+import { activeQuoteCounts } from "@/lib/request-status"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
@@ -49,5 +50,6 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  return NextResponse.json(mapDbToRequest(data as DbFreightRequest))
+  const counts = await activeQuoteCounts(admin, [params.id]).catch(() => ({} as Record<string, number>))
+  return NextResponse.json({ ...mapDbToRequest(data as DbFreightRequest), activeQuoteCount: counts[params.id] ?? 0 })
 }

@@ -166,6 +166,8 @@ export type FreightRequest = {
   receivedIso: string
   receivedRelative: string
   receivedExact: string
+  /** Active (not disregarded) carrier quotes; shown next to the Quoted status. */
+  activeQuoteCount?: number
   specialRequirements: string[]
   availabilityQuestions: string[]
   missingFields: string[]

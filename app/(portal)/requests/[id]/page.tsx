@@ -20,6 +20,7 @@ import {
   Pencil,
   Phone,
   Reply,
+  Send,
   AlertTriangle,
   Check,
   CheckSquare,
@@ -39,6 +40,8 @@ import {
 import { IntakeBadge } from "@/components/portal/intake-badge"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
+import { ForwardQuotationDialog } from "@/components/portal/forward-quotation-dialog"
+import type { CarrierQuote } from "@/lib/carrier-quotes-queries"
 import { QuotationBuilder } from "@/components/portal/quotation-builder"
 import {
   type Carrier,
@@ -286,6 +289,8 @@ export default function RequestDetailPage() {
   const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
   const [sending, setSending]       = useState(false)
   const [rfqOpen, setRfqOpen]       = useState(false)
+  const [fwdOpen, setFwdOpen]       = useState(false)
+  const [activeQuotes, setActiveQuotes] = useState<CarrierQuote[]>([])
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({})
@@ -439,7 +444,7 @@ export default function RequestDetailPage() {
               <h1 className="text-xl font-bold text-white">{request.senderName}</h1>
               {aog && <AogBadge />}
               {dgr && <DgrBadge />}
-              <StatusBadge status={request.status} />
+              <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
             </div>
             {/* route / POL → POD */}
             <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -494,7 +499,8 @@ export default function RequestDetailPage() {
               key={rfqRefreshSignal}
               freightRequestId={request.id}
               locked={request.status === "Closed"}
-              onChanged={() => setRfqRefreshSignal((n) => n + 1)}
+              onChanged={() => { setRfqRefreshSignal((n) => n + 1); void load() }}
+              onActiveQuotes={setActiveQuotes}
             />
             <QuotationBuilder request={request} refreshSignal={rfqRefreshSignal} />
           </div>
@@ -669,7 +675,7 @@ export default function RequestDetailPage() {
               <div className="ds-card p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Timeline</h4>
-                  <StatusBadge status={request.status} />
+                  <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
                 </div>
                 <RequestTimeline requestId={request.id} refreshKey={request.status} />
               </div>
@@ -732,6 +738,17 @@ export default function RequestDetailPage() {
 
       {/* ── Floating action buttons: centred, always visible, no bar behind them ── */}
       <div className="pointer-events-none sticky bottom-4 z-30 flex shrink-0 flex-wrap items-center justify-center gap-3 px-6 py-3">
+        {activeTab === "quotes" ? (
+          <button
+            onClick={() => setFwdOpen(true)}
+            disabled={activeQuotes.length === 0 || request.status === "Closed"}
+            title={activeQuotes.length === 0 ? "Needs at least one active quote" : "Send a quotation to the original sender"}
+            className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+            style={{ background: "var(--brand-accent)", boxShadow: activeQuotes.length ? "0 0 0 1px rgb(var(--brand-accent-rgb) / 0.35), 0 6px 16px -4px rgb(var(--brand-accent-rgb) / 0.6), 0 0 22px rgb(var(--brand-accent-rgb) / 0.35)" : "none" }}>
+            <Send className="h-3.5 w-3.5" /> Forward to {request.senderName}
+          </button>
+        ) : (
+          <>
         <button onClick={() => setRfqOpen(true)}
           className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all hover:-translate-y-0.5 active:translate-y-0"
           style={{ background: "var(--brand-accent)", boxShadow: "0 0 0 1px rgb(var(--brand-accent-rgb) / 0.35), 0 6px 16px -4px rgb(var(--brand-accent-rgb) / 0.6), 0 0 22px rgb(var(--brand-accent-rgb) / 0.35)" }}>
@@ -756,7 +773,21 @@ export default function RequestDetailPage() {
             </span>
           )}
         </button>
+          </>
+        )}
       </div>
+
+      {fwdOpen && (
+        <ForwardQuotationDialog
+          requestId={request.id}
+          senderEmail={request.senderEmail}
+          senderName={request.senderName}
+          gmailThreadId={request.gmailThreadId}
+          quotes={activeQuotes}
+          onClose={() => setFwdOpen(false)}
+          onDone={() => { void load(); setRfqRefreshSignal((n) => n + 1) }}
+        />
+      )}
 
       {rfqOpen && (
         <SendRfqDialog requestId={request.id} modes={request.modes} onClose={() => setRfqOpen(false)} onDone={() => { load(); setRfqRefreshSignal((n) => n + 1) }} />

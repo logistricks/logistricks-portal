@@ -6,7 +6,7 @@
 import { randomBytes } from "crypto"
 import { applyTemplate } from "@/lib/template-render"
 import { htmlToPlainText } from "@/lib/quotation-render"
-import { toStringList } from "@/lib/special"
+import { joinList, toStringList } from "@/lib/special"
 import { isExw, hasText } from "@/lib/shipment-labels"
 
 export interface CarrierContact { id: number; carrier_id: number; carrier_name: string; person_name: string; email: string; cc: string[] }
@@ -34,7 +34,7 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
   const exw = isExw(row.incoterm)
   return {
     origin_city: s(row.origin_city), origin_country: s(row.origin_country), destination_city: s(row.destination_city), destination_country: s(row.destination_country),
-    cargo_type: s(row.cargo_type), quantity: s(row.quantity), weight: s(row.weight), dimensions: s(row.dimensions), equipment: list(row.equipment) || s(row.equipment),
+    cargo_type: s(row.cargo_type), quantity: s(row.quantity), weight: s(row.weight), dimensions: s(row.dimensions), equipment: joinList(row.equipment) || s(row.equipment),
     incoterm: s(row.incoterm), pickup_address: exw && hasText(pickup) ? pickup : "", bl_type: s(row.bl_type), urgency: s(row.urgency),
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),

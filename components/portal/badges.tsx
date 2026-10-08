@@ -31,7 +31,7 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   )
 }
 
-export function StatusBadge({ status }: { status: RequestStatus }) {
+export function StatusBadge({ status, quoteCount }: { status: RequestStatus; quoteCount?: number }) {
   const config: Record<RequestStatus, string> = {
     Pending:                           "bg-orange-50 text-orange-700",
     "Waiting for Approval":            "bg-yellow-50 text-yellow-700",
@@ -46,7 +46,7 @@ export function StatusBadge({ status }: { status: RequestStatus }) {
   }
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${config[status]}`}>
-      {status}
+      {status}{status === "Quoted" && quoteCount ? ` · ${quoteCount}` : ""}
     </span>
   )
 }

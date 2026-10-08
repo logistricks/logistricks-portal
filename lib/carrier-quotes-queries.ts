@@ -9,6 +9,8 @@ type SupabaseClient = ReturnType<typeof createClient>
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
+import { joinList } from "@/lib/special"
+
 export type CarrierQuoteStatus = "sent" | "responded" | "expired" | "declined"
 
 export interface CarrierQuoteRequest {
@@ -41,6 +43,10 @@ export interface CarrierQuote {
   linkedByAi: boolean | null
   linkMethod: string | null
   linkedBy: string | null
+  /** Disregarded quotes are greyed out and can't be used in a quotation or sent to the sender. */
+  disregarded: boolean
+  disregardedAt: string | null
+  disregardedBy: string | null
   /** Extended extraction fields (migration 040). All optional / null when the carrier did not state them. */
   ext: CarrierQuoteExt
 }
@@ -130,11 +136,11 @@ export function mapQuoteExt(q: any): CarrierQuoteExt {
     chargeableWeight: n(q.chargeable_weight), chargeableWeightStated: n(q.chargeable_weight_stated),
     chargeableUnit: q.chargeable_unit ?? null, chargeableBasis: q.chargeable_basis ?? null,
     stackable: q.stackable ?? null, declaredValue: n(q.declared_value), temperatureControl: q.temperature_control ?? null,
-    hazmat: q.hazmat ?? null, specialHandling: q.special_handling ?? null, containerType: q.container_type ?? null,
+    hazmat: q.hazmat ?? null, specialHandling: q.special_handling ?? null, containerType: q.container_type ? joinList(q.container_type) : null,
     containerCount: n(q.container_count), originPlace: q.origin_place ?? null, destinationPlace: q.destination_place ?? null,
     incoterm: q.incoterm ?? null, incotermPlace: q.incoterm_place ?? null, pickupAddress: q.pickup_address ?? null, intakeSource: q.intake_source ?? null, etd: q.etd ?? null, eta: q.eta ?? null,
     frequency: q.frequency ?? null, directOrConnecting: q.direct_or_connecting ?? null,
-    equipmentType: q.equipment_type ?? null, spaceConfirmed: q.space_confirmed ?? null,
+    equipmentType: q.equipment_type ? joinList(q.equipment_type) : null, spaceConfirmed: q.space_confirmed ?? null,
     freeDaysDemurrage: n(q.free_days_demurrage), freeDaysDetention: n(q.free_days_detention),
     perDiemNote: q.per_diem_note ?? null, charges: Array.isArray(q.charges) ? q.charges : null,
     paymentTerms: q.payment_terms ?? null, insuranceOffered: q.insurance_offered ?? null,
@@ -144,6 +150,13 @@ export function mapQuoteExt(q: any): CarrierQuoteExt {
     validationFlags: Array.isArray(q.validation_flags) ? q.validation_flags : [],
     modeDetails: q.mode_details ?? null,
   }
+}
+
+/** A quote that counts: has a rate-bearing response and was not disregarded. */
+export function isActiveQuote(q: CarrierQuote | null | undefined): boolean {
+  if (!q || q.disregarded) return false
+  const t = q.ext.responseType
+  return !t || ["quote", "update", "counter_offer"].includes(t)
 }
 
 export interface SendRfqPayload {
@@ -200,6 +213,9 @@ export async function fetchQuotesForRequest(
           linkedByAi: row.carrier_quotes[0].linked_by_ai ?? null,
           linkMethod: row.carrier_quotes[0].link_method ?? null,
           linkedBy:   row.carrier_quotes[0].linked_by ?? null,
+          disregarded:   row.carrier_quotes[0].disregarded === true,
+          disregardedAt: row.carrier_quotes[0].disregarded_at ?? null,
+          disregardedBy: row.carrier_quotes[0].disregarded_by ?? null,
           ext:        mapQuoteExt(row.carrier_quotes[0]),
         }
       : null,

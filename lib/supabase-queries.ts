@@ -5,7 +5,7 @@
  * automatically scopes every query to the user's client_code.
  */
 
-import { dropRepeats, toStringList } from "@/lib/special"
+import { dropRepeats, joinList, toStringList } from "@/lib/special"
 import { createClient } from "@/lib/supabase"
 import type { FreightRequest, RequestStatus, Source, Confidence } from "@/lib/portal-data"
 
@@ -293,10 +293,10 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     destinationCountry:row.destination_country ?? "—",
     destinationFlag:   countryToFlag(row.destination_country ?? ""),
     cargoType:         row.cargo_type         ?? "—",
-    equipment:         row.equipment          ?? "—",
+    equipment:         joinList(row.equipment) || "—",
     weight:            row.weight             ?? "—",
-    quantity:          row.quantity           ?? "—",
-    dimensions:        row.dimensions         ?? "—",
+    quantity:          joinList(row.quantity) || "—",
+    dimensions:        joinList(row.dimensions) || "—",
     modes: [
       ...(row.is_sea  ? ["Sea"  as const] : []),
       ...(row.is_air  ? ["Air"  as const] : []),
@@ -315,7 +315,7 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     receivedRelative:  formatRelative(receivedAt),
     receivedExact:     formatExact(receivedAt),
     specialRequirements:  dropRepeats(toStringList(row.special_requirements), [
-      row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, row.equipment, row.weight, row.quantity, row.dimensions, row.preferred_carrier,
+      row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, joinList(row.equipment), row.weight, row.quantity, row.dimensions, row.preferred_carrier,
     ]),
     availabilityQuestions:toStringList(row.availability_questions),
     missingFields:     Array.isArray(row.missing_fields)           ? row.missing_fields           as string[] : [],

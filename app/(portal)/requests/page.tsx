@@ -78,12 +78,12 @@ const STATUS_TONE: Record<Stage, string> = {
   "Sent to Carrier": "#3b82f6", Quoted: "#0ea5e9", Closed: "#64748b",
 }
 
-function StatusPill({ status }: { status: RequestStatus }) {
+function StatusPill({ status, quoteCount }: { status: RequestStatus; quoteCount?: number }) {
   const { stage, target, delivery } = parseStatus(status)
   const c = STATUS_TONE[stage]
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `color-mix(in srgb, ${c} 16%, transparent)`, color: c }}>{stage === "Waiting" ? "Waiting for approval" : stage}</span>
+      <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `color-mix(in srgb, ${c} 16%, transparent)`, color: c }}>{stage === "Waiting" ? "Waiting for approval" : stage}{stage === "Quoted" && quoteCount ? ` · ${quoteCount}` : ""}</span>
       {target && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}>{target}</span>}
       {delivery && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ border: "1px solid var(--card-border)", color: delivery === "Sent" ? "#10b981" : "#d97706" }}>{delivery}</span>}
     </span>
@@ -463,7 +463,7 @@ export default function RequestsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
-                      <StatusPill status={r.status} />
+                      <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
                       {r.outcome && (
                         <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
                           style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
