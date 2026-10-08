@@ -1,6 +1,7 @@
 "use client"
 
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
+import { SendRfqDialog } from "@/components/portal/send-rfq-dialog"
 import { RequestOutcomePanel } from "@/components/portal/request-outcome-panel"
 import { RequestTimeline } from "@/components/portal/request-timeline"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -284,6 +285,7 @@ export default function RequestDetailPage() {
   const [specialOpen, setSpecialOpen] = useState(false)
   const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
   const [sending, setSending]       = useState(false)
+  const [rfqOpen, setRfqOpen]       = useState(false)
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({})
@@ -605,27 +607,12 @@ export default function RequestDetailPage() {
                 <div className="ds-card p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {sendMethod === "Email" ? "Send to Carrier" : `Reply to ${request.senderName}`}
+                      {`Reply to ${request.senderName}`}
                     </h4>
                     <button onClick={() => { setSendMethod(null); setMessageBody("") }} style={{ color: "var(--text-muted)" }}>
                       ✕
                     </button>
                   </div>
-                  {sendMethod === "Email" && (
-                    <div>
-                      <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-muted)" }}>Template</label>
-                      <select value={templateId} onChange={(e) => {
-                        setTemplateId(e.target.value)
-                        const c = carriers.find((c) => selectedCarrierIds.includes(String(c.carrier_id)))
-                        setMessageBody(renderTemplateBody(e.target.value, request, c, templates))
-                      }}
-                        className="h-9 w-full rounded-lg px-3 text-sm outline-none"
-                        style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
-                        <option value="">— Select a template —</option>
-                        {emailTemplates.map((t) => <option key={t.template_id} value={String(t.template_id)}>{t.template_name}</option>)}
-                      </select>
-                    </div>
-                  )}
                   {sendMethod === "Reply" && (
                     <div>
                       <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-muted)" }}>Template</label>
@@ -743,13 +730,12 @@ export default function RequestDetailPage() {
         )}
       </div>
 
-      {/* ── Footer action bar ─────────────────────────────────────────────── */}
-      {activeTab !== "quotes" && (
-      <div className="shrink-0 px-6 py-4 flex gap-3 flex-wrap" style={{ borderTop: "1px solid var(--divider)", background: "var(--card-bg)" }}>
-        <button onClick={() => { setSendMethod("Email"); setActiveTab("details") }}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold text-white transition-colors"
-          style={{ background: "var(--brand-accent)", minWidth: 160 }}>
-          <Mail className="h-4 w-4" /> Send to Carrier
+      {/* ── Footer action bar: always visible, compact, on every tab ─────────── */}
+      <div className="sticky bottom-0 z-30 flex shrink-0 flex-wrap items-center justify-end gap-2 px-6 py-2" style={{ borderTop: "1px solid var(--divider)", background: "var(--card-bg)", boxShadow: "0 -4px 12px -8px rgba(0,0,0,0.25)" }}>
+        <button onClick={() => setRfqOpen(true)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white transition-colors"
+          style={{ background: "var(--brand-accent)" }}>
+          <Mail className="h-3.5 w-3.5" /> Send to Carrier
         </button>
         <button
           onClick={() => {
@@ -760,17 +746,20 @@ export default function RequestDetailPage() {
               setActiveTab("details")
             }
           }}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-colors"
-          style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)", minWidth: 160 }}>
-          <Reply className="h-4 w-4" />
+          className="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold transition-colors"
+          style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
+          <Reply className="h-3.5 w-3.5" />
           Reply to {request.senderName}
           {missingCount > 0 && (
-            <span className="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ background: "#ef4444" }}>
+            <span className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ background: "#ef4444" }}>
               {missingCount}
             </span>
           )}
         </button>
       </div>
+
+      {rfqOpen && (
+        <SendRfqDialog requestId={request.id} modes={request.modes} onClose={() => setRfqOpen(false)} onDone={() => { load(); setRfqRefreshSignal((n) => n + 1) }} />
       )}
     </div>
   )

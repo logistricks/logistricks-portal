@@ -29,6 +29,7 @@ export type ActivityEventType =
   | "carrier_quote_deleted"
   | "request_outcome"
   | "sender_reply_received"
+  | "rfq_sent"
 
 function adminClient() {
   return createClient(

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Loader2, Send, X } from "lucide-react"
 import type { Carrier, CarrierRow } from "@/lib/portal-data"
 
-function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
+export function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
   const map = new Map<number, Carrier>()
   for (const row of rows) {
     if (!row.is_cc) {
