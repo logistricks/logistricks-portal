@@ -730,11 +730,11 @@ export default function RequestDetailPage() {
         )}
       </div>
 
-      {/* ── Footer action bar: always visible, compact, on every tab ─────────── */}
-      <div className="sticky bottom-0 z-30 flex shrink-0 flex-wrap items-center justify-end gap-2 px-6 py-2" style={{ borderTop: "1px solid var(--divider)", background: "var(--card-bg)", boxShadow: "0 -4px 12px -8px rgba(0,0,0,0.25)" }}>
+      {/* ── Floating action buttons: centred, always visible, no bar behind them ── */}
+      <div className="pointer-events-none sticky bottom-4 z-30 flex shrink-0 flex-wrap items-center justify-center gap-3 px-6 py-3">
         <button onClick={() => setRfqOpen(true)}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold text-white transition-colors"
-          style={{ background: "var(--brand-accent)" }}>
+          className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all hover:-translate-y-0.5 active:translate-y-0"
+          style={{ background: "var(--brand-accent)", boxShadow: "0 0 0 1px rgb(var(--brand-accent-rgb) / 0.35), 0 6px 16px -4px rgb(var(--brand-accent-rgb) / 0.6), 0 0 22px rgb(var(--brand-accent-rgb) / 0.35)" }}>
           <Mail className="h-3.5 w-3.5" /> Send to Carrier
         </button>
         <button
@@ -746,8 +746,8 @@ export default function RequestDetailPage() {
               setActiveTab("details")
             }
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-bold transition-colors"
-          style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
+          className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
+          style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)", boxShadow: "0 6px 16px -6px rgba(0,0,0,0.35), 0 0 18px rgb(var(--brand-accent-rgb) / 0.12)" }}>
           <Reply className="h-3.5 w-3.5" />
           Reply to {request.senderName}
           {missingCount > 0 && (
