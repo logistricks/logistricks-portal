@@ -6,6 +6,7 @@ const nextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "mailparser", "imapflow", "@kenjiuno/msgreader"],
   outputFileTracingIncludes: {
     "/api/quotations/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/trial/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   images: {
     unoptimized: true,

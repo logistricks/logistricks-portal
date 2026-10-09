@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Logistricks Trial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one long scroll. Sticky chrome with a 3-step rail, navy hero, three working step panels, locked-feature gallery, ROI, close. */
+:root{
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --navy:#0F1E36; --navy2:#1A2D4A; --navy3:#243D61;
+  --bg:#F2F5FA; --surface:#FFFFFF; --surface2:#F6F8FC; --ink:#0F1E36; --muted:#56667E; --line:#DCE3EE;
+  --accent:#E8821A; --accent-strong:#C96A08; --on-accent:#0F1E36; --accent-soft:#FDF0E1;
+  --good:#12805C; --good-soft:#E2F5EE; --warn:#A35F00; --warn-soft:#FFF2D9; --crit:#B42318; --crit-soft:#FDE8E6;
+  --lock:#8795AB; --shadow:0 1px 2px rgba(15,30,54,.06),0 8px 24px -12px rgba(15,30,54,.18);
+  --paper:#FFFFFF; --paper-ink:#1B2740;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1424; --surface:#12223A; --surface2:#182C49; --ink:#EAF0F8; --muted:#9DB0C8; --line:#27415F;
+    --accent:#F2993F; --accent-strong:#FFB566; --on-accent:#0F1E36; --accent-soft:#3A2A15;
+    --good:#4FD1A1; --good-soft:#0F3328; --warn:#F5C066; --warn-soft:#3B2D10; --crit:#FF8A80; --crit-soft:#3E1B18;
+    --lock:#6F819B; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -12px rgba(0,0,0,.6);
+    --paper:#F7F9FC; --paper-ink:#1B2740; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1424; --surface:#12223A; --surface2:#182C49; --ink:#EAF0F8; --muted:#9DB0C8; --line:#27415F;
+  --accent:#F2993F; --accent-strong:#FFB566; --on-accent:#0F1E36; --accent-soft:#3A2A15;
+  --good:#4FD1A1; --good-soft:#0F3328; --warn:#F5C066; --warn-soft:#3B2D10; --crit:#FF8A80; --crit-soft:#3E1B18;
+  --lock:#6F819B; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -12px rgba(0,0,0,.6);
+  --paper:#F7F9FC; --paper-ink:#1B2740; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:120px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--font-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--font-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:var(--accent-strong)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1160px;margin-inline:auto;padding-inline:20px}
+.mono{font-family:var(--font-mono)}
+.eyebrow{font:500 12px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* prototype strip */
+.proto{background:#2B1B05;color:#FFD9A8;font:500 12.5px/1.4 var(--font-body);padding:7px 20px;display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap}
+.proto b{font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.seg{display:inline-flex;background:rgba(255,255,255,.08);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;color:#FFD9A8;padding:4px 12px;border-radius:6px;font-size:12.5px}
+.seg button[aria-pressed="true"]{background:#FFD9A8;color:#2B1B05;font-weight:600}
+
+/* chrome */
+.chrome{position:sticky;top:0;z-index:40;background:var(--navy);color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+.chrome .wrap{display:flex;align-items:center;gap:18px;min-height:60px;flex-wrap:wrap;padding-block:8px}
+.brand{display:flex;align-items:center;gap:10px;font:800 19px/1 var(--font-display);letter-spacing:.06em;color:#fff;text-decoration:none}
+.rail{display:flex;gap:6px;margin-inline:auto;overflow-x:auto;max-width:100%}
+.rail a{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;color:rgba(255,255,255,.7);text-decoration:none;font-size:14px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.rail a i{font:500 12px/1 var(--font-mono);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1.5px solid rgba(255,255,255,.4);font-style:normal}
+.rail a[aria-current="step"]{color:#fff;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18)}
+.rail a[aria-current="step"] i{border-color:var(--accent);color:var(--accent)}
+.rail a.done i{background:var(--accent);border-color:var(--accent);color:var(--navy)}
+.chrome-right{display:flex;align-items:center;gap:10px}
+.pill{font:500 12.5px/1 var(--font-mono);padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#fff;white-space:nowrap}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;display:grid;place-items:center}
+.icon-btn:hover{background:rgba(255,255,255,.1)}
+
+/* hero */
+.hero{background:radial-gradient(1200px 400px at 85% -10%,rgba(232,130,26,.22),transparent 60%),linear-gradient(135deg,var(--navy) 0%,var(--navy2) 60%,var(--navy3) 100%);color:#fff;position:relative;overflow:hidden}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:40px;padding-block:56px 64px;align-items:center}
+.hero h1{font-size:clamp(34px,5.2vw,62px);line-height:1.02;font-weight:800}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero .lead{font-size:18px;color:rgba(255,255,255,.82);max-width:54ch;margin-top:18px}
+.hero .for{display:inline-flex;gap:8px;align-items:center;margin-bottom:18px;font:500 13px/1 var(--font-mono);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:8px 14px}
+.hero .for b{color:var(--accent);font-weight:500}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 20px;font-weight:600;border:1px solid transparent;text-decoration:none;min-height:46px}
+.btn-primary{background:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{background:var(--accent-strong)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{background:transparent;border-color:rgba(255,255,255,.3);color:#fff}
+.btn-line{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.btn-line:hover{border-color:var(--accent)}
+.btn-sm{padding:8px 14px;min-height:38px;font-size:14px;border-radius:10px}
+.trust{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:22px;display:grid;gap:16px}
+.trust h3{font-size:18px}
+.trust ul{list-style:none;margin:0;padding:0;display:grid;gap:12px;font-size:14.5px;color:rgba(255,255,255,.85)}
+.trust li{display:grid;grid-template-columns:22px 1fr;gap:10px}
+.trust svg{margin-top:2px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.facts div{background:rgba(255,255,255,.08);border-radius:12px;padding:12px;text-align:center}
+.facts b{display:block;font:800 26px/1 var(--font-display);color:var(--accent)}
+.facts span{font-size:12px;color:rgba(255,255,255,.75)}
+
+/* steps */
+section.step{padding-block:72px 8px}
+.step-head{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;margin-bottom:28px}
+.step-no{font:800 72px/.8 var(--font-display);color:var(--accent)}
+.step-head h2{font-size:clamp(26px,3.4vw,40px);line-height:1.08}
+.io{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.io span{font-size:13.5px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 12px;color:var(--muted)}
+.io b{color:var(--ink);font-weight:600}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);min-width:0}
+.card h3{font-size:19px;margin-bottom:6px}
+.tabs{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--line);padding:4px;border-radius:12px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button{flex:1;border:0;background:transparent;padding:8px 10px;border-radius:9px;font-weight:500;color:var(--muted);min-width:90px}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
+.samples{display:grid;gap:10px}
+.sample{display:grid;grid-template-columns:1fr auto;gap:4px 12px;text-align:left;border:1.5px solid var(--line);background:var(--surface2);border-radius:14px;padding:14px 16px}
+.sample:hover{border-color:var(--accent)}
+.sample[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.sample b{font:700 16px/1.2 var(--font-display)}
+.sample span{font-size:13px;color:var(--muted)}
+.sample small{grid-column:1/-1;font-size:13px;color:var(--muted);line-height:1.45}
+.tag{font:500 11px/1 var(--font-mono);padding:5px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted);white-space:nowrap;align-self:start}
+label.f{display:grid;gap:6px;font-size:13px;font-weight:600;margin-bottom:12px}
+input[type=text],input[type=email],input[type=number],input[type=password],textarea,select{font:inherit;color:var(--ink);background:var(--surface2);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{min-height:130px;resize:vertical}
+.hint{font-size:12.5px;color:var(--muted);font-weight:400}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface2);display:grid;gap:8px;justify-items:center;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
+.emailbox{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:14px;white-space:pre-wrap;max-height:230px;overflow:auto;margin-bottom:14px}
+.emailbox[dir=rtl]{text-align:right}
+.masked{font:500 13px/1 var(--font-mono);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;display:inline-block}
+
+/* progress */
+.prog{display:grid;gap:10px;margin:6px 0}
+.prog div{display:grid;grid-template-columns:22px 1fr;gap:10px;color:var(--muted);align-items:center;font-size:15px}
+.prog div.on{color:var(--ink)}
+.prog div.ok{color:var(--ink)}
+.spin{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.placeholder{border:2px dashed var(--line);border-radius:18px;padding:34px 22px;color:var(--muted);display:grid;gap:10px;min-height:260px;align-content:center;justify-items:start}
+.placeholder b{font:700 20px/1.2 var(--font-display);color:var(--ink)}
+.ghostrows{display:grid;gap:8px;width:100%;margin-top:6px}
+.ghostrows i{display:block;height:12px;border-radius:6px;background:var(--line);opacity:.7}
+
+/* results */
+.route{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin-bottom:16px}
+.route .pt small{display:block;font:500 11px/1 var(--font-mono);letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+.route .pt b{font:800 clamp(22px,3vw,32px)/1.05 var(--font-display)}
+.route .pt span{display:block;color:var(--muted);font-size:14px;margin-top:4px}
+.arrow{color:var(--accent)}
+.note{display:flex;gap:10px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.field{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.field small{display:block;font:500 11px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field b{font:600 17px/1.25 var(--font-body)}
+.field.empty b{color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13.5px}
+.sub{font:600 13px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
+.miss{background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:12px;padding:12px 14px;margin-top:16px}
+.miss b{color:var(--warn)}
+.miss ul{margin:6px 0 0;padding-left:18px;font-size:14.5px}
+.conf{display:flex;align-items:center;gap:12px;margin-top:16px;font-size:14px;color:var(--muted)}
+.bar{flex:1;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.reply{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:14.5px;white-space:pre-wrap;min-height:150px;width:100%}
+
+/* locked */
+.locked{position:relative;border-radius:18px;overflow:hidden}
+.locked .inner{filter:grayscale(1) blur(1.5px);opacity:.55;pointer-events:none;user-select:none}
+.locked .veil{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;text-align:center;padding:16px;background:color-mix(in srgb,var(--surface) 55%,transparent)}
+.lockbadge{display:inline-flex;align-items:center;gap:8px;font:600 13px/1 var(--font-mono);color:var(--muted);letter-spacing:.04em}
+.lockbadge svg{color:var(--lock)}
+
+/* markup */
+.markup{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:20px}
+.num{font:800 clamp(30px,4vw,46px)/1 var(--font-display);font-variant-numeric:tabular-nums}
+.lines{width:100%;border-collapse:collapse;font-size:14.5px}
+.lines th{text-align:left;font:500 11px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px 8px;border-bottom:1px solid var(--line)}
+.lines td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.lines td.r,.lines th.r{text-align:right;font-variant-numeric:tabular-nums}
+.lines tfoot td{font-weight:700;border-bottom:0;font-size:16px}
+.tablewrap{overflow-x:auto}
+.flags{display:grid;gap:8px;margin-top:14px}
+.flag{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:10px 12px;border-radius:10px;font-size:14px}
+.flag.warn{background:var(--warn-soft);color:var(--ink)}
+.flag.ok{background:var(--good-soft)}
+.flag.info{background:var(--surface2);border:1px solid var(--line)}
+.flag.warn svg{color:var(--warn)} .flag.ok svg{color:var(--good)} .flag.info svg{color:var(--muted)}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}
+.stat{display:grid;gap:2px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat small{font:500 11px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat b{font-size:17px}
+
+/* template + output */
+.tpls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.tpl{border:2px solid var(--line);border-radius:16px;padding:16px;background:var(--surface);display:grid;gap:8px;text-align:left}
+.tpl[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.tpl b{font:700 17px/1.2 var(--font-display)}
+.thumb{height:84px;border-radius:8px;background:linear-gradient(var(--line),var(--line)) 12px 14px/40% 8px no-repeat,linear-gradient(var(--line),var(--line)) 12px 32px/70% 6px no-repeat,linear-gradient(var(--line),var(--line)) 12px 46px/60% 6px no-repeat,linear-gradient(var(--accent),var(--accent)) 12px 66px/30% 8px no-repeat,var(--surface2);border:1px solid var(--line)}
+.paper{background:var(--paper);color:var(--paper-ink);border-radius:6px;padding:34px 36px;box-shadow:0 18px 40px -20px rgba(0,0,0,.45);border:1px solid #dfe5ee;font-size:14px;min-width:0}
+.paper h4{font:800 24px/1 var(--font-display);letter-spacing:.02em}
+.paper .top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:3px solid #E8821A;padding-bottom:16px;margin-bottom:18px}
+.paper .logo{border:1.5px dashed #9aa8bd;color:#6c7b92;border-radius:6px;padding:10px 14px;font:500 12px/1.2 var(--font-mono);text-align:center}
+.paper table{width:100%;border-collapse:collapse;margin:14px 0}
+.paper th{font:500 10.5px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:#64748b;text-align:left;padding:7px 6px;border-bottom:1px solid #cfd8e5}
+.paper td{padding:8px 6px;border-bottom:1px solid #e6ebf2;vertical-align:top}
+.paper td.r,.paper th.r{text-align:right;font-variant-numeric:tabular-nums}
+.paper .total{display:flex;justify-content:space-between;align-items:baseline;background:#0F1E36;color:#fff;border-radius:6px;padding:12px 16px;margin-top:6px}
+.paper .total b{font:800 26px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.paper small{color:#5b6a80;display:block;margin-top:14px;line-height:1.5}
+.mail{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:18px;font-size:15px;white-space:pre-wrap}
+.mail .subj{font-weight:600;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px;white-space:normal}
+.attach{display:inline-flex;gap:8px;align-items:center;margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:500 12.5px/1 var(--font-mono)}
+.done-card{background:linear-gradient(135deg,var(--navy),var(--navy3));color:#fff;border-radius:20px;padding:28px;display:grid;gap:18px;margin-top:22px}
+.done-card h3{font-size:26px}
+.done-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.done-stats div{background:rgba(255,255,255,.08);border-radius:12px;padding:14px}
+.done-stats b{display:block;font:800 26px/1 var(--font-display);color:var(--accent);font-variant-numeric:tabular-nums}
+.done-stats span{font-size:12.5px;color:rgba(255,255,255,.75)}
+
+/* gallery */
+.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:26px}
+.feat{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:10px;align-content:start;position:relative}
+.feat .ic{width:44px;height:44px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);display:grid;place-items:center;color:var(--lock)}
+.feat h3{font-size:18px}
+.feat p{font-size:14.5px;color:var(--muted)}
+.feat .lk{position:absolute;top:16px;right:16px;color:var(--lock)}
+.feat .mini{font:500 12px/1.5 var(--font-mono);background:var(--surface2);border:1px dashed var(--line);border-radius:10px;padding:8px 10px;color:var(--muted)}
+.feat button{justify-self:start}
+.roi{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:26px}
+.sl{display:grid;gap:6px;margin-bottom:18px;font-weight:600;font-size:14px}
+.sl input[type=range]{width:100%;accent-color:var(--accent)}
+.sl .v{font:500 15px/1 var(--font-mono);color:var(--accent-strong)}
+.close{background:linear-gradient(135deg,var(--navy),var(--navy3));color:#fff;border-radius:24px;padding:44px 28px;text-align:center;display:grid;gap:16px;justify-items:center;margin-block:72px 56px}
+.close h2{font-size:clamp(28px,4vw,44px);max-width:20ch}
+footer{padding-block:24px 48px;color:var(--muted);font-size:13px;text-align:center}
+.h2{font-size:clamp(26px,3.4vw,40px);line-height:1.08}
+section.band{padding-block:72px 0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--navy);color:#fff;border:1px solid rgba(255,255,255,.2);padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:min(92vw,520px);font-size:14.5px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* admin */
+.admin h2{margin-bottom:6px}
+.agrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:20px;align-items:start;margin-top:22px}
+.agrid.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.grid2.g-reply{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+.grid2.g-out{grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr)}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{text-align:left;font:500 11px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.st{font:500 12px/1 var(--font-mono);padding:5px 9px;border-radius:999px;white-space:nowrap;display:inline-block}
+.st.Active,.st.in{background:var(--accent-soft);color:var(--accent-strong)}
+.st.Finished{background:var(--good-soft);color:var(--good)}
+.st.none{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.hot{background:var(--crit-soft);color:var(--crit)}
+.cred{display:grid;gap:8px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+.cred div{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.cred code{font-family:var(--font-mono);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;word-break:break-all}
+.timeline{display:grid;gap:0;margin-top:8px;max-height:340px;overflow:auto}
+.timeline div{display:grid;grid-template-columns:78px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.timeline small{font:500 12px/1.4 var(--font-mono);color:var(--muted)}
+.timeline .sig b{color:var(--accent-strong)}
+
+@media (max-width:900px){
+  .hero .wrap,.grid2,.grid2.g-reply,.grid2.g-out,.markup,.roi,.agrid,.agrid.even{grid-template-columns:minmax(0,1fr)}
+  .gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .done-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rail{order:3;width:100%;margin:0}
+}
+@media (max-width:600px){
+  .gallery,.tpls,.fields,.kv{grid-template-columns:minmax(0,1fr)}
+  .step-head{grid-template-columns:minmax(0,1fr)}
+  .step-no{font-size:48px}
+  .paper{padding:20px 16px}
+  .route{grid-template-columns:minmax(0,1fr)}
+  .route .arrow{transform:rotate(90deg);justify-self:start}
+  .hero .wrap{padding-block:36px 44px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.spin{animation:none}.toast{transition:none}}
+
+.sep{width:2px;height:64px;margin:44px auto 0;border-radius:2px;background:linear-gradient(var(--accent),var(--line))}
+.sep + section.step{padding-top:36px}
+.retain{background:var(--accent-soft);color:var(--ink);border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.retain .wrap{display:flex;gap:12px;align-items:center;justify-content:center;padding-block:11px;font-size:14.5px;flex-wrap:wrap;text-align:center}
+.retain svg{color:var(--accent-strong);flex:none}
+.sampbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sampbar .sample{padding:12px 14px}
+.sampbar .sample b{font-size:15px}
+.drop.big{padding:38px 18px;border-width:2.5px;background:linear-gradient(var(--surface2),var(--surface2))}
+.drop.big b{font:700 21px/1.2 var(--font-display);color:var(--ink)}
+.drop.off{opacity:.5;pointer-events:none}
+.or{display:flex;align-items:center;gap:12px;margin:16px 0 12px;color:var(--muted);font-size:13px}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+table.xl{width:100%;border-collapse:collapse;font-size:14px;border:1px solid var(--line)}
+table.xl th{background:var(--navy);color:#fff;text-align:left;font:600 12.5px/1 var(--font-body);padding:10px 10px;white-space:nowrap}
+table.xl td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top;border-right:1px solid var(--line)}
+table.xl tr:nth-child(even) td{background:var(--surface2)}
+table.xl td.r{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:600px){.sampbar{grid-template-columns:minmax(0,1fr)}.sep{height:44px;margin-top:32px}}
+
+.login{position:fixed;inset:0;z-index:100;background:radial-gradient(1000px 400px at 80% -10%,rgba(232,130,26,.25),transparent 60%),linear-gradient(135deg,var(--navy),var(--navy2) 60%,var(--navy3));display:grid;place-items:center;padding:20px}
+.login .card{width:min(420px,100%);display:grid;gap:4px}
+.login h1{font-size:26px;margin:14px 0 4px}
+.login .err{color:var(--crit);font-size:14px;min-height:20px;margin:2px 0 8px}
+.login[hidden]{display:none}
+body.locked-app>#appRoot{display:none}
+.errcard{border:1.5px solid color-mix(in srgb,var(--crit) 50%,transparent);background:var(--crit-soft);border-radius:18px;padding:22px;display:grid;gap:8px}
+.errcard b{font:700 18px/1.2 var(--font-display);color:var(--crit)}
+</style></head><body class="locked-app">
+
+
+<div class="login" id="loginBox" role="dialog" aria-modal="true" aria-label="Sign in">
+  <div class="card">
+    <svg width="40" height="40" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#E8821A"/><path d="M6 19c4 0 4-10 8-10s4 10 8 10" stroke="#0F1E36" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="19" r="2" fill="#0F1E36"/><circle cx="22" cy="19" r="2" fill="#0F1E36"/></svg>
+    <h1>Your Logistricks trial</h1>
+    <p class="hint" style="margin-bottom:14px">Sign in with the code and password we sent you.</p>
+    <form id="loginForm">
+      <label class="f" for="lgCode">Code<input id="lgCode" type="text" autocomplete="username" autocapitalize="characters" spellcheck="false" required></label>
+      <label class="f" for="lgPw">Password<input id="lgPw" type="password" autocomplete="current-password" required></label>
+      <div class="err" id="lgErr" role="alert"></div>
+      <button class="btn btn-primary" id="lgBtn" type="submit" style="width:100%">Sign in</button>
+    </form>
+    <p class="hint" style="margin-top:12px">Everything you add is deleted 5 days after your last activity.</p>
+  </div>
+</div>
+<div id="appRoot">
+<header class="chrome">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Logistricks">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#E8821A"/><path d="M6 19c4 0 4-10 8-10s4 10 8 10" stroke="#0F1E36" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="19" r="2" fill="#0F1E36"/><circle cx="22" cy="19" r="2" fill="#0F1E36"/></svg>
+      LOGISTRICKS
+    </a>
+    <nav class="rail" id="rail" aria-label="Trial steps">
+      <a href="#s1" data-s="1"><i>1</i>Request email</a>
+      <a href="#s2" data-s="2"><i>2</i>Carrier quote</a>
+      <a href="#s3" data-s="3"><i>3</i>Quotation</a>
+    </nav>
+    <div class="chrome-right">
+      <span class="pill" id="retPill" title="Everything you add is deleted 5 days after your last activity">Kept 5 days</span>
+      <span class="pill" id="triesPill">Try 1 of 2</span>
+      <button class="icon-btn" id="logoutBtn" type="button" aria-label="Sign out" title="Sign out"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Switch light and dark mode"></button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+<div id="leadView">
+
+<div class="retain" role="note"><div class="wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span><b>Your data is kept for 5 days.</b> Everything you add here is deleted 5 days after your last activity.</span></div></div>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="for">Prepared for <b id="coName">you</b></span>
+      <h1>Your client's email in. A <em>sendable quotation</em> out.</h1>
+      <p class="lead">Run one real request through Logistricks in about three minutes, from any country: read the email, price the carrier quote, and leave with a quotation you can send. You have two full tries.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#s1" id="startBtn">Start with a sample</a>
+        <a class="btn btn-ghost" href="#what">See what else is inside</a>
+      </div>
+    </div>
+    <aside class="trust" aria-label="How this trial works">
+      <h3>How this trial treats your data</h3>
+      <ul>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Email addresses are shown as <span class="mono">ab*****@*****</span> and never stored.</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything you add is deleted 5 days after your last activity.</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Nothing is sent to anyone. Every reply and quotation stays on this page.</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>A try counts once a request email is read. A failed read is free.</span></li>
+      </ul>
+      <div class="facts"><div><b>3</b><span>steps</span></div><div><b>3 min</b><span>per try</span></div><div><b>2</b><span>full tries</span></div></div>
+    </aside>
+  </div>
+</section>
+
+<div class="wrap">
+
+<!-- STEP 1 -->
+<section class="step" id="s1">
+  <div class="step-head">
+    <div class="step-no">1</div>
+    <div>
+      <h2>Drop in a client's request email</h2>
+      <div class="io"><span><b>You give:</b> an email, typed, pasted or dropped as a file</span><span><b>You get:</b> a clean request and a suggested reply</span></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>The email</h3>
+      <p class="hint" style="margin-bottom:12px">Start from a sample, or write your own. Samples are only a starting point: change anything, in any language.</p>
+      <div class="sampbar" id="sampbar"></div>
+      <label class="f" for="bodyIn" style="margin-top:16px">Email text
+        <textarea id="bodyIn" dir="auto" rows="10" placeholder="Paste or type the client's request here, in any language."></textarea>
+      </label>
+      
+      <div class="or"><span>or drop an email file</span></div>
+      <label class="drop" id="dropBox" for="fileIn">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <b id="dropTxt">Drop an email file here, or click to choose</b>
+        <span class="hint">.eml, .msg or PDF. Attachments are read as part of the request.</span>
+      </label>
+      <input id="fileIn" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
+      <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" id="parse1" type="button" disabled>Read this email</button>
+        <span class="hint" id="parse1hint">Pick a sample or paste your own email.</span>
+      </div>
+    </div>
+    <div id="out1" aria-live="polite">
+      <div class="placeholder">
+        <span class="eyebrow">What appears here</span>
+        <b>The request, as a clean record</b>
+        <p>Route with ports and airports, cargo, equipment, weight, incoterm, special requirements and what is missing. In English, whatever language the email was written in.</p>
+        <div class="ghostrows"><i style="width:80%"></i><i style="width:62%"></i><i style="width:71%"></i></div>
+      </div>
+    </div>
+  </div>
+  <div id="reply1" style="margin-top:20px"></div>
+</section>
+
+<div class="sep" aria-hidden="true"></div>
+
+<!-- STEP 2 -->
+<section class="step" id="s2">
+  <div class="step-head">
+    <div class="step-no">2</div>
+    <div>
+      <h2>Drop in the carrier's quotation</h2>
+      <div class="io"><span><b>You give:</b> the carrier's reply email, dropped as a file or pasted</span><span><b>You get:</b> every charge itemised, flags raised, your markup applied</span></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card" id="in2"></div>
+    <div id="out2" aria-live="polite">
+      <div class="placeholder">
+        <span class="eyebrow">What appears here</span>
+        <b>The quote, line by line</b>
+        <p>Rates, surcharges, transit, validity and free time. Flags warn you when the carrier's terms do not match what the client asked for.</p>
+        <div class="ghostrows"><i style="width:84%"></i><i style="width:60%"></i><i style="width:68%"></i></div>
+      </div>
+    </div>
+  </div>
+  <div id="markup2"></div>
+</section>
+
+<div class="sep" aria-hidden="true"></div>
+
+<!-- STEP 3 -->
+<section class="step" id="s3">
+  <div class="step-head">
+    <div class="step-no">3</div>
+    <div>
+      <h2>Generate the quotation</h2>
+      <div class="io"><span><b>You give:</b> a template and your markup</span><span><b>You get:</b> a ready quotation as a PDF and an email body, same content</span></div>
+    </div>
+  </div>
+  <div id="out3">
+    <div class="placeholder"><span class="eyebrow">What appears here</span><b>A quotation you can send today</b><p>Your price, the carrier's validity, the terms, laid out and ready. Finish step 2 to build it.</p></div>
+  </div>
+  <div id="done"></div>
+</section>
+
+<div class="sep" aria-hidden="true"></div>
+
+<!-- EXPORT -->
+<section class="step" id="export">
+  <div class="step-head">
+    <div class="step-no" aria-hidden="true"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13l3 3 3-3M12 16V11"/></svg></div>
+    <div>
+      <h2>Take the results with you</h2>
+      <div class="io"><span><b>You give:</b> nothing more</span><span><b>You get:</b> one clean Excel workbook with the request, the carrier quote, your quotation and the reply</span></div>
+    </div>
+  </div>
+  <div id="exp" aria-live="polite"></div>
+</section>
+
+</div><!-- wrap -->
+
+<section class="band" id="what">
+  <div class="wrap">
+    <span class="eyebrow">Beyond the trial</span>
+    <h2 class="h2" style="margin-top:10px;max-width:22ch">You just used a tenth of it.</h2>
+    <p style="color:var(--muted);max-width:60ch;margin-top:12px">The full system runs the whole day around that one cycle. Tap any locked feature and we will show it in your walkthrough.</p>
+    <div class="gallery" id="gallery"></div>
+  </div>
+</section>
+
+<section class="band" id="roi">
+  <div class="wrap">
+    <span class="eyebrow">Your numbers</span>
+    <h2 class="h2" style="margin-top:10px">What does this save a month?</h2>
+    <div class="roi">
+      <div class="card">
+        <div class="sl"><label for="rq">Requests per day <span class="v" id="rqv">12</span></label><input id="rq" type="range" min="2" max="80" value="12"></div>
+        <div class="sl"><label for="mn">Minutes to handle one by hand <span class="v" id="mnv">18</span></label><input id="mn" type="range" min="5" max="45" value="18"></div>
+        <p class="hint">Reading the email, retyping it, chasing missing details, building the quote document. Your own estimate.</p>
+      </div>
+      <div class="card" style="display:grid;gap:16px;align-content:center">
+        <div><small class="eyebrow">Hours back each month</small><div class="num" id="roiH" style="color:var(--accent-strong)">0</div></div>
+        <div><small class="eyebrow">Working days back</small><div class="num" id="roiD">0</div></div>
+        <p class="hint">Assumes 22 working days and about 4 minutes per request with Logistricks. An estimate, not a promise.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <section class="close">
+    <span class="eyebrow" style="color:rgba(255,255,255,.7)">Ready when you are</span>
+    <h2>See it run on your own carriers and your own templates.</h2>
+    <p style="color:rgba(255,255,255,.8);max-width:52ch">A 20-minute walkthrough on your real requests. No slides.</p>
+    <button class="btn btn-primary" id="bookBtn" type="button">Book a walkthrough</button>
+  </section>
+  <footer>Logistricks trial · Email addresses are masked and never stored · Data deleted 5 days after your last activity · Nothing on this page is sent to anyone</footer>
+</div>
+
+</div><!-- leadView -->
+
+</main>
+
+</div>
+<div class="toast" id="toast" role="status"></div>
+

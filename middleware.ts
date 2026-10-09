@@ -5,7 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 
-const PORTAL_PATHS = /^\/(dashboard|requests|carriers|schedule|analytics|settings)(\/|$)/
+const PORTAL_PATHS = /^\/(dashboard|requests|carriers|schedule|analytics|settings|trial-leads)(\/|$)/
 
 async function base64urlDecode(str: string): Promise<Uint8Array> {
   const b64 = str.replace(/-/g, "+").replace(/_/g, "/")
@@ -50,8 +50,21 @@ async function verifySession(cookie: string): Promise<Verdict> {
   }
 }
 
+/** try.logistricks.com serves only the lead trial page and its own API. Everything else on that host is closed. */
+function trialHost(request: NextRequest): boolean {
+  const host = (request.headers.get("host") || "").toLowerCase()
+  const want = (process.env.TRIAL_HOST || "").toLowerCase()
+  return host.startsWith("try.") || (!!want && host === want)
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  if (trialHost(request)) {
+    if (pathname === "/") return NextResponse.rewrite(new URL("/trial", request.url))
+    if (pathname.startsWith("/api/trial/")) return NextResponse.next()
+    if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return NextResponse.redirect(new URL("/", request.url))
+  }
   if (!PORTAL_PATHS.test(pathname)) return NextResponse.next()
 
   const cookie = request.cookies.get("portal_session")?.value
@@ -77,5 +90,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/(dashboard|requests|carriers|schedule|analytics|settings)(.*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 }

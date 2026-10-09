@@ -16,6 +16,7 @@
     "airtable": "^0.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "imapflow": "^2.2.6",
     "lucide-react": "^0.454.0",
     "mailparser": "^3.9.33",

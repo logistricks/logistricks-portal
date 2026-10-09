@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, Palette, Pin, PinOff, Settings, Unlink, Users } from "lucide-react"
+import { Activity, Building2, CheckSquare, FileText, LayoutDashboard, LogOut, Mail, MailCheck, FlaskConical, Palette, Pin, PinOff, Settings, Unlink, Users } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 function initials(name: string): string {
@@ -76,6 +76,7 @@ export function PortalSidebar({
     { label: "Activity Log", href: "/activity", icon: Activity },
     { label: "Auto Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
     { label: "Users",        href: "/users",    icon: Users },
+    { label: "Trial Leads",  href: "/trial-leads", icon: FlaskConical },
     { label: "Settings",  href: "/settings",  icon: Settings, exact: true },
     { label: "Theme",     href: "/settings/theme", icon: Palette },
   ]

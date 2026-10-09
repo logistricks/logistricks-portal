@@ -63,6 +63,7 @@ export function PortalTopbar() {
     { label: "Approvals",   href: "/approvals",        badge: approvalCount },
     { label: "Auto Reply",  href: "/auto-reply-logs" },
     { label: "Users",       href: "/users" },
+    { label: "Trial Leads", href: "/trial-leads" },
     { label: "Reports",     href: "/reports" },
     { label: "Settings",    href: "/settings",         exact: true },
   ]
