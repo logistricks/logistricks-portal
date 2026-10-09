@@ -423,7 +423,7 @@ export default function RequestDetailPage() {
       {/* ── Back bar + header ────────────────────────────────────────────── */}
       <div style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}>
         {/* breadcrumb */}
-        <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+        <div className="flex items-center gap-2 px-6 pt-2.5 pb-1">
           <Link href="/requests" className="flex items-center gap-1 text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> Requests
           </Link>
@@ -432,22 +432,17 @@ export default function RequestDetailPage() {
         </div>
 
         {/* sender + badges */}
-        <div className="flex flex-col gap-3 px-6 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2 px-6 pb-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div
-              className="font-mono text-[13px] font-medium mb-0.5"
-              style={{ color: "rgba(255,255,255,0.55)", letterSpacing: "0.02em" }}
-            >
-              {request.requestRef ?? (request.id ? `LT-${request.id}` : "")}
-            </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-white">{request.senderName}</h1>
+              <span className="font-mono text-xs font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
+              <h1 className="text-lg font-bold text-white">{request.senderName}</h1>
               {aog && <AogBadge />}
               {dgr && <DgrBadge />}
               <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
             </div>
             {/* route / POL → POD */}
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <div className="mt-1 flex items-center gap-2 flex-wrap">
               {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POL</span>}
               <span className="text-sm font-semibold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
               <ArrowRight className="h-4 w-4 text-white/40" />
@@ -469,7 +464,7 @@ export default function RequestDetailPage() {
         </div>
 
         {/* outcome & booking: the decision on this request, always at the top */}
-        <div className="px-6 pb-3">
+        <div className="px-6 pb-2">
           <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
         </div>
 
@@ -489,11 +484,11 @@ export default function RequestDetailPage() {
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1 p-6" style={{ background: "var(--page-bg)" }}>
+      <div className={`flex-1 px-6 pb-6 ${activeTab === "quotes" ? "pt-3" : "pt-6"}`} style={{ background: "var(--page-bg)" }}>
         {activeTab === "quotes" ? (
           <div>
-            <div className="mb-4">
-              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} compact onDone={() => setRfqRefreshSignal((n) => n + 1)} />
+            <div className="mb-3 -mt-2">
+              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} slim onDone={() => setRfqRefreshSignal((n) => n + 1)} />
             </div>
             <QuoteComparisonPanel
               key={rfqRefreshSignal}

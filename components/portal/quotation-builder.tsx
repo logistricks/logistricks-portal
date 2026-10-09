@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { downloadQuotationPdf } from "@/lib/quotation-pdf"
-import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
+import { fetchQuotesForRequest, type CarrierQuote, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { ConfirmStepsDialog } from "@/components/portal/confirm-steps-dialog"
 import { isExpiredDate } from "@/lib/validity"
 import { type QuotationTemplate, type FreightRequest } from "@/lib/portal-data"
@@ -75,6 +75,27 @@ async function copyText(text: string): Promise<boolean> {
  * the popup copies the text and jumps straight to the requester's original
  * thread so the reply lands in the same conversation.
  */
+/** Readable price for the carrier-quote dropdown: headline USD rate, else total, else the carrier's own currency, else the sum of the lines. */
+function quotePrice(q: CarrierQuote): string {
+  const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+  if (q.rateUsd) return usd(q.rateUsd)
+  if (q.ext.totalAmount) return usd(q.ext.totalAmount)
+  if (q.rateOriginal) return String(q.rateCurrency || "USD").toUpperCase() === "USD" ? usd(q.rateOriginal) : `${q.rateOriginal.toLocaleString()} ${q.rateCurrency}`
+  const lines = (q.ext.charges ?? []).filter((c) => (c.inclusion ?? "included") === "included" && Number(c.amount) > 0)
+  const cur = new Set(lines.map((c) => String(c.currency || "USD").toUpperCase()))
+  if (lines.length && cur.size === 1) {
+    const sum = lines.reduce((t, c) => t + Number(c.amount), 0)
+    const c = [...cur][0]
+    return c === "USD" ? usd(sum) : `${sum.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${c}`
+  }
+  return "no price stated"
+}
+
+function quoteOptionLabel(name: string, q: CarrierQuote): string {
+  const day = q.receivedAt ? new Date(q.receivedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""
+  return [`${name} — ${quotePrice(q)}`, q.ext.carrierQuoteRef, q.transitDays != null ? `${q.transitDays} days` : null, day ? `received ${day}` : null].filter(Boolean).join(" · ")
+}
+
 export function SendQuotationModal({
   quotation,
   recipient,
@@ -540,7 +561,7 @@ export function QuotationBuilder({
               >
                 {responded.map((r) => (
                   <option key={r.quote!.id} value={r.quote!.id}>
-                    {r.carrierName} — ${r.quote!.rateUsd?.toLocaleString() ?? "—"}
+                    {quoteOptionLabel(r.carrierName, r.quote!)}
                   </option>
                 ))}
               </select>

@@ -13,7 +13,7 @@ const usd = (n: number | null | undefined) => n == null ? "—" : `$${Number(n).
 
 function Check({ on, onChange, disabled, children, tone = "var(--brand-accent)" }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean; children: React.ReactNode; tone?: string }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors" style={{
+    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors" style={{
       border: `1px solid ${on ? tone : "var(--card-border)"}`, background: on ? `color-mix(in srgb, ${tone} 12%, var(--card-bg))` : "var(--card-bg)",
       color: on ? tone : "var(--text-secondary)", opacity: disabled ? 0.6 : 1, cursor: disabled ? "not-allowed" : "pointer",
     }}>
@@ -112,17 +112,26 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
 
   return (
     <div className="ds-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid var(--divider)" }}>
-        <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: "var(--text-primary)" }}><Trophy className="h-4 w-4" style={{ color: "var(--brand-accent)" }} /> Outcome &amp; Booking</h4>
-        {saved.outcome && <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome}</span>}
-      </div>
-      <div className="space-y-4 px-5 py-4">
-        <div className="flex flex-wrap gap-2">
-          <Check on={outcome === "won"} onChange={(v) => setOutcome(v ? "won" : null)} disabled={dis} tone="#16a34a"><CheckCircle2 className="h-4 w-4" /> Quotation approved — WON</Check>
-          <Check on={outcome === "lost"} onChange={(v) => setOutcome(v ? "lost" : null)} disabled={dis} tone="#ef4444"><XCircle className="h-4 w-4" /> Lost</Check>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+        <h4 className="flex items-center gap-1.5 text-sm font-bold" style={{ color: "var(--text-primary)" }}><Trophy className="h-4 w-4" style={{ color: "var(--brand-accent)" }} /> Outcome &amp; Booking</h4>
+        <div className="flex flex-wrap gap-1.5">
+          <Check on={outcome === "won"} onChange={(v) => setOutcome(v ? "won" : null)} disabled={dis} tone="#16a34a"><CheckCircle2 className="h-3.5 w-3.5" /> Won</Check>
+          <Check on={outcome === "lost"} onChange={(v) => setOutcome(v ? "lost" : null)} disabled={dis} tone="#ef4444"><XCircle className="h-3.5 w-3.5" /> Lost</Check>
           <Check on={outcome === "expired"} onChange={(v) => setOutcome(v ? "expired" : null)} disabled={dis} tone="#64748b">Expired</Check>
           <Check on={outcome === "cancelled"} onChange={(v) => setOutcome(v ? "cancelled" : null)} disabled={dis} tone="#64748b">Cancelled</Check>
         </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {dis && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>View only</span>}
+          {msg && <span className="text-xs font-semibold" style={{ color: msg.ok ? "#16a34a" : "#ef4444" }}>{msg.text}</span>}
+          {saved.outcome_at && !msg && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Saved by {saved.outcome_by ?? "—"}</span>}
+          {saved.outcome && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome}</span>}
+          <button onClick={save} disabled={busy || dis} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+          </button>
+        </div>
+      </div>
+      {outcome && (
+      <div className="space-y-3 border-t px-4 py-3" style={{ borderColor: "var(--divider)" }}>
 
         {outcome === "won" && (
           <>
@@ -205,15 +214,8 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
           </label>
         )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button onClick={save} disabled={busy || dis} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save outcome
-          </button>
-          {dis && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Viewers can look but not change this.</span>}
-          {msg && <span className="text-xs font-semibold" style={{ color: msg.ok ? "#16a34a" : "#ef4444" }}>{msg.text}</span>}
-          {saved.outcome_at && !msg && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Last saved by {saved.outcome_by ?? "—"}</span>}
-        </div>
       </div>
+      )}
     </div>
   )
 }
