@@ -21,6 +21,7 @@ import {
 import type { CarrierQuote, CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { fetchQuotesForRequest, isActiveQuote } from "@/lib/carrier-quotes-queries"
 import { createClient } from "@/lib/supabase"
+import { isExpiredDate } from "@/lib/validity"
 import { fmtDateTimeSec, fmtDuration } from "@/lib/duration"
 import { QuoteChips, QuoteDetails, hasExtendedData } from "@/components/portal/quote-details"
 import { ConfirmStepsDialog, type ConfirmStep } from "@/components/portal/confirm-steps-dialog"
@@ -239,6 +240,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {rows.map((row) => {
           const off = row.quote?.disregarded === true
+          const expired = !off && isExpiredDate(row.quote?.validityDate)
           const isBest = !off && row.quote?.rateUsd != null && row.quote.rateUsd === bestRate
           return (
             <div
@@ -253,6 +255,11 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
               {off && (
                 <div className="absolute right-0 top-0 rounded-bl bg-slate-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                   Disregarded
+                </div>
+              )}
+              {expired && (
+                <div className="absolute left-0 top-0 rounded-br bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  Expired
                 </div>
               )}
               {isBest && (
@@ -310,7 +317,8 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                   {row.quote.validityDate && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Valid until</span>
-                      <span className="text-xs font-semibold text-[#0F172A] dark:text-[#E2E8F0]">
+                      <span className={`text-xs font-semibold ${expired ? "text-red-600 dark:text-red-400" : "text-[#0F172A] dark:text-[#E2E8F0]"}`}>
+                        {expired && "Expired · "}
                         {new Date(row.quote.validityDate).toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "short",

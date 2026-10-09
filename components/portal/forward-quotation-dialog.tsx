@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { CheckCircle2, FileText, Loader2, Mail, Send, X, XCircle, Zap } from "lucide-react"
 import type { CarrierQuote } from "@/lib/carrier-quotes-queries"
+import { ConfirmStepsDialog } from "@/components/portal/confirm-steps-dialog"
+import { isExpiredDate } from "@/lib/validity"
 import { SendQuotationModal, type Quotation } from "@/components/portal/quotation-builder"
 
 const btn = "inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-4 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
@@ -31,6 +33,8 @@ export function ForwardQuotationDialog({
   const [quotation, setQuotation] = useState<Quotation | null>(null)
   const [step, setStep] = useState<"select" | "review" | "manual" | "done">("select")
   const [doneInfo, setDoneInfo] = useState<string | null>(null)
+  const [expiredMsg, setExpiredMsg] = useState<string | null>(null)   // prompt shown when the quote or quotation validity has passed
+  const [ack, setAck] = useState(false)                                // user confirmed sending an expired quote
 
   useEffect(() => {
     fetch(`/api/requests/${requestId}/send-rfq`).then((r) => (r.ok ? r.json() : null))
@@ -59,6 +63,13 @@ export function ForwardQuotationDialog({
         q = d as Quotation
       }
       setQuotation(q)
+      const cq = quotes.find((x) => x.id === quoteId)
+      const day = (d?: string | null) => new Date(String(d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+      const msg = ack ? null
+        : isExpiredDate(cq?.validityDate) ? `The ${cq?.carrierName} quote expired on ${day(cq?.validityDate)}. The carrier may no longer honour this price.`
+        : isExpiredDate(q.valid_until) ? `Quotation ${q.quotation_number ?? q.id} expired on ${day(q.valid_until)}.`
+        : null
+      if (msg) { setExpiredMsg(msg); return }
       setStep(method === "manual" ? "manual" : "review")
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
@@ -69,7 +80,7 @@ export function ForwardQuotationDialog({
     try {
       const res = await fetch("/api/quotations/forward", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quotation_id: quotation.id, manual }),
+        body: JSON.stringify({ quotation_id: quotation.id, manual, confirm_expired: ack }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(d.error ?? `Server error ${res.status}`)
@@ -96,6 +107,13 @@ export function ForwardQuotationDialog({
   const card = { background: "var(--card-bg)", border: "1px solid var(--card-border)" } as const
   const fmt = quotation?.generated_format
   return (
+    <>
+    <ConfirmStepsDialog
+        open={expiredMsg !== null}
+        steps={[{ title: "This quote has expired", body: <>{expiredMsg} <strong>Send it to {senderName || senderEmail} anyway?</strong></>, confirmLabel: "Send anyway" }]}
+        onConfirm={() => { setAck(true); setExpiredMsg(null); setStep(method === "manual" ? "manual" : "review") }}
+        onCancel={() => setExpiredMsg(null)}
+      />
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl shadow-2xl" style={card} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Forward quotation to sender">
         <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--divider)" }}>
@@ -115,7 +133,7 @@ export function ForwardQuotationDialog({
                   {quotes.map((q) => (
                     <label key={q.id} className="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm" style={{ borderColor: quoteId === q.id ? "var(--brand-accent)" : "var(--card-border)", color: "var(--text-primary)" }}>
                       <input type="radio" name="fwd-quote" checked={quoteId === q.id} onChange={() => setQuoteId(q.id)} />
-                      <span className="flex-1 font-semibold">{q.carrierName}</span>
+                      <span className="flex-1 font-semibold">{q.carrierName}{isExpiredDate(q.validityDate) && <span className="ml-2 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Expired</span>}</span>
                       <span className="tabular-nums">{q.rateUsd != null ? `$${q.rateUsd.toLocaleString("en-US")}` : q.rateOriginal != null ? `${q.rateOriginal.toLocaleString()} ${q.rateCurrency}` : "—"}</span>
                     </label>
                   ))}
@@ -169,5 +187,6 @@ export function ForwardQuotationDialog({
         </div>
       </div>
     </div>
+    </>
   )
 }

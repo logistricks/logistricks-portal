@@ -5,6 +5,8 @@ import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FileText, Lo
 import { createClient } from "@/lib/supabase"
 import { downloadQuotationPdf } from "@/lib/quotation-pdf"
 import { fetchQuotesForRequest, type CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
+import { ConfirmStepsDialog } from "@/components/portal/confirm-steps-dialog"
+import { isExpiredDate } from "@/lib/validity"
 import { type QuotationTemplate, type FreightRequest } from "@/lib/portal-data"
 
 export interface Quotation {
@@ -316,6 +318,7 @@ export function QuotationBuilder({
   const [templateId, setTemplateId]     = useState<number | null>(null) // null = automatic (matches the quote mode, else the default)
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
+  const [expiredPrompt, setExpiredPrompt] = useState<{ q: Quotation; msg: string } | null>(null)
   const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number; charges_style?: ChargesStyle; lines?: PriceLine[]; mixed_currency?: boolean } | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [styleOverride, setStyleOverride] = useState<ChargesStyle | null>(null) // null = what the template says (default: markup inside each price)
@@ -476,6 +479,11 @@ export function QuotationBuilder({
   function handleSendToRequester(q: Quotation) {
     if (!request.senderEmail) { setError("This request has no requester email on file."); return }
     setError(null)
+    const cq = rows.find((r) => r.quote?.id === q.carrier_quote_id)?.quote
+    const day = (d?: string | null) => new Date(String(d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    const msg = isExpiredDate(cq?.validityDate) ? `The carrier quote expired on ${day(cq?.validityDate)}. The carrier may no longer honour this price.`
+      : isExpiredDate(q.valid_until) ? `Quotation ${q.quotation_number ?? q.id} expired on ${day(q.valid_until)}.` : null
+    if (msg) { setExpiredPrompt({ q, msg }); return }
     setSendingQuotation(q)
   }
 
@@ -741,6 +749,13 @@ export function QuotationBuilder({
           ))}
         </div>
       )}
+
+      <ConfirmStepsDialog
+        open={expiredPrompt !== null}
+        steps={[{ title: "This quote has expired", body: <>{expiredPrompt?.msg} <strong>Send it to the requester anyway?</strong></>, confirmLabel: "Send anyway" }]}
+        onConfirm={() => { const q = expiredPrompt?.q ?? null; setExpiredPrompt(null); if (q) setSendingQuotation(q) }}
+        onCancel={() => setExpiredPrompt(null)}
+      />
 
       {sendingQuotation && (
         <SendQuotationModal

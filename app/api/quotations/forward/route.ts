@@ -15,6 +15,7 @@ import { sendClientMail } from "@/lib/mailer"
 import { renderPdf } from "@/lib/quotation-pdf-server"
 import { htmlDocument } from "@/lib/quotation-render"
 import { normalizeOptions } from "@/lib/quotation-variables"
+import { isExpiredDate } from "@/lib/validity"
 import { logActivity } from "@/lib/log-activity"
 
 export const runtime = "nodejs"
@@ -41,11 +42,18 @@ export async function POST(req: NextRequest) {
   if (!fr.sender_email) return NextResponse.json({ error: "This request has no sender email on file" }, { status: 400 })
   if (["Closed", "Rejected"].includes(String(fr.status))) return NextResponse.json({ error: `The request is ${fr.status}` }, { status: 400 })
 
+  let expiredOn: string | null = null
   if (q.carrier_quote_id) {
-    const { data: cq } = await admin.from("carrier_quotes").select("disregarded").eq("id", q.carrier_quote_id).maybeSingle()
+    const { data: cq } = await admin.from("carrier_quotes").select("disregarded, validity_date").eq("id", q.carrier_quote_id).maybeSingle()
     if ((cq as { disregarded?: boolean } | null)?.disregarded === true)
       return NextResponse.json({ error: "The carrier quote behind this quotation was disregarded. Reactivate it first." }, { status: 400 })
+    expiredOn = (cq as { validity_date?: string | null } | null)?.validity_date ?? null
   }
+  // Flag only: an expired carrier quote or quotation may still be sent, but only after the user confirmed the prompt.
+  const expiredCarrier = isExpiredDate(expiredOn)
+  const expiredQuotation = isExpiredDate((q as { valid_until?: string | null }).valid_until)
+  if ((expiredCarrier || expiredQuotation) && body?.confirm_expired !== true)
+    return NextResponse.json({ error: expiredCarrier ? "The carrier quote validity date has passed." : "The quotation validity date has passed.", expired: true }, { status: 409 })
 
   const subject = String(q.generated_subject || `Quotation ${q.quotation_number ?? q.id}`)
   const text = String(q.generated_body || "")
