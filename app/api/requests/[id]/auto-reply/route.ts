@@ -151,7 +151,7 @@ export async function POST(
       ? missingParts.join(", ")
       : "None — all required information was received.",
     delay_min:      String(clientRow.auto_reply_delay_min ?? 0),
-    special_requirements: toStringList((freightReq as { special_requirements?: unknown }).special_requirements).join("; "),
+    special_requirements: toStringList((freightReq as { special_requirements?: unknown }).special_requirements).join("\n"),
     received_at:    new Date(freightReq.received_at).toLocaleString("en-GB", { timeZone: "UTC" }),
   }
 

@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
     carrier_email:          "",
     carrier_phone:          "",
     preferred_carrier:      parseField(body.preferred_carrier),
-    special_requirements:   toStringList(body.special_requirements ?? saved.special_requirements).join("; "),
+    special_requirements:   toStringList(body.special_requirements ?? saved.special_requirements).join("\n"),
     availability_questions: parseField(body.availability_questions),
     missing_fields:         missingFieldsLabel,
   }

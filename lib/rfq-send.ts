@@ -29,7 +29,7 @@ const when = (v: unknown) => { try { return v ? new Date(String(v)).toLocaleStri
 
 export function rfqVars(row: Record<string, any>, carrier: { carrier_name: string; person_name: string; email: string }): Record<string, string> {
   const s = (v: unknown) => (v == null ? "" : String(v))
-  const list = (v: unknown) => toStringList(v).join("; ")
+  const list = (v: unknown) => toStringList(v).join("\n")
   const pickup = s(row.pickup_address).trim()
   const exw = isExw(row.incoterm)
   return {

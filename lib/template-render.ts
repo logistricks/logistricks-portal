@@ -19,6 +19,20 @@ const loneBlock = (tag: string) => new RegExp(
   "(?:" + GAP + "<(div|p)\\b[^>]*>" + GAP + "(?:<br\\s*\\/?>" + GAP + ")?<\\/\\2>)?", "gi")
 const anyBlock = (tag: string) => new RegExp("\\{\\{#if_" + tag + "\\}\\}([\\s\\S]*?)\\{\\{\\/if_" + tag + "\\}\\}", "g")
 
+const SPECIAL_VAR = "(?:<span[^>]*data-var=\"special_requirements\"[^>]*>[\\s\\S]*?<\\/span>|\\{\\{special_requirements\\}\\})"
+const BLANK = "(?:" + GAP + "<(div|p)\\b[^>]*>" + GAP + "(?:<br\\s*\\/?>" + GAP + ")?<\\/\\3>)?"
+function dropEmptySpecialLines(s: string): string {
+  // HTML: [lead-in line ending with ":"] + line(s) that contain the variable + optional blank spacer
+  const html = new RegExp(
+    "(?:<(div|p)\\b[^>]*>[^<]*:" + GAP + "(?:<br\\s*\\/?>" + GAP + ")?<\\/\\1>" + GAP + ")?" +
+    "<(div|p)\\b[^>]*>(?:[^<]*:" + GAP + "<br\\s*\\/?>" + GAP + ")?" + GAP + SPECIAL_VAR + GAP + "(?:<br\\s*\\/?>" + GAP + ")?<\\/\\2>" +
+    "(?:" + GAP + "<(div|p)\\b[^>]*>" + GAP + "(?:<br\\s*\\/?>" + GAP + ")?<\\/\\3>)?", "gi")
+  let out = s.replace(html, "")
+  // plain text: the line with the variable, the lead-in line above it (ends with ":") and one blank line after
+  out = out.replace(/(?:^|\n)(?:[^\n]*:[ \t]*\n)?[ \t]*\{\{special_requirements\}\}[ \t]*(?:\n[ \t]*(?=\n))?/g, "")
+  return out
+}
+
 export function applyTemplate(text: string, vars: Record<string, string>, opts: { keepUnknown?: boolean } = {}): string {
   const exw = isExw(vars.incoterm)
   const pickup = exw ? String(vars.pickup_address ?? "") : ""
@@ -35,8 +49,13 @@ export function applyTemplate(text: string, vars: Record<string, string>, opts: 
     s = s.replace(new RegExp("\\{\\{[#/]if_" + tag + "\\}\\}", "g"), "")   // a lone marker never reaches a recipient
   }
 
+  // No special requests: a line that only holds {{special_requirements}} goes away together with its lead-in line
+  // (e.g. "Please consider the below:") and the blank line after it, without the user needing the block chips.
+  if (!hasSpecial) s = dropEmptySpecialLines(s)
+
   const isHtml = /<[a-z][^>]*>/i.test(s)
-  const esc = (v: string) => (isHtml ? v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : v)
+  // HTML: escape, and keep list values (one item per line) as separate lines
+  const esc = (v: string) => (isHtml ? v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>") : v)
   const value = (key: string): string | null =>
     key === "pickup_address" ? pickup : key in vars ? (vars[key] ?? "") : opts.keepUnknown ? null : ""
 
