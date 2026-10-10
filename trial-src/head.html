@@ -167,6 +167,11 @@ textarea{min-height:130px;resize:vertical}
 .lockbadge{display:inline-flex;align-items:center;gap:8px;font:600 13px/1 var(--font-mono);color:var(--muted);letter-spacing:.04em}
 .lockbadge svg{color:var(--lock)}
 
+#out1,#out2,#out3,#markup2,#rfq2{scroll-margin-top:84px}
+#rfq2:not(:empty){margin-bottom:20px}
+.rfq textarea{min-height:250px}
+.rfq input{width:100%;margin:6px 0 12px;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface2);color:var(--ink);font:500 15px/1.4 var(--font-sans)}
+.bd td.m{color:var(--good)}
 /* markup */
 .markup{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:20px}
 .num{font:800 clamp(30px,4vw,46px)/1 var(--font-display);font-variant-numeric:tabular-nums}
@@ -486,6 +491,7 @@ body.locked-app>#appRoot{display:none}
       <div class="io"><span><b>You give:</b> the carrier's reply email, dropped as a file or pasted</span><span><b>You get:</b> every charge itemised, flags raised, your markup applied</span></div>
     </div>
   </div>
+  <div id="rfq2"></div>
   <div class="grid2">
     <div class="card" id="in2"></div>
     <div id="out2" aria-live="polite">

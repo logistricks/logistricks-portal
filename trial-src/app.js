@@ -134,6 +134,11 @@ function renderSamples(){
     try{$("#bodyIn").focus({preventScroll:true})}catch(e){}
   })});
 }
+function reveal(el){
+  if(!el)return;
+  var r=el.getBoundingClientRect();
+  if(r.top<72||r.top>window.innerHeight*0.55)el.scrollIntoView({behavior:reduced()?"auto":"smooth",block:"start"});
+}
 function triesLeftForNew(){return st.usedTries<st.total}
 function ready1(){
   var ok=$("#bodyIn").value.trim().length>10||!!st.file,hint=ok?"Ready. Edit the text first if you like.":"Pick a sample or paste your own email.";
@@ -169,7 +174,7 @@ function rl(m){return m==="Sea"?["PORT OF LOADING","PORT OF DISCHARGE"]:m==="Air
 
 $("#parse1").addEventListener("click",function(){
   var text=$("#bodyIn").value,body,opts;
-  st.busy=true;ready1();srcText=text;
+  st.busy=true;ready1();srcText=text;setTimeout(function(){reveal($("#out1"))},60);
   var source=st.file?"file":(st.pick&&text.indexOf(S[st.pick].email.slice(0,25))>-1?"sample":"paste");
   if(st.file&&!/\.txt$/i.test(st.file.name)){
     body=new FormData();body.append("file",st.file);body.append("text",text);body.append("source",source);if(st.runId)body.append("run_id",st.runId);
@@ -184,7 +189,7 @@ $("#parse1").addEventListener("click",function(){
     var j=r.json;st.runId=j.runId;st.tryNo=j.tryNo;st.usedTries=j.triesUsed;st.total=j.triesTotal;
     if(!st.t0||!st.parsed1)st.t0=Date.now();
     cur=j.view;st.parsed1=true;
-    renderResult1();renderReply1();renderIn2();updateRail();ready1();paintTries();onParsed1();
+    renderResult1();renderReply1();renderIn2();updateRail();ready1();paintTries();onParsed1();reveal($("#out1"));
   });
 });
 
@@ -223,7 +228,32 @@ function signal(name){logEv("locked_click",{feature:name});tip("lock","Locked on
 
 /* ---------- step 2 ---------- */
 var DROP2="Drop a File";
+function rfqRef(){return "RFQ-"+quoteNo().slice(3)}
+function rfqParts(){
+  var s=cur,r=s.route,L=rl(s.mode),cap=function(x){return x.charAt(0)+x.slice(1).toLowerCase()},ref=rfqRef();
+  var subj="Rate request "+ref+": "+r.from+" to "+r.to+" ("+s.mode+")";
+  var b="Hello,\n\nPlease quote the shipment below.\n\nReference: "+ref+"\nMode: "+s.mode+"\n"+cap(L[0])+": "+r.from+(r.fc?", "+r.fc:"")+"\n"+cap(L[1])+": "+r.to+(r.tc?", "+r.tc:"")+"\n";
+  s.fields.forEach(function(f){if(f[1])b+=f[0]+": "+f[1]+"\n"});
+  if(s.special.length)b+="\nSpecial requirements:\n"+s.special.map(function(x){return "- "+x}).join("\n")+"\n";
+  if(s.missing.length)b+="\nStill to be confirmed by the shipper:\n"+s.missing.map(function(x){return "- "+x}).join("\n")+"\n";
+  b+="\nPlease include in your quote:\n- Every charge itemised (freight, surcharges, local charges) with its basis and currency\n- Routing and transit time\n- Validity date\n- Free time or storage terms\n- Any conditions or exclusions (space, equipment, pickup, destination charges)\n\nPlease reply to this email and keep "+ref+" in the subject.\n\nBest regards,\n"+(st.lead&&st.lead.company?st.lead.company:"");
+  return {subj:subj,body:b};
+}
+function renderRfq(){
+  var box=$("#rfq2");
+  if(!st.parsed1||!cur){box.innerHTML="";st.rfqKey=null;return}
+  var key=String(st.runId);if(st.rfqKey===key&&box.firstChild)return;st.rfqKey=key;
+  var e=rfqParts();
+  box.innerHTML='<div class="card rfq"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Request for quotation to the carrier</h3><span class="tag">'+esc(rfqRef())+'</span></div>'
+  +'<p class="hint" style="margin:6px 0 12px">Built from your request. In the full system this goes to your chosen carriers in one click and the reply comes back to the same reference. Here you can edit it and copy it. Nothing is sent from the trial.</p>'
+  +'<label class="f" for="rfqSubj">Subject<input id="rfqSubj" dir="auto" value="'+esc(e.subj)+'"></label>'
+  +'<textarea class="reply" id="rfqTxt" dir="auto" rows="14">'+esc(e.body)+'</textarea>'
+  +'<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-line btn-sm" id="cpRfq" type="button">'+ICON.copy+' Copy email</button><button class="btn btn-line btn-sm" id="cpRfqS" type="button">Copy subject</button></div></div>';
+  $("#cpRfq").addEventListener("click",function(){copy($("#rfqTxt").value,"Request email copied");logEv("rfq_copied")});
+  $("#cpRfqS").addEventListener("click",function(){copy($("#rfqSubj").value,"Subject copied")});
+}
 function renderIn2(){
+  renderRfq();
   var on=st.parsed1,txt=st.carrText||"";
   $("#in2").innerHTML='<h3>Carrier reply</h3><p class="hint" style="margin-bottom:14px">'+(on?'Drop the carrier\'s email as a file, or paste its text. You can edit anything before it is read.':'Finish step 1 first. This step opens as soon as your request has been read.')+'</p>'
   +'<label class="drop big'+(on?'':' off')+'" id="drop2" for="file2"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b id="dropTxt2">'+esc(st.file2?st.file2.name:DROP2)+'</b><span class="hint">'+(st.file2?'File added':'The carrier\'s email as .eml, .msg or PDF. Or click to choose.')+'</span></label>'
@@ -252,14 +282,14 @@ function ready2(){
   $("#p2h").textContent=!st.parsed1?"":ok?"Ready.":(st.parsed2?"Quote read.":"Add the carrier's email to continue.");
 }
 function parse2(){
-  var opts;st.busy=true;ready2();
+  var opts;st.busy=true;ready2();setTimeout(function(){reveal($("#out2"))},60);
   if(st.file2&&!/\.txt$/i.test(st.file2.name)){var fd=new FormData();fd.append("file",st.file2);fd.append("text",st.carrText||"");fd.append("run_id",st.runId);opts={method:"POST",body:fd}}
   else opts={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:st.carrText,run_id:st.runId})};
   runProgress($("#out2"),["Reading the carrier email","Itemising every charge","Checking totals against the request","Raising flags"],api("/api/trial/parse-quote",opts),function(r){
     st.busy=false;
     if(!r.ok){errCard($("#out2"),"We could not read a quote",r.json.error||"Please try again.",true);ready2();return}
     quote=r.json.quote;st.parsed2=true;
-    saveRun(false).then(function(){renderQuote();renderMarkup();renderOut3();updateRail();ready2();onParsed2()});
+    saveRun(false).then(function(){renderQuote();renderMarkup();renderOut3();updateRail();ready2();onParsed2();reveal($("#out2"))});
   });
 }
 function base(){return Math.round(quote.lines.reduce(function(t,l){return t+Math.round(l.amount*100)/100},0)*100)/100}
@@ -293,8 +323,17 @@ function renderMarkup(){
   +'<div style="display:grid;gap:20px;align-content:start"><div class="card"><span class="eyebrow">You quote</span><div class="num" id="mFinal" style="color:var(--accent-strong);margin-top:8px">'+money(p.final,c)+'</div><p class="hint" id="mPct" style="margin-top:6px">Margin '+pct.toFixed(1)+'% of the selling price</p></div>'
   +lockedBlock("Quote comparison","Several carriers on one request, with the best rate and the gaps between them.",cmp)+'</div></div>';
   $$("#markup2 .tabs button").forEach(function(b){b.addEventListener("click",function(){st.mtype=b.dataset.m;st.mval=st.mtype==="percent"?12:150;renderMarkup();renderOut3();saveSoon()})});
-  $("#mval").addEventListener("input",function(e){st.mTouched=true;st.mval=e.target.value;var q=pricing();$("#mMar").textContent=money(q.markup,c);$("#mFinal").textContent=money(q.final,c);$("#mPct").textContent="Margin "+(q.final?(q.markup/q.final*100):0).toFixed(1)+"% of the selling price";renderOut3();saveSoon()});
+  paintBreak();
+  $("#mval").addEventListener("input",function(e){st.mTouched=true;st.mval=e.target.value;var q=pricing();$("#mMar").textContent=money(q.markup,c);$("#mFinal").textContent=money(q.final,c);$("#mPct").textContent="Margin "+(q.final?(q.markup/q.final*100):0).toFixed(1)+"% of the selling price";paintBreak();renderOut3();saveSoon()});
   bindLocks($("#markup2"));
+}
+/* the markup, shown on every charge: carrier cost + your share = what the client sees */
+function paintBreak(){
+  var p=pricing(),c=quote.currency,box=$("#mBreak");
+  if(!box){box=document.createElement("div");box.id="mBreak";$("#markup2").appendChild(box)}
+  var rows=p.lines.map(function(l,i){var cost=Math.round(quote.lines[i].amount*100)/100,mk=Math.round((l.amount-cost)*100)/100,pc=cost?mk/cost*100:0;
+    return '<tr><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+money(cost,c)+'</td><td class="r m">+ '+money(mk,c)+'</td><td class="r m">'+pc.toFixed(1)+'%</td><td class="r"><b>'+money(l.amount,c)+'</b></td></tr>'}).join("");
+  box.innerHTML='<div class="card bd" style="margin-top:20px"><h3>Where your markup lands</h3><p class="hint" style="margin:6px 0 12px">The markup is spread across every charge in proportion to its cost, so the client sees a clean quotation with no single hidden margin line.</p><div class="tablewrap"><table class="lines"><thead><tr><th>Charge</th><th>Basis</th><th class="r">Carrier</th><th class="r">Markup</th><th class="r">Markup %</th><th class="r">You quote</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">'+money(p.base,c)+'</td><td class="r m">+ '+money(p.markup,c)+'</td><td class="r m">'+(p.base?(p.markup/p.base*100).toFixed(1):"0.0")+'%</td><td class="r">'+money(p.final,c)+'</td></tr></tfoot></table></div></div>';
 }
 
 /* ---------- step 3 ---------- */
