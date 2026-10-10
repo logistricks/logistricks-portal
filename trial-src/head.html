@@ -79,6 +79,10 @@ a{color:var(--accent-strong)}
 .btn-primary{background:var(--accent);color:var(--on-accent)}
 .btn-primary:hover{background:var(--accent-strong)}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn.busy:disabled{opacity:.85;cursor:progress}
+.bspin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(15,30,54,.25);border-top-color:currentColor;animation:bsp .75s linear infinite;flex:none}
+@keyframes bsp{to{transform:rotate(360deg)}}
+
 .btn-ghost{background:transparent;border-color:rgba(255,255,255,.3);color:#fff}
 .btn-line{background:var(--surface);border-color:var(--line);color:var(--ink)}
 .btn-line:hover{border-color:var(--accent)}

@@ -92,18 +92,20 @@ paintTheme();
 /* ---------- login ---------- */
 (function(){var m=/[?&]code=([^&]+)/.exec(location.search);if(m)$("#lgCode").value=decodeURIComponent(m[1]).toUpperCase();if(history.replaceState&&m)history.replaceState(null,"",location.pathname)})();
 $("#loginForm").addEventListener("submit",function(e){
-  e.preventDefault();$("#lgErr").textContent="";$("#lgBtn").disabled=true;
+  e.preventDefault();$("#lgErr").textContent="";
+  var btn=$("#lgBtn"),ins=$$("#loginForm input");
+  busyBtn(btn,true,"Signing in...");ins.forEach(function(i){i.disabled=true});
+  function done(){busyBtn(btn,false);ins.forEach(function(i){i.disabled=false})}
   post("/api/trial/login",{code:$("#lgCode").value,password:$("#lgPw").value}).then(function(r){
-    $("#lgBtn").disabled=false;
-    if(!r.ok){$("#lgErr").textContent=r.json.error||"Could not sign in.";return}
-    $("#lgPw").value="";boot();
+    if(!r.ok){done();$("#lgErr").textContent=r.json.error||"Could not sign in.";return}
+    boot().then(function(){$("#lgPw").value="";done()});
   });
 });
 $("#logoutBtn").addEventListener("click",function(){post("/api/trial/logout",{}).then(function(){location.reload()})});
 
 /* ---------- boot ---------- */
 function boot(){
-  api("/api/trial/me").then(function(r){
+  return api("/api/trial/me").then(function(r){
     if(!r.ok){$("#loginBox").hidden=false;document.body.classList.add("locked-app");if(r.json&&r.json.error&&r.status!==401)$("#lgErr").textContent=r.json.error;return}
     var l=r.json.lead;st.lead=l;st.usedTries=l.triesUsed;st.total=l.triesTotal;
     $("#coName").textContent=l.company;paintAccess(l);
@@ -133,6 +135,11 @@ function renderSamples(){
     $("#bodyIn").value=S[st.pick].email;renderSamples();ready1();
     try{$("#bodyIn").focus({preventScroll:true})}catch(e){}
   })});
+}
+function busyBtn(b,on,label){
+  if(!b)return;
+  if(on){b.dataset.h=b.innerHTML;b.disabled=true;b.classList.add("busy");b.innerHTML='<span class="bspin"></span> '+label}
+  else{if(b.dataset.h!==undefined)b.innerHTML=b.dataset.h;b.disabled=false;b.classList.remove("busy")}
 }
 function reveal(el){
   if(!el)return;
@@ -356,28 +363,39 @@ function renderOut3(){
     +'<table><tbody><tr><td><b>For</b><br>'+esc(s.senderName||"Your client")+'</td><td><b>Route</b><br>'+esc(s.route.from)+' to '+esc(s.route.to)+'</td><td><b>Valid until</b><br>'+fmtDate(c.quoteValid)+'</td></tr></tbody></table>'
     +'<table><thead><tr><th>Description</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount ('+esc(cu)+')</th></tr></thead><tbody>'+p.lines.map(function(l){return '<tr><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+l.qty+'</td><td class="r">'+money(l.amount,cu)+'</td></tr>'}).join("")+'</tbody></table>'
     +'<div class="total"><span>Total</span><b>'+money(p.final,cu)+'</b></div><small>Transit time '+esc(c.transit)+'. Free time '+esc(c.free)+'. Prices in '+esc(cu)+', subject to space and equipment availability. Valid until '+fmtDate(c.quoteValid)+'.</small></div>'
-    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button class="btn btn-primary" id="dlPdf" type="button">'+ICON.file+' Download PDF</button></div>';
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px"><button class="btn btn-primary" id="dlPdf" type="button">'+ICON.file+' Download PDF</button></div>';
   }else{
     var e=emailParts();
-    out='<div class="mail"><div class="subj">'+esc(e.subj)+'</div>'+esc(e.body)+'<div><span class="attach">'+ICON.file+' '+esc(quoteNo())+'.pdf</span></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button class="btn btn-primary" id="cpMail" type="button">'+ICON.copy+' Copy email</button><button class="btn btn-line" id="cpSubj" type="button">Copy subject</button><button class="btn btn-line" id="dlPdf2" type="button">'+ICON.file+' Download the PDF attachment</button></div>';
+    out='<div class="mail"><div class="subj">'+esc(e.subj)+'</div>'+esc(e.body)+'<div><span class="attach">'+ICON.file+' '+esc(quoteNo())+'.pdf</span></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px"><button class="btn btn-primary" id="cpMail" type="button">'+ICON.copy+' Copy email</button><button class="btn btn-line" id="cpSubj" type="button">Copy subject</button><button class="btn btn-line" id="dlPdf2" type="button">'+ICON.file+' Download the PDF attachment</button></div>';
   }
-  var fin=!st.finished?'<div style="margin-top:22px"><button class="btn btn-primary" id="finish" type="button">Finish this try</button> <span class="hint">Logs the try as complete.</span></div>':'';
+  var fin=!st.finished?'<p class="hint" style="margin-top:22px">Your try completes when you download the PDF or copy the email.</p>':'';
   $("#out3").innerHTML='<div class="grid2 g-out"><div class="card"><h3>Template</h3><p class="hint" style="margin-bottom:14px">Pick how the quotation looks. Same price and terms either way.</p>'+tpl+'<h3>Format</h3><p class="hint" style="margin-bottom:12px">Same content, two ways to send it.</p>'+tabs+fin+'</div><div>'+out+'</div></div>';
   $$("#out3 .tabs button").forEach(function(b){b.addEventListener("click",function(){st.fmt=b.dataset.f;renderOut3();saveRun(false,true)})});
-  [$("#dlPdf"),$("#dlPdf2")].forEach(function(d){if(d)d.addEventListener("click",function(){download("/api/trial/pdf")})});
-  var cm=$("#cpMail");if(cm)cm.addEventListener("click",function(){copy(emailParts().body,"Email body copied");logEv("email_copied")});
+  [$("#dlPdf"),$("#dlPdf2")].forEach(function(d){if(d)d.addEventListener("click",function(){download("/api/trial/pdf",d,true)})});
+  var cm=$("#cpMail");if(cm)cm.addEventListener("click",function(){copy(emailParts().body,"Email body copied");logEv("email_copied");autoFinish()});
   var cs=$("#cpSubj");if(cs)cs.addEventListener("click",function(){copy(emailParts().subj,"Subject copied")});
-  var f=$("#finish");if(f)f.addEventListener("click",finish);
   bindLocks($("#out3"));
   renderExport();onOut3();
 }
-function download(path){
-  st.dl=true;clearTimeout(saveT);toast("Preparing your file...");
-  saveRun(true).then(function(){var a=document.createElement("a");a.href=path+"?run_id="+encodeURIComponent(st.runId);a.download="";document.body.appendChild(a);a.click();document.body.removeChild(a)});
+/* Fetches the file first, so the button keeps spinning until the browser actually has it and offers the download. */
+function download(path,btn,completes){
+  st.dl=true;clearTimeout(saveT);
+  busyBtn(btn,true,"Preparing...");if(!btn)toast("Preparing your file...");
+  saveRun(true).then(function(){return fetch(path+"?run_id="+encodeURIComponent(st.runId),{credentials:"same-origin"})}).then(function(r){
+    if(!r.ok)throw new Error("fail");
+    var m=/filename="?([^";]+)"?/.exec(r.headers.get("Content-Disposition")||"");
+    return r.blob().then(function(b){return {b:b,name:m?m[1]:"quotation"}});
+  }).then(function(x){
+    var u=URL.createObjectURL(x.b),a=document.createElement("a");a.href=u;a.download=x.name;document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(u)},5000);
+    busyBtn(btn,false);toast("Downloaded");if(completes)autoFinish();
+  }).catch(function(){busyBtn(btn,false);toast("Could not prepare the file. Please try again.")});
 }
+function autoFinish(){if(st.finished||st.finishing||!st.parsed2)return;st.finishing=true;finish()}
 function finish(){
   clearTimeout(saveT);
   saveRun(true).then(function(){return post("/api/trial/finish",{run_id:st.runId,active_ms:Date.now()-st.t0})}).then(function(r){
+    st.finishing=false;
     if(!r.ok){toast(r.json.error||"Could not finish. Try again.");return}
     st.finished=true;var dur=r.json.durationMs||(Date.now()-st.t0),p=pricing();
     renderOut3();
@@ -390,7 +408,7 @@ function finish(){
   });
 }
 function resetCycle(){
-  st.mTouched=false;st.dl=false;st.runId=null;st.tryNo=0;st.parsed1=false;st.parsed2=false;st.finished=false;st.pick=null;st.file=null;st.file2=null;st.carrText="";quote=null;cur=null;srcText="";
+  st.mTouched=false;st.dl=false;st.runId=null;st.tryNo=0;st.parsed1=false;st.parsed2=false;st.finished=false;st.finishing=false;st.pick=null;st.file=null;st.file2=null;st.carrText="";quote=null;cur=null;srcText="";
   $("#bodyIn").value="";$("#dropTxt").textContent=DROP_DEFAULT;
   $("#out1").innerHTML='<div class="placeholder"><span class="eyebrow">What appears here</span><b>The request, as a clean record</b><p>Pick a sample or add your own email to start try '+(st.usedTries+1)+'.</p></div>';
   $("#reply1").innerHTML="";$("#out2").innerHTML=$("#out2").dataset.ph;$("#markup2").innerHTML="";$("#out3").innerHTML=ph3;$("#done").innerHTML="";
@@ -427,7 +445,7 @@ function renderExport(){
   +'<div class="tablewrap"><table class="xl"><thead><tr>'+d.cols.map(function(c){return '<th>'+esc(c)+'</th>'}).join("")+'</tr></thead><tbody>'+d.rows.map(function(r){return '<tr>'+r.map(function(v,i){return '<td'+(i>0&&/^[A-Z]{3} [0-9,.]+$|^[0-9.]+%?$/.test(v)?' class="r"':'')+'>'+esc(v)+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table></div>'
   +'<p class="hint" style="margin-top:12px">Five sheets, formatted, with live formulas so you can change the markup in Excel.</p></div>';
   $$("#exp .tabs button").forEach(function(b){b.addEventListener("click",function(){st.sheet=b.dataset.sh;renderExport()})});
-  $("#dlXls").addEventListener("click",function(){download("/api/trial/export")});
+  $("#dlXls").addEventListener("click",function(){download("/api/trial/export",$("#dlXls"),false)});
 }
 
 /* ---------- gallery ---------- */

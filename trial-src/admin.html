@@ -77,6 +77,10 @@ a{color:var(--accent-strong)}
 .btn-primary{background:var(--accent);color:var(--on-accent)}
 .btn-primary:hover{background:var(--accent-strong)}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn.busy:disabled{opacity:.85;cursor:progress}
+.bspin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(15,30,54,.25);border-top-color:currentColor;animation:bsp .75s linear infinite;flex:none}
+@keyframes bsp{to{transform:rotate(360deg)}}
+
 .btn-ghost{background:transparent;border-color:rgba(255,255,255,.3);color:#fff}
 .btn-line{background:var(--surface);border-color:var(--line);color:var(--ink)}
 .btn-line:hover{border-color:var(--accent)}
@@ -409,7 +413,7 @@ function detailHtml(l){
    +'<div><h4>Movement, newest first</h4><div class="timeline">'+(n.timeline.length?n.timeline.map(function(e){return '<div class="'+(e.type==="locked_click"||e.type==="cta_click"?"sig":"")+'"><small>'+esc(fmtT(e.at))+'</small><span>'+esc(evt(e))+'</span></div>'}).join(""):'<p class="hint">Nothing yet.</p>')+'</div></div></div>';
   return h;
 }
-function load(){api("/api/trial-admin/leads").then(function(r){
+function load(){return api("/api/trial-admin/leads").then(function(r){
   if(r.status===401){$("#app").hidden=true;$("#loginBox").hidden=false;return}
   if(!r.ok){$("#ge").textContent=r.json.error||"Could not load.";return}
   $("#ge").textContent="";data=r.json;$("#loginBox").hidden=true;$("#app").hidden=false;draw();
@@ -439,8 +443,12 @@ $("#cf").addEventListener("submit",function(e){e.preventDefault();$("#cb").disab
     $("#ge").textContent="";var j=r.json;$("#co").value="";$("#ct").value="";$("#cc").value="";$("#cp").value="";
     $("#cred").innerHTML='<div class="cred"><div><span>Link</span><code>'+esc(j.link)+'</code></div><div><span>Code</span><code>'+esc(j.code)+'</code></div><div><span>Password</span><code>'+esc(j.password)+'</code></div><div><button class="btn btn-primary btn-sm" id="cm" type="button">Copy outreach message</button></div><p class="hint">The password is shown once. Only its hash is stored. The link carries the code only.</p></div>';
     $("#cm").addEventListener("click",function(){try{navigator.clipboard.writeText(j.message).then(function(){$("#cm").textContent="Copied"})}catch(x){window.prompt("Copy:",j.message)}});load()})});
-$("#lf").addEventListener("submit",function(e){e.preventDefault();$("#le").textContent="";$("#lb").disabled=true;
-  send("/api/trial-admin/login","POST",{user:$("#u").value,password:$("#p").value}).then(function(r){$("#lb").disabled=false;if(!r.ok){$("#le").textContent=r.json.error||"Could not sign in.";return}$("#p").value="";load()})});
+$("#lf").addEventListener("submit",function(e){e.preventDefault();$("#le").textContent="";
+  var b=$("#lb"),ins=[$("#u"),$("#p")];b.dataset.h=b.innerHTML;b.disabled=true;b.classList.add("busy");b.innerHTML='<span class="bspin"></span> Signing in...';ins.forEach(function(i){i.disabled=true});
+  function done(){b.innerHTML=b.dataset.h;b.disabled=false;b.classList.remove("busy");ins.forEach(function(i){i.disabled=false})}
+  send("/api/trial-admin/login","POST",{user:$("#u").value,password:$("#p").value}).then(function(r){
+    if(!r.ok){done();$("#le").textContent=r.json.error||"Could not sign in.";return}
+    $("#p").value="";return load().then(done)})});
 $("#lo").addEventListener("click",function(){send("/api/trial-admin/logout","POST").then(function(){location.reload()})});
 load();setInterval(function(){if(!$("#app").hidden)load()},30000);
 })();
