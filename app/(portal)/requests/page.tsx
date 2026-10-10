@@ -423,7 +423,7 @@ export default function RequestsPage() {
                   </div>
                   <p className="font-display text-[17px] font-bold" style={{ color: "var(--text-primary)" }}>
                     {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
-                    {r.incoterm && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{r.incoterm}</span>}
+                    {r.incoterm && <span className="ml-3 inline-block rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide align-middle" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)", marginLeft: 12 }}>{r.incoterm}</span>}
                   </p>
                   <p className="max-w-full truncate text-[13.5px]" style={{ color: "var(--text-secondary)" }}>{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</p>
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -517,7 +517,7 @@ export default function RequestsPage() {
                       <span className="whitespace-nowrap font-medium" style={{ color: "var(--text-primary)" }}>
                         {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
                       </span>
-                      {r.incoterm && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{r.incoterm}</span>}
+                      {r.incoterm && <span className="ml-3 inline-block rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide align-middle" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)", marginLeft: 12 }}>{r.incoterm}</span>}
                     </td>
                     <td className="mx-auto hidden max-w-[200px] px-3 py-4 2xl:table-cell">
                       <p className="truncate" style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
