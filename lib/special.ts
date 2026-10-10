@@ -15,7 +15,8 @@ function flatten(v: unknown, out: string[], depth = 0): void {
     if ((t.startsWith("[") && t.endsWith("]")) || (t.startsWith("{") && t.endsWith("}"))) {
       try { flatten(JSON.parse(t), out, depth + 1); return } catch { /* plain text */ }
     }
-    for (const part of t.split(/\r?\n|\s*[•●▪]\s*|;\s+(?=[A-Z0-9])/)) {
+    // Also split where one string holds several "Label: value" pairs joined by commas ("Inland pickup: Gebze, Packaging details: 640 pieces")
+    for (const part of t.split(/\r?\n|\s*[•●▪]\s*|;\s+(?=[A-Z0-9])|,\s+(?=[A-Z][A-Za-z'\/&-]*(?:\s+[A-Za-z'\/&()-]+){0,3}:\s+\S)/)) {
       const p = part.replace(/^[\s\-–*•\d.)]+(?=\S)/, (m) => (/^\s*\d+[.)]\s*$/.test(m) || /^[\s\-–*•]+$/.test(m) ? "" : m)).trim()
       if (p) out.push(p)
     }
