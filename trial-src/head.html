@@ -377,7 +377,7 @@ body.locked-app>#appRoot{display:none}
     <div class="step-no">1</div>
     <div>
       <h2>Drop in a client's request email</h2>
-      <div class="io"><span><b>You give:</b> an email, typed, pasted or dropped as a file</span><span><b>You get:</b> a clean request and a suggested reply</span></div>
+      <div class="io"><span><b>You give:</b> an email, typed, pasted or dropped as a file</span><span><b>You get:</b> a clean request and an AI-written suggested reply</span></div>
     </div>
   </div>
   <div class="grid2">
@@ -396,6 +396,7 @@ body.locked-app>#appRoot{display:none}
         <span class="hint">.eml, .msg or PDF. Attachments are read as part of the request.</span>
       </label>
       <input id="fileIn" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
+      <p class="hint" style="margin-top:14px">The AI reads the email and also writes the suggested reply for you, in the sender's language.</p>
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" id="parse1" type="button" disabled>Read this email</button>
         <span class="hint" id="parse1hint">Pick a sample or paste your own email.</span>
