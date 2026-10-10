@@ -1,4 +1,4 @@
-/** Server-only helpers for the lead trial portal (try.logistricks.com). */
+/** Server-only helpers for the lead trial portal (try.logistricks.net). */
 import { createHash, createHmac, timingSafeEqual } from "crypto"
 import type { NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"

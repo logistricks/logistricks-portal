@@ -1,6 +1,6 @@
 # Trial workflows (lead trial portal)
 
-Two webhook workflows used by `try.logistricks.com` through the portal (`/api/trial/parse-request`, `/api/trial/parse-quote`).
+Two webhook workflows used by `try.logistricks.net` through the portal (`/api/trial/parse-request`, `/api/trial/parse-quote`).
 They answer the portal directly and write nothing to the portal database.
 
 | Workflow | Path | Prompts |
@@ -17,8 +17,8 @@ The request extraction prompt has no reply or port-check output, so those come f
    - `N8N_TRIAL_REQUEST_WEBHOOK_URL` = production URL of `/webhook/trial-request`
    - `N8N_TRIAL_QUOTE_WEBHOOK_URL` = production URL of `/webhook/trial-quote`
    - `CRON_SECRET` (any random string; Vercel Cron sends it to `/api/trial/purge`)
-   - optional `TRIAL_URL` (default `https://try.logistricks.com`)
-4. Run migrations `060_trial_portal.sql` and `061_trial_admins.sql`, then create your owner login (separate from the client portal) with the insert line shown in the comment of 061, e.g. `insert into trial_admins (username, password_hash) values ('azeez', encode(sha256('your-password'::bytea), 'hex'));`. The owner console is at `try.logistricks.com/admin`.
-5. Add the domain `try.logistricks.com` to the same Vercel project and a CNAME in Cloudflare.
+   - optional `TRIAL_URL` (default `https://try.logistricks.net`)
+4. Run migrations `060_trial_portal.sql` and `061_trial_admins.sql`, then create your owner login (separate from the client portal) with the insert line shown in the comment of 061, e.g. `insert into trial_admins (username, password_hash) values ('azeez', encode(sha256('your-password'::bytea), 'hex'));`. The owner console is at `try.logistricks.net/admin`.
+5. Add the domain `try.logistricks.net` to the same Vercel project and a CNAME in Cloudflare.
 
 Regenerate after editing a prompt: `node build-workflow.js`.

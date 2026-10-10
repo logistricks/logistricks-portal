@@ -7,7 +7,7 @@ import { RETENTION_DAYS, hashPassword } from "@/lib/trial-server"
 export const runtime = "nodejs"
 const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 const rnd = (n: number) => Array.from({ length: n }, () => CH[randomInt(CH.length)]).join("")
-const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks.com").replace(/\/+$/, "")
+const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks.net").replace(/\/+$/, "")
 
 
 const SECTION_KEYS = ["s1", "s2", "s3", "export", "what", "roi"]

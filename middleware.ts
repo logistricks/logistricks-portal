@@ -50,7 +50,7 @@ async function verifySession(cookie: string): Promise<Verdict> {
   }
 }
 
-/** try.logistricks.com serves only the lead trial page and its own API. Everything else on that host is closed. */
+/** try.logistricks.net serves only the lead trial page and its own API. Everything else on that host is closed. */
 function trialHost(request: NextRequest): boolean {
   const host = (request.headers.get("host") || "").toLowerCase()
   const want = (process.env.TRIAL_HOST || "").toLowerCase()
