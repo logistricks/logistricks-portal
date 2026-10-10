@@ -1,5 +1,6 @@
 "use client"
 
+import { carrierFacingSpecial, forCarrier } from "@/lib/special"
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
 import { RequestTimeline } from "@/components/portal/request-timeline"
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
@@ -1161,6 +1162,9 @@ function templateVars(req: FreightRequest, carrier: Carrier | undefined): Record
     received_date: req.receivedExact, preferred_carrier: req.preferredCarrier,
     contact_name: carrier?.person_name ?? "there", carrier_name: carrier?.carrier_name ?? "",
     carrier_email: carrier?.email ?? "", carrier_phone: carrier?.number ?? "",
+    special_requirements: carrierFacingSpecial(forCarrier(req.specialRequirements ?? [], [])).join("\n"),
+    availability_questions: (req.availabilityQuestions ?? []).join("\n"),
+    missing_fields: (req.missingFields ?? []).join(", "),
   }
 }
 

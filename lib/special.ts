@@ -79,3 +79,47 @@ export function joinList(v: unknown, sep = ", "): string {
   }
   return t
 }
+
+/**
+ * The special-requests list as it goes to a CARRIER: no repeats of fields the request already has, and nothing that is the
+ * client's own business (which lines they want to avoid or prefer). One string per item, ready to print one per line.
+ */
+export function forCarrier(items: string[], fields: unknown[]): string[] {
+  const internal = /^(carrier|preferred carrier|shipping line|line|airline)\s+(preference|preferences|to avoid|avoid)\b/i
+  return dropRepeats(items, fields).filter((it) => {
+    const p = parseSpecial(it)
+    return !(p.label && internal.test(p.label)) && !/^\s*(avoid|prefer)\b/i.test(p.value) || (p.label ? !internal.test(p.label) && !/^\s*(avoid|prefer)\b/i.test(p.value) : false)
+  })
+}
+
+/**
+ * Special requests rewritten for a CARRIER: the stored items are notes about the request ("Quote must include: ...",
+ * "Carrier preference: Avoid MSC"); a carrier should read professional, direct requests. Internal items (carrier
+ * preferences, which name competitors) are dropped; known labels get carrier-facing wording; anything else is kept as is.
+ */
+export function carrierFacingSpecial(items: string[]): string[] {
+  const out: string[] = []
+  for (const raw of items) {
+    const { label, value } = parseSpecial(raw)
+    if (!label) { out.push(raw.trim()); continue }
+    const l = label.toLowerCase()
+    const v = value.replace(/[.\s]+$/, "")
+    if (/carrier preference|preferred carrier|avoid |prefer /.test(l + " ")) continue
+    const rules: Array<[RegExp, (v: string) => string]> = [
+      [/^quote must include|^quotation must include|^please include/, (x) => `Please include in your quotation: ${x}`],
+      [/^please confirm|^confirm/, (x) => `Kindly confirm: ${x}`],
+      [/^inland pickup|^pickup|^pick-up|^collection/, (x) => `Pre-carriage (pickup) from: ${x}`],
+      [/^inland delivery|^delivery/, (x) => `On-carriage (delivery) to: ${x}`],
+      [/free time|detention|demurrage/, (x) => `Free time requested: ${x}`],
+      [/rate validity|quote validity|validity/, (x) => `Required rate validity: ${x}`],
+      [/readiness|ready date|cargo ready/, (x) => `Cargo ready date: ${x}`],
+      [/incoterm option/, (x) => `Please quote both options: ${x.replace(/^compare\s+/i, "")}`],
+      [/weight breakdown/, (x) => `Weight breakdown: ${x}`],
+      [/packaging|packing/, (x) => `Packing: ${x}`],
+      [/commodity/, (x) => `Commodity note: ${x}`],
+    ]
+    const hit = rules.find(([re]) => re.test(l))
+    out.push(hit ? hit[1](v) : `${label}: ${v}`)
+  }
+  return Array.from(new Set(out))
+}
