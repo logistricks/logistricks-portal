@@ -1,20 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { randomInt } from "crypto"
 import { adminClient } from "@/lib/api-session"
-import { sessionWithRole } from "@/lib/api-admin"
+import { adminSession } from "@/lib/trial-admin"
 import { RETENTION_DAYS, hashPassword } from "@/lib/trial-server"
-import { isTrialOwner } from "@/lib/trial-owner"
 
 export const runtime = "nodejs"
 const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 const rnd = (n: number) => Array.from({ length: n }, () => CH[randomInt(CH.length)]).join("")
 const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks.com").replace(/\/+$/, "")
 
-async function admin_(req: NextRequest) {
-  const s = await sessionWithRole(req)
-  if (!s) return { err: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-  if (s.role !== "admin" || !isTrialOwner(s.session.clientCode, s.session.username)) return { err: NextResponse.json({ error: "Trial leads are only available to the Logistricks owner." }, { status: 403 }) }
-  return { s }
+function admin_(req: NextRequest) {
+  if (!adminSession(req)) return { err: NextResponse.json({ error: "Please sign in." }, { status: 401 }) }
+  return { by: "owner" }
 }
 
 export async function GET(req: NextRequest) {
@@ -63,7 +60,7 @@ export async function POST(req: NextRequest) {
   const password = rnd(10)
   for (let i = 0; i < 5; i++) {
     const code = `${ini}-${rnd(4)}`
-    const { data, error } = await admin.from("trial_leads").insert({ company, contact_name: contact, code, password_hash: hashPassword(password), tries_total: tries, expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: g.s!.session.username }).select("id").single()
+    const { data, error } = await admin.from("trial_leads").insert({ company, contact_name: contact, code, password_hash: hashPassword(password), tries_total: tries, expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: g.by }).select("id").single()
     if (error?.code === "23505") continue
     if (error || !data) return NextResponse.json({ error: error?.message ?? "Could not create the lead." }, { status: 500 })
     const link = `${trialUrl()}/?code=${code}`

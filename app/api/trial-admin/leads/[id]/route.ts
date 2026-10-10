@@ -1,17 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { randomInt } from "crypto"
 import { adminClient } from "@/lib/api-session"
-import { sessionWithRole } from "@/lib/api-admin"
+import { adminSession } from "@/lib/trial-admin"
 import { hashPassword } from "@/lib/trial-server"
-import { isTrialOwner } from "@/lib/trial-owner"
 
 export const runtime = "nodejs"
 const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const s = await sessionWithRole(req)
-  if (!s) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (s.role !== "admin" || !isTrialOwner(s.session.clientCode, s.session.username)) return NextResponse.json({ error: "Trial leads are only available to the Logistricks owner." }, { status: 403 })
+  if (!adminSession(req)) return NextResponse.json({ error: "Please sign in." }, { status: 401 })
   const { id } = await params
   const b = await req.json().catch(() => ({}))
   const admin = adminClient()
@@ -32,6 +29,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   const { error } = await admin.from("trial_leads").update(patch).eq("id", id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  await admin.from("trial_events").insert({ lead_id: id, type: "admin_" + b.action, meta: { by: s.session.username } })
+  await admin.from("trial_events").insert({ lead_id: id, type: "admin_" + b.action, meta: { by: "owner" } })
   return NextResponse.json({ ok: true, password })
 }
