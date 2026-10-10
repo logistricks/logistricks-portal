@@ -14,9 +14,11 @@ const replySchema = {
     missing: { type: "ARRAY", items: { type: "STRING" } },
     suggested_reply: { type: "STRING", nullable: true },
     port_warning: { type: "STRING", nullable: true },
+    rfq_subject: { type: "STRING" },
+    rfq_body: { type: "STRING" },
     language: { type: "STRING" },
   },
-  required: ["missing", "suggested_reply", "port_warning", "language"],
+  required: ["missing", "suggested_reply", "port_warning", "rfq_subject", "rfq_body", "language"],
 }
 
 const configCode = `// Edit the values below. (n8n blocks environment variables in nodes by default, so settings live here.)
@@ -84,7 +86,7 @@ const replyGemini = geminiFn(replySystem, replySchema,
 `const prev = $input.first().json
 const parts = [{ text: 'Client email:\\n' + prev.email_text + '\\n\\nExtracted data:\\n' + JSON.stringify(prev.ai) }]`,
 `const r = await call.call(this, 1, true)
-return [{ json: { ok: true, extraction: prev.ai, missing: r.missing || [], suggested_reply: r.missing && r.missing.length ? (r.suggested_reply || null) : null, port_warning: r.port_warning || null, language: r.language || null } }]`)
+return [{ json: { ok: true, extraction: prev.ai, missing: r.missing || [], suggested_reply: r.missing && r.missing.length ? (r.suggested_reply || null) : null, port_warning: r.port_warning || null, rfq_subject: r.rfq_subject || null, rfq_body: r.rfq_body || null, language: r.language || null } }]`)
 
 const quotePrepare = `${AUTH}
 const text = String(b.body_text || '').trim()

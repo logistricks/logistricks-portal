@@ -176,6 +176,14 @@ textarea{min-height:130px;resize:vertical}
 .rfq textarea{min-height:250px}
 .rfq input{width:100%;margin:6px 0 12px;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface2);color:var(--ink);font:500 15px/1.4 var(--font-sans)}
 .bd td.m{color:var(--good)}
+.atog{display:inline-block;margin:0 6px 6px 0;padding:5px 10px 5px 24px;border-radius:999px;font:600 12.5px/1.2 var(--font-body);background:var(--surface2);border:1px solid var(--line);color:var(--muted);position:relative}
+.atog::before{content:"";position:absolute;left:7px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;border:1.5px solid var(--line)}
+.atog.on{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--accent-soft)}
+.atog.on::before{background:var(--accent);border-color:var(--accent)}
+#what .atog{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:rgba(255,255,255,.7);font-family:var(--font-body)}
+#what .atog::before{border-color:rgba(255,255,255,.4)}
+#what .atog.on{color:#fff;background:rgba(232,130,26,.22);border-color:rgba(232,130,26,.7)}
+#what .atog.on::before{background:#E8821A;border-color:#E8821A}
 /* markup */
 .markup{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:20px}
 .num{font:800 clamp(30px,4vw,46px)/1 var(--font-display);font-variant-numeric:tabular-nums}

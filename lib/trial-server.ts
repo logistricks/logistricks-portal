@@ -101,8 +101,9 @@ export interface RequestView {
   fields: [string, string | null][]; special: string[]; missing: string[]
   conf: number; confL: string; reply: string | null; replyKind: string; portWarning: string | null
   sender: string; senderName: string; language: string | null; freeDaysAsked: number | null
+  rfq: { subject: string; body: string } | null
 }
-export function buildRequestView(ai: any, extra: { missing: string[]; suggested_reply: string | null; port_warning: string | null; language: string | null; sender: string }): RequestView {
+export function buildRequestView(ai: any, extra: { missing: string[]; suggested_reply: string | null; port_warning: string | null; language: string | null; sender: string; rfq_subject?: string | null; rfq_body?: string | null }): RequestView {
   const mode = MODE[(ai.modes && ai.modes[0]) || ""] || "Sea"
   const inferred: string[] = ai.inferred_fields || []
   const chosen = mode === "Sea" && (inferred.includes("origin_city") || inferred.includes("destination_city"))
@@ -133,6 +134,7 @@ export function buildRequestView(ai: any, extra: { missing: string[]; suggested_
     },
     fields, special, missing: extra.missing, conf, confL, reply: extra.suggested_reply, replyKind: extra.language && extra.suggested_reply && !/english/i.test(extra.language) ? `${kind} · ${extra.language}` : kind,
     portWarning: extra.port_warning, sender: extra.sender, senderName: s(ai.sender_name), language: extra.language, freeDaysAsked: free,
+    rfq: extra.rfq_body && extra.rfq_body.trim().length > 20 ? { subject: (extra.rfq_subject || "").trim(), body: extra.rfq_body.trim() } : null,
   }
 }
 

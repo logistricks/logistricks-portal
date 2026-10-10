@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   }
   const view = buildRequestView(r.json.extraction, {
     missing: r.json.missing || [], suggested_reply: r.json.suggested_reply || null, port_warning: r.json.port_warning || null, language: r.json.language || null, sender: inp.sender,
+    rfq_subject: r.json.rfq_subject || null, rfq_body: r.json.rfq_body || null,
   })
   const base = { input_source: ["sample", "paste", "file"].includes(inp.declared) ? inp.declared : inp.source, mode: view.mode, route_from: view.route.from, route_to: view.route.to, cargo: view.fields.find((f) => f[0] === "Cargo")?.[1] ?? null, parse1_ok: true, last_active_at: new Date().toISOString() }
   let runId: string, tryNo: number, used = lead.tries_used
