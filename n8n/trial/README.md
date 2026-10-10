@@ -17,6 +17,7 @@ The request extraction prompt has no reply or port-check output, so those come f
    - `N8N_TRIAL_REQUEST_WEBHOOK_URL` = production URL of `/webhook/trial-request`
    - `N8N_TRIAL_QUOTE_WEBHOOK_URL` = production URL of `/webhook/trial-quote`
    - `CRON_SECRET` (any random string; Vercel Cron sends it to `/api/trial/purge`)
+   - `TRIAL_OWNERS` = who may open the Trial Leads screen, as `CLIENTCODE/username` (e.g. `DIPEX/azeez`). Comma-separate several. Unset means nobody.
    - optional `TRIAL_URL` (default `https://try.logistricks.com`)
 4. Run migration `060_trial_portal.sql`.
 5. Add the domain `try.logistricks.com` to the same Vercel project and a CNAME in Cloudflare.

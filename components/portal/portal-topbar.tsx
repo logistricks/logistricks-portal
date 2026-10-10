@@ -22,6 +22,8 @@ export function PortalTopbar() {
   const [approvalCount, setApprovalCount] = useState<number>(0)
   const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
   const [displayName, setDisplayName]     = useState<string>("")
+  const [trialOwner, setTrialOwner]       = useState(false)
+  useEffect(() => { fetch("/api/me").then(r => r.ok ? r.json() : null).then(d => setTrialOwner(!!d?.trialOwner)).catch(() => {}) }, [])
   const branding = useBranding()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -63,7 +65,7 @@ export function PortalTopbar() {
     { label: "Approvals",   href: "/approvals",        badge: approvalCount },
     { label: "Auto Reply",  href: "/auto-reply-logs" },
     { label: "Users",       href: "/users" },
-    { label: "Trial Leads", href: "/trial-leads" },
+    ...(trialOwner ? [{ label: "Trial Leads", href: "/trial-leads" }] : []),
     { label: "Reports",     href: "/reports" },
     { label: "Settings",    href: "/settings",         exact: true },
   ]

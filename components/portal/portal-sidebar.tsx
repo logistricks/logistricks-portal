@@ -28,6 +28,8 @@ export function PortalSidebar({
   const [pendingCount, setPendingCount] = useState<number>(0)
   const [approvalCount, setApprovalCount] = useState<number>(0)
   const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
+  const [trialOwner, setTrialOwner] = useState(false)
+  useEffect(() => { fetch("/api/me").then(r => r.ok ? r.json() : null).then(d => setTrialOwner(!!d?.trialOwner)).catch(() => {}) }, [])
   const [displayName, setDisplayName]   = useState<string>("")
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -76,7 +78,7 @@ export function PortalSidebar({
     { label: "Activity Log", href: "/activity", icon: Activity },
     { label: "Auto Reply Logs", href: "/auto-reply-logs", icon: MailCheck },
     { label: "Users",        href: "/users",    icon: Users },
-    { label: "Trial Leads",  href: "/trial-leads", icon: FlaskConical },
+    ...(trialOwner ? [{ label: "Trial Leads", href: "/trial-leads", icon: FlaskConical }] : []),
     { label: "Settings",  href: "/settings",  icon: Settings, exact: true },
     { label: "Theme",     href: "/settings/theme", icon: Palette },
   ]

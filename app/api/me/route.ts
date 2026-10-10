@@ -6,6 +6,7 @@
 
 import { NextResponse, type NextRequest } from "next/server"
 import { createHmac } from "crypto"
+import { isTrialOwner } from "@/lib/trial-owner"
 
 function getSession(cookie: string): { username: string; clientCode: string; role: string } | null {
   try {
@@ -30,5 +31,5 @@ export async function GET(req: NextRequest) {
   if (!cookie) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const session = getSession(cookie)
   if (!session) return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 })
-  return NextResponse.json(session)
+  return NextResponse.json({ ...session, trialOwner: session.role === "admin" && isTrialOwner(session.clientCode, session.username) })
 }

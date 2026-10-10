@@ -3,6 +3,7 @@ import { randomInt } from "crypto"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { RETENTION_DAYS, hashPassword } from "@/lib/trial-server"
+import { isTrialOwner } from "@/lib/trial-owner"
 
 export const runtime = "nodejs"
 const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -12,7 +13,7 @@ export const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks
 async function admin_(req: NextRequest) {
   const s = await sessionWithRole(req)
   if (!s) return { err: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-  if (s.role !== "admin") return { err: NextResponse.json({ error: "Only an admin can manage trial leads." }, { status: 403 }) }
+  if (s.role !== "admin" || !isTrialOwner(s.session.clientCode, s.session.username)) return { err: NextResponse.json({ error: "Trial leads are only available to the Logistricks owner." }, { status: 403 }) }
   return { s }
 }
 

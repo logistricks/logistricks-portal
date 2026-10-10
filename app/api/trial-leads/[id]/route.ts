@@ -3,6 +3,7 @@ import { randomInt } from "crypto"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { hashPassword } from "@/lib/trial-server"
+import { isTrialOwner } from "@/lib/trial-owner"
 
 export const runtime = "nodejs"
 const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -10,7 +11,7 @@ const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const s = await sessionWithRole(req)
   if (!s) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (s.role !== "admin") return NextResponse.json({ error: "Only an admin can manage trial leads." }, { status: 403 })
+  if (s.role !== "admin" || !isTrialOwner(s.session.clientCode, s.session.username)) return NextResponse.json({ error: "Trial leads are only available to the Logistricks owner." }, { status: 403 })
   const { id } = await params
   const b = await req.json().catch(() => ({}))
   const admin = adminClient()
