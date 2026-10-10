@@ -100,7 +100,7 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
     sender_name: req.senderName, origin: `${req.originCity}, ${req.originCountry}`,
     destination: `${req.destinationCity}, ${req.destinationCountry}`, cargo_type: req.cargoType,
     weight: req.weight ?? "", equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "", request_ref: req.requestRef ?? "",
-    carrier_name: carrier?.name ?? "", missing_fields: (req.missingFields ?? []).join(", "),
+    carrier_name: carrier?.name ?? "", missing_fields: (req.missingFields ?? []).join(", ") || (req.suggestedReply ?? ""),
   }
   return applyTemplate(t.body, map, { keepUnknown: true })
 }
@@ -360,6 +360,13 @@ export default function RequestDetailPage() {
     }
   }
 
+  useEffect(() => {
+    if (!sendMethod) return
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") { setSendMethod(null); setMessageBody("") } }
+    window.addEventListener("keydown", h)
+    return () => window.removeEventListener("keydown", h)
+  }, [sendMethod])
+
   async function handleSend() {
     if (!request || sending) return
     setSending(true)
@@ -368,7 +375,7 @@ export default function RequestDetailPage() {
       const emailPayload = (sendMethod === "Email" && messageBody)
         ? { email_subject: templates.find((t) => String(t.template_id) === templateId)?.subject ?? null, email_body: messageBody }
         : sendMethod === "Reply" && messageBody
-        ? { email_body: messageBody }
+        ? { email_body: messageBody.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").split(/\n/).join("<br>") }
         : {}
       const res = await fetch("/api/requests", {
         method: "PATCH",
@@ -607,9 +614,25 @@ export default function RequestDetailPage() {
                 </div>
               )}
 
-              {/* Send panel */}
+              {/* Suggested reply (AI) */}
+              {request.suggestedReply && sendMethod !== "Reply" && (
+                <div className="ds-card p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Suggested reply</h4>
+                    <button type="button" onClick={() => { setTemplateId(""); setMessageBody(request.suggestedReply ?? ""); setSendMethod("Reply") }}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-white" style={{ background: "var(--brand-accent)" }}>
+                      <Reply className="h-3.5 w-3.5" /> Use this reply
+                    </button>
+                  </div>
+                  <p className="mt-2 whitespace-pre-line text-[14px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>{request.suggestedReply}</p>
+                </div>
+              )}
+
+              {/* Reply pop-up */}
               {sendMethod && (
-                <div className="ds-card p-5 space-y-3">
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(8,15,30,0.55)", backdropFilter: "blur(3px)" }}
+                  onMouseDown={(e) => { if (e.target === e.currentTarget) { setSendMethod(null); setMessageBody("") } }}>
+                <div className="ds-card w-full max-w-[640px] space-y-3 p-6" style={{ maxHeight: "90vh", overflowY: "auto" }}>
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                       {`Reply to ${request.senderName}`}
@@ -623,7 +646,7 @@ export default function RequestDetailPage() {
                       <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-muted)" }}>Template</label>
                       <select value={templateId} onChange={(e) => {
                         setTemplateId(e.target.value)
-                        setMessageBody(renderTemplateBody(e.target.value, request, undefined, templates))
+                        setMessageBody(stripHtml(renderTemplateBody(e.target.value, request, undefined, templates)))
                       }}
                         className="h-9 w-full rounded-lg px-3 text-sm outline-none"
                         style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
@@ -634,7 +657,7 @@ export default function RequestDetailPage() {
                       </select>
                     </div>
                   )}
-                  <textarea rows={6} value={messageBody} onChange={(e) => setMessageBody(e.target.value)}
+                  <textarea rows={10} value={messageBody} onChange={(e) => setMessageBody(e.target.value)}
                     placeholder="Type your message…"
                     className="w-full rounded-lg p-3 text-sm resize-none outline-none"
                     style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
@@ -651,6 +674,7 @@ export default function RequestDetailPage() {
                       Send
                     </button>
                   </div>
+                </div>
                 </div>
               )}
             </div>
@@ -765,6 +789,8 @@ export default function RequestDetailPage() {
             if (request.source === "WhatsApp") {
               window.open(`https://wa.me/${request.senderPhone}`, "_blank")
             } else {
+              setTemplateId("")
+              setMessageBody(request.suggestedReply ?? "")
               setSendMethod("Reply")
               setActiveTab("details")
             }
