@@ -676,3 +676,4 @@ select.ds-input, select.ds-select {
   background-repeat: no-repeat; background-position: right 14px center; cursor: pointer;
 }
 input.ds-input { height: 46px; border-radius: 12px; padding: 0 14px; font-size: 14.5px; }
+select.ds-input, input.ds-input, textarea.ds-input { font-family: var(--font-sans), system-ui, sans-serif; text-transform: none; letter-spacing: normal; }
