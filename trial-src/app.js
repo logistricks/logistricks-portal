@@ -465,7 +465,7 @@ var FEATS=[
  ["Branded quotation templates","Your logo, wording and layout, as PDF or email, per mode.","Your logo on every quote","M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"],
  ["Reports and request timeline","Every request with its complete history, from the first email to the booking, plus reports on volume, margin and response times.","Timeline: 14 events on one request","M3 3v18h18M7 14l4-4 3 3 5-6"],
  ["Approvals and roles","Route big quotes to a manager before they go out.","Waiting for approval","M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"],
- ["Win and loss reports","Margin per quote, per carrier, per client. See what you win and why you lose.","Won 38% this month","M3 3v18h18M7 14l4-4 3 3 5-6"],
+ ["Dashboard and notifications","A live dashboard of what needs you now, and alerts the moment a carrier replies, a quote expires or a client answers.","3 need attention, 2 new carrier replies","M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"],
  ["Expiry guard","Quotes past their validity are flagged before they are sent.","Expired 2 days ago","M12 6v6l4 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"]
 ];
 $("#gallery").innerHTML=FEATS.map(function(f){return '<article class="feat"><span class="lk">'+ICON.lock+'</span><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="'+f[3]+'"/></svg></div><h3>'+f[0]+'</h3><p>'+f[1]+'</p><div class="mini">'+f[2]+'</div><button type="button" class="btn btn-line btn-sm lockbtn" data-feat="'+f[0]+'">Show me this</button></article>'}).join("");
