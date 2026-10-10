@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { PortalTabbar } from "@/components/portal/portal-tabbar"
 import { PortalTopbar } from "@/components/portal/portal-topbar"
 import { PortalThemeContext } from "@/components/portal/portal-theme-provider"
 import { ToastProvider } from "@/components/ui/toast"
@@ -58,10 +57,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
   return (
     <PortalThemeContext.Provider value={{ theme, toggle }}>
       <ToastProvider>
-        <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f0f2f5]"} ${theme}`}>
+        <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f2f5fa]"} ${theme}`}>
           <PortalTopbar />
-          <PortalTabbar />
-          <main className="px-4 pb-24 pt-6 md:px-8 md:pb-10">{children}</main>
+          <main className="px-4 pb-10 pt-6 md:px-8">{children}</main>
         </div>
       </ToastProvider>
     </PortalThemeContext.Provider>

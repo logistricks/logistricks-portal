@@ -74,8 +74,7 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
   return (
     <div>
       <div className="mb-5">
-        <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Email Server (SMTP)</h2>
-        <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>The mailbox the portal sends its notification emails from — new requests, carrier quotes, attention-required alerts and approvals.</p>
+        <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Outgoing email (SMTP)</h2>
       </div>
 
       {f.configured && f.last_test_at && (

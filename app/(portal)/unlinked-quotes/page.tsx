@@ -417,10 +417,7 @@ export default function UnlinkedQuotesPage() {
     <div className="portal-page space-y-5 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Non-linked Quotes</h2>
-          <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Carrier replies the system couldn&apos;t match to a request. Link each one to a request, or delete it.
-          </p>
+          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Non-linked Quotes</h2>
         </div>
         <button
           onClick={() => void load()}

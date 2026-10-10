@@ -251,7 +251,7 @@ export default function RequestsPage() {
     return (
       <div className="portal-page space-y-5 p-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
+          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
             Requests
           </h2>
         </div>
@@ -268,7 +268,7 @@ export default function RequestsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
+          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
             Requests
           </h2>
           <span className="rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)" }}>

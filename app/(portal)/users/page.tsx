@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   Activity as ActivityIcon,
   Check,
@@ -385,7 +386,7 @@ function ConfirmDeactivateModal({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function UsersPage() {
+function UsersInner() {
   const [list, setList]             = useState<User[]>([])
   const [carriers, setCarriers]     = useState<{ carrier_id: number; carrier_name: string }[]>([])
   const [loading, setLoading]       = useState(true)
@@ -394,18 +395,11 @@ export default function UsersPage() {
   const [deactivateLoading, setDeactivateLoading] = useState(false)
   const [toastMsg, setToastMsg]     = useState("")
   const [currentUsername, setCurrentUsername] = useState("")
-  const [topTab, setTopTab]         = useState<"users" | "activity">("users")
+  // Admin → Users / Admin → Activity pick the tab through the URL (?tab=activity)
+  const topTab: "users" | "activity" = useSearchParams()?.get("tab") === "activity" ? "activity" : "users"
 
   useEffect(() => {
     try { setCurrentUsername(sessionStorage.getItem("portal_username") ?? "") } catch { /* */ }
-  }, [])
-
-  // Deep-link support: /users?tab=activity
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get("tab") === "activity") setTopTab("activity")
-    } catch { /* */ }
   }, [])
 
   function showToast(msg: string) {
@@ -488,35 +482,9 @@ export default function UsersPage() {
   return (
     <>
       <div className="min-h-full bg-[var(--page-bg)] p-6">
-        {/* Tab bar */}
-        <div className="mb-6 flex items-center gap-1 border-b" style={{ borderColor: "var(--card-border)" }}>
-          <button
-            onClick={() => setTopTab("users")}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-            style={{
-              color: topTab === "users" ? "var(--brand-accent)" : "var(--text-secondary)",
-              borderBottom: topTab === "users" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-              marginBottom: -1,
-            }}
-          >
-            <Users className="h-4 w-4" />
-            Users
-          </button>
-          <button
-            onClick={() => setTopTab("activity")}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-            style={{
-              color: topTab === "activity" ? "var(--brand-accent)" : "var(--text-secondary)",
-              borderBottom: topTab === "activity" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-              marginBottom: -1,
-            }}
-          >
-            <ActivityIcon className="h-4 w-4" />
-            Activity
-          </button>
-        </div>
-
-        {topTab === "activity" && <ActivityPanel />}
+        {topTab === "activity" && (
+          <ActivityPanel />
+        )}
 
         {topTab === "users" && (
         <>
@@ -527,8 +495,7 @@ export default function UsersPage() {
               <Users className="h-5 w-5 text-[var(--brand-accent)]" />
             </div>
             <div>
-              <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Users</h1>
-              <p className="text-sm text-[var(--text-muted)]">Manage who has access to this portal</p>
+              <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]">Users</h1>
             </div>
           </div>
           <button
@@ -750,5 +717,13 @@ export default function UsersPage() {
         </div>
       )}
     </>
+  )
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense fallback={null}>
+      <UsersInner />
+    </Suspense>
   )
 }

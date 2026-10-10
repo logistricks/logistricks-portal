@@ -318,12 +318,9 @@ export default function ThemeSettingsPage() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)", letterSpacing: "-0.01em" }}>
+        <h1 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
           Theme Settings
         </h1>
-        <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-          Customise the portal's colour palette. Changes apply immediately across the portal.
-        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">

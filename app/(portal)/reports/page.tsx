@@ -15,10 +15,7 @@ export default function ReportsPage() {
   return (
     <div className="portal-page space-y-6 p-6">
       <div>
-        <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Reports</h2>
-        <p className="mt-0.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-          Pick a report, set its filters, then display it, print it as a PDF, or export it to Excel / CSV. Reports use your company name and logo from Settings → Theme.
-        </p>
+        <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Reports</h2>
       </div>
 
       {CATEGORIES.map((cat) => {

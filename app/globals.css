@@ -5,6 +5,7 @@
 @theme inline {
   /* ── Brand fonts wired into Tailwind utilities ── */
   --font-family-sans: var(--font-sans), 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-family-display: var(--font-display), 'Bricolage Grotesque', var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-family-mono: var(--font-mono), 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -71,7 +72,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.25rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -101,14 +102,14 @@
 
 
   /* ── Page / card design tokens (light mode) ── */
-  --page-bg:           #f0f2f5;
+  --page-bg:           #f2f5fa;
   --card-bg:           #ffffff;
-  --card-border:       #e2e6ec;
-  --card-shadow:       0 1px 4px rgba(15,30,54,0.07), 0 4px 12px rgba(15,30,54,0.05);
+  --card-border:       #dce3ee;
+  --card-shadow:       0 1px 2px rgba(15,30,54,0.04), 0 8px 24px -10px rgba(15,30,54,0.10);
   --text-primary:      #0f1e36;
-  --text-secondary:    #5a6a80;
+  --text-secondary:    #56667e;
   --text-muted:        #8a9ab0;
-  --divider:           #e2e6ec;
+  --divider:           #e6ebf3;
   --table-header-bg:   #f7f8fa;
   --input-bg:          #ffffff;
   --input-border:      #d0d7e2;
@@ -244,8 +245,9 @@
     font-family: var(--font-sans), 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-sans), 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-display), 'Bricolage Grotesque', var(--font-sans), 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
     font-weight: 700;
+    letter-spacing: -0.015em;
   }
   code, pre, kbd, samp, .font-mono {
     font-family: var(--font-mono), 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
@@ -262,7 +264,7 @@
 .ds-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: 18px;
   box-shadow: var(--card-shadow);
 }
 
@@ -297,16 +299,16 @@
 .ds-input {
   background: var(--input-bg);
   border: 1px solid var(--input-border);
-  border-radius: 7px;
+  border-radius: 10px;
   color: var(--text-primary);
   font-size: 13.5px;
-  padding: 7px 12px;
+  padding: 9px 13px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ds-input:focus {
   border-color: var(--brand-accent);
-  box-shadow: 0 0 0 3px var(--brand-accent-ring);
+  box-shadow: 0 0 0 4px var(--brand-accent-ring);
 }
 
 /* ── Status badges ── */
@@ -523,3 +525,32 @@ button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summ
 .rq-chip-btn { transition: background .15s, color .15s, border-color .15s, box-shadow .15s; }
 .rq-chip-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .18)); }
 .rq-preview { animation: lt-ring-in 1.8s ease-out 2; }
+
+
+/* ── Trial-page look: one focus ring for every field in the portal ── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--brand-accent) !important;
+  box-shadow: 0 0 0 4px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .18));
+}
+input, textarea, select { transition: border-color .15s ease, box-shadow .15s ease; }
+
+/* Big display numbers and titles use the display face */
+.font-display { font-family: var(--font-display), 'Bricolage Grotesque', var(--font-sans), sans-serif; }
+
+/* Table header: quieter, more room */
+.ds-table thead th { letter-spacing: .08em; }
+.rq-table tbody tr.rq-row:hover { background: color-mix(in srgb, var(--brand-accent) 8%, var(--card-bg)); }
+
+/* Top navigation (Work / Builder / Admin) */
+.nav-sub-in { animation: nav-sub-in .16s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes nav-sub-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .nav-sub-in { animation: none; } }
+
+/* KPI tiles: lift and glow on hover, like the trial page cards */
+@media (hover: hover) {
+  .kpi-card { transition: translate .18s cubic-bezier(.2,.8,.3,1), box-shadow .2s ease, border-color .2s ease; }
+  .kpi-card:hover { translate: 0 -3px; border-color: var(--brand-accent); box-shadow: 0 16px 32px -16px rgb(var(--brand-accent-rgb) / .45); }
+}

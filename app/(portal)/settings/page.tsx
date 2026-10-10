@@ -2,7 +2,8 @@
 
 import { BrandingCard } from "@/components/portal/branding-card"
 import Link from "next/link"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase"
 import {
   AlertTriangle, Check, CheckSquare, ChevronRight, Copy, FileText, GitBranch, Loader2,
@@ -12,6 +13,7 @@ import {
 import { TemplatesPanel } from "@/components/portal/templates-panel"
 import { CarriersPanel } from "@/components/portal/carriers-panel"
 import { SmtpPanel } from "@/components/portal/smtp-panel"
+import { EmailSourcesPanel } from "@/components/portal/email-sources-panel"
 import { NotificationTemplatesPanel } from "@/components/portal/notification-templates-panel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -314,21 +316,18 @@ function CriticalFieldsPicker({ initial, onSave, onCancel }: {
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────
-export default function SettingsPage() {
-  const [active, setActive]       = useState<SectionKey>("emails")
+function SettingsInner() {
   const [clientCode, setClientCode] = useState<string>("")
   const [role, setRole]           = useState<UserRole>("operator")
-  const [topTab, setTopTab]       = useState<"setup" | "theme" | "templates" | "notifications" | "carriers">("setup")
+  const router = useRouter()
+  const sp = useSearchParams()
+  // The top bar's sub menu picks the page: /settings?tab=rules|receivers|emails|templates|carriers|notifications|theme
+  const tab = sp.get("tab") ?? "rules"
+  const topTab: "setup" | "theme" | "templates" | "notifications" | "carriers" =
+    tab === "templates" || tab === "carriers" || tab === "notifications" || tab === "theme" ? tab : "setup"
+  const active: SectionKey | "receivers" =
+    tab === "receivers" ? "receivers" : tab === "emails" ? "smtp" : tab === "theme" ? "theme" : "automation"
   const supabase = createClient()
-
-  // Deep-link support: /settings?tab=templates or ?tab=carriers
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search)
-      const t = params.get("tab")
-      if (t === "templates" || t === "carriers" || t === "notifications") setTopTab(t)
-    } catch { /* */ }
-  }, [])
 
   // Email state
   const [emails, setEmails]               = useState<ReceiverEmail[]>([])
@@ -638,18 +637,12 @@ export default function SettingsPage() {
   ]
 
   // ── Render sections ──────────────────────────────────────────────────────────
-  function renderSection() {
-    if (active === "emails") return (
+  function renderSection(which: string = active) {
+    if (which === "emails") return (
       <div>
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Receiver Emails</h2>
-            <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Inbound addresses monitored for incoming freight requests. Only active addresses are processed.</p>
-            {role !== "viewer" && (
-              <Link href="/settings/email-sources" className="mt-2 inline-block text-sm font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>
-                Connect a mailbox (IMAP) &rarr;
-              </Link>
-            )}
           </div>
           {role !== "viewer" && (
             <button onClick={() => setAddMailOpen(true)} aria-label="Add receiver email" title="Add receiver email"
@@ -706,13 +699,24 @@ export default function SettingsPage() {
       </div>
     )
 
-    if (active === "smtp") return <SmtpPanel canEdit={role === "admin"} />
+    if (which === "receivers") return (
+      <div className="space-y-12">
+        {renderSection("emails")}
+        {renderSection("whatsapp")}
+      </div>
+    )
 
-    if (active === "whatsapp") return (
+    if (which === "smtp") return (
+      <div className="space-y-12">
+        <SmtpPanel canEdit={role === "admin"} />
+        <EmailSourcesPanel />
+      </div>
+    )
+
+    if (which === "whatsapp") return (
       <div>
         <div className="mb-5">
           <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>WhatsApp Numbers</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Sender numbers monitored for inbound WhatsApp rate replies. Use E.164 format (+96612345678).</p>
         </div>
         {numsLoading
           ? <div className="flex items-center gap-2 py-6 text-sm" style={{ color: "var(--text-secondary)" }}><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
@@ -743,12 +747,8 @@ export default function SettingsPage() {
       </div>
     )
 
-    if (active === "automation") return (
+    if (which === "automation") return (
       <div>
-        <div className="mb-5">
-          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Automation</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Control how the system handles sending rate requests and replies on your behalf.</p>
-        </div>
         {flagsLoading
           ? <div className="flex items-center gap-2 py-6 text-sm" style={{ color: "var(--text-secondary)" }}><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
           : (
@@ -813,26 +813,7 @@ export default function SettingsPage() {
       </div>
     )
 
-    if (active === "approval") return (
-      <div>
-        <div className="mb-5">
-          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Approval Workflow</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Configure named approval cycles and step chains used when submitting freight requests for internal review.</p>
-        </div>
-        <Link
-          href="/settings/approval-cycles"
-          className="flex items-center justify-between rounded-xl border px-5 py-4 text-sm font-semibold transition-all"
-          style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgb(var(--brand-accent-rgb) / 0.4)"; (e.currentTarget as HTMLAnchorElement).style.background = "rgb(var(--brand-accent-rgb) / 0.04)" }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLAnchorElement).style.background = "var(--card-bg)" }}
-        >
-          <span>Manage Approval Cycles</span>
-          <ChevronRight className="h-4 w-4" style={{ color: "var(--text-muted)" }} />
-        </Link>
-      </div>
-    )
-
-    if (active === "theme" && role === "admin") return (
+    if (which === "theme" && role === "admin") return (
       <div>
         {/* Toast */}
         {themeToast && (
@@ -843,10 +824,6 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="mb-5">
-          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Theme</h2>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Customise the portal's colour palette. Changes apply immediately across the portal.</p>
-        </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
           {/* Controls */}
@@ -959,142 +936,34 @@ export default function SettingsPage() {
     )
   }
 
+  const TITLES: Record<string, string> = { rules: "Rules", receivers: "Receivers", emails: "Emails", templates: "Templates", carriers: "Carriers", notifications: "Notification Templates", theme: "Brand & Colours" }
+
   return (
     <div className="portal-page p-6">
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Settings</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Manage your organisation's configuration</p>
-      </div>
+      {topTab !== "templates" && topTab !== "carriers" && topTab !== "notifications" && (
+        <h1 className="mb-6 text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
+          {TITLES[tab] ?? "Rules"}
+        </h1>
+      )}
 
       {error && (
         <p className="mb-5 rounded-lg px-4 py-3 text-sm" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{error}</p>
       )}
 
-      {/* Top tab bar: Setup | Theme */}
-      <div className="mb-6 flex items-center gap-1 border-b" style={{ borderColor: "var(--card-border)" }}>
-        <button
-          onClick={() => { setTopTab("setup"); if (active === "theme") setActive("emails") }}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            color: topTab === "setup" ? "var(--brand-accent)" : "var(--text-secondary)",
-            borderBottom: topTab === "setup" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-            marginBottom: -1,
-          }}
-        >
-          <Settings2 className="h-4 w-4" />
-          Setup
-        </button>
-        <button
-          onClick={() => { if (role === "admin") { setTopTab("theme"); setActive("theme") } }}
-          disabled={role !== "admin"}
-          title={role !== "admin" ? "Admin access required" : undefined}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            color: role !== "admin"
-              ? "var(--text-muted)"
-              : topTab === "theme" ? "var(--brand-accent)" : "var(--text-secondary)",
-            borderBottom: topTab === "theme" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-            marginBottom: -1,
-            opacity: role !== "admin" ? 0.45 : 1,
-            cursor: role !== "admin" ? "not-allowed" : "pointer",
-          }}
-        >
-          <Palette className="h-4 w-4" />
-          Theme
-          {role !== "admin" && (
-            <span className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-              style={{ background: "var(--divider)", color: "var(--text-muted)" }}>
-              Admin
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTopTab("templates")}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            color: topTab === "templates" ? "var(--brand-accent)" : "var(--text-secondary)",
-            borderBottom: topTab === "templates" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-            marginBottom: -1,
-          }}
-        >
-          <FileText className="h-4 w-4" />
-          Templates
-        </button>
-        <button
-          onClick={() => setTopTab("notifications")}
-          className="flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            color: topTab === "notifications" ? "var(--brand-accent)" : "var(--text-secondary)",
-            borderBottom: topTab === "notifications" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-            marginBottom: -1,
-          }}
-        >
-          <Bell className="h-4 w-4" />
-          Notification Templates
-        </button>
-        <button
-          onClick={() => setTopTab("carriers")}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors"
-          style={{
-            color: topTab === "carriers" ? "var(--brand-accent)" : "var(--text-secondary)",
-            borderBottom: topTab === "carriers" ? "2px solid var(--brand-accent)" : "2px solid transparent",
-            marginBottom: -1,
-          }}
-        >
-          <Truck className="h-4 w-4" />
-          Carriers
-        </button>
-      </div>
-
-      {/* Setup tab: sidebar + content */}
       {topTab === "setup" && (
-        <div className="flex gap-6">
-          <aside className="hidden w-56 shrink-0 md:block">
-            <nav className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
-              {SECTIONS.map((s, i) => {
-                const Icon = s.icon
-                const isActive = active === s.key
-                return (
-                  <button
-                    key={s.key}
-                    onClick={() => setActive(s.key)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all"
-                    style={{
-                      borderBottom: i < SECTIONS.length - 1 ? "1px solid var(--divider)" : "none",
-                      background: isActive ? "rgb(var(--brand-accent-rgb) / 0.08)" : "transparent",
-                      color: isActive ? "var(--brand-accent)" : "var(--text-secondary)",
-                      borderLeft: isActive ? "3px solid var(--brand-accent)" : "3px solid transparent",
-                    }}
-                    onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
-                    onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent" }}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-tight">{s.label}</p>
-                      <p className="text-[11px] leading-tight mt-0.5 truncate" style={{ color: isActive ? "rgb(var(--brand-accent-rgb) / 0.7)" : "var(--text-muted)" }}>{s.desc}</p>
-                    </div>
-                  </button>
-                )
-              })}
-            </nav>
-          </aside>
-          <div className="min-w-0 flex-1 max-w-2xl">
-            {renderSection()}
-          </div>
+        <div className="min-w-0 max-w-3xl">
+          {renderSection()}
         </div>
       )}
 
-      {/* Theme tab: full-width */}
-      {topTab === "theme" && role === "admin" && renderSection()}
+      {topTab === "theme" && (role === "admin"
+        ? renderSection()
+        : <p className="rounded-xl border px-5 py-4 text-sm" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>Only admins can change the brand colours.</p>)}
 
-      {/* Templates tab: full-width */}
       {topTab === "templates" && <TemplatesPanel />}
 
-      {/* Notification templates tab: full-width */}
-      {topTab === "notifications" && <NotificationTemplatesPanel onOpenSmtp={() => { setActive("smtp"); setTopTab("setup") }} />}
+      {topTab === "notifications" && <NotificationTemplatesPanel onOpenSmtp={() => router.push("/settings?tab=emails")} />}
 
-      {/* Carriers tab: full-width */}
       {topTab === "carriers" && <CarriersPanel />}
 
       {showPicker && (
@@ -1105,5 +974,13 @@ export default function SettingsPage() {
         />
       )}
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsInner />
+    </Suspense>
   )
 }

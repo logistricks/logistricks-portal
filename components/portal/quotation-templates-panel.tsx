@@ -112,10 +112,7 @@ export function QuotationTemplatesPanel() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[22px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Quotation Templates</h2>
-          <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Used to auto-build the quotation sent back to the original requester.
-          </p>
+          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Quotation Templates</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button

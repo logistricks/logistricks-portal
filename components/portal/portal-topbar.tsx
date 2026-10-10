@@ -1,12 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 import { useBranding } from "@/lib/use-branding"
 import { NotificationBell } from "@/components/portal/notification-bell"
+import { PortalNav } from "@/components/portal/portal-nav"
+import { HOME_HREF } from "@/lib/portal-nav"
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -15,13 +17,13 @@ function initials(name: string): string {
 }
 
 export function PortalTopbar() {
-  const pathname = usePathname()
   const router   = useRouter()
 
   const [pendingCount, setPendingCount]   = useState<number>(0)
   const [approvalCount, setApprovalCount] = useState<number>(0)
   const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
   const [displayName, setDisplayName]     = useState<string>("")
+  const [pinned, setPinned]               = useState(false)
   const branding = useBranding()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -56,23 +58,12 @@ export function PortalTopbar() {
     router.push("/login")
   }
 
-  const nav = [
-    { label: "Dashboard",   href: "/dashboard",       exact: true },
-    { label: "Requests",    href: "/requests",         badge: pendingCount },
-    { label: "Non-linked Quotes", href: "/unlinked-quotes", badge: unlinkedCount },
-    { label: "Approvals",   href: "/approvals",        badge: approvalCount },
-    { label: "Auto Reply",  href: "/auto-reply-logs" },
-    { label: "Users",       href: "/users" },
-    { label: "Reports",     href: "/reports" },
-    { label: "Settings",    href: "/settings",         exact: true },
-  ]
-
   const avatarInitials = displayName ? initials(displayName) : "—"
 
   return (
     <>
       <header
-        className="sticky top-0 z-40 flex h-[60px] items-center justify-between px-4 md:px-6"
+        className="sticky top-0 z-40 flex h-[60px] items-center justify-between gap-1 px-3 sm:gap-2 md:px-6"
         style={{
           background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -80,73 +71,25 @@ export function PortalTopbar() {
           boxShadow: "0 2px 12px rgba(15,30,54,0.35)",
         }}
       >
-        {/* Logo */}
-        <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 select-none">
-          {branding.logo && (
-            <span className="flex h-9 shrink-0 items-center rounded-md bg-white px-1.5">
-              <img src={branding.logo} alt={branding.displayName || "Logo"} className="max-h-7 max-w-[120px] object-contain" />
-            </span>
+        {/* Home — logo only */}
+        <Link
+          href={HOME_HREF}
+          onClick={() => { try { sessionStorage.removeItem("portal_nav_pin") } catch { /* */ } }}
+          aria-label="Home"
+          title="Home"
+          className="flex h-10 shrink-0 items-center justify-center rounded-xl select-none"
+          style={{ background: branding.logo ? "#ffffff" : "var(--brand-accent)", minWidth: 40, padding: branding.logo ? "0 8px" : 0, boxShadow: "0 4px 14px -6px rgb(var(--brand-accent-rgb) / 0.7)" }}
+        >
+          {branding.logo ? (
+            <img src={branding.logo} alt={branding.displayName || "Home"} className="max-h-7 max-w-[120px] object-contain" />
+          ) : (
+            <span className="text-[19px] font-extrabold leading-none text-white" style={{ fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif" }}>L</span>
           )}
-          <div>
-            <div
-              className="text-[17px] font-black tracking-tight text-white leading-none"
-              style={{ fontFamily: "var(--font-sans), system-ui, sans-serif", letterSpacing: "0.02em" }}
-            >
-              LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span>
-            </div>
-            <div className="text-[9px] font-semibold uppercase tracking-[0.15em] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
-              Freight Portal
-            </div>
-          </div>
         </Link>
 
-        {/* Nav links — text only, no icons */}
-        <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center px-6">
-          {nav.map((item) => {
-            const active = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + "/")
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="relative flex items-center gap-1.5 rounded-md px-[14px] py-[6px] text-[13px] font-medium uppercase transition-all"
-                style={{
-                  background: active ? "rgba(255,255,255,0.14)" : "transparent",
-                  color: active ? "#ffffff" : "rgba(255,255,255,0.72)",
-                  fontFamily: "var(--font-sans), system-ui, sans-serif",
-                  letterSpacing: "0.03em",
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    ;(e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.1)"
-                    ;(e.currentTarget as HTMLAnchorElement).style.color = "#ffffff"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    ;(e.currentTarget as HTMLAnchorElement).style.background = "transparent"
-                    ;(e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.72)"
-                  }
-                }}
-              >
-                <span className="whitespace-nowrap">{item.label}</span>
-                {item.badge ? (
-                  <span
-                    className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
-                    style={{
-                      background: active ? "rgba(255,255,255,0.25)" : "var(--brand-accent)",
-                      color: "#ffffff",
-                    }}
-                  >
-                    {item.badge}
-                  </span>
-                ) : null}
-
-              </Link>
-            )
-          })}
-        </nav>
+        <Suspense fallback={<div className="flex-1" />}>
+          <PortalNav counts={{ pending: pendingCount, unlinked: unlinkedCount, approvals: approvalCount }} onPinned={setPinned} />
+        </Suspense>
 
         {/* Right actions */}
         <div className="flex shrink-0 items-center gap-2">
@@ -187,6 +130,8 @@ export function PortalTopbar() {
           </div>
         </div>
       </header>
+      {/* keeps page content below the sub bar while a page is pinned */}
+      <div aria-hidden style={{ height: pinned ? 48 : 0, transition: "height .16s ease" }} />
     </>
   )
 }

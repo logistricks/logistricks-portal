@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/toast"
 import { BigDashboard, KpiTile, MainCharts, RangeFilter, useDashboard } from "@/components/portal/dashboard-parts"
 import { makeRange, money, hours, type DashRange } from "@/lib/dashboard-range"
 import { CHART_COLORS } from "@/components/portal/charts"
+import { HeroChecklist, HeroChip, PageHero } from "@/components/portal/page-hero"
 
 interface ActivityItem {
   id: number
@@ -65,6 +66,15 @@ export default function DashboardPage() {
   useEffect(() => { if (dashError) toastError("Dashboard metrics failed", dashError) }, [dashError, toastError])
 
   const total = recent.length
+  const [userName, setUserName] = useState("")
+  useEffect(() => {
+    try {
+      const n = sessionStorage.getItem("portal_username") ?? ""
+      setUserName(n ? n.charAt(0).toUpperCase() + n.slice(1) : "")
+    } catch { /* */ }
+  }, [])
+  const hr = new Date().getHours()
+  const greeting = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening"
   const inRange = useMemo(
     () => recent.filter((r) => { const t = Date.parse(r.receivedIso); return isNaN(t) || (t >= range.from && t < range.to) }),
     [recent, range.from, range.to],
@@ -109,32 +119,43 @@ export default function DashboardPage() {
 
   return (
     <div className="portal-page p-6 space-y-5">
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
-            Shipment Overview
-          </h2>
-          <p className="mt-0.5 flex items-center gap-2 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-            {range.label} · live from your database
-            <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} style={{ color: "var(--text-muted)" }} />
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <RangeFilter range={range} onChange={setRange} compact />
-          <button type="button" onClick={() => setBig(true)}
-            className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-semibold"
-            style={{ borderColor: "var(--brand-accent)", color: "var(--brand-accent)", background: "var(--card-bg)" }}>
-            <Maximize2 className="h-3.5 w-3.5" />
-            Full dashboard
-          </button>
-          <button type="button" onClick={exportCsv}
-            className="flex items-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[12.5px] font-medium"
-            style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
-            <Download className="h-3.5 w-3.5" />
-            Export
-          </button>
-        </div>
+      {/* Greeting */}
+      <PageHero
+        eyebrow={<>{range.label}<RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} /></>}
+        title={<>{greeting}{userName ? <>, <span style={{ color: "var(--brand-accent)" }}>{userName}</span></> : null}</>}
+        chips={dash ? (
+          <>
+            <HeroChip>{Math.round(dash.kpis.needsAttention.value ?? 0)} need attention</HeroChip>
+            <HeroChip>{Math.round(dash.kpis.active.value ?? 0)} open right now</HeroChip>
+          </>
+        ) : null}
+        aside={
+          <HeroChecklist
+            title="This period"
+            items={dash ? [
+              <><b>{Math.round(dash.kpis.requests.value ?? 0).toLocaleString("en-US")}</b> requests received</>,
+              <><b>{Math.round(dash.kpis.carrierQuotes.value ?? 0).toLocaleString("en-US")}</b> carrier quotes in</>,
+              <><b>{money(dash.kpis.quotedValue.value ?? 0)}</b> quoted</>,
+            ] : ["Loading…"]}
+          />
+        }
+      />
+
+      {/* Range and actions */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <RangeFilter range={range} onChange={setRange} compact />
+        <button type="button" onClick={() => setBig(true)}
+          className="flex items-center gap-1.5 rounded-[10px] border px-3 py-[7px] text-[12.5px] font-semibold"
+          style={{ borderColor: "var(--brand-accent)", color: "var(--brand-accent)", background: "var(--card-bg)" }}>
+          <Maximize2 className="h-3.5 w-3.5" />
+          Full dashboard
+        </button>
+        <button type="button" onClick={exportCsv}
+          className="flex items-center gap-1.5 rounded-[10px] border px-3 py-[7px] text-[12.5px] font-medium"
+          style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
+          <Download className="h-3.5 w-3.5" />
+          Export
+        </button>
       </div>
 
       {/* KPI row */}

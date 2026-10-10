@@ -98,12 +98,9 @@ export default function AutoReplyLogsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
+          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
             Auto Reply Logs
           </h2>
-          <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>
-            All auto-reply emails sent by the system
-          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--card-border)" }}>

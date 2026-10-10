@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -342,7 +343,7 @@ export default function ApprovalHistoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
+          <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
             Approval History
           </h1>
           <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
@@ -351,6 +352,13 @@ export default function ApprovalHistoryPage() {
               : `${grouped.length} request${grouped.length !== 1 ? "s" : ""} total`}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Link
+          href="/approvals"
+          className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+        >
+          Pending
+        </Link>
         <button
           onClick={() => load(true)}
           disabled={loading || refreshing}
@@ -361,6 +369,7 @@ export default function ApprovalHistoryPage() {
           />
           Refresh
         </button>
+        </div>
       </div>
 
       {/* Filters */}

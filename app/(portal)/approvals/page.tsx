@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -871,7 +872,7 @@ export default function ApprovalsPage() {
     <div className="portal-page space-y-6 p-6 pb-20 md:pb-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[22px] font-bold text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
+          <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
             Pending Approvals
           </h1>
           <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
@@ -880,6 +881,13 @@ export default function ApprovalsPage() {
               : `${items.length} item${items.length !== 1 ? "s" : ""} awaiting your review`}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Link
+          href="/approvals/history"
+          className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+        >
+          History
+        </Link>
         <button
           onClick={() => load(true)}
           disabled={loading || refreshing}
@@ -888,6 +896,7 @@ export default function ApprovalsPage() {
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
         </button>
+        </div>
       </div>
 
       {!loading && items.length > 0 && (

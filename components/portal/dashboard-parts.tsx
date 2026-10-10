@@ -119,14 +119,14 @@ export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent
   { label: string; kpi?: Kpi; format?: (n: number) => string; spark?: number[]; color?: string; lowerIsBetter?: boolean; hint?: string; loading?: boolean }) {
   const f = format ?? ((n: number) => Math.round(n).toLocaleString("en-US"))
   return (
-    <div className="ds-card p-4" title={hint}>
+    <div className="ds-card kpi-card p-4" title={hint}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>{label}</p>
         {!loading && kpi && <Delta cur={kpi.value} prev={kpi.prev} lowerIsBetter={lowerIsBetter} />}
       </div>
       <div className="mt-1.5 flex items-end justify-between gap-2">
         {loading || !kpi ? <Skeleton h={30} w={72} /> : (
-          <p className="text-[26px] font-bold leading-tight tabular-nums" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
+          <p className="font-display text-[32px] font-extrabold leading-tight tabular-nums" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
             <CountUp value={kpi.value} format={f} />
           </p>
         )}
