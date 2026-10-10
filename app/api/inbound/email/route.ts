@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
   if (!merged.body_text.trim() && atts.length === 0) return NextResponse.json({ error: "The email has no text and no attachments." }, { status: 422 })
 
   if (kind === "carrier_reply" && merged.message_id) {
-    const { data: dup } = await admin.from("carrier_quotes").select("id").eq("client_code", clientCode).eq("email_message_id", merged.message_id).limit(1)
+    const { data: dup } = await admin.from("carrier_quotes").select("id").eq("client_code", clientCode).in("email_message_id", [normId(merged.message_id), `<${normId(merged.message_id)}>`]).limit(1)
     if (dup && dup.length) return NextResponse.json({ ok: false, reason: "duplicate", error: "This email was already processed (same Message-ID)." }, { status: 409 })
   }
 
@@ -212,7 +212,8 @@ async function waitForOutcome(
   const look = async (): Promise<Record<string, any> | null> => {
     if (a.kind === "carrier_reply") {
       let q = admin.from("carrier_quotes").select("*").eq("client_code", a.clientCode).gte("created_at", sinceIso)
-      q = a.messageId ? q.eq("email_message_id", a.messageId) : q.eq("intake_filename", a.filename)
+      // the workflow may store the Message-ID with or without the angle brackets
+      q = a.messageId ? q.in("email_message_id", [a.messageId, `<${a.messageId}>`]) : q.eq("intake_filename", a.filename)
       const { data } = await q.order("created_at", { ascending: false }).limit(1)
       const r = data?.[0]
       return r ? { outcome: "carrier_quote", quote_id: r.id, request_id: r.freight_request_id ?? null, review_status: r.review_status ?? null, linked: !!r.freight_request_id } : null
