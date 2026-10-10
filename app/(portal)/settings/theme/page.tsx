@@ -317,7 +317,7 @@ export default function ThemeSettingsPage() {
       )}
 
       {/* Page header */}
-      <div className="mb-6">
+      <div className="page-band">
         <h1 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
           Theme Settings
         </h1>

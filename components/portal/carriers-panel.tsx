@@ -173,7 +173,7 @@ export function CarriersPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="page-band flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-[28px] font-extrabold leading-tight" style={{color:"var(--text-primary)", letterSpacing: "-0.01em"}}>Carriers</h2>
           {!loading && (

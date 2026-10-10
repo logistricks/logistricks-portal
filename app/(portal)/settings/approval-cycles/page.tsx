@@ -383,7 +383,7 @@ export default function ApprovalCyclesPage() {
     <div className="min-h-screen bg-[var(--card-bg)] text-[var(--text-primary)]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="page-band flex items-center justify-between gap-4">
           <div>
             <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Approval Cycles</h1>
           </div>

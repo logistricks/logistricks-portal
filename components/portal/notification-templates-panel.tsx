@@ -242,7 +242,7 @@ export function NotificationTemplatesPanel({ onOpenSmtp }: { onOpenSmtp?: () => 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="page-band flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Notification templates</h2>
           <p className="mt-0.5 text-sm" style={{ color: "var(--text-secondary)" }}>One email for each thing the portal tells your team about. Pick one on the left and edit it like a quotation template.</p>

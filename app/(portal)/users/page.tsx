@@ -489,7 +489,7 @@ function UsersInner() {
         {topTab === "users" && (
         <>
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="page-band flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)" }}>
               <Users className="h-5 w-5 text-[var(--brand-accent)]" />

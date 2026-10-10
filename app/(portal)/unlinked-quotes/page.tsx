@@ -415,7 +415,7 @@ export default function UnlinkedQuotesPage() {
 
   return (
     <div className="portal-page space-y-5 p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="page-band flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Non-linked Quotes</h2>
         </div>

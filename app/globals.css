@@ -604,3 +604,21 @@ table thead th { font-family: var(--font-mono), ui-monospace, monospace; font-si
 @keyframes lt-page-in { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 .portal-page, main > div { animation: lt-page-in .32s cubic-bezier(.2,.8,.3,1) both; }
 @media (prefers-reduced-motion: reduce) { .portal-page, main > div { animation: none; } }
+
+/* ── Page band: navy header used on every page (trial-page hero look) ── */
+.page-band {
+  position: relative; overflow: hidden; margin-bottom: 1.5rem;
+  border-radius: 22px; padding: 1.6rem 2.2rem;
+  background: radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%);
+  box-shadow: 0 24px 48px -28px rgba(15,30,54,0.55);
+}
+.page-band h1, .page-band h2 { color: #fff !important; font-family: var(--font-display), system-ui, sans-serif; font-size: 36px !important; line-height: 1.1; }
+.page-band p { color: rgba(255,255,255,0.72) !important; }
+.page-band button:not([style*="background: var(--brand-accent)"]):not(.bg-\[var\(--brand-accent\)\]),
+.page-band a:not([style*="background: var(--brand-accent)"]) {
+  color: #fff !important; background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.28) !important;
+  border-radius: 12px !important; font-weight: 600; transition: background .15s;
+}
+.page-band button:not([style*="background: var(--brand-accent)"]):hover, .page-band a:not([style*="background: var(--brand-accent)"]):hover { background: rgba(255,255,255,0.16) !important; }
+.page-band .bg-\[var\(--brand-accent\)\], .page-band .bg-\[var\(--brand-accent\,\#E8821A\)\] { color: var(--brand-navy) !important; background: var(--brand-accent) !important; border: 0 !important; }
+.page-band .page-band-seg button { border-radius: 0 !important; border: 0 !important; }

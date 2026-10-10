@@ -870,7 +870,7 @@ export default function ApprovalsPage() {
 
   return (
     <div className="portal-page space-y-6 p-6 pb-20 md:pb-0">
-      <div className="flex items-center justify-between">
+      <div className="page-band flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>
             Pending Approvals

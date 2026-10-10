@@ -941,9 +941,9 @@ function SettingsInner() {
   return (
     <div className="portal-page p-6">
       {topTab !== "templates" && topTab !== "carriers" && topTab !== "notifications" && (
-        <h1 className="mb-6 text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
+        <div className="page-band"><h1 className="text-[28px] font-extrabold leading-tight">
           {TITLES[tab] ?? "Rules"}
-        </h1>
+        </h1></div>
       )}
 
       {error && (

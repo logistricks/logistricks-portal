@@ -611,21 +611,21 @@ export function RequestDetailModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl shadow-2xl duration-200 animate-in fade-in zoom-in-95 sm:rounded-2xl" style={{ background: "var(--card-bg)" }}>
+      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[22px] shadow-2xl duration-200 animate-in fade-in zoom-in-95 sm:rounded-[22px]" style={{ background: "var(--card-bg)" }}>
 
         {/* ── Gradient header ──────────────────────────────────── */}
         <div
-          className="shrink-0 px-6 py-4"
-          style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}
+          className="shrink-0 px-7 py-6"
+          style={{ background: "radial-gradient(700px 260px at 95% -40%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <SourceBadge source={request.source} />
               <div className="min-w-0">
                 {request.requestRef && (
-                  <p className="font-mono text-[11px] font-medium text-white/55" style={{ letterSpacing: "0.02em" }}>{request.requestRef}</p>
+                  <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--brand-accent)" }}>{request.requestRef}</p>
                 )}
-                <p className="font-semibold text-white truncate">{request.senderName}</p>
+                <p className="font-display text-[24px] font-extrabold leading-tight text-white truncate">{request.senderName}</p>
                 <p className="text-xs text-white/60 mt-0.5">{request.receivedExact}</p>
               </div>
             </div>
@@ -648,15 +648,15 @@ export function RequestDetailModal({
           </div>
 
           {/* Route summary row */}
-          <div className="mt-3 flex items-center gap-3 flex-wrap">
+          <div className="mt-4 flex items-center gap-3 flex-wrap rounded-2xl px-4 py-3" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
             <div className="flex items-center gap-2">
               {isSeaOnly(request.modes) && <span className="text-[10px] font-bold uppercase text-white/50">POL</span>}
-              <span className="text-sm font-semibold text-white">
+              <span className="font-display text-[17px] font-bold text-white">
                 {request.originFlag} {request.originCity}
               </span>
               <ArrowRight className="h-4 w-4 text-white/40" />
               {isSeaOnly(request.modes) && <span className="text-[10px] font-bold uppercase text-white/50">POD</span>}
-              <span className="text-sm font-semibold text-white">
+              <span className="font-display text-[17px] font-bold text-white">
                 {request.destinationFlag} {request.destinationCity}
               </span>
               {exwNeedsAddress(request.incoterm, request.pickupAddress) && (
@@ -678,7 +678,7 @@ export function RequestDetailModal({
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className="px-5 py-3 text-sm font-semibold capitalize transition-colors -mb-px"
+              className="px-6 py-3.5 text-[15px] font-bold capitalize transition-colors -mb-px"
               style={{
                 borderBottom: activeTab === tab ? "2px solid var(--brand-accent)" : "2px solid transparent",
                 color: activeTab === tab ? "var(--brand-accent)" : "var(--text-secondary)",

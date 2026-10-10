@@ -14,7 +14,7 @@ export default function ReportsPage() {
   const [open, setOpen] = useState<ReportDef | null>(null)
   return (
     <div className="portal-page space-y-6 p-6">
-      <div>
+      <div className="page-band">
         <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Reports</h2>
       </div>
 
