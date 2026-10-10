@@ -5,6 +5,7 @@
  * Colours come from the theme (`--brand-accent` etc.), so Settings → Theme recolours them.
  */
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 
 export const CHART_COLORS = [
   "var(--brand-accent)", "#2F5D9B", "#16a34a", "#C25E0A", "#6B8DB8", "#dc2626", "#eab308", "#64748b",
@@ -137,7 +138,16 @@ export function Legend({ items }: { items: { label: string; color: string }[] })
 
 export interface Slice { label: string; value: number }
 
-export function Donut({ items, centerValue, centerLabel, size = 150 }: { items: Slice[]; centerValue?: string | number; centerLabel?: string; size?: number }) {
+/** Optional click-through: returns a URL for a slice/row label. `newTab` opens it in a new tab. */
+export type HrefFor = (label: string) => string | undefined
+function Row({ href, newTab, className, style, children, ...rest }: { href?: string; newTab?: boolean; className?: string; style?: React.CSSProperties; children: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+  if (!href) return <div className={className} style={style} {...(rest as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>
+  return (
+    <Link href={href} {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`chart-link ${className ?? ""}`} style={style} {...(rest as object)}>{children}</Link>
+  )
+}
+
+export function Donut({ items, centerValue, centerLabel, size = 150, hrefFor, newTab }: { items: Slice[]; centerValue?: string | number; centerLabel?: string; size?: number; hrefFor?: HrefFor; newTab?: boolean }) {
   const [hover, setHover] = useState<number | null>(null)
   const total = items.reduce((s, i) => s + i.value, 0)
   const r = size / 2 - 12, c = 2 * Math.PI * r
@@ -153,7 +163,8 @@ export function Donut({ items, centerValue, centerLabel, size = 150 }: { items: 
               <circle key={it.label} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={hover === i ? 17 : 14}
                 strokeDasharray={`${Math.max(0, len - 1.5)} ${c}`} strokeDashoffset={-acc}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
-                style={{ stroke: CHART_COLORS[i % CHART_COLORS.length], transition: "stroke-width .15s, stroke-dasharray .5s" }} />
+                onClick={() => { const h = hrefFor?.(it.label); if (h) { if (newTab) window.open(h, "_blank", "noopener"); else window.location.assign(h) } }}
+                style={{ cursor: hrefFor?.(it.label) ? "pointer" : undefined, stroke: CHART_COLORS[i % CHART_COLORS.length], transition: "stroke-width .15s, stroke-dasharray .5s" }} />
             )
             acc += len
             return el
@@ -171,26 +182,26 @@ export function Donut({ items, centerValue, centerLabel, size = 150 }: { items: 
       <div className="min-w-[120px] flex-1 space-y-1">
         {items.length === 0 && <p className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>No data in this period.</p>}
         {items.map((it, i) => (
-          <div key={it.label} className="flex items-center gap-2 text-[12.5px]" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+          <Row key={it.label} href={hrefFor?.(it.label)} newTab={newTab} className="flex items-center gap-2 text-[12.5px]" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
             <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
             <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text-primary)" }}>{it.label}</span>
             <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>{it.value}</span>
             <span className="w-9 text-right tabular-nums text-[11px]" style={{ color: "var(--text-muted)" }}>{total ? Math.round((it.value / total) * 100) : 0}%</span>
-          </div>
+          </Row>
         ))}
       </div>
     </div>
   )
 }
 
-export function HBars({ items, color = "var(--brand-accent)", format = (n: number) => String(n), empty = "No data in this period." }:
-  { items: Slice[]; color?: string; format?: (n: number) => string; empty?: string }) {
+export function HBars({ items, color = "var(--brand-accent)", format = (n: number) => String(n), empty = "No data in this period.", hrefFor, newTab }:
+  { items: Slice[]; color?: string; format?: (n: number) => string; empty?: string; hrefFor?: HrefFor; newTab?: boolean }) {
   const max = Math.max(1, ...items.map((i) => i.value))
   if (!items.length) return <p className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>{empty}</p>
   return (
     <div className="space-y-2">
       {items.map((it) => (
-        <div key={it.label}>
+        <Row key={it.label} href={hrefFor?.(it.label)} newTab={newTab} className="block">
           <div className="mb-0.5 flex justify-between gap-2 text-[12.5px]">
             <span className="truncate" style={{ color: "var(--text-primary)" }}>{it.label}</span>
             <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>{format(it.value)}</span>
@@ -198,20 +209,20 @@ export function HBars({ items, color = "var(--brand-accent)", format = (n: numbe
           <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--divider)" }}>
             <div className="h-full rounded-full" style={{ width: `${(it.value / max) * 100}%`, background: color, transition: "width .6s cubic-bezier(.2,.8,.3,1)" }} />
           </div>
-        </div>
+        </Row>
       ))}
     </div>
   )
 }
 
-export function Funnel({ steps }: { steps: Slice[] }) {
+export function Funnel({ steps, hrefFor, newTab }: { steps: Slice[]; hrefFor?: HrefFor; newTab?: boolean }) {
   const max = Math.max(1, steps[0]?.value ?? 1)
   return (
     <div className="space-y-1.5">
       {steps.map((s, i) => {
         const prev = i > 0 ? steps[i - 1].value : null
         return (
-          <div key={s.label} className="flex items-center gap-3">
+          <Row key={s.label} href={hrefFor?.(s.label)} newTab={newTab} className="flex items-center gap-3">
             <span className="w-[92px] shrink-0 text-[12px]" style={{ color: "var(--text-secondary)" }}>{s.label}</span>
             <div className="relative h-6 flex-1 overflow-hidden rounded-[5px]" style={{ background: "var(--divider)" }}>
               <div className="h-full rounded-[5px]" style={{
@@ -223,7 +234,7 @@ export function Funnel({ steps }: { steps: Slice[] }) {
             <span className="w-10 shrink-0 text-right text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
               {prev != null && prev > 0 ? `${Math.round((s.value / prev) * 100)}%` : ""}
             </span>
-          </div>
+          </Row>
         )
       })}
     </div>

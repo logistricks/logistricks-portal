@@ -62,8 +62,24 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
     <div onMouseLeave={leave} className="contents">
       {/* ── Section buttons ── */}
       <nav aria-label="Main" className="flex min-w-0 items-center justify-center gap-0.5 sm:gap-1.5">
+        <Link
+          href={HOME_HREF}
+          onClick={() => setPin(false)}
+          aria-current={pathname === HOME_HREF && !pinned ? "page" : undefined}
+          className="relative flex items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
+          style={{
+            color: pathname === HOME_HREF && !pinned ? "#ffffff" : "rgba(255,255,255,0.72)",
+            fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif",
+            letterSpacing: "0.01em",
+          }}
+        >
+          <span>Home</span>
+          {pathname === HOME_HREF && !pinned && (
+            <span aria-hidden className="absolute -bottom-[11px] left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
+          )}
+        </Link>
         {NAV.map((s) => {
-          const isCurrent = current?.key === s.key
+          const isCurrent = pinned === s.key
           const isShown = shownKey === s.key
           const total = sectionTotal(s.key)
           return (

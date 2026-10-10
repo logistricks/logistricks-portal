@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Home, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { Suspense, useEffect, useRef, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 import { useBranding } from "@/lib/use-branding"
@@ -79,20 +79,21 @@ export function PortalTopbar() {
           title="Home"
           className="group flex min-w-0 shrink-0 items-center gap-3 select-none justify-self-start"
         >
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] transition-transform group-"
-            style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 20px -8px rgb(var(--brand-accent-rgb) / 0.85)" }}
-          >
-            <Home className="h-[22px] w-[22px]" strokeWidth={2.3} />
-          </span>
-          <span className="hidden text-[19px] font-extrabold leading-none tracking-[0.08em] text-white sm:block" style={{ fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif" }}>
-            LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span>
-          </span>
           {branding.logo && (
-            <span className="hidden h-9 shrink-0 items-center rounded-lg bg-white px-2 lg:flex">
-              <img src={branding.logo} alt={branding.displayName || ""} className="max-h-6 max-w-[110px] object-contain" />
+            <span className="flex h-10 shrink-0 items-center rounded-xl bg-white px-2.5">
+              <img src={branding.logo} alt={branding.displayName || ""} className="max-h-7 max-w-[120px] object-contain" />
             </span>
           )}
+          <span className="hidden min-w-0 flex-col sm:flex">
+            <span className="text-[19px] font-extrabold leading-none tracking-[0.08em] text-white" style={{ fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif" }}>
+              LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span>
+            </span>
+            {branding.displayName && (
+              <span className="mt-1 max-w-[220px] truncate text-[11.5px] font-medium leading-none tracking-[0.04em]" style={{ color: "rgba(255,255,255,0.62)" }}>
+                {branding.displayName}
+              </span>
+            )}
+          </span>
         </Link>
 
         <Suspense fallback={<div className="flex-1" />}>

@@ -117,17 +117,17 @@ export function ReportModal({ report, onClose }: { report: ReportDef; onClose: (
             <p className="mb-4 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Filters</p>
             {!report.snapshot && (
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <div className="flex flex-wrap gap-1 rounded-2xl p-1.5" style={{ background: "var(--card-bg)", border: "1.5px solid var(--card-border)" }}>
+                <div className="range-seg" role="tablist">
                   {PERIODS.map((k) => (
-                    <button key={k} type="button" onClick={() => { dirty.current = true; setPk(k) }} className="rounded-xl px-4 py-2 text-[13.5px] font-bold transition"
-                      style={pk === k ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 16px -10px rgb(var(--brand-accent-rgb) / .9)" } : { background: "transparent", color: "var(--text-secondary)" }}>{PLABEL[k]}</button>
+                    <button key={k} type="button" role="tab" aria-selected={pk === k} onClick={() => { dirty.current = true; setPk(k) }}
+                      className={`range-seg-btn ${pk === k ? "is-on" : ""}`}>{PLABEL[k]}</button>
                   ))}
                 </div>
                 {pk === "custom" && (
-                  <div className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                    <input type="date" value={cf} max={ct} onChange={(e) => { dirty.current = true; setCf(e.target.value) }} className="ds-input !py-1 text-[12px]" />
-                    <span>to</span>
-                    <input type="date" value={ct} min={cf} onChange={(e) => { dirty.current = true; setCt(e.target.value) }} className="ds-input !py-1 text-[12px]" />
+                  <div className="range-dates">
+                    <input type="date" aria-label="From" value={cf} max={ct} onChange={(e) => { dirty.current = true; setCf(e.target.value) }} />
+                    <span>→</span>
+                    <input type="date" aria-label="To" value={ct} min={cf} onChange={(e) => { dirty.current = true; setCt(e.target.value) }} />
                   </div>
                 )}
                 <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>{per.label}</span>

@@ -677,3 +677,39 @@ select.ds-input, select.ds-select {
 }
 input.ds-input { height: 46px; border-radius: 12px; padding: 0 14px; font-size: 14.5px; }
 select.ds-input, input.ds-input, textarea.ds-input { font-family: var(--font-sans), system-ui, sans-serif; text-transform: none; letter-spacing: normal; }
+
+/* ── Requests: card hover = a quiet darken + accent edge, nothing moves ── */
+.rq-card { transition: background-color .15s, border-color .15s, filter .15s; }
+.rq-card:hover { border-color: var(--brand-accent); filter: brightness(.97); }
+.rq-card-aog { box-shadow: inset 0 3px 0 #ef4444, 0 18px 40px -26px rgba(15,30,54,0.28); }
+.rq-table tbody tr.rq-row:hover { background: color-mix(in srgb, var(--text-primary) 6%, var(--card-bg)); box-shadow: none; }
+.rq-table tbody tr.rq-row.rq-aog:hover { box-shadow: inset 4px 0 0 #ef4444; }
+
+/* ── Date range: navy segmented control with an orange active pill ── */
+.range-seg { display:inline-flex; gap:4px; padding:5px; border-radius:999px;
+  background: linear-gradient(135deg, var(--brand-navy), var(--brand-navy-mid));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 18px -10px rgba(15,30,54,.55); }
+.range-seg-btn { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:9px 18px; border:0; cursor:pointer;
+  font: 700 13.5px var(--font-display), var(--font-sans), system-ui, sans-serif; letter-spacing:.01em;
+  color: rgba(255,255,255,.72); background: transparent; transition: background .15s, color .15s; white-space:nowrap; }
+.range-seg-btn:hover { background: rgba(255,255,255,.12); color:#fff; }
+.range-seg-btn.is-on { background: var(--brand-accent); color: var(--brand-navy); box-shadow: 0 6px 14px -6px rgb(var(--brand-accent-rgb) / .7); }
+.range-seg-btn.is-on:hover { filter: brightness(.94); }
+.range-dates { display:inline-flex; align-items:center; gap:8px; padding:5px 6px; border-radius:999px;
+  background: var(--card-bg); border:1.5px solid var(--card-border); color: var(--text-muted); }
+.range-dates input { height:34px; border-radius:999px; border:0; background: var(--page-bg); color: var(--text-primary);
+  padding:0 14px; font: 600 13px var(--font-sans), system-ui, sans-serif; outline:none; }
+.range-dates input:focus { box-shadow: 0 0 0 2px rgb(var(--brand-accent-rgb) / .5); }
+.page-band .range-dates, .big-dash-head .range-dates { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
+.big-dash-head .range-dates input { background: rgba(255,255,255,.14); color:#fff; color-scheme: dark; }
+.big-dash-icon { display:inline-flex; height:40px; width:40px; align-items:center; justify-content:center; border-radius:999px; cursor:pointer;
+  color:#fff; background: rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); transition: background .15s; }
+.big-dash-icon:hover { background: rgba(255,255,255,.22); }
+
+/* ── Click-through dashboard items ── */
+a.chart-link, a.kpi-link, a.act-row, a.hero-chip-link { text-decoration:none; color:inherit; cursor:pointer; }
+a.chart-link { border-radius:8px; margin-inline:-6px; padding-inline:6px; transition: background .12s; }
+a.chart-link:hover { background: var(--hover-bg); }
+a.kpi-link:hover { border-color: rgb(var(--brand-accent-rgb) / .6); filter: brightness(.97); }
+a.act-row:hover { background: var(--hover-bg); }
+a.hero-chip-link:hover { filter: brightness(.9); }

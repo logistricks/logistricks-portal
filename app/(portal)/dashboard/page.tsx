@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import {
   ArrowUpRight,
@@ -31,6 +32,7 @@ interface ActivityItem {
 const STATUS_FILTER_TABS = ["All", "New", "Pending", "Sent", "Quoted", "Delivered"]
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { error: toastError } = useToast()
   const [range, setRange] = useState<DashRange>(() => makeRange("month"))
   const [big, setBig] = useState(false)
@@ -125,8 +127,8 @@ export default function DashboardPage() {
         title={<>{greeting}{userName ? <>, <span style={{ color: "var(--brand-accent)" }}>{userName}</span></> : null}</>}
         chips={dash ? (
           <>
-            <HeroChip>{Math.round(dash.kpis.needsAttention.value ?? 0)} need attention</HeroChip>
-            <HeroChip>{Math.round(dash.kpis.active.value ?? 0)} open right now</HeroChip>
+            <Link href="/requests?attention=1" className="hero-chip-link"><HeroChip>{Math.round(dash.kpis.needsAttention.value ?? 0)} need attention</HeroChip></Link>
+            <Link href="/requests" className="hero-chip-link"><HeroChip>{Math.round(dash.kpis.active.value ?? 0)} open right now</HeroChip></Link>
           </>
         ) : null}
         aside={
@@ -160,10 +162,10 @@ export default function DashboardPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiTile loading={dashLoading && !dash} label="Requests received" kpi={dash?.kpis.requests} spark={col("requests")} />
-        <KpiTile loading={dashLoading && !dash} label="Carrier quotes" kpi={dash?.kpis.carrierQuotes} spark={col("quotes")} color={CHART_COLORS[1]} />
-        <KpiTile loading={dashLoading && !dash} label="Quoted value" kpi={dash?.kpis.quotedValue} format={money} spark={col("value")} color={CHART_COLORS[3]} hint="Sum of final prices on quotations sent" />
-        <KpiTile loading={dashLoading && !dash} label="Median time to quote" kpi={dash?.kpis.hoursToQuote} format={hours} lowerIsBetter color={CHART_COLORS[2]} hint="Request received → first quotation prepared" />
+        <KpiTile loading={dashLoading && !dash} label="Requests received" kpi={dash?.kpis.requests} spark={col("requests")} href="/requests?stage=all" />
+        <KpiTile loading={dashLoading && !dash} label="Carrier quotes" kpi={dash?.kpis.carrierQuotes} spark={col("quotes")} color={CHART_COLORS[1]} href="/requests?stage=Quoted" />
+        <KpiTile loading={dashLoading && !dash} label="Quoted value" kpi={dash?.kpis.quotedValue} format={money} spark={col("value")} color={CHART_COLORS[3]} hint="Sum of final prices on quotations sent" href="/reports" />
+        <KpiTile loading={dashLoading && !dash} label="Median time to quote" kpi={dash?.kpis.hoursToQuote} format={hours} lowerIsBetter color={CHART_COLORS[2]} hint="Request received → first quotation prepared" href="/reports" />
       </div>
 
       {/* The 3 main charts */}
@@ -254,6 +256,7 @@ export default function DashboardPage() {
                     <tr
                       key={r.id}
                       style={{ cursor: "pointer" }}
+                      onClick={() => router.push(`/requests/${r.id}`)}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "" }}
                     >
@@ -343,9 +346,10 @@ export default function DashboardPage() {
                 </p>
               ) : (
                 activity.map((a) => (
-                  <div
+                  <Link
                     key={a.id}
-                    className="flex gap-3 px-6 py-3.5 items-start"
+                    href="/users?tab=activity"
+                    className="act-row flex gap-3 px-6 py-3.5 items-start"
                     style={{ borderBottom: "1px solid var(--divider)" }}
                   >
                     <div
@@ -360,7 +364,7 @@ export default function DashboardPage() {
                         {formatRelative(new Date(a.created_at))}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

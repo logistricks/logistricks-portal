@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowDownRight, ArrowUpRight, Calendar, RefreshCw, X } from "lucide-react"
 import { makeRange, type DashRange, type RangeKey, money, hours, percent } from "@/lib/dashboard-range"
@@ -63,6 +64,19 @@ export function useDashboard(range: DashRange) {
   return { data, loading, refreshing, error, reload: () => load(true) }
 }
 
+/* ── Click-through targets (dashboard items open the matching page) ── */
+const enc = encodeURIComponent
+export const stageHref = (label: string) => `/requests?stage=${enc(label)}`
+const FUNNEL_HREF: Record<string, string> = {
+  "Received": "/requests?stage=all", "RFQ sent": "/requests?stage=Sent%20to%20Carrier", "Carrier quote": "/requests?stage=Quoted",
+  "Quotation sent": "/requests?stage=Quoted", "Closed": "/requests?stage=Closed",
+}
+export const funnelHref = (label: string) => FUNNEL_HREF[label] ?? "/requests"
+export const searchHref = (label: string) => `/requests?q=${enc(label)}&stage=all`
+export const laneHref = (label: string) => searchHref(label.split(/\s*(?:→|->|-|–|to)\s*/)[0] || label)
+export const toReports = () => "/reports"
+export const toRequests = () => "/requests"
+
 const PRESETS: { key: RangeKey; label: string }[] = [
   { key: "today", label: "Today" }, { key: "week", label: "This week" }, { key: "month", label: "This month" }, { key: "custom", label: "Custom" },
 ]
@@ -73,24 +87,22 @@ export function RangeFilter({ range, onChange, compact }: { range: DashRange; on
   const [cTo, setCTo] = useState(iso(range.to - 1))
   const apply = (f: string, t: string) => onChange(makeRange("custom", f, t))
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex gap-1 rounded-full p-1.5" style={{ background: "var(--card-bg)", border: "1.5px solid var(--card-border)", boxShadow: "var(--card-shadow)" }}>
+    <div className="flex flex-wrap items-center justify-center gap-2.5">
+      <div className="range-seg" role="tablist" aria-label="Date range">
         {PRESETS.map((p) => (
-          <button key={p.key} type="button"
+          <button key={p.key} type="button" role="tab" aria-selected={range.key === p.key}
             onClick={() => (p.key === "custom" ? apply(cFrom, cTo) : onChange(makeRange(p.key)))}
-            className="rounded-full px-5 py-2 text-[14px] font-bold transition"
-            style={range.key === p.key
-              ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 6px 14px -6px rgb(var(--brand-accent-rgb) / .6)" }
-              : { background: "transparent", color: "var(--text-secondary)" }}>
+            className={`range-seg-btn ${range.key === p.key ? "is-on" : ""}`}>
+            {p.key === "custom" && <Calendar className="h-3.5 w-3.5" />}
             {p.label}
           </button>
         ))}
       </div>
       {range.key === "custom" && (
-        <div className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--text-secondary)" }}>
-          <input type="date" value={cFrom} max={cTo} onChange={(e) => { setCFrom(e.target.value); if (e.target.value) apply(e.target.value, cTo) }} className="ds-input !py-1 text-[12px]" />
-          <span>to</span>
-          <input type="date" value={cTo} min={cFrom} onChange={(e) => { setCTo(e.target.value); if (e.target.value) apply(cFrom, e.target.value) }} className="ds-input !py-1 text-[12px]" />
+        <div className="range-dates">
+          <input type="date" aria-label="From" value={cFrom} max={cTo} onChange={(e) => { setCFrom(e.target.value); if (e.target.value) apply(e.target.value, cTo) }} />
+          <span>→</span>
+          <input type="date" aria-label="To" value={cTo} min={cFrom} onChange={(e) => { setCTo(e.target.value); if (e.target.value) apply(cFrom, e.target.value) }} />
         </div>
       )}
       {!compact && (
@@ -115,11 +127,11 @@ function Delta({ cur, prev, lowerIsBetter }: { cur: number | null; prev: number 
   )
 }
 
-export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent)", lowerIsBetter, hint, loading }:
-  { label: string; kpi?: Kpi; format?: (n: number) => string; spark?: number[]; color?: string; lowerIsBetter?: boolean; hint?: string; loading?: boolean }) {
+export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent)", lowerIsBetter, hint, loading, href, newTab }:
+  { href?: string; newTab?: boolean; label: string; kpi?: Kpi; format?: (n: number) => string; spark?: number[]; color?: string; lowerIsBetter?: boolean; hint?: string; loading?: boolean }) {
   const f = format ?? ((n: number) => Math.round(n).toLocaleString("en-US"))
-  return (
-    <div className="ds-card kpi-card flex flex-col items-center p-6 text-center" title={hint}>
+  const cls = "ds-card kpi-card flex flex-col items-center p-6 text-center"
+  const body = (<>
       <p className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>{label}</p>
       <div className="mt-3 flex justify-center">
         {loading || !kpi ? <Skeleton h={44} w={96} /> : (
@@ -130,8 +142,9 @@ export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent
       </div>
       <div className="mt-3">{!loading && kpi && <Delta cur={kpi.value} prev={kpi.prev} lowerIsBetter={lowerIsBetter} />}</div>
       <div className="mt-3 flex justify-center">{!loading && spark && <Spark values={spark} color={color} />}</div>
-    </div>
-  )
+  </>)
+  if (href) return <Link href={href} {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`${cls} kpi-link`} title={hint}>{body}</Link>
+  return <div className={cls} title={hint}>{body}</div>
 }
 
 export function Card({ title, sub, right, children, className = "" }: { title: string; sub?: string; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
@@ -168,10 +181,10 @@ export function MainCharts({ data, loading }: { data: DashData | null; loading: 
         )}
       </Card>
       <Card title="Pipeline status" sub="Requests received in this period">
-        {loading && !data ? <ChartSkeleton /> : <Donut items={status.slice(0, 6)} centerValue={data?.kpis.requests.value ?? 0} centerLabel="Requests" />}
+        {loading && !data ? <ChartSkeleton /> : <Donut hrefFor={stageHref} items={status.slice(0, 6)} centerValue={data?.kpis.requests.value ?? 0} centerLabel="Requests" />}
       </Card>
       <Card title="Conversion funnel" sub="From received to closed">
-        {loading && !data ? <ChartSkeleton /> : <Funnel steps={data?.funnel ?? []} />}
+        {loading && !data ? <ChartSkeleton /> : <Funnel hrefFor={funnelHref} steps={data?.funnel ?? []} />}
       </Card>
     </div>
   )
@@ -195,41 +208,43 @@ export function BigDashboard({ range, onRange, data, loading, refreshing, onRelo
   const modeItems = data ? [{ label: "Sea", value: data.mode.Sea }, { label: "Air", value: data.mode.Air }, { label: "Land", value: data.mode.Land }].filter((x) => x.value > 0) : []
   const intakeItems = data ? [{ label: "Automatic", value: data.intake.automatic }, { label: "Manual", value: data.intake.manual }].filter((x) => x.value > 0) : []
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-[1280px] rounded-xl border shadow-2xl" style={{ background: "var(--page-bg)", borderColor: "var(--card-border)" }}>
-        <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b px-5 py-3.5" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
-          <div>
-            <h3 className="text-[17px] font-bold" style={{ color: "var(--text-primary)" }}>Full dashboard</h3>
-            <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-              {range.label} · compared with the previous equal period · live
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-2 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-[22px] border shadow-2xl" style={{ background: "var(--page-bg)", borderColor: "var(--card-border)" }}>
+        <div className="big-dash-head flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 sm:px-7"
+          style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}>
+          <div className="min-w-0">
+            <h3 className="font-display text-[22px] font-extrabold leading-tight text-white">Full dashboard</h3>
+            <p className="mt-0.5 text-[12px]" style={{ color: "rgba(255,255,255,.66)" }}>
+              {range.label} · vs previous equal period · live
               {data && <> · updated {new Date(data.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</>}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
             <RangeFilter range={range} onChange={onRange} compact />
-            <button type="button" onClick={onReload} title="Refresh" className="rounded-md border p-1.5" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>
+            <button type="button" onClick={onReload} title="Refresh" aria-label="Refresh" className="big-dash-icon">
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
-            <button type="button" onClick={onClose} title="Close (Esc)" className="rounded-md border p-1.5" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>
+            <button type="button" onClick={onClose} title="Close (Esc)" aria-label="Close" className="big-dash-icon">
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-5 p-5">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <KpiTile loading={L} label="Requests" kpi={k?.requests} spark={col("requests")} />
-            <KpiTile loading={L} label="Open right now" kpi={k?.active} hint="All requests not Closed or Rejected (not period based)" />
-            <KpiTile loading={L} label="Need attention" kpi={k?.needsAttention} color="#dc2626" hint="Pending or waiting for approval, received in this period" />
-            <KpiTile loading={L} label="RFQs sent" kpi={k?.rfqs} />
-            <KpiTile loading={L} label="Carrier quotes" kpi={k?.carrierQuotes} spark={col("quotes")} color={CHART_COLORS[1]} />
-            <KpiTile loading={L} label="Quotations sent" kpi={k?.quotationsSent} spark={col("quotations")} color={CHART_COLORS[3]} />
-            <KpiTile loading={L} label="Quoted value" kpi={k?.quotedValue} format={money} spark={col("value")} color={CHART_COLORS[3]} hint="Sum of final prices on quotations sent" />
-            <KpiTile loading={L} label="Margin" kpi={k?.margin} format={money} spark={col("margin")} color={CHART_COLORS[2]} hint="Final price minus carrier base rate, quotations sent" />
-            <KpiTile loading={L} label="Avg quotation" kpi={k?.avgQuotation} format={money} />
-            <KpiTile loading={L} label="Median time to quote" kpi={k?.hoursToQuote} format={hours} lowerIsBetter hint="Request received → first quotation prepared" />
-            <KpiTile loading={L} label="Closed" kpi={k?.closed} spark={col("closed")} color={CHART_COLORS[2]} />
-            <KpiTile loading={L} label="Closed ÷ quotes sent" kpi={k?.winRate} format={percent} />
+            <KpiTile href="/requests?stage=all" newTab loading={L} label="Requests" kpi={k?.requests} spark={col("requests")} />
+            <KpiTile href="/requests" newTab loading={L} label="Open right now" kpi={k?.active} hint="All requests not Closed or Rejected (not period based)" />
+            <KpiTile href="/requests?attention=1" newTab loading={L} label="Need attention" kpi={k?.needsAttention} color="#dc2626" hint="Pending or waiting for approval, received in this period" />
+            <KpiTile href="/requests?stage=Sent%20to%20Carrier" newTab loading={L} label="RFQs sent" kpi={k?.rfqs} />
+            <KpiTile href="/requests?stage=Quoted" newTab loading={L} label="Carrier quotes" kpi={k?.carrierQuotes} spark={col("quotes")} color={CHART_COLORS[1]} />
+            <KpiTile href="/requests?stage=Quoted" newTab loading={L} label="Quotations sent" kpi={k?.quotationsSent} spark={col("quotations")} color={CHART_COLORS[3]} />
+            <KpiTile href="/reports" newTab loading={L} label="Quoted value" kpi={k?.quotedValue} format={money} spark={col("value")} color={CHART_COLORS[3]} hint="Sum of final prices on quotations sent" />
+            <KpiTile href="/reports" newTab loading={L} label="Margin" kpi={k?.margin} format={money} spark={col("margin")} color={CHART_COLORS[2]} hint="Final price minus carrier base rate, quotations sent" />
+            <KpiTile href="/reports" newTab loading={L} label="Avg quotation" kpi={k?.avgQuotation} format={money} />
+            <KpiTile href="/reports" newTab loading={L} label="Median time to quote" kpi={k?.hoursToQuote} format={hours} lowerIsBetter hint="Request received → first quotation prepared" />
+            <KpiTile href="/requests?stage=Closed" newTab loading={L} label="Closed" kpi={k?.closed} spark={col("closed")} color={CHART_COLORS[2]} />
+            <KpiTile href="/reports" newTab loading={L} label="Closed ÷ quotes sent" kpi={k?.winRate} format={percent} />
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -245,17 +260,17 @@ export function BigDashboard({ range, onRange, data, loading, refreshing, onRelo
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            <Card title="Pipeline status" sub="Received in this period"><Donut items={data?.statusPeriod.slice(0, 7) ?? []} centerValue={k?.requests.value ?? 0} centerLabel="Requests" /></Card>
-            <Card title="Conversion funnel"><Funnel steps={data?.funnel ?? []} /></Card>
-            <Card title="All open requests" sub="Current status, any date"><Donut items={data?.statusSnapshot.slice(0, 7) ?? []} centerLabel="All time" /></Card>
+            <Card title="Pipeline status" sub="Received in this period"><Donut newTab hrefFor={stageHref} items={data?.statusPeriod.slice(0, 7) ?? []} centerValue={k?.requests.value ?? 0} centerLabel="Requests" /></Card>
+            <Card title="Conversion funnel"><Funnel newTab hrefFor={funnelHref} steps={data?.funnel ?? []} /></Card>
+            <Card title="All open requests" sub="Current status, any date"><Donut newTab hrefFor={stageHref} items={data?.statusSnapshot.slice(0, 7) ?? []} centerLabel="All time" /></Card>
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <Card title="Transport mode"><Donut size={120} items={modeItems} centerLabel="Requests" /></Card>
-            <Card title="Channel"><Donut size={120} items={data?.source ?? []} centerLabel="Requests" /></Card>
-            <Card title="Intake"><Donut size={120} items={intakeItems} centerLabel="Requests" /></Card>
+            <Card title="Transport mode"><Donut newTab hrefFor={toRequests} size={120} items={modeItems} centerLabel="Requests" /></Card>
+            <Card title="Channel"><Donut newTab hrefFor={toRequests} size={120} items={data?.source ?? []} centerLabel="Requests" /></Card>
+            <Card title="Intake"><Donut newTab hrefFor={toRequests} size={120} items={intakeItems} centerLabel="Requests" /></Card>
             <Card title="Needs attention flags">
-              <HBars color="#dc2626" items={[
+              <HBars newTab hrefFor={() => "/requests?attention=1"} color="#dc2626" items={[
                 { label: "Incomplete (missing fields)", value: data?.flags.incomplete ?? 0 },
                 { label: "EXW", value: data?.flags.exw ?? 0 },
                 { label: "AOG", value: data?.flags.aog ?? 0 },
@@ -265,9 +280,9 @@ export function BigDashboard({ range, onRange, data, loading, refreshing, onRelo
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            <Card title="Top lanes"><HBars items={data?.lanes ?? []} /></Card>
-            <Card title="Top requesters"><HBars color={CHART_COLORS[1]} items={data?.senders ?? []} /></Card>
-            <Card title="Cargo types"><HBars color={CHART_COLORS[3]} items={data?.cargo ?? []} /></Card>
+            <Card title="Top lanes"><HBars newTab hrefFor={laneHref} items={data?.lanes ?? []} /></Card>
+            <Card title="Top requesters"><HBars newTab hrefFor={searchHref} color={CHART_COLORS[1]} items={data?.senders ?? []} /></Card>
+            <Card title="Cargo types"><HBars newTab hrefFor={searchHref} color={CHART_COLORS[3]} items={data?.cargo ?? []} /></Card>
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
@@ -278,7 +293,7 @@ export function BigDashboard({ range, onRange, data, loading, refreshing, onRelo
                     <thead><tr><th>Carrier</th><th>RFQs</th><th>Quotes</th><th>Response</th><th>Avg rate</th></tr></thead>
                     <tbody>
                       {(data?.carriers ?? []).map((c) => (
-                        <tr key={c.name}>
+                        <tr key={c.name} className="cursor-pointer" onClick={() => window.open("/settings?tab=carriers", "_blank", "noopener")}>
                           <td className="font-medium">{c.name}</td><td className="tabular-nums">{c.rfqs}</td><td className="tabular-nums">{c.quotes}</td>
                           <td className="tabular-nums">{percent(c.responseRate)}</td><td className="tabular-nums">{money(c.avgRate)}</td>
                         </tr>
@@ -293,6 +308,7 @@ export function BigDashboard({ range, onRange, data, loading, refreshing, onRelo
               <Card title="Urgency"><HBars color={CHART_COLORS[5]} items={data?.urgency ?? []} /></Card>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

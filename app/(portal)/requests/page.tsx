@@ -5,7 +5,7 @@ import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Clock, ExternalLink, Eye, FileText, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, TriangleAlert, X, Zap } from "lucide-react"
+import { Clock, ExternalLink, Eye, FileText, LayoutGrid, List as ListIcon, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, TriangleAlert, X, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/toast"
 import { SpecialRequestsDialog } from "@/components/portal/special-requests"
@@ -135,13 +135,24 @@ export default function RequestsPage() {
 
   // Remember the filters between visits; "/" jumps to search.
   const [prefsReady, setPrefsReady] = useState(false)
+  const [view, setView] = useState<"cards" | "table">("cards")
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem(PREFS_KEY) || "null")
       if (v) { setStages(v.stages ?? ["Pending"]); setTargets(v.targets ?? []); setDeliveries(v.deliveries ?? []); setSources(v.sources ?? []); setOnlyFlagged(!!v.onlyFlagged) }
     } catch { /* ignore */ }
+    try { const v = localStorage.getItem("lt_requests_view"); if (v === "table" || v === "cards") setView(v) } catch { /* ignore */ }
+    // Links from the dashboard: ?stage=Quoted&q=Amman&attention=1
+    try {
+      const p = new URLSearchParams(window.location.search)
+      const st = p.get("stage")
+      if (st) { const hit = STAGES.find((x) => x.toLowerCase() === st.toLowerCase()); setStages(hit ? [hit] : []); setTargets([]); setDeliveries([]) }
+      if (p.get("attention")) setOnlyFlagged(true)
+      const qq = p.get("q"); if (qq) setSearch(qq)
+    } catch { /* ignore */ }
     setPrefsReady(true)
   }, [])
+  useEffect(() => { try { localStorage.setItem("lt_requests_view", view) } catch { /* ignore */ } }, [view])
   useEffect(() => {
     if (!prefsReady) return
     try { localStorage.setItem(PREFS_KEY, JSON.stringify({ stages, targets, deliveries, sources, onlyFlagged })) } catch { /* ignore */ }
@@ -337,6 +348,15 @@ export default function RequestsPage() {
             {hasActiveFilters && (
               <button onClick={clearFilters} className="text-xs font-medium" style={{ color: "var(--brand-accent)" }}>Reset</button>
             )}
+            <div className="inline-flex rounded-xl p-1" style={{ background: "var(--page-bg)", border: "1.5px solid var(--card-border)" }} role="group" aria-label="View">
+              {([["cards", LayoutGrid, "Cards"], ["table", ListIcon, "Table"]] as const).map(([k, Ic, label]) => (
+                <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)} title={`${label} view`}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-bold transition"
+                  style={view === k ? { background: "var(--brand-accent)", color: "var(--brand-navy)" } : { background: "transparent", color: "var(--text-secondary)" }}>
+                  <Ic className="h-4 w-4" />{label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -378,7 +398,66 @@ export default function RequestsPage() {
       )}
 
       {/* Table */}
-      <div id="requests-table" className="ds-card scroll-mt-24 overflow-hidden">
+      <div id="requests-table" className={view === "table" ? "ds-card scroll-mt-24 overflow-hidden" : "scroll-mt-24"}>
+        {view === "cards" ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((r) => {
+              const f = flagsOf(r)
+              const sea = isSeaOnly(r.modes)
+              return (
+                <div key={r.id} onClick={() => router.push(`/requests/${r.id}`)} title="Click to open the request"
+                  className={`rq-card ds-card relative flex cursor-pointer flex-col items-center gap-3 p-6 text-center ${r.aog ? "rq-card-aog" : ""}`}>
+                  <input type="checkbox" aria-label={`Select ${r.senderName}`} checked={selected.includes(r.id)} onChange={() => {}} onClick={(e) => toggle(r.id, e)}
+                    className="absolute left-4 top-4 h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
+                  <a href={`/requests/${r.id}`} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} title="Open full page in a new tab" aria-label="Open full page in a new tab"
+                    className="absolute right-4 top-4 inline-flex items-center rounded-lg p-1.5" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                  <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</span>
+                  <div className="min-w-0 max-w-full">
+                    <p className="flex items-center justify-center gap-1.5 font-display text-[19px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
+                      {r.source === "WhatsApp" ? <MessageCircle className="h-4 w-4 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-4 w-4 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
+                      <span className="truncate">{r.senderName}</span>
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px]" style={{ color: "var(--text-secondary)" }}>{r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}</p>
+                  </div>
+                  <p className="font-display text-[17px] font-bold" style={{ color: "var(--text-primary)" }}>
+                    {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
+                    {r.incoterm && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{r.incoterm}</span>}
+                  </p>
+                  <p className="max-w-full truncate text-[13.5px]" style={{ color: "var(--text-secondary)" }}>{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</p>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
+                    {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
+                    {f.exw && <Chip tone="red" icon={<MapPinOff className="h-3 w-3" />} title="EXW — pickup address missing">EXW address</Chip>}
+                    {f.missing > 0 && <Chip tone="amber" title={`Missing: ${r.missingFields.join(", ")}`}>Missing {f.missing}</Chip>}
+                    {(r.specialRequirements?.length ?? 0) > 0 && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setSpecialFor(r) }} title="Show the special requests" className="rounded-full">
+                        <Chip tone="blue">Special {r.specialRequirements.length}</Chip>
+                      </button>
+                    )}
+                    {f.urgent && <Chip tone="blue" icon={<Clock className="h-3 w-3" />}>Urgent</Chip>}
+                    {f.low && <Chip tone="slate" title="The AI was not confident reading this request">Low conf.</Chip>}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
+                    {r.outcome && (
+                      <span className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
+                        style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
+                        {r.outcome}{r.outcome === "won" && r.paidAt ? " · paid" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-mono text-[12px]" style={{ color: "var(--text-muted)" }} title={r.receivedExact}>{r.receivedRelative}</p>
+                  <button onClick={(e) => { e.stopPropagation(); setActive(r) }} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
+                    className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-bold" style={{ background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
+                    <Eye className="h-4 w-4" /> Preview
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="rq-table w-full text-left text-sm">
             <thead style={{ background: "var(--table-header-bg)" }}>
@@ -501,6 +580,7 @@ export default function RequestsPage() {
             </tbody>
           </table>
         </div>
+        )}
 
         {filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
