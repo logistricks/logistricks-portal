@@ -142,17 +142,17 @@ export default function DashboardPage() {
       />
 
       {/* Range and actions */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <RangeFilter range={range} onChange={setRange} compact />
         <button type="button" onClick={() => setBig(true)}
-          className="flex items-center gap-1.5 rounded-[10px] border px-3 py-[7px] text-[12.5px] font-semibold"
-          style={{ borderColor: "var(--brand-accent)", color: "var(--brand-accent)", background: "var(--card-bg)" }}>
+          className="flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-bold transition hover:-translate-y-0.5"
+          style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 12px 24px -12px rgb(var(--brand-accent-rgb) / .7)" }}>
           <Maximize2 className="h-3.5 w-3.5" />
           Full dashboard
         </button>
         <button type="button" onClick={exportCsv}
-          className="flex items-center gap-1.5 rounded-[10px] border px-3 py-[7px] text-[12.5px] font-medium"
-          style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
+          className="flex items-center gap-2 rounded-xl border-[1.5px] px-6 py-3 text-[14px] font-bold transition hover:-translate-y-0.5"
+          style={{ borderColor: "var(--brand-navy)", color: "var(--brand-navy)", background: "var(--card-bg)" }}>
           <Download className="h-3.5 w-3.5" />
           Export
         </button>
@@ -170,24 +170,24 @@ export default function DashboardPage() {
       <MainCharts data={dash} loading={dashLoading} />
 
       {/* Main grid: table left, sidebar right */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_340px]">
         {/* Freight Requests table card */}
         <div className="ds-card overflow-hidden">
           <div className="ds-card-header">
-            <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
+            <span className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>
               Freight Requests
             </span>
             <div className="flex items-center gap-2">
               {/* Filter tabs */}
               <div
-                className="flex gap-0.5 rounded-[6px] p-0.5"
+                className="flex flex-wrap gap-1 rounded-full p-1"
                 style={{ background: "var(--page-bg)" }}
               >
                 {STATUS_FILTER_TABS.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className="rounded-[4px] px-2.5 py-1 text-[12px] font-medium border-none cursor-pointer transition-all"
+                    className="rounded-full px-4 py-1.5 text-[13px] font-bold border-none cursor-pointer transition-all"
                     style={
                       activeTab === tab
                         ? { background: "var(--card-bg)", color: "var(--text-primary)", boxShadow: "0 1px 3px rgba(15,30,54,0.08)" }
@@ -224,9 +224,9 @@ export default function DashboardPage() {
                   <th>Ref #</th>
                   <th>Sender</th>
                   <th>Route</th>
-                  <th>Cargo</th>
+                  <th className="hidden lg:table-cell">Cargo</th>
                   <th>Status</th>
-                  <th>Received</th>
+                  <th className="hidden md:table-cell">Received</th>
                   <th></th>
                 </tr>
               </thead>
@@ -237,9 +237,9 @@ export default function DashboardPage() {
                       <td><Skeleton h={14} w={56} /></td>
                       <td><Skeleton h={14} w={100} /></td>
                       <td><Skeleton h={14} w={130} /></td>
-                      <td><Skeleton h={14} w={70} /></td>
+                      <td className="hidden lg:table-cell"><Skeleton h={14} w={70} /></td>
                       <td><Skeleton h={20} w={72} /></td>
-                      <td><Skeleton h={12} w={60} /></td>
+                      <td className="hidden md:table-cell"><Skeleton h={12} w={60} /></td>
                       <td></td>
                     </tr>
                   ))
@@ -275,7 +275,7 @@ export default function DashboardPage() {
                           {r.originCity} → {r.destinationCity}
                         </div>
                       </td>
-                      <td>
+                      <td className="hidden lg:table-cell">
                         <div className="text-[12.5px]" style={{ color: "var(--text-secondary)" }}>
                           {r.cargoType}
                         </div>
@@ -283,7 +283,7 @@ export default function DashboardPage() {
                       <td>
                         <StatusBadge status={r.status} />
                       </td>
-                      <td>
+                      <td className="hidden md:table-cell">
                         <div className="text-[12px] tabular-nums" style={{ color: "var(--text-muted)" }}>
                           {r.receivedRelative}
                         </div>
@@ -321,7 +321,7 @@ export default function DashboardPage() {
           {/* Recent Activity */}
           <div className="ds-card">
             <div className="ds-card-header">
-              <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              <span className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>
                 Recent Activity
               </span>
               <Link
@@ -345,7 +345,7 @@ export default function DashboardPage() {
                 activity.map((a) => (
                   <div
                     key={a.id}
-                    className="flex gap-2.5 px-5 py-2.5 items-start"
+                    className="flex gap-3 px-6 py-3.5 items-start"
                     style={{ borderBottom: "1px solid var(--divider)" }}
                   >
                     <div
@@ -353,7 +353,7 @@ export default function DashboardPage() {
                       style={{ background: "var(--brand-accent)" }}
                     />
                     <div>
-                      <div className="text-[12.5px] leading-[1.45]" style={{ color: "var(--text-primary)" }}>
+                      <div className="text-[14px] font-medium leading-[1.45]" style={{ color: "var(--text-primary)" }}>
                         {a.description}
                       </div>
                       <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>

@@ -120,8 +120,8 @@ function FieldRow({ label, value }: { label: string; value: string | null }) {
   const display = value && value !== "—" ? value : null
   return (
     <div className="flex items-start gap-3 py-2.5" style={{ borderBottom: "1px solid var(--divider)" }}>
-      <span className="shrink-0 text-xs font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 140 }}>{label}</span>
-      <span className="text-sm font-medium whitespace-pre-line flex-1 text-right" style={{ color: display ? "var(--text-primary)" : "#ef4444" }}>
+      <span className="shrink-0 text-[13.5px] font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 140 }}>{label}</span>
+      <span className="text-[15.5px] font-semibold whitespace-pre-line flex-1 text-right" style={{ color: display ? "var(--text-primary)" : "#ef4444" }}>
         {display ?? "— Missing"}
       </span>
     </div>
@@ -192,7 +192,7 @@ function EditableFieldRow({
 
   return (
     <div className="flex items-start gap-3 py-2.5" style={{ borderBottom: "1px solid var(--divider)" }}>
-      <span className="shrink-0 text-xs font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 140 }}>{label}</span>
+      <span className="shrink-0 text-[13.5px] font-medium pt-0.5" style={{ color: "var(--text-muted)", minWidth: 140 }}>{label}</span>
       {editing ? (
         <div className="flex flex-1 items-center gap-1.5">
           <input
@@ -221,7 +221,7 @@ function EditableFieldRow({
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-end gap-1.5">
-          <span className="text-sm font-medium whitespace-pre-line text-right" style={{ color: display ? "var(--text-primary)" : optional ? "var(--text-muted)" : "#ef4444" }}>
+          <span className="text-[15.5px] font-semibold whitespace-pre-line text-right" style={{ color: display ? "var(--text-primary)" : optional ? "var(--text-muted)" : "#ef4444" }}>
             {display ?? (optional ? "— only needed for EXW" : "— Missing")}
           </span>
           {LABEL_TO_FIELD[label] && (
@@ -421,9 +421,9 @@ export default function RequestDetailPage() {
     <div className="portal-page flex flex-col" style={{ minHeight: "100vh" }}>
 
       {/* ── Back bar + header ────────────────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}>
+      <div className="relative mt-4 w-full overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
         {/* breadcrumb */}
-        <div className="flex items-center gap-2 px-6 pt-2.5 pb-1">
+        <div className="flex items-center justify-center gap-2 px-6 pt-5 pb-1">
           <Link href="/requests" className="flex items-center gap-1 text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> Requests
           </Link>
@@ -432,22 +432,22 @@ export default function RequestDetailPage() {
         </div>
 
         {/* sender + badges */}
-        <div className="flex flex-col gap-2 px-6 pb-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col items-center gap-3 px-6 pb-3 text-center">
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               <span className="font-mono text-xs font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
-              <h1 className="text-lg font-bold text-white">{request.senderName}</h1>
+              <h1 className="font-display text-[34px] font-extrabold leading-tight text-white">{request.senderName}</h1>
               {aog && <AogBadge />}
               {dgr && <DgrBadge />}
               <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
             </div>
             {/* route / POL → POD */}
-            <div className="mt-1 flex items-center gap-2 flex-wrap">
+            <div className="mx-auto mt-4 flex items-center justify-center gap-3 flex-wrap rounded-2xl px-5 py-3" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
               {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POL</span>}
-              <span className="text-sm font-semibold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
+              <span className="font-display text-[19px] font-bold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
               <ArrowRight className="h-4 w-4 text-white/40" />
               {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POD</span>}
-              <span className="text-sm font-semibold text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</span>
+              <span className="font-display text-[19px] font-bold text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</span>
               {exwMissing && (
                 <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>
                   <AlertTriangle className="h-3 w-3" /> {EXW_ALERT}
@@ -460,22 +460,23 @@ export default function RequestDetailPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1.5"><SourceBadge source={request.source} /><IntakeBadge source={request.intakeSource} light />{request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}</div>
+          <div className="flex flex-wrap items-center justify-center gap-2"><SourceBadge source={request.source} /><IntakeBadge source={request.intakeSource} light />{request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}</div>
         </div>
 
         {/* outcome & booking: the decision on this request, always at the top */}
-        <div className="px-6 pb-2">
+        <div className="px-6 pb-3">
           <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
         </div>
 
         {/* tabs */}
-        <div className="flex px-6 gap-1">
+        <div className="flex justify-center gap-2 px-6 pb-5 pt-1">
           {(["details", "quotes"] as const).map((t) => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className="px-4 py-2 text-sm font-semibold capitalize transition-colors"
+              className="rounded-full px-6 py-2.5 text-[15px] font-bold capitalize transition"
               style={{
-                color: activeTab === t ? "var(--brand-accent)" : "rgba(255,255,255,0.5)",
-                borderBottom: activeTab === t ? "2px solid var(--brand-accent)" : "2px solid transparent",
+                color: activeTab === t ? "var(--brand-navy)" : "rgba(255,255,255,0.8)",
+                background: activeTab === t ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",
+                border: activeTab === t ? "1.5px solid var(--brand-accent)" : "1.5px solid rgba(255,255,255,0.22)",
               }}>
               {t === "details" ? "Shipment Details" : "Carrier Quotes"}
             </button>
@@ -535,7 +536,7 @@ export default function RequestDetailPage() {
                 return (
                   <div className="ds-card">
                     <div className="ds-card-header">
-                      <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
+                      <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
                       <div className="flex items-center gap-2">
                         {missingCount > 0 && (
                           <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
@@ -655,8 +656,8 @@ export default function RequestDetailPage() {
             <div className="space-y-4 lg:col-span-2">
 
               {/* Sender */}
-              <div className="ds-card p-4">
-                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Sender</h4>
+              <div className="ds-card p-6">
+                <h4 className="mb-3 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Sender</h4>
                 <p className="font-semibold text-sm mb-2" style={{ color: "var(--text-primary)" }}>{request.senderName}</p>
                 <CopyRow icon={Mail} value={request.senderEmail ?? ""} />
                 <CopyRow icon={Phone} value={request.senderPhone ?? ""} />
@@ -667,42 +668,41 @@ export default function RequestDetailPage() {
               </div>
 
               {/* Timeline */}
-              <div className="ds-card p-4">
+              <div className="ds-card p-6">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Timeline</h4>
+                  <h4 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
                   <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
                 </div>
                 <RequestTimeline requestId={request.id} refreshKey={request.status} />
               </div>
 
               {/* Special flags */}
-              <div className="ds-card p-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Special Flags</h4>
+              <div className="ds-card p-6">
+                <h4 className="mb-4 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Special Flags</h4>
                 <div className="space-y-2">
                   {[
                     { key: "aog" as const, label: "AOG — Aircraft on Ground", color: "#ef4444", state: aog },
                     { key: "dgr" as const, label: "DGR — Dangerous Goods", color: "#f59e0b", state: dgr },
                   ].map(({ key, label, color, state }) => (
-                    <button key={key} onClick={() => toggleFlag(key)}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
-                      style={{ border: `1px solid ${state ? color + "40" : "var(--card-border)"}`, background: state ? color + "0a" : "transparent" }}>
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded"
-                        style={{ background: state ? color : "var(--card-border)" }}>
-                        {state && <Check className="h-3 w-3 text-white" />}
+                    <button key={key} onClick={() => toggleFlag(key)} role="switch" aria-checked={state}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left transition-colors"
+                      style={{ border: `1.5px solid ${state ? color + "60" : "var(--card-border)"}`, background: state ? color + "0f" : "transparent" }}>
+                      <span className="text-[14px] font-semibold" style={{ color: state ? color : "var(--text-primary)" }}>{label}</span>
+                      <span className="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors" style={{ background: state ? color : "var(--card-border)" }}>
+                        <span className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform" style={{ transform: state ? "translateX(24px)" : "translateX(4px)" }} />
                       </span>
-                      <span className="text-xs font-medium" style={{ color: state ? color : "var(--text-secondary)" }}>{label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Reply thread */}
-              <div className="ds-card p-4">
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Reply Thread</h4>
+              <div className="ds-card p-6">
+                <h4 className="mb-4 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Reply Thread</h4>
                 {replyThread.length > 0 ? (
                   <div className="space-y-2">
                     {replyThread.map((msg, i) => (
-                      <div key={i} className="rounded-lg p-3 text-xs leading-relaxed"
+                      <div key={i} className="rounded-2xl p-4 text-[13.5px] leading-relaxed"
                         style={{
                           border: msg.role === "system" ? "1px solid rgba(59,130,246,0.2)" : "1px solid var(--card-border)",
                           background: msg.role === "system" ? "rgba(59,130,246,0.06)" : "var(--table-header-bg)",

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-const mk=(v:string)=>(()=>({variable:v,className:''}));const IBM_Plex_Sans=mk('--font-sans'),IBM_Plex_Mono=mk('--font-mono'),Bricolage_Grotesque=mk('--font-display');
+import { IBM_Plex_Sans, IBM_Plex_Mono, Bricolage_Grotesque } from 'next/font/google'
 import './globals.css'
 
 const ibmPlexSans = IBM_Plex_Sans({

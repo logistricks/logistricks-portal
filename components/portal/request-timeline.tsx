@@ -58,39 +58,39 @@ export function RequestTimeline({ requestId, refreshKey }: { requestId: string; 
         <button onClick={() => void load()} className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--text-muted)" }}><RefreshCw className="h-3 w-3" /> Refresh</button>
       </div>
       <ol className="relative">
-        <span aria-hidden className="absolute bottom-2 left-[13px] top-2 w-px" style={{ background: "var(--divider)" }} />
+        <span aria-hidden className="absolute bottom-2 left-[19px] top-2 w-0.5" style={{ background: "var(--divider)" }} />
         {list.map((e, i) => {
           const { color, Icon } = KIND[e.kind] ?? KIND.added
           const expandable = !!(e.body || e.subject || e.from || e.to)
           const isOpen = open.has(e.id)
           const gap = i > 0 ? Date.parse(e.at) - Date.parse(list[i - 1].at) : null
           return (
-            <li key={e.id} className="relative pb-3 pl-9">
-              <span className="absolute left-0 top-0.5 flex h-[27px] w-[27px] items-center justify-center rounded-full" style={{ background: `color-mix(in srgb, ${color} 16%, var(--card-bg))`, border: `1.5px solid ${color}`, color }}>
-                <Icon className="h-3.5 w-3.5" />
+            <li key={e.id} className="relative pb-5 pl-14">
+              <span className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-full" style={{ background: `color-mix(in srgb, ${color} 18%, var(--card-bg))`, border: `2px solid ${color}`, color, boxShadow: `0 6px 14px -8px ${color}` }}>
+                <Icon className="h-[18px] w-[18px]" />
               </span>
               <button
                 type="button"
                 disabled={!expandable}
                 onClick={() => flip(e.id)}
                 aria-expanded={isOpen}
-                className="w-full rounded-lg px-2.5 py-1.5 text-left transition-colors"
+                className="w-full rounded-xl px-3 py-2 text-left transition-colors hover:bg-[var(--table-header-bg)]"
                 style={{ background: isOpen ? "var(--table-header-bg)" : "transparent", cursor: expandable ? "pointer" : "default" }}
               >
                 <span className="flex items-start justify-between gap-2">
-                  <span className="text-[13px] font-semibold" style={{ color: e.kind === "failed" ? "#ef4444" : "var(--text-primary)" }}>{e.title}</span>
+                  <span className="text-[15px] font-bold" style={{ color: e.kind === "failed" ? "#ef4444" : "var(--text-primary)" }}>{e.title}</span>
                   {expandable && <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 transition-transform" style={{ color: "var(--text-muted)", transform: isOpen ? "rotate(180deg)" : undefined }} />}
                 </span>
-                <span className="mt-0.5 block font-mono text-[11.5px] tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                <span className="mt-0.5 block font-mono text-[12.5px] tabular-nums" style={{ color: "var(--text-secondary)" }}>
                   {fmtDateTimeSec(e.at)}
                   {gap != null && gap >= 0 && <span style={{ color: "var(--text-muted)" }}>{`  ·  +${fmtDuration(gap)}`}</span>}
                 </span>
                 {(e.from || e.to) && (
-                  <span className="mt-0.5 block break-words text-[11.5px]" style={{ color: "var(--text-secondary)" }}>
+                  <span className="mt-0.5 block break-words text-[13px]" style={{ color: "var(--text-secondary)" }}>
                     {e.from && <b className="font-semibold">{e.from}</b>}{e.from && e.to && " → "}{e.to && <span>{e.to}</span>}
                   </span>
                 )}
-                {e.note && <span className="mt-0.5 block text-[11.5px] font-medium" style={{ color: e.kind === "carrier_reply" ? "#10b981" : "var(--text-muted)" }}>{e.note}</span>}
+                {e.note && <span className="mt-0.5 block text-[13px] font-medium" style={{ color: e.kind === "carrier_reply" ? "#10b981" : "var(--text-muted)" }}>{e.note}</span>}
               </button>
               {isOpen && (
                 <div className="mt-1 rounded-lg px-3 py-2.5" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", animation: "lt-drop-in .16s ease-out" }}>

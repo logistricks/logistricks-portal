@@ -63,9 +63,9 @@ export function SpecialRequestsCard({ requirements, questions = [], reference, o
   const total = requirements.length + questions.length
   const preview = requirements.slice(0, 2)
   return (
-    <div className="ds-card p-5">
+    <div className="ds-card p-6">
       <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+        <h4 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>
           Special requests{total ? ` (${requirements.length}${questions.length ? ` + ${questions.length} questions` : ""})` : ""}
         </h4>
         {total > 0 && (

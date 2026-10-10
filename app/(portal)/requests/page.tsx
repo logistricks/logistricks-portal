@@ -49,16 +49,16 @@ function Toggle({ on, onClick, children, count, tone }: { on: boolean; onClick: 
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className="rq-chip-btn inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+      className="rq-chip-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-bold"
       style={{
-        border: `1px solid ${on ? c : "var(--card-border)"}`,
+        border: `1.5px solid ${on ? c : "var(--card-border)"}`,
         background: on ? `color-mix(in srgb, ${c} 16%, var(--card-bg))` : "var(--card-bg)",
         color: on ? c : "var(--text-secondary)",
       }}
     >
       {children}
       {count !== undefined && (
-        <span className="rounded-full px-1.5 text-[10px] tabular-nums" style={{ background: on ? c : "var(--table-header-bg)", color: on ? "#fff" : "var(--text-muted)" }}>{count}</span>
+        <span className="rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ background: on ? c : "var(--table-header-bg)", color: on ? "#fff" : "var(--text-muted)" }}>{count}</span>
       )}
     </button>
   )
@@ -251,11 +251,7 @@ export default function RequestsPage() {
   if (loading) {
     return (
       <div className="portal-page space-y-5 p-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
-            Requests
-          </h2>
-        </div>
+        <PageHero eyebrow="Inbox" title="Requests" />
         <div className="flex items-center justify-center gap-2 py-24" style={{ color: "var(--text-muted)" }}>
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Loading requests…</span>
@@ -328,7 +324,7 @@ export default function RequestsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search ref, sender, cargo, route…  ( / )"
-                className="h-8 w-full rounded-lg pl-9 pr-8 text-sm outline-none"
+                className="h-11 w-full rounded-xl pl-10 pr-8 text-[14px] outline-none"
                 style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
               />
               {search && (
@@ -383,7 +379,7 @@ export default function RequestsPage() {
       {/* Table */}
       <div className="ds-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="rq-table w-full min-w-[900px] text-left text-sm">
+          <table className="rq-table w-full text-left text-sm">
             <thead style={{ background: "var(--table-header-bg)" }}>
               <tr>
                 <th className="w-10 px-3 py-2.5">
@@ -398,7 +394,7 @@ export default function RequestsPage() {
                   />
                 </th>
                 {["Ref", "Sender", "Route", "Cargo", "Flags", "Status", "Received", ""].map((h, i) => (
-                  <th key={i} className="px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{h}</th>
+                  <th key={i} className={`${h === "Cargo" ? "hidden xl:table-cell " : ""}${h === "Received" ? "hidden lg:table-cell " : ""}px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide`} style={{ color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -442,7 +438,7 @@ export default function RequestsPage() {
                       </span>
                       {r.incoterm && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{r.incoterm}</span>}
                     </td>
-                    <td className="max-w-[200px] px-3 py-4">
+                    <td className="hidden max-w-[200px] px-3 py-4 xl:table-cell">
                       <p className="truncate" style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
                       {r.equipment && <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>}
                     </td>
@@ -471,7 +467,7 @@ export default function RequestsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 font-mono text-[12.5px] tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
+                    <td className="hidden whitespace-nowrap px-3 py-4 font-mono text-[12.5px] tabular-nums lg:table-cell" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
                       {r.receivedRelative}
                     </td>
                     <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>

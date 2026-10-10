@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react"
 
 export const CHART_COLORS = [
-  "var(--brand-accent)", "#3B82F6", "#16a34a", "#7c3aed", "#0ea5e9", "#dc2626", "#eab308", "#64748b",
+  "var(--brand-accent)", "#2F5D9B", "#16a34a", "#C25E0A", "#6B8DB8", "#dc2626", "#eab308", "#64748b",
 ]
 
 export function useWidth<T extends HTMLElement>() {

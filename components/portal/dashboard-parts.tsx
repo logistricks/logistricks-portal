@@ -74,13 +74,13 @@ export function RangeFilter({ range, onChange, compact }: { range: DashRange; on
   const apply = (f: string, t: string) => onChange(makeRange("custom", f, t))
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex gap-0.5 rounded-[7px] p-0.5" style={{ background: "var(--page-bg)", border: "1px solid var(--card-border)" }}>
+      <div className="flex gap-1 rounded-full p-1.5" style={{ background: "var(--card-bg)", border: "1.5px solid var(--card-border)", boxShadow: "var(--card-shadow)" }}>
         {PRESETS.map((p) => (
           <button key={p.key} type="button"
             onClick={() => (p.key === "custom" ? apply(cFrom, cTo) : onChange(makeRange(p.key)))}
-            className="rounded-[5px] px-3 py-1 text-[12px] font-medium"
+            className="rounded-full px-5 py-2 text-[14px] font-bold transition"
             style={range.key === p.key
-              ? { background: "var(--brand-accent)", color: "#fff", boxShadow: "0 1px 4px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .3))" }
+              ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 6px 14px -6px rgb(var(--brand-accent-rgb) / .6)" }
               : { background: "transparent", color: "var(--text-secondary)" }}>
             {p.label}
           </button>
@@ -119,19 +119,17 @@ export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent
   { label: string; kpi?: Kpi; format?: (n: number) => string; spark?: number[]; color?: string; lowerIsBetter?: boolean; hint?: string; loading?: boolean }) {
   const f = format ?? ((n: number) => Math.round(n).toLocaleString("en-US"))
   return (
-    <div className="ds-card kpi-card p-4" title={hint}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>{label}</p>
-        {!loading && kpi && <Delta cur={kpi.value} prev={kpi.prev} lowerIsBetter={lowerIsBetter} />}
-      </div>
-      <div className="mt-1.5 flex items-end justify-between gap-2">
-        {loading || !kpi ? <Skeleton h={30} w={72} /> : (
-          <p className="font-display text-[32px] font-extrabold leading-tight tabular-nums" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
+    <div className="ds-card kpi-card flex flex-col items-center p-6 text-center" title={hint}>
+      <p className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>{label}</p>
+      <div className="mt-3 flex justify-center">
+        {loading || !kpi ? <Skeleton h={44} w={96} /> : (
+          <p className="font-display text-[46px] font-extrabold leading-none tabular-nums" style={{ color: "var(--brand-navy)", letterSpacing: "-0.03em" }}>
             <CountUp value={kpi.value} format={f} />
           </p>
         )}
-        {!loading && spark && <Spark values={spark} color={color} />}
       </div>
+      <div className="mt-3">{!loading && kpi && <Delta cur={kpi.value} prev={kpi.prev} lowerIsBetter={lowerIsBetter} />}</div>
+      <div className="mt-3 flex justify-center">{!loading && spark && <Spark values={spark} color={color} />}</div>
     </div>
   )
 }
@@ -141,8 +139,8 @@ export function Card({ title, sub, right, children, className = "" }: { title: s
     <div className={`ds-card ${className}`}>
       <div className="ds-card-header">
         <div>
-          <span className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>{title}</span>
-          {sub && <div className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>{sub}</div>}
+          <span className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>{title}</span>
+          {sub && <div className="mt-0.5 text-[13px]" style={{ color: "var(--text-muted)" }}>{sub}</div>}
         </div>
         {right}
       </div>
