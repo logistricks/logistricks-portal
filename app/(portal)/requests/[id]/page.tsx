@@ -96,11 +96,18 @@ function stripHtml(html: string): string {
 function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier | undefined, templates: Template[]): string {
   const t = templates.find((x) => String(x.template_id) === tId)
   if (!t) return ""
+  const list = (a?: string[]) => (a ?? []).filter(Boolean).join("\n")
   const map: Record<string, string> = {
-    sender_name: req.senderName, origin: `${req.originCity}, ${req.originCountry}`,
-    destination: `${req.destinationCity}, ${req.destinationCountry}`, cargo_type: req.cargoType,
-    weight: req.weight ?? "", equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "", request_ref: req.requestRef ?? "",
-    carrier_name: carrier?.name ?? "", missing_fields: (req.missingFields ?? []).join(", ") || (req.suggestedReply ?? ""),
+    sender_name: req.senderName ?? "", sender_email: req.senderEmail ?? "",
+    origin_city: req.originCity ?? "", origin_country: req.originCountry ?? "",
+    destination_city: req.destinationCity ?? "", destination_country: req.destinationCountry ?? "",
+    origin: `${req.originCity}, ${req.originCountry}`, destination: `${req.destinationCity}, ${req.destinationCountry}`,
+    cargo_type: req.cargoType ?? "", quantity: req.quantity ?? "", weight: req.weight ?? "", dimensions: req.dimensions ?? "",
+    equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "",
+    bl_type: req.blType ?? "", preferred_carrier: req.preferredCarrier ?? "", request_ref: req.requestRef ?? "",
+    special_requirements: list(req.specialRequirements), availability_questions: list(req.availabilityQuestions),
+    carrier_name: carrier?.name ?? "", contact_name: carrier?.name ? "" : (req.senderName ?? ""),
+    missing_fields: (req.missingFields ?? []).join(", ") || (req.suggestedReply ?? ""),
   }
   return applyTemplate(t.body, map, { keepUnknown: true })
 }
