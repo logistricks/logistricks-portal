@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { DatePicker } from "@/components/portal/date-picker"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowDownRight, ArrowUpRight, Calendar, RefreshCw, X } from "lucide-react"
 import { makeRange, type DashRange, type RangeKey, money, hours, percent } from "@/lib/dashboard-range"
@@ -100,9 +101,9 @@ export function RangeFilter({ range, onChange, compact }: { range: DashRange; on
       </div>
       {range.key === "custom" && (
         <div className="range-dates">
-          <input type="date" aria-label="From" value={cFrom} max={cTo} onChange={(e) => { setCFrom(e.target.value); if (e.target.value) apply(e.target.value, cTo) }} />
+          <DatePicker label="From" value={cFrom} max={cTo} onChange={(v) => { setCFrom(v); apply(v, cTo) }} />
           <span>→</span>
-          <input type="date" aria-label="To" value={cTo} min={cFrom} onChange={(e) => { setCTo(e.target.value); if (e.target.value) apply(cFrom, e.target.value) }} />
+          <DatePicker label="To" value={cTo} min={cFrom} onChange={(v) => { setCTo(v); apply(cFrom, v) }} />
         </div>
       )}
       {!compact && (

@@ -1,5 +1,6 @@
 "use client"
 
+import { DatePicker } from "@/components/portal/date-picker"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Download, FileSpreadsheet, Loader2, Play, Printer, X } from "lucide-react"
 import { type ReportDef, type ReportResult } from "@/lib/reports/catalog"
@@ -125,9 +126,9 @@ export function ReportModal({ report, onClose }: { report: ReportDef; onClose: (
                 </div>
                 {pk === "custom" && (
                   <div className="range-dates">
-                    <input type="date" aria-label="From" value={cf} max={ct} onChange={(e) => { dirty.current = true; setCf(e.target.value) }} />
+                    <DatePicker label="From" value={cf} max={ct} onChange={(v) => { dirty.current = true; setCf(v) }} />
                     <span>→</span>
-                    <input type="date" aria-label="To" value={ct} min={cf} onChange={(e) => { dirty.current = true; setCt(e.target.value) }} />
+                    <DatePicker label="To" value={ct} min={cf} onChange={(v) => { dirty.current = true; setCt(v) }} />
                   </div>
                 )}
                 <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>{per.label}</span>
