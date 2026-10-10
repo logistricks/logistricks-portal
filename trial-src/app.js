@@ -458,7 +458,7 @@ function renderExport(){
 
 /* ---------- gallery ---------- */
 var FEATS=[
- ["Intake from anywhere","Requests arrive from WhatsApp, or you drop emails and files in by hand. Each one is read the same way.",'<span class="atog on">WhatsApp</span><span class="atog on">.eml and .msg</span><span class="atog on">PDF</span><span class="atog on">Pasted text</span>',"M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"],
+ ["Intake from anywhere","Connect your mailbox so requests are read as they arrive, take them in from WhatsApp, or drop emails and files in by hand. Each one is read the same way.",'<span class="atog on">Connected mailbox</span><span class="atog on">WhatsApp</span><span class="atog on">.eml and .msg</span><span class="atog on">PDF and files</span><span class="atog on">Pasted text</span>',"M3 7l9 6 9-6M3 7v10h18V7M3 7h18"],
  ["Full automation","You choose what runs on its own, and what waits for you.",'<span class="atog on">Missing-info reply</span><span class="atog on">Acknowledgement</span><span class="atog on">Carrier quote requests</span><span class="atog">Send quotation to client</span>',"M13 2 3 14h7l-1 8 10-12h-7z"],
  ["AI request analyst","The AI reads every email and attachment, checks the data for gaps and risks, and drafts the replies to your client and your carriers in their language, ready for you to approve.","3 replies drafted, 2 risks flagged","M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"],
  ["Quote comparison","Every carrier on one screen with the best rate marked.","Best rate: 4,720.00","M4 20V10M10 20V4M16 20v-7M22 20H2"],
