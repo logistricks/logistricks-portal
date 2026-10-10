@@ -8,7 +8,7 @@ import { isTrialOwner } from "@/lib/trial-owner"
 export const runtime = "nodejs"
 const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 const rnd = (n: number) => Array.from({ length: n }, () => CH[randomInt(CH.length)]).join("")
-export const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks.com").replace(/\/+$/, "")
+const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks.com").replace(/\/+$/, "")
 
 async function admin_(req: NextRequest) {
   const s = await sessionWithRole(req)
