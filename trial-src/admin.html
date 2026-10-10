@@ -303,7 +303,31 @@ body.locked-app>#appRoot{display:none}
 
 .wrap{max-width:1160px}
 .cons{padding-block:36px 80px;display:grid;gap:22px}
+
+.gen{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.gen .btn{margin-bottom:12px}
+tr.dt>td{background:var(--surface2);padding:18px}
+.ins{display:grid;gap:18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kpis div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kpis small{display:block;font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.kpis b{font:800 20px/1.1 var(--font-display)}
+.ins h4{font:700 13px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.ins .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media(max-width:900px){.ins .two{grid-template-columns:minmax(0,1fr)}}
+.brow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) 84px;gap:10px;align-items:center;margin-bottom:8px;font-size:13.5px}
+.brow span:last-child{white-space:nowrap;text-align:right;font-family:var(--font-mono)}
+.tryc{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13.5px;display:grid;gap:6px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag2{font:500 12px/1 var(--font-mono);border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:var(--surface2)}
+.tag2.on{background:var(--good-soft);color:var(--good);border-color:transparent}
+.tag2.off{opacity:.55}
+.ins .timeline{max-height:300px}
+.act .detbtn{background:var(--accent-soft);border-color:var(--accent)}
 .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:20px;align-items:start}
+.row2.one{grid-template-columns:minmax(0,1fr)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 18px}
+.fgrid .hint{grid-column:1/-1}
 .row2.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 @media(max-width:900px){.row2,.row2.even{grid-template-columns:minmax(0,1fr)}}
 .act button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 9px;font-size:12.5px;margin:2px 2px 0 0}
@@ -329,12 +353,15 @@ body.locked-app>#appRoot{display:none}
 <div class="chrome-right" style="margin-left:auto"><button class="btn btn-ghost btn-sm" id="lo" type="button">Sign out</button><button class="icon-btn" id="tb" type="button" aria-label="Switch light and dark mode"></button></div></div></header>
 <main class="wrap cons">
   <div><span class="eyebrow">Never shown to leads</span><h2 style="font-size:32px;margin-top:8px">Trial leads</h2><p class="hint" id="intro" style="margin-top:6px;max-width:70ch"></p><div class="err" id="ge"></div></div>
-  <div class="row2">
-    <form class="card" id="cf"><h3>Create a lead</h3>
+  <div class="row2 one">
+    <form class="card" id="cf"><h3>Create a lead</h3><div class="fgrid">
       <label class="f" for="co">Company<input id="co" type="text" required></label>
       <label class="f" for="ct">Contact name<input id="ct" type="text"></label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label class="f" for="tr">Tries<input id="tr" type="number" min="1" max="10" value="2"></label><label class="f" for="dy">Login open (days)<input id="dy" type="number" min="1" max="90" value="14"></label></div>
-      <button class="btn btn-primary" type="submit" id="cb">Create login</button>
+      <div class="gen"><label class="f" for="cc">Code<input id="cc" type="text" autocomplete="off" spellcheck="false" placeholder="Or generate" maxlength="20"></label><button type="button" class="btn btn-line btn-sm" id="gc">Generate</button></div>
+      <div class="gen"><label class="f" for="cp">Password<input id="cp" type="text" autocomplete="off" spellcheck="false" placeholder="Or generate" maxlength="64"></label><button type="button" class="btn btn-line btn-sm" id="gp">Generate</button></div>
+      <p class="hint" style="margin:-4px 0 6px">Type your own, or tap Generate for either one. Leave a box empty and it is generated when you create the login.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label class="f" for="tr">Tries<input id="tr" type="number" min="1" max="10" value="2"></label><label class="f" for="dy">Login open (days)<input id="dy" type="number" min="1" max="90" value="5"></label></div>
+      </div><button class="btn btn-primary" type="submit" id="cb">Create login</button>
       <div id="cred"></div></form>
     <div class="card"><h3>All leads</h3><div class="tablewrap"><table class="t" id="lt"></table></div></div>
   </div>
@@ -355,9 +382,33 @@ function pt(){$("#tb").textContent=dark()?"Light":"Dark"}
 $("#tb").addEventListener("click",function(){document.documentElement.setAttribute("data-theme",dark()?"light":"dark");pt()});pt();
 function ago(i){if(!i)return "Never";var s=Math.max(1,Math.round((Date.now()-Date.parse(i))/1000));if(s<3600)return Math.max(1,Math.round(s/60))+" min ago";if(s<86400)return Math.round(s/3600)+" h ago";return Math.round(s/86400)+" d ago"}
 function inDays(i){if(!i)return "No data";var d=Math.ceil((Date.parse(i)-Date.now())/86400000);return d<=0?"Due now":d===1?"in 1 day":"in "+d+" days"}
-var EV={login:function(){return "Signed in"},login_failed:function(){return "Wrong password"},expired_login:function(){return "Tried to sign in after expiry"},page_opened:function(){return "Opened the page"},try_start:function(m){return "Started try "+(m&&m.try_no)+" ("+((m&&m.mode)||"")+", "+((m&&m.source)||"")+")"},request_read:function(m){return "Request read, "+((m&&m.missing)||0)+" missing"},parse_failed:function(){return "Email could not be read (free)"},quote_read:function(m){return "Carrier quote read, "+((m&&m.charges)||0)+" charges"},quote_failed:function(){return "Quote could not be read (free)"},markup_set:function(m){return "Set markup "+(m&&m.value)+(m&&m.type==="percent"?"%":"")},format_switched:function(m){return "Switched format to "+(m&&m.format)},pdf_downloaded:function(){return "Downloaded the PDF"},excel_exported:function(){return "Downloaded the Excel"},reply_copied:function(){return "Copied the suggested reply"},email_copied:function(){return "Copied the email body"},try_finished:function(m){return "Finished try "+(m&&m.try_no)+(m&&m.duration_ms?" in "+Math.round(m.duration_ms/1000)+" s":"")},locked_click:function(m){return "Tapped locked: "+(m&&m.feature)},cta_click:function(m){return "Tapped: "+((m&&m.feature)||"Book a walkthrough")}};
+var EV={login:function(){return "Signed in"},login_failed:function(){return "Wrong password"},expired_login:function(){return "Tried to sign in after expiry"},page_opened:function(){return "Opened the page"},try_start:function(m){return "Started try "+(m&&m.try_no)+" ("+((m&&m.mode)||"")+", "+((m&&m.source)||"")+")"},request_read:function(m){return "Request read, "+((m&&m.missing)||0)+" missing"},parse_failed:function(){return "Email could not be read (free)"},quote_read:function(m){return "Carrier quote read, "+((m&&m.charges)||0)+" charges"},quote_failed:function(){return "Quote could not be read (free)"},markup_set:function(m){return "Set markup "+(m&&m.value)+(m&&m.type==="percent"?"%":"")},format_switched:function(m){return "Switched format to "+(m&&m.format)},pdf_downloaded:function(){return "Downloaded the PDF"},excel_exported:function(){return "Downloaded the Excel"},reply_copied:function(){return "Copied the suggested reply"},email_copied:function(){return "Copied the email body"},try_finished:function(m){return "Finished try "+(m&&m.try_no)+(m&&m.duration_ms?" in "+Math.round(m.duration_ms/1000)+" s":"")},locked_click:function(m){return "Tapped locked: "+(m&&m.feature)},cta_click:function(m){return "Tapped: "+((m&&m.feature)||"Book now")},sample_picked:function(m){return "Picked sample: "+(m&&m.feature)},file_dropped:function(){return "Dropped an email file"},tip_open:function(m){return "Opened tip: "+(m&&m.feature)},next_click:function(m){return "Used the next arrow: "+(m&&m.feature)},theme_switched:function(){return "Switched light or dark"},dwell:function(){return "Time on page"}};
 function evt(e){return EV[e.type]?EV[e.type](e.meta):e.type.replace(/^admin_/,"Admin: ").replace(/_/g," ")}
 var data=null;
+var openId=null;
+function fmtD(i){return i?new Date(i).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"-"}
+function fmtT(i){var d=new Date(i);return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
+function dur(sec){sec=Math.round(sec||0);return sec<60?sec+" s":Math.floor(sec/60)+" min "+(sec%60)+" s"}
+var SEC={s1:"Step 1 · Request email",s2:"Step 2 · Carrier quote",s3:"Step 3 · Quotation",export:"Excel export",what:"Locked features (beyond the trial)",roi:"Savings calculator"};
+function bars(rows,fmt){var mx=Math.max.apply(null,rows.map(function(r){return r[1]}).concat([1]));return rows.length?rows.map(function(r){return '<div class="brow"><span>'+esc(r[0])+'</span><div class="bar"><i style="width:'+Math.round(r[1]/mx*100)+'%"></i></div><span>'+esc(fmt?fmt(r[1]):r[1])+'</span></div>'}).join(""):'<p class="hint">Nothing yet.</p>'}
+function detailHtml(l){
+  var n=l.insights,top=n.topSection?SEC[n.topSection]:"-";
+  var h='<div class="ins"><div class="kpis">'
+   +'<div><small>Tries started</small><b>'+n.triesStarted+' of '+l.triesTotal+'</b></div><div><small>Tries finished</small><b>'+n.triesFinished+'</b></div>'
+   +'<div><small>Steps looked at</small><b>'+n.stepsLooked+' of 4</b></div><div><small>Time on page</small><b>'+esc(dur(n.totalSeconds))+'</b></div>'
+   +'<div><small>Visits</small><b>'+n.visits+'</b></div><div><small>Locked taps</small><b>'+n.locked.reduce(function(a,x){return a+x.n},0)+'</b></div></div>'
+   +'<div><h4>Looked at the most: '+esc(top)+'</h4>'+bars(Object.keys(SEC).map(function(k){return [SEC[k],n.dwell[k]||0]}),dur)+'</div>'
+   +'<div class="two"><div><h4>What they tried</h4>'+(n.tries.length?n.tries.map(function(t){
+      function tg(on,txt){return '<span class="tag2 '+(on?'on':'off')+'">'+txt+'</span>'}
+      return '<div class="tryc"><b>Try '+t.tryNo+' · '+esc(t.mode||"?")+(t.source?' · from '+esc(t.source):'')+'</b><div class="tags">'+tg(t.requestRead,"Request read")+tg(t.quoteRead,"Quote read")+tg(!!t.markup,t.markup?"Markup "+esc(t.markup):"Markup")+tg(t.pdf,"PDF")+tg(t.excel,"Excel")+tg(t.replyCopied,"Copied reply")+tg(t.emailCopied,"Copied email")+tg(t.finished,t.finished?"Finished"+(t.durationMs?" in "+Math.round(t.durationMs/1000)+" s":""):"Not finished")+'</div>'+(t.price?'<span class="hint">Quoted '+esc(t.currency||"")+' '+esc(t.price)+'</span>':'')+'</div>'}).join(""):'<p class="hint">No try started yet.</p>')
+     +'<h4 style="margin-top:14px">Samples and files</h4>'+(n.samples.length||n.files?n.samples.map(function(x){return '<span class="tag2" style="margin:0 6px 6px 0;display:inline-block">'+esc(x.name)+' ×'+x.n+'</span>'}).join("")+(n.files?'<span class="tag2" style="display:inline-block">Dropped files ×'+n.files+'</span>':''):'<p class="hint">None.</p>')+'</div>'
+   +'<div><h4>What they reached for</h4>'+bars(n.locked.map(function(x){return [x.name,x.n]}))
+     +(n.ctas.length?'<h4 style="margin-top:14px">Booking and calls to action</h4>'+bars(n.ctas.map(function(x){return [x.name,x.n]})):'')
+     +(n.tipsOpened.length?'<h4 style="margin-top:14px">Tips they opened</h4>'+n.tipsOpened.map(function(x){return '<span class="tag2" style="margin:0 6px 6px 0;display:inline-block">'+esc(x.name)+'</span>'}).join(""):'')
+     +'<p class="hint" style="margin-top:10px">Used the next arrow '+n.nextClicks+' times'+(n.firstSeen?'. First seen '+esc(fmtT(n.firstSeen))+'.':'.')+'</p></div></div>'
+   +'<div><h4>Movement, newest first</h4><div class="timeline">'+(n.timeline.length?n.timeline.map(function(e){return '<div class="'+(e.type==="locked_click"||e.type==="cta_click"?"sig":"")+'"><small>'+esc(fmtT(e.at))+'</small><span>'+esc(evt(e))+'</span></div>'}).join(""):'<p class="hint">Nothing yet.</p>')+'</div></div></div>';
+  return h;
+}
 function load(){api("/api/trial-admin/leads").then(function(r){
   if(r.status===401){$("#app").hidden=true;$("#loginBox").hidden=false;return}
   if(!r.ok){$("#ge").textContent=r.json.error||"Could not load.";return}
@@ -365,22 +416,27 @@ function load(){api("/api/trial-admin/leads").then(function(r){
 })}
 function draw(){
   $("#intro").textContent="Create a login, send the message, then watch who tries it and which locked features they reach for. Parsed content is deleted "+data.retentionDays+" days after a lead's last activity, so review each lead inside that window. Leads open "+data.baseUrl+".";
-  $("#lt").innerHTML='<thead><tr><th>Company</th><th>Tries</th><th>Status</th><th>Signals</th><th>Last active</th><th>Data deleted</th><th></th></tr></thead><tbody>'+(data.leads.length?data.leads.map(function(l){
+  $("#lt").innerHTML='<thead><tr><th>Company</th><th>Tries</th><th>Status</th><th>Signals</th><th>Last active</th><th>Open until</th><th>Data deleted</th><th></th></tr></thead><tbody>'+(data.leads.length?data.leads.map(function(l){
     var runs=l.runs.map(function(r){return "Try "+r.tryNo+": "+(r.mode||"?")+(r.finished?" done"+(r.price?" · "+r.currency+" "+r.price:""):" open")}).join(" | ");
-    return '<tr><td><b>'+esc(l.company)+'</b>'+(l.converted?' <span class="st Finished">Won</span>':'')+'<div class="sub2 mono">'+esc(l.code)+(l.contact?' · '+esc(l.contact):'')+'</div>'+(runs?'<div class="sub2">'+esc(runs)+'</div>':'')+'</td><td class="mono">'+l.triesUsed+'/'+l.triesTotal+'</td><td><span class="st '+esc(l.status.replace(" ",""))+'">'+esc(l.status)+'</span>'+(l.hot?' <span class="st hot">Hot</span>':'')+'</td><td class="mono">'+l.signals+'</td><td>'+esc(ago(l.lastActive))+'</td><td>'+esc(inDays(l.dataDeletedAt))+'</td><td class="act">'
-    +'<button data-id="'+l.id+'" data-a="reset_tries">Reset</button><button data-id="'+l.id+'" data-a="extend">+7 d</button><button data-id="'+l.id+'" data-a="'+(l.status==="Disabled"?"enable":"disable")+'">'+(l.status==="Disabled"?"Enable":"Disable")+'</button><button data-id="'+l.id+'" data-a="converted" data-v="'+(!l.converted)+'">'+(l.converted?"Unmark":"Won")+'</button><button data-id="'+l.id+'" data-a="new_password">New pw</button></td></tr>'}).join(""):'<tr><td colspan="7" class="hint">No leads yet.</td></tr>')+'</tbody>';
+    return '<tr><td><b>'+esc(l.company)+'</b>'+(l.converted?' <span class="st Finished">Won</span>':'')+'<div class="sub2 mono">'+esc(l.code)+(l.contact?' · '+esc(l.contact):'')+'</div>'+(runs?'<div class="sub2">'+esc(runs)+'</div>':'')+'</td><td class="mono">'+l.triesUsed+'/'+l.triesTotal+'</td><td><span class="st '+esc(l.status.replace(" ",""))+'">'+esc(l.status)+'</span>'+(l.hot?' <span class="st hot">Hot</span>':'')+'</td><td class="mono">'+l.signals+'</td><td>'+esc(ago(l.lastActive))+'</td><td>'+esc(fmtD(l.expiresAt))+'</td><td>'+esc(inDays(l.dataDeletedAt))+'</td><td class="act">'
+    +'<button class="detbtn" data-id="'+l.id+'" data-a="detail">'+(openId===l.id?"Hide":"Details")+'</button><button data-id="'+l.id+'" data-a="reset_tries">Reset</button><button data-id="'+l.id+'" data-a="extend">+7 d</button><button data-id="'+l.id+'" data-a="'+(l.status==="Disabled"?"enable":"disable")+'">'+(l.status==="Disabled"?"Enable":"Disable")+'</button><button data-id="'+l.id+'" data-a="converted" data-v="'+(!l.converted)+'">'+(l.converted?"Unmark":"Won")+'</button><button data-id="'+l.id+'" data-a="new_password">New pw</button></td></tr>'+(openId===l.id?'<tr class="dt"><td colspan="8">'+detailHtml(l)+'</td></tr>':'')}).join(""):'<tr><td colspan="8" class="hint">No leads yet.</td></tr>')+'</tbody>';
   $("#log").innerHTML=data.activity.length?data.activity.map(function(e){return '<div class="'+(e.type==="locked_click"||e.type==="cta_click"?"sig":"")+'"><small>'+esc(ago(e.at))+'</small><span><b>'+esc(e.lead)+'</b> '+esc(evt(e))+'</span></div>'}).join(""):'<p class="hint">Nothing yet.</p>';
   var mx=Math.max.apply(null,data.signals.map(function(s){return s.count}).concat([1]));
   $("#sig").innerHTML=data.signals.length?data.signals.map(function(s){return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:10px;align-items:center;margin-bottom:12px"><div><div style="font-size:14px;margin-bottom:5px">'+esc(s.feature)+'</div><div class="bar"><i style="width:'+Math.round(s.count/mx*100)+'%"></i></div></div><span class="mono" style="text-align:right">'+s.count+'</span></div>'}).join(""):'<p class="hint">No locked-feature taps yet.</p>';
 }
 $("#lt").addEventListener("click",function(e){var b=e.target.closest("button[data-a]");if(!b)return;var a=b.dataset.a,body={action:a};
+  if(a==="detail"){openId=openId===b.dataset.id?null:b.dataset.id;draw();return}
   if(a==="extend")body.days=7;if(a==="converted")body.value=b.dataset.v==="true";
   if(a==="reset_tries"&&!confirm("Reset this lead's tries?"))return;if(a==="new_password"&&!confirm("Make a new password? The old one stops working."))return;
   send("/api/trial-admin/leads/"+b.dataset.id,"PATCH",body).then(function(r){if(!r.ok){$("#ge").textContent=r.json.error||"Failed.";return}if(r.json.password)window.prompt("New password (shown once). Copy it now:",r.json.password);load()})});
+var CH="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function rnd(n){var a=new Uint32Array(n),o="";crypto.getRandomValues(a);for(var i=0;i<n;i++)o+=CH[a[i]%CH.length];return o}
+$("#gc").addEventListener("click",function(){var ini=($("#co").value.trim().split(/\s+/).map(function(w){return w[0]||""}).join("").toUpperCase().replace(/[^A-Z]/g,"").slice(0,3)+"XXX").slice(0,3);$("#cc").value=ini+"-"+rnd(4)});
+$("#gp").addEventListener("click",function(){$("#cp").value=rnd(10)});
 $("#cf").addEventListener("submit",function(e){e.preventDefault();$("#cb").disabled=true;
-  send("/api/trial-admin/leads","POST",{company:$("#co").value,contact:$("#ct").value,tries:Number($("#tr").value),days:Number($("#dy").value)}).then(function(r){
+  send("/api/trial-admin/leads","POST",{company:$("#co").value,contact:$("#ct").value,code:$("#cc").value,password:$("#cp").value,tries:Number($("#tr").value),days:Number($("#dy").value)}).then(function(r){
     $("#cb").disabled=false;if(!r.ok){$("#ge").textContent=r.json.error||"Could not create.";return}
-    $("#ge").textContent="";var j=r.json;$("#co").value="";$("#ct").value="";
+    $("#ge").textContent="";var j=r.json;$("#co").value="";$("#ct").value="";$("#cc").value="";$("#cp").value="";
     $("#cred").innerHTML='<div class="cred"><div><span>Link</span><code>'+esc(j.link)+'</code></div><div><span>Code</span><code>'+esc(j.code)+'</code></div><div><span>Password</span><code>'+esc(j.password)+'</code></div><div><button class="btn btn-primary btn-sm" id="cm" type="button">Copy outreach message</button></div><p class="hint">The password is shown once. Only its hash is stored. The link carries the code only.</p></div>';
     $("#cm").addEventListener("click",function(){try{navigator.clipboard.writeText(j.message).then(function(){$("#cm").textContent="Copied"})}catch(x){window.prompt("Copy:",j.message)}});load()})});
 $("#lf").addEventListener("submit",function(e){e.preventDefault();$("#le").textContent="";$("#lb").disabled=true;

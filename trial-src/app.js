@@ -30,9 +30,21 @@ C:{label:"Sea, Guadalajara to Hamburg",tag:"Spanish",blurb:"Written in Spanish. 
  carrier:"Dear team,\n\nRef AT-7302. Manzanillo to Hamburg, 1 x 20GP:\n- Ocean freight USD 2,150\n- Bunker surcharge USD 540\n- Origin THC USD 130\n- BL fee USD 60\n- Documentation USD 40\n\nTransit 24 to 28 days. Free time 10 days. Valid 9 days.\n\nRegards,\nAtlántica Line"},
 D:{label:"Road, Rotterdam to Milan",tag:"Road FTL",blurb:"A full truck, urgent, with details missing.",
  email:"Hi,\n\nWe urgently need a truck from Rotterdam to Milan. 22 pallets of packaged consumer goods, about 16,500 kg in total, delivered DAP to our warehouse in Milan. Pickup tomorrow if possible.\n\nPlease quote a full truck and confirm the transit time.\n\nThanks,\nMarco",
- carrier:"Hello,\n\nRef ET-5521. Rotterdam to Milan, full truck, 22 pallets, about 16,500 kg.\n- Road freight FTL USD 1,780\n- Fuel surcharge USD 110\n- Alpine tolls and road fees USD 190\n\nTransit 2 days. Loading and unloading 24 h included. Valid 5 days. Pickup tomorrow is subject to confirmed addresses and pallet dimensions.\n\nRegards,\nEuroTrans"}
+ carrier:"Hello,\n\nRef ET-5521. Rotterdam to Milan, full truck, 22 pallets, about 16,500 kg.\n- Road freight FTL USD 1,780\n- Fuel surcharge USD 110\n- Alpine tolls and road fees USD 190\n\nTransit 2 days. Loading and unloading 24 h included. Valid 5 days. Pickup tomorrow is subject to confirmed addresses and pallet dimensions.\n\nRegards,\nEuroTrans"},
+E:{key:"E",label:"Sea, Foshan to Amman",tag:"Arabic",blurb:"Written in Arabic. Returned in English, with an Arabic reply.",sender:"khaled@alamal-furniture.example",name:"Khaled",
+ email:"مرحباً،\n\nنحتاج إلى عرض سعر لشحن حاوية واحدة 40 قدم (40HC) من الأثاث المكتبي، حوالي 11 طناً، من مصنع المورّد في مدينة فوشان بالصين إلى مستودعنا في عمّان، الأردن. الشحن بنظام EXW.\n\nنرجو تأكيد مدة الرحلة وفترة السماح (الوقت المجاني) في ميناء العقبة. نفضّل 14 يوماً على الأقل.\n\nشكراً،\nخالد",
+ route:{from:"Guangzhou Nansha (CNNSA)",fc:"China",to:"Aqaba (JOAQJ)",tc:"Jordan",chosen:true,note:"The pickup is in Foshan and the delivery is in Amman, both inland. Nansha is the nearest major seaport to Foshan and Aqaba is Jordan's only seaport, so they become the Port of Loading and the Port of Discharge."},
+ mode:"Sea",
+ fields:[["Cargo","Office furniture"],["Equipment","1 x 40HC"],["Weight","11 tons"],["Incoterm","EXW"],["Pickup address",null],["Urgency","Standard"]],
+ special:["Original language: Arabic","Inland pickup: supplier factory, Foshan","Inland delivery: warehouse, Amman","Free time at POD: 14 days minimum requested","Please confirm: transit time, free time at Aqaba"],
+ missing:["Full pickup address of the supplier's factory in Foshan (required for EXW)","Cargo ready date"],conf:80,confL:"Medium",replyKind:"Missing information · Arabic",
+ reply:"مرحباً خالد،\n\nشكراً لطلبكم شحن حاوية 1 x 40HC من الأثاث المكتبي من فوشان إلى عمّان.\n\nلنقدّم لكم سعراً دقيقاً نحتاج إلى معلومتين:\n1. العنوان الكامل لمصنع المورّد في فوشان، لأن الشحن بنظام EXW.\n2. التاريخ الذي ستكون فيه البضاعة جاهزة للاستلام.\n\nفور وصولها سنرسل لكم السعر ومدة الرحلة وخيارات فترة السماح في ميناء العقبة.",
+ carrier:{name:"Red Sea Gulf Line",ref:"RG-6108",days:8,transit:"30 to 34 days",free:"14 days",equip:"1 x 40HC",lane:"Nansha to Aqaba",
+  text:"Dear partner,\n\nRef RG-6108. Nansha to Aqaba, 1 x 40HC:\n- Ocean freight USD 2,980\n- Origin THC USD 125\n- Inland haulage Foshan to Nansha USD 240\n- BL fee USD 55\n- Documentation USD 40\n\nTransit 30 to 34 days. Free time 14 days demurrage and detention. Valid 8 days. Trucking from Aqaba to Amman is not included.\n\nBest regards,\nRed Sea Gulf",
+  lines:[["Ocean freight","per 40HC",1,2980],["Origin THC Nansha","per 40HC",1,125],["Inland haulage Foshan to Nansha","per 40HC",1,240],["Bill of lading fee","per BL",1,55],["Documentation","per shipment",1,40]],
+  flags:[["ok","Free time of 14 days matches the 14 days the client asked for."],["warn","Trucking from Aqaba to Amman is not included in this quote."],["ok","The charge lines add up to the carrier's stated total."]]}}
 };
-var ORDER=["A","B","C","D"];
+var ORDER=["A","B","C","D","E"];
 var SAMPLE_BY_MODE={Sea:"A",Air:"B",Road:"D"};
 
 /* ---------- state ---------- */
@@ -74,7 +86,7 @@ function errCard(el,title,msg,free){
 /* ---------- theme ---------- */
 function curDark(){var t=document.documentElement.getAttribute("data-theme");if(t)return t==="dark";return window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches}
 function paintTheme(){$("#themeBtn").innerHTML=curDark()?ICON.sun:ICON.moon}
-$("#themeBtn").addEventListener("click",function(){document.documentElement.setAttribute("data-theme",curDark()?"light":"dark");paintTheme()});
+$("#themeBtn").addEventListener("click",function(){logEv("theme_switched");document.documentElement.setAttribute("data-theme",curDark()?"light":"dark");paintTheme()});
 paintTheme();
 
 /* ---------- login ---------- */
@@ -94,11 +106,12 @@ function boot(){
   api("/api/trial/me").then(function(r){
     if(!r.ok){$("#loginBox").hidden=false;document.body.classList.add("locked-app");if(r.json&&r.json.error&&r.status!==401)$("#lgErr").textContent=r.json.error;return}
     var l=r.json.lead;st.lead=l;st.usedTries=l.triesUsed;st.total=l.triesTotal;
-    $("#coName").textContent=l.company;
+    $("#coName").textContent=l.company;paintAccess(l);
     $("#loginBox").hidden=true;document.body.classList.remove("locked-app");
     logEv("page_opened");
     renderSamples();ready1();renderIn2();renderExport();updateRail();paintTries();
     if(r.json.run)restore(r.json.run);
+    startHelpers();
   });
 }
 function restore(run){
@@ -116,7 +129,7 @@ var DROP_DEFAULT="Drop an email file here, or click to choose";
 function renderSamples(){
   $("#sampbar").innerHTML=ORDER.map(function(k){var s=S[k];return '<button type="button" class="sample" data-k="'+k+'" aria-pressed="'+(st.pick===k)+'"><b>'+s.label+'</b><span class="tag">'+s.tag+'</span><small>'+s.blurb+'</small></button>'}).join("");
   $$(".sample").forEach(function(b){b.addEventListener("click",function(){
-    st.pick=b.dataset.k;st.file=null;$("#dropTxt").textContent=DROP_DEFAULT;
+    st.pick=b.dataset.k;logEv("sample_picked",{feature:S[st.pick].label});st.file=null;$("#dropTxt").textContent=DROP_DEFAULT;
     $("#bodyIn").value=S[st.pick].email;renderSamples();ready1();
     try{$("#bodyIn").focus({preventScroll:true})}catch(e){}
   })});
@@ -139,7 +152,7 @@ function readTextFile(f,done){
 }
 function takeFile1(f){
   if(f.size>10*1024*1024){toast("That file is larger than 10 MB.");return}
-  st.file=f;st.pick=null;$("#dropTxt").textContent=f.name;renderSamples();
+  st.file=f;st.pick=null;logEv("file_dropped",{feature:"Step 1"});$("#dropTxt").textContent=f.name;renderSamples();
   readTextFile(f,function(t){if(t&&st.file===f)$("#bodyIn").value=t;ready1()});
   ready1();
 }
@@ -171,7 +184,7 @@ $("#parse1").addEventListener("click",function(){
     var j=r.json;st.runId=j.runId;st.tryNo=j.tryNo;st.usedTries=j.triesUsed;st.total=j.triesTotal;
     if(!st.t0||!st.parsed1)st.t0=Date.now();
     cur=j.view;st.parsed1=true;
-    renderResult1();renderReply1();renderIn2();updateRail();ready1();paintTries();
+    renderResult1();renderReply1();renderIn2();updateRail();ready1();paintTries();onParsed1();
   });
 });
 
@@ -206,7 +219,7 @@ function lockedBlock(name,desc,inner){
   return '<div class="locked">'+'<div class="inner">'+inner+'</div><div class="veil"><span class="lockbadge">'+ICON.lock+' Locked</span><b style="font:700 17px/1.2 var(--font-display)">'+esc(name)+'</b><span class="hint" style="max-width:30ch">'+esc(desc)+'</span><button type="button" class="btn btn-line btn-sm lockbtn" data-feat="'+esc(name)+'">Show me this</button></div></div>';
 }
 function bindLocks(root){$$(".lockbtn",root).forEach(function(b){b.addEventListener("click",function(){signal(b.dataset.feat)})})}
-function signal(name){logEv("locked_click",{feature:name});toast("Noted. We will show \""+name+"\" in your walkthrough.")}
+function signal(name){logEv("locked_click",{feature:name});tip("lock","Locked on purpose","This part belongs to the full system. We note what you tap, so your walkthrough starts with the features you care about.");toast("Noted. We will show \""+name+"\" in your walkthrough.")}
 
 /* ---------- step 2 ---------- */
 var DROP2="Drop a File";
@@ -246,7 +259,7 @@ function parse2(){
     st.busy=false;
     if(!r.ok){errCard($("#out2"),"We could not read a quote",r.json.error||"Please try again.",true);ready2();return}
     quote=r.json.quote;st.parsed2=true;
-    saveRun(false).then(function(){renderQuote();renderMarkup();renderOut3();updateRail();ready2()});
+    saveRun(false).then(function(){renderQuote();renderMarkup();renderOut3();updateRail();ready2();onParsed2()});
   });
 }
 function base(){return Math.round(quote.lines.reduce(function(t,l){return t+Math.round(l.amount*100)/100},0)*100)/100}
@@ -280,7 +293,7 @@ function renderMarkup(){
   +'<div style="display:grid;gap:20px;align-content:start"><div class="card"><span class="eyebrow">You quote</span><div class="num" id="mFinal" style="color:var(--accent-strong);margin-top:8px">'+money(p.final,c)+'</div><p class="hint" id="mPct" style="margin-top:6px">Margin '+pct.toFixed(1)+'% of the selling price</p></div>'
   +lockedBlock("Quote comparison","Several carriers on one request, with the best rate and the gaps between them.",cmp)+'</div></div>';
   $$("#markup2 .tabs button").forEach(function(b){b.addEventListener("click",function(){st.mtype=b.dataset.m;st.mval=st.mtype==="percent"?12:150;renderMarkup();renderOut3();saveSoon()})});
-  $("#mval").addEventListener("input",function(e){st.mval=e.target.value;var q=pricing();$("#mMar").textContent=money(q.markup,c);$("#mFinal").textContent=money(q.final,c);$("#mPct").textContent="Margin "+(q.final?(q.markup/q.final*100):0).toFixed(1)+"% of the selling price";renderOut3();saveSoon()});
+  $("#mval").addEventListener("input",function(e){st.mTouched=true;st.mval=e.target.value;var q=pricing();$("#mMar").textContent=money(q.markup,c);$("#mFinal").textContent=money(q.final,c);$("#mPct").textContent="Margin "+(q.final?(q.markup/q.final*100):0).toFixed(1)+"% of the selling price";renderOut3();saveSoon()});
   bindLocks($("#markup2"));
 }
 
@@ -317,10 +330,10 @@ function renderOut3(){
   var cs=$("#cpSubj");if(cs)cs.addEventListener("click",function(){copy(emailParts().subj,"Subject copied")});
   var f=$("#finish");if(f)f.addEventListener("click",finish);
   bindLocks($("#out3"));
-  renderExport();
+  renderExport();onOut3();
 }
 function download(path){
-  clearTimeout(saveT);toast("Preparing your file...");
+  st.dl=true;clearTimeout(saveT);toast("Preparing your file...");
   saveRun(true).then(function(){var a=document.createElement("a");a.href=path+"?run_id="+encodeURIComponent(st.runId);a.download="";document.body.appendChild(a);a.click();document.body.removeChild(a)});
 }
 function finish(){
@@ -338,7 +351,7 @@ function finish(){
   });
 }
 function resetCycle(){
-  st.runId=null;st.tryNo=0;st.parsed1=false;st.parsed2=false;st.finished=false;st.pick=null;st.file=null;st.file2=null;st.carrText="";quote=null;cur=null;srcText="";
+  st.mTouched=false;st.dl=false;st.runId=null;st.tryNo=0;st.parsed1=false;st.parsed2=false;st.finished=false;st.pick=null;st.file=null;st.file2=null;st.carrText="";quote=null;cur=null;srcText="";
   $("#bodyIn").value="";$("#dropTxt").textContent=DROP_DEFAULT;
   $("#out1").innerHTML='<div class="placeholder"><span class="eyebrow">What appears here</span><b>The request, as a clean record</b><p>Pick a sample or add your own email to start try '+(st.usedTries+1)+'.</p></div>';
   $("#reply1").innerHTML="";$("#out2").innerHTML=$("#out2").dataset.ph;$("#markup2").innerHTML="";$("#out3").innerHTML=ph3;$("#done").innerHTML="";
@@ -396,7 +409,121 @@ bindLocks($("#gallery"));
 /* ---------- roi ---------- */
 function roi(){var r=Number($("#rq").value),m=Number($("#mn").value);$("#rqv").textContent=r;$("#mnv").textContent=m;var h=Math.max(0,r*(m-4)*22/60);$("#roiH").textContent=Math.round(h)+" h";$("#roiD").textContent=(h/8).toFixed(1)}
 $("#rq").addEventListener("input",roi);$("#mn").addEventListener("input",roi);roi();
-$("#bookBtn").addEventListener("click",function(){logEv("cta_click",{feature:"Book a walkthrough"});if(BOOKING_URL){window.open(BOOKING_URL,"_blank","noopener")}else{toast("Thank you. We will be in touch to arrange it.")}});
+$("#bookBtn").addEventListener("click",openBook);
+
+/* ---------- access line ---------- */
+var NUM=["zero","one","two","three","four","five","six","seven","eight","nine","ten"];
+function paintAccess(l){
+  $("#heroTries").textContent=NUM[l.triesTotal]||String(l.triesTotal);
+  var ft=$("#heroTries").parentNode;
+  if(l.triesTotal===1)ft.innerHTML=ft.innerHTML.replace("full tries","full try");
+  if(l.expiresAt){var d=Math.max(0,Math.ceil((Date.parse(l.expiresAt)-Date.now())/86400000));
+    $("#heroExp").textContent=", and your access is open until "+fmtDate(l.expiresAt);
+    $("#accessLine").innerHTML=' <b>Your access is open until '+esc(fmtDate(l.expiresAt))+(d>0?' ('+d+(d===1?' day':' days')+' left)':'')+'.</b>';}
+}
+
+/* ---------- tips: a chip at the bottom for 20 s, tap to open a box that stays until closed ---------- */
+var tips={q:[],seen:{},active:null,timer:null};
+function tipsOpenBox(){return !$("#tipBox").hidden}
+function tip(id,title,body){
+  if(tips.seen[id])return;tips.seen[id]=1;
+  try{if(sessionStorage.getItem("tip_"+id))return;sessionStorage.setItem("tip_"+id,"1")}catch(e){}
+  tips.q.push({id:id,title:title,body:body});pumpTips();
+}
+function pumpTips(){
+  if(tips.active||!tips.q.length||tipsOpenBox())return;
+  var t=tips.q.shift();tips.active=t;
+  $("#tipChipT").textContent=t.title;
+  var c=$("#tipChip"),bar=$("#tipBar");c.hidden=false;bar.style.animation="none";void bar.offsetWidth;bar.style.animation="";
+  clearTimeout(tips.timer);tips.timer=setTimeout(function(){hideChip();tips.active=null;pumpTips()},20000);
+}
+function hideChip(){$("#tipChip").hidden=true;clearTimeout(tips.timer)}
+$("#tipChipMain").addEventListener("click",function(e){
+  e.stopPropagation();var t=tips.active;if(!t)return;hideChip();
+  $("#tipBoxT").textContent=t.title;$("#tipBoxP").textContent=t.body;$("#tipBox").hidden=false;logEv("tip_open",{feature:t.title});
+});
+$("#tipChipX").addEventListener("click",function(){hideChip();tips.active=null;pumpTips()});
+function closeBox(){if(tipsOpenBox()){$("#tipBox").hidden=true;tips.active=null;pumpTips()}}
+$("#tipBoxX").addEventListener("click",closeBox);
+document.addEventListener("click",function(e){if(tipsOpenBox()&&!$("#tipBox").contains(e.target)&&!$("#tipChip").contains(e.target))closeBox()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeBox();closeBook()}});
+function onParsed1(){
+  tip("reply","The AI wrote your reply too","The AI reads the email and also writes the suggested reply for you, in the sender's language.");
+  tip("step2","Now the carrier's side","Step 2 is open. Paste or drop the carrier's quote and every charge is itemised, with flags where it does not match what the client asked for.");
+}
+function onParsed2(){
+  tip("markup","Set your margin","Add a percent or a flat amount. It is spread across the lines and the price in your quotation updates as you type.");
+}
+var out3Shown=false;
+function onOut3(){if(out3Shown)return;out3Shown=true;tip("fmt","One quotation, two formats","The PDF and the email body carry the same content. Nothing is sent from this page, you copy or download it.")}
+
+/* ---------- next-step arrow ---------- */
+function nextStep(){
+  if(!st.lead)return null;
+  if(!st.parsed1){
+    if(!st.runId&&!triesLeftForNew())return {el:$("#what"),lbl:"See what else is inside"};
+    var has=$("#bodyIn").value.trim().length>10||!!st.file;
+    return has?{el:$("#parse1"),lbl:"Next: read this email"}:{el:$("#sampbar"),lbl:"Next: pick a sample or drop an email"};
+  }
+  if(!st.parsed2){
+    var has2=(st.carrText||"").trim().length>10||!!st.file2;
+    return has2?{el:$("#parse2"),lbl:"Next: read the carrier quote"}:{el:$("#drop2"),lbl:"Next: add the carrier's quote"};
+  }
+  if(!st.finished){
+    if(!st.mTouched&&$("#mval"))return {el:$("#mval"),lbl:"Next: set your markup"};
+    if(!st.dl&&($("#dlPdf")||$("#dlPdf2")))return {el:$("#dlPdf")||$("#dlPdf2"),lbl:"Next: download your quotation"};
+    return {el:$("#finish")||$("#out3"),lbl:"Next: finish this try"};
+  }
+  if($("#again"))return {el:$("#again"),lbl:"Next: start try "+(st.usedTries+1)};
+  return {el:$("#what"),lbl:"See what else is inside"};
+}
+var nextT=null;
+function paintNext(){
+  var n=st.lead?nextStep():null,b=$("#nextBtn");
+  if(!n||!n.el){b.hidden=true;return}
+  b.hidden=false;if($("#nextLbl").textContent!==n.lbl)$("#nextLbl").textContent=n.lbl;b.setAttribute("aria-label",n.lbl);nextT=n;
+}
+$("#nextBtn").addEventListener("click",function(){
+  paintNext();var n=nextT;if(!n||!n.el)return;logEv("next_click",{feature:n.lbl});
+  n.el.scrollIntoView({behavior:reduced()?"auto":"smooth",block:"center"});
+  n.el.classList.remove("nudge");void n.el.offsetWidth;n.el.classList.add("nudge");
+  setTimeout(function(){n.el.classList.remove("nudge");if(/^(TEXTAREA|INPUT|BUTTON)$/.test(n.el.tagName)){try{n.el.focus({preventScroll:true})}catch(e){}}},1700);
+});
+
+/* ---------- book now ---------- */
+function openBook(){$("#bookModal").hidden=false;logEv("cta_click",{feature:"Book now"})}
+function closeBook(){$("#bookModal").hidden=true}
+$("#bookFab").addEventListener("click",openBook);
+$("#bkX").addEventListener("click",closeBook);
+$("#bookModal").addEventListener("click",function(e){if(e.target===$("#bookModal"))closeBook()});
+$("#bkGo").addEventListener("click",function(){logEv("cta_click",{feature:"Choose a time"});if(BOOKING_URL)window.open(BOOKING_URL,"_blank","noopener")});
+
+/* ---------- what each lead looks at: time per section, sent in small batches ---------- */
+var SECT=["s1","s2","s3","export","what","roi"],vis={},pend={};
+function startHelpers(){
+  $("#nextBtn").hidden=false;$("#bookFab").hidden=false;
+  setInterval(paintNext,500);paintNext();
+  if("IntersectionObserver" in window){
+    var iv=new IntersectionObserver(function(es){es.forEach(function(e){vis[e.target.id]=e.isIntersecting})},{rootMargin:"-40% 0px -40% 0px"});
+    SECT.forEach(function(id){var el=document.getElementById(id);if(el)iv.observe(el)});
+    var io2=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;
+      if(e.target.id==="what")tip("gallery","Everything here is locked","These are parts of the full system. Tap any card to tell us what you want to see in your walkthrough.");
+      if(e.target.id==="roi")tip("roi","Use your own numbers","Slide both bars to match your day. The result updates live.");
+    })},{threshold:.35});
+    ["what","roi"].forEach(function(id){io2.observe(document.getElementById(id))});
+  }
+  setInterval(function(){if(document.visibilityState!=="visible")return;SECT.forEach(function(id){if(vis[id])pend[id]=(pend[id]||0)+1})},1000);
+  setInterval(function(){flushDwell(false)},30000);
+  document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")flushDwell(true)});
+  window.addEventListener("pagehide",function(){flushDwell(true)});
+  setTimeout(function(){if(!st.parsed1&&!st.busy&&$("#bodyIn").value.trim().length<10&&!st.file)tip("idle","New here? Tap a sample","Pick any of the five samples. One is written in Arabic. It fills the email box, then you can read it in one click.")},30000);
+}
+function flushDwell(beacon){
+  var keys=Object.keys(pend);if(!keys.length)return;
+  var body={type:"dwell",sections:pend};pend={};
+  if(beacon&&navigator.sendBeacon){try{navigator.sendBeacon("/api/trial/event",new Blob([JSON.stringify(body)],{type:"application/json"}));return}catch(e){}}
+  post("/api/trial/event",body);
+}
 
 boot();
 })();

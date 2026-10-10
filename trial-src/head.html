@@ -229,11 +229,72 @@ textarea{min-height:130px;resize:vertical}
 .sl .v{font:500 15px/1 var(--font-mono);color:var(--accent-strong)}
 .close{background:linear-gradient(135deg,var(--navy),var(--navy3));color:#fff;border-radius:24px;padding:44px 28px;text-align:center;display:grid;gap:16px;justify-items:center;margin-block:72px 56px}
 .close h2{font-size:clamp(28px,4vw,44px);max-width:20ch}
-footer{padding-block:24px 48px;color:var(--muted);font-size:13px;text-align:center}
+footer{padding-block:24px 120px;color:var(--muted);font-size:13px;text-align:center}
 .h2{font-size:clamp(26px,3.4vw,40px);line-height:1.08}
 section.band{padding-block:72px 0}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--navy);color:#fff;border:1px solid rgba(255,255,255,.2);padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:min(92vw,520px);font-size:14.5px}
+.toast{position:fixed;left:50%;bottom:calc(112px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--navy);color:#fff;border:1px solid rgba(255,255,255,.2);padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:min(92vw,520px);font-size:14.5px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+
+
+/* step 1 layout */
+.s1grid{grid-template-columns:minmax(0,1fr)}
+.inrow{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:stretch}
+.incol{display:grid;gap:10px;grid-template-rows:auto 1fr;min-width:0}
+.inrow .sampbar{grid-template-columns:minmax(0,1fr);gap:6px}
+.inrow .sampbar .sample{padding:8px 12px;gap:2px 10px}
+.inrow .sampbar .sample small{font-size:12.5px}
+.drop.dropfill{height:100%;min-height:220px;align-content:center;border-color:var(--accent);background:var(--accent-soft)}
+@media (max-width:760px){.inrow{grid-template-columns:minmax(0,1fr)}.drop.dropfill{min-height:150px}}
+/* navy and orange feature band */
+section.band#what{background:linear-gradient(135deg,var(--navy),var(--navy3));color:#fff;padding-block:64px;margin-top:64px;position:relative;overflow:hidden}
+section.band#what:before{content:"";position:absolute;right:-120px;top:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(232,130,26,.35),transparent 65%)}
+section.band#what .wrap{position:relative}
+#what .eyebrow{color:#F5B061}
+#what .h2{color:#fff}
+#what .h2 em{font-style:normal;color:#E8821A;box-shadow:inset 0 -.18em 0 rgba(232,130,26,.35)}
+#what .wrap>p{color:rgba(255,255,255,.8)!important}
+#what .feat{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16);color:#fff}
+#what .feat h3{color:#fff}
+#what .feat p{color:rgba(255,255,255,.78)}
+#what .feat .ic{background:rgba(232,130,26,.18);border-color:rgba(232,130,26,.5);color:#E8821A}
+#what .feat .lk{color:#E8821A}
+#what .feat .mini{background:rgba(15,30,54,.55);border:1px dashed rgba(232,130,26,.65);color:#F5B061}
+#what .feat .btn-line{background:#E8821A;border-color:#E8821A;color:#0F1E36;font-weight:700}
+#what .feat .btn-line:hover{background:#F5A04A}
+/* floating helpers */
+.nextbtn{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;display:grid;justify-items:center;gap:6px;background:none;border:0;padding:0;cursor:pointer}
+.nextbtn[hidden],.bookfab[hidden],.tipchip[hidden],.tipbox[hidden],.mback[hidden]{display:none}
+.nextbtn .nlbl{background:var(--navy);color:#fff;font:600 12.5px/1 var(--font-body);padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.25);box-shadow:var(--shadow);max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nextbtn .ncirc{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#F5A04A,#E8821A);color:#0F1E36;box-shadow:0 6px 18px rgba(0,0,0,.28);animation:npulse 2s infinite}
+.nextbtn .ncirc svg{animation:nbounce 1.4s ease-in-out infinite}
+.nextbtn:hover .ncirc{filter:brightness(1.07)}
+.nextbtn:focus-visible .ncirc,.bookfab:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@keyframes npulse{0%{box-shadow:0 6px 18px rgba(0,0,0,.28),0 0 0 0 rgba(232,130,26,.6)}70%{box-shadow:0 6px 18px rgba(0,0,0,.28),0 0 0 16px rgba(232,130,26,0)}100%{box-shadow:0 6px 18px rgba(0,0,0,.28),0 0 0 0 rgba(232,130,26,0)}}
+@keyframes nbounce{0%,100%{transform:translateY(-2px)}50%{transform:translateY(3px)}}
+.bookfab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:70;display:inline-flex;align-items:center;gap:8px;background:#E8821A;color:#0F1E36;border:2px solid #fff;border-radius:999px;padding:13px 20px;font:800 15px/1 var(--font-body);cursor:pointer;animation:bglow 2.4s ease-in-out infinite}
+.bookfab:hover{background:#F5A04A}
+@keyframes bglow{0%,100%{box-shadow:0 0 14px 2px rgba(232,130,26,.55),0 6px 16px rgba(0,0,0,.3)}50%{box-shadow:0 0 30px 8px rgba(232,130,26,.85),0 6px 16px rgba(0,0,0,.3)}}
+.tipchip{position:fixed;left:50%;bottom:calc(118px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:75;width:min(92vw,420px);background:var(--navy);color:#fff;border-radius:14px;border:1px solid rgba(255,255,255,.2);box-shadow:var(--shadow);display:flex;align-items:stretch;overflow:hidden;animation:tin .3s ease}
+@keyframes tin{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+.tipchip .tc-main{flex:1;display:flex;gap:12px;align-items:center;text-align:left;background:none;border:0;color:inherit;padding:12px 8px 14px 14px;cursor:pointer;min-width:0}
+.tipchip .tc-main b{display:block;font-size:14.5px;line-height:1.25}
+.tipchip .tc-main small{color:#F5B061;font-size:12.5px}
+.tipchip .tc-ic{flex:none;width:28px;height:28px;border-radius:50%;background:#E8821A;color:#0F1E36;display:grid;place-items:center;font:800 15px/1 var(--font-display)}
+.tipchip .tc-x,.tb-x{background:none;border:0;color:inherit;font-size:24px;line-height:1;padding:0 14px;cursor:pointer;opacity:.8}
+.tipchip .tc-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:#E8821A;transform-origin:left;animation:tbar 20s linear forwards}
+@keyframes tbar{to{transform:scaleX(0)}}
+.tipbox{position:fixed;left:50%;bottom:calc(118px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:76;width:min(92vw,440px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-top:4px solid #E8821A;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.35);padding:18px 20px;display:grid;gap:8px}
+.tipbox b{font:700 18px/1.25 var(--font-display)}
+.tipbox p{color:var(--muted);font-size:15px;line-height:1.5}
+.tb-x{position:absolute;right:4px;top:6px;color:var(--ink)}
+.mback{position:fixed;inset:0;z-index:90;background:rgba(15,30,54,.6);display:grid;place-items:center;padding:20px}
+.modal{position:relative;width:min(460px,100%);background:var(--surface);color:var(--ink);border-radius:20px;border-top:5px solid #E8821A;padding:28px 24px;display:grid;gap:12px;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.modal h3{font-size:24px;line-height:1.15}
+.modal p{color:var(--muted)}
+.nudge{animation:nudge 1.6s ease}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 rgba(232,130,26,0)}25%,75%{box-shadow:0 0 0 6px rgba(232,130,26,.55)}}
+@media (prefers-reduced-motion:reduce){.nextbtn .ncirc,.nextbtn .ncirc svg,.bookfab,.tipchip,.tipchip .tc-bar,.nudge{animation:none}}
+@media (max-width:480px){.bookfab{padding:12px 15px;font-size:14px}}
 
 /* admin */
 .admin h2{margin-bottom:6px}
@@ -343,14 +404,14 @@ body.locked-app>#appRoot{display:none}
 <main id="top">
 <div id="leadView">
 
-<div class="retain" role="note"><div class="wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span><b>Your data is kept for 5 days.</b> Everything you add here is deleted 5 days after your last activity.</span></div></div>
+<div class="retain" role="note"><div class="wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span><b>Your data is kept for 5 days.</b> Everything you add here is deleted 5 days after your last activity.</span><span id="accessLine"></span></div></div>
 
 <section class="hero">
   <div class="wrap">
     <div>
       <span class="for">Prepared for <b id="coName">you</b></span>
       <h1>Your client's email in. A <em>sendable quotation</em> out.</h1>
-      <p class="lead">Run one real request through Logistricks in about three minutes, from any country: read the email, price the carrier quote, and leave with a quotation you can send. You have two full tries.</p>
+      <p class="lead">Run one real request through Logistricks, from any country: read the email, price the carrier quote, and leave with a quotation you can send. You have <b id="heroTries">two</b> full tries<span id="heroExp"></span>.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#s1" id="startBtn">Start with a sample</a>
         <a class="btn btn-ghost" href="#what">See what else is inside</a>
@@ -359,12 +420,12 @@ body.locked-app>#appRoot{display:none}
     <aside class="trust" aria-label="How this trial works">
       <h3>How this trial treats your data</h3>
       <ul>
-        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Email addresses are shown as <span class="mono">ab*****@*****</span> and never stored.</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>We do not store any emails, client or carrier info.</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>The data is only stored for you to use later, we do not use this data outside this portal.</span></li>
         <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Everything you add is deleted 5 days after your last activity.</span></li>
         <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Nothing is sent to anyone. Every reply and quotation stays on this page.</span></li>
         <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8821A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>A try counts once a request email is read. A failed read is free.</span></li>
       </ul>
-      <div class="facts"><div><b>3</b><span>steps</span></div><div><b>3 min</b><span>per try</span></div><div><b>2</b><span>full tries</span></div></div>
     </aside>
   </div>
 </section>
@@ -380,23 +441,24 @@ body.locked-app>#appRoot{display:none}
       <div class="io"><span><b>You give:</b> an email, typed, pasted or dropped as a file</span><span><b>You get:</b> a clean request and an AI-written suggested reply</span></div>
     </div>
   </div>
-  <div class="grid2">
+  <div class="grid2 s1grid">
     <div class="card">
       <h3>The email</h3>
-      <p class="hint" style="margin-bottom:12px">Start from a sample, or write your own. Samples are only a starting point: change anything, in any language.</p>
-      <div class="sampbar" id="sampbar"></div>
-      <label class="f" for="bodyIn" style="margin-top:16px">Email text
-        <textarea id="bodyIn" dir="auto" rows="10" placeholder="Paste or type the client's request here, in any language."></textarea>
+      <p class="hint" style="margin-bottom:14px">Start from a sample or drop your own email file. Samples are only a starting point: change anything, in any language.</p>
+      <div class="inrow">
+        <div class="incol"><span class="eyebrow">Start from a sample</span><div class="sampbar" id="sampbar"></div></div>
+        <div class="incol"><span class="eyebrow">Or drop your own email</span>
+          <label class="drop dropfill" id="dropBox" for="fileIn">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <b id="dropTxt">Drop an email file here, or click to choose</b>
+            <span class="hint">.eml, .msg or PDF. Attachments are read as part of the request.</span>
+          </label>
+          <input id="fileIn" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
+        </div>
+      </div>
+      <label class="f" for="bodyIn" style="margin-top:18px">Email text. Edit a sample, or type or paste your own.
+        <textarea id="bodyIn" dir="auto" rows="8" placeholder="Paste or type the client's request here, in any language."></textarea>
       </label>
-      
-      <div class="or"><span>or drop an email file</span></div>
-      <label class="drop" id="dropBox" for="fileIn">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-        <b id="dropTxt">Drop an email file here, or click to choose</b>
-        <span class="hint">.eml, .msg or PDF. Attachments are read as part of the request.</span>
-      </label>
-      <input id="fileIn" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
-      <p class="hint" style="margin-top:14px">The AI reads the email and also writes the suggested reply for you, in the sender's language.</p>
       <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" id="parse1" type="button" disabled>Read this email</button>
         <span class="hint" id="parse1hint">Pick a sample or paste your own email.</span>
@@ -475,7 +537,7 @@ body.locked-app>#appRoot{display:none}
 <section class="band" id="what">
   <div class="wrap">
     <span class="eyebrow">Beyond the trial</span>
-    <h2 class="h2" style="margin-top:10px;max-width:22ch">You just used a tenth of it.</h2>
+    <h2 class="h2" style="margin-top:10px;max-width:22ch">You just used <em>a tenth</em> of it.</h2>
     <p style="color:var(--muted);max-width:60ch;margin-top:12px">The full system runs the whole day around that one cycle. Tap any locked feature and we will show it in your walkthrough.</p>
     <div class="gallery" id="gallery"></div>
   </div>
@@ -505,11 +567,17 @@ body.locked-app>#appRoot{display:none}
     <span class="eyebrow" style="color:rgba(255,255,255,.7)">Ready when you are</span>
     <h2>See it run on your own carriers and your own templates.</h2>
     <p style="color:rgba(255,255,255,.8);max-width:52ch">A 20-minute walkthrough on your real requests. No slides.</p>
-    <button class="btn btn-primary" id="bookBtn" type="button">Book a walkthrough</button>
+    <button class="btn btn-primary" id="bookBtn" type="button">Book now</button>
   </section>
-  <footer>Logistricks trial · Email addresses are masked and never stored · Data deleted 5 days after your last activity · Nothing on this page is sent to anyone</footer>
+  <footer>Logistricks trial · We do not store any emails, client or carrier info · Data deleted 5 days after your last activity · Nothing on this page is sent to anyone</footer>
 </div>
 
+
+<button class="nextbtn" id="nextBtn" type="button" hidden aria-label="Go to the next thing to do"><span class="nlbl" id="nextLbl">Next</span><span class="ncirc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14m0 0-6-6m6 6 6-6"/></svg></span></button>
+<button class="bookfab" id="bookFab" type="button" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Book now</button>
+<div class="tipchip" id="tipChip" hidden role="status"><button type="button" class="tc-main" id="tipChipMain"><span class="tc-ic" aria-hidden="true">i</span><span><b id="tipChipT"></b><small>Tap to read more</small></span></button><button type="button" class="tc-x" id="tipChipX" aria-label="Dismiss">&times;</button><i class="tc-bar" id="tipBar"></i></div>
+<div class="tipbox" id="tipBox" hidden role="dialog" aria-labelledby="tipBoxT"><button type="button" class="tb-x" id="tipBoxX" aria-label="Close">&times;</button><span class="eyebrow">Good to know</span><b id="tipBoxT"></b><p id="tipBoxP"></p></div>
+<div class="mback" id="bookModal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="bkT"><button type="button" class="tb-x" id="bkX" aria-label="Close">&times;</button><span class="eyebrow">Arrange a demo</span><h3 id="bkT">See it run on your own carriers and templates</h3><p>A 20-minute walkthrough on your real requests. No slides. Tell us a time that suits you and we will confirm it.</p><button class="btn btn-primary" id="bkGo" type="button">Choose a time</button></div></div>
 </div><!-- leadView -->
 
 </main>
