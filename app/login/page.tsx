@@ -97,7 +97,6 @@ export default function LoginPage() {
         {/* Right: sign-in card */}
         <div className="w-full max-w-[440px] justify-self-center rounded-[24px] bg-white p-8 sm:p-10 lg:justify-self-end" style={{ boxShadow: "0 40px 80px -30px rgba(0,0,0,0.55)" }}>
           <div className="mb-7 flex items-center gap-3">
-            <img src="/logistricks-mark-animated.svg" alt="Logistricks" width={56} height={56} style={{ display: "block", background: "var(--brand-navy)", borderRadius: 14 }} />
             <div>
               <div className="font-display text-[22px] font-extrabold leading-none" style={{ color: "var(--brand-navy)", letterSpacing: "0.06em" }}>LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span></div>
               <div className="mt-1.5 text-[13px]" style={{ color: "#56667e" }}>Sign in to your portal</div>
