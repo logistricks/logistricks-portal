@@ -423,50 +423,49 @@ export default function RequestDetailPage() {
     <div className="portal-page flex flex-col" style={{ minHeight: "100vh" }}>
 
       {/* ── Back bar + header ────────────────────────────────────────────── */}
-      <div className="relative mx-6 mt-4 overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
+      <div className="relative mx-6 mt-4 w-[calc(100%-3rem)] overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
         {/* breadcrumb */}
-        <div className="flex items-center justify-center gap-2 px-6 pt-5 pb-1">
-          <Link href="/requests" className="flex items-center gap-1 text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
-            <ArrowLeft className="h-3.5 w-3.5" /> Requests
+        <div className="flex items-center justify-center gap-2 px-6 pt-3">
+          <Link href="/requests" className="flex items-center gap-1 text-[11.5px] font-medium text-white/55 transition-colors hover:text-white/85">
+            <ArrowLeft className="h-3 w-3" /> Requests
           </Link>
-          <span className="text-white/30 text-xs">/</span>
-          <span className="text-xs text-white/70 truncate max-w-xs">{request.senderName}</span>
+          <span className="text-[11px] text-white/30">/</span>
+          <span className="max-w-xs truncate text-[11.5px] text-white/70">{request.senderName}</span>
         </div>
 
-        {/* sender + badges */}
-        <div className="flex flex-col items-center gap-3 px-6 pb-3 text-center">
-          <div>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <span className="font-mono text-xs font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
-              <h1 className="font-display text-[34px] font-extrabold leading-tight text-white">{request.senderName}</h1>
-              {aog && <AogBadge />}
-              {dgr && <DgrBadge />}
-              <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
-            </div>
-            {/* route / POL → POD */}
-            <div className="mx-auto mt-4 flex items-center justify-center gap-3 flex-wrap rounded-2xl px-5 py-3" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
-              {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POL</span>}
-              <span className="font-display text-[19px] font-bold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
-              <ArrowRight className="h-4 w-4 text-white/40" />
-              {seaOnly && <span className="text-[10px] font-bold uppercase tracking-wide text-white/50">POD</span>}
-              <span className="font-display text-[19px] font-bold text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</span>
-              {exwMissing && (
-                <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>
-                  <AlertTriangle className="h-3 w-3" /> {EXW_ALERT}
-                </span>
-              )}
-              <div className="flex items-center gap-1.5 ml-2 flex-wrap">
-                {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
-                <UrgencyBadge urgency={request.urgency} />
-                <ConfidenceBadge confidence={request.confidence} />
-              </div>
-            </div>
+        {/* title line */}
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-6 pt-1.5">
+          <span className="font-mono text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
+          <h1 className="font-display text-[26px] font-extrabold leading-tight text-white">{request.senderName}</h1>
+          {aog && <AogBadge />}
+          {dgr && <DgrBadge />}
+          <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
+        </div>
+
+        {/* one line: route, mode, urgency, confidence, source */}
+        <div className="mx-auto mt-2.5 flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-2xl px-4 py-2" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
+          {seaOnly && <span className="text-[9.5px] font-bold uppercase tracking-wide text-white/50">POL</span>}
+          <span className="font-display text-[16px] font-bold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
+          <ArrowRight className="h-3.5 w-3.5 text-white/40" />
+          {seaOnly && <span className="text-[9.5px] font-bold uppercase tracking-wide text-white/50">POD</span>}
+          <span className="font-display text-[16px] font-bold text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</span>
+          {exwMissing && (
+            <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>
+              <AlertTriangle className="h-3 w-3" /> {EXW_ALERT}
+            </span>
+          )}
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
+            <UrgencyBadge urgency={request.urgency} />
+            <ConfidenceBadge confidence={request.confidence} />
+            <SourceBadge source={request.source} />
+            <IntakeBadge source={request.intakeSource} light />
+            {request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2"><SourceBadge source={request.source} /><IntakeBadge source={request.intakeSource} light />{request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}</div>
         </div>
 
         {/* outcome & booking: the decision on this request, always at the top */}
-        <div className="on-navy px-5 pb-5 sm:px-6">
+        <div className="on-navy mt-3 px-4 pb-4 sm:px-5">
           <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
         </div>
       </div>
