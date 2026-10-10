@@ -35,7 +35,7 @@ export function PageHero({ eyebrow, title, chips, aside, actions, left, right, o
             <h1 className="text-[32px] font-extrabold leading-[1.05] text-white sm:text-[40px]">{title}</h1>
             {onDown && (
               <button type="button" onClick={onDown} aria-label="Jump to the list"
-                className="mx-auto mt-1 flex h-9 w-9 items-center justify-center rounded-full transition hover:scale-110"
+                className="mx-auto mt-1 flex h-9 w-9 items-center justify-center rounded-full transition"
                 style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 18px -8px rgb(var(--brand-accent-rgb) / 0.9)", animation: "hero-bob 1.8s ease-in-out infinite" }}>
                 <ChevronDown className="h-5 w-5" strokeWidth={3} />
               </button>
@@ -82,7 +82,7 @@ export function HeroChip({ children }: { children: ReactNode }) {
 
 /** Buttons that sit on the navy band. */
 export function HeroButton({ children, onClick, href, primary }: { children: ReactNode; onClick?: () => void; href?: string; primary?: boolean }) {
-  const cls = "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-bold transition-transform hover:-translate-y-px"
+  const cls = "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-bold transition-transform"
   const style = primary
     ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 22px -10px rgb(var(--brand-accent-rgb) / 0.9)" }
     : { background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.32)" }

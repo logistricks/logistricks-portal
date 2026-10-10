@@ -124,7 +124,7 @@ export function QuotationTemplatesPanel() {
           </button>
           <button
             onClick={() => openNew()}
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-90"
             style={{ background: "var(--brand-accent)" }}
           >
             <Plus className="h-4 w-4" /> New Template
@@ -258,7 +258,7 @@ export function QuotationTemplatesPanel() {
                 Cancel
               </button>
               <button onClick={() => handleDeactivateTemplate(inUseTemplate)}
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:brightness-110" style={{ background: "var(--brand-accent)" }}>
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-white hover:brightness-90" style={{ background: "var(--brand-accent)" }}>
                 Deactivate Instead
               </button>
             </div>

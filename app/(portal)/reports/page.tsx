@@ -28,7 +28,7 @@ export default function ReportsPage() {
               {list.map((r) => {
                 const Icon = ICONS[r.icon]
                 return (
-                  <button key={r.id} type="button" onClick={() => setOpen(r)} className="ds-card group flex flex-col items-center gap-3 p-6 text-center transition hover:-translate-y-1">
+                  <button key={r.id} type="button" onClick={() => setOpen(r)} className="ds-card group flex flex-col items-center gap-3 p-6 text-center transition">
                     <div className="flex items-start justify-between">
                       <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .14))" }}>
                         <Icon className="h-5 w-5" style={{ color: "var(--brand-accent)" }} />

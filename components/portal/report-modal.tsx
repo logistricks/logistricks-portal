@@ -95,7 +95,7 @@ export function ReportModal({ report, onClose }: { report: ReportDef; onClose: (
   const shown = result?.rows.slice(0, 500) ?? []
   const Btn = ({ k, icon: I, label, primary }: { k: "display" | "print" | "xls" | "csv"; icon: React.ElementType; label: string; primary?: boolean }) => (
     <button type="button" disabled={!!busy} onClick={() => go(k)}
-      className="flex items-center gap-2 rounded-xl border-[1.5px] px-5 py-2.5 text-[14px] font-bold transition hover:-translate-y-0.5 disabled:opacity-60"
+      className="flex items-center gap-2 rounded-xl border-[1.5px] px-5 py-2.5 text-[14px] font-bold transition disabled:opacity-60"
       style={primary ? { background: "var(--brand-accent)", borderColor: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 20px -10px rgb(var(--brand-accent-rgb) / .8)" } : { background: "var(--card-bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
       {busy === k ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <I className="h-3.5 w-3.5" />}{label}
     </button>

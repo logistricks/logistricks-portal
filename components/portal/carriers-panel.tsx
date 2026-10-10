@@ -184,7 +184,7 @@ export function CarriersPanel() {
         </div>
         <button
           onClick={() => { setEditing(null); setModalOpen(true) }}
-          className="inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.01]" style={{background:"var(--brand-accent)"}}
+          className="inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition-all" style={{background:"var(--brand-accent)"}}
         >
           <Plus className="h-4 w-4" /> Add Carrier
         </button>

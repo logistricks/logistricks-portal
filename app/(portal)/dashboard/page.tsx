@@ -145,13 +145,13 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center justify-center gap-3">
         <RangeFilter range={range} onChange={setRange} compact />
         <button type="button" onClick={() => setBig(true)}
-          className="flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-bold transition hover:-translate-y-0.5"
+          className="flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-bold transition"
           style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 12px 24px -12px rgb(var(--brand-accent-rgb) / .7)" }}>
           <Maximize2 className="h-3.5 w-3.5" />
           Full dashboard
         </button>
         <button type="button" onClick={exportCsv}
-          className="flex items-center gap-2 rounded-xl border-[1.5px] px-6 py-3 text-[14px] font-bold transition hover:-translate-y-0.5"
+          className="flex items-center gap-2 rounded-xl border-[1.5px] px-6 py-3 text-[14px] font-bold transition"
           style={{ borderColor: "var(--brand-navy)", color: "var(--brand-navy)", background: "var(--card-bg)" }}>
           <Download className="h-3.5 w-3.5" />
           Export

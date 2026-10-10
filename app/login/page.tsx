@@ -129,7 +129,7 @@ export default function LoginPage() {
                 className={input} style={inputStyle} onFocus={focus} onBlur={blur} />
             </div>
             <button type="submit" disabled={loading}
-              className="mt-2 h-[52px] w-full rounded-xl text-[16px] font-bold transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-50"
+              className="mt-2 h-[52px] w-full rounded-xl text-[16px] font-bold transition hover:brightness-90 disabled:opacity-50"
               style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 12px 24px -10px rgb(var(--brand-accent-rgb) / 0.6)" }}>
               {loading ? "Signing in…" : "Sign in"}
             </button>

@@ -93,7 +93,7 @@ function ColorField({ label, varName, value, onChange }: {
     <div className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--divider)" }}>
       <div className="relative shrink-0">
         <div
-          className="h-10 w-10 cursor-pointer rounded-lg border-2 transition-transform hover:scale-105"
+          className="h-10 w-10 cursor-pointer rounded-lg border-2 transition-transform"
           style={{ background: value, borderColor: "var(--card-border)" }}
           onClick={() => inputRef.current?.click()}
           title="Pick colour"

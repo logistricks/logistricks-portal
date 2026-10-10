@@ -80,7 +80,7 @@ export function PortalTopbar() {
           className="group flex min-w-0 shrink-0 items-center gap-3 select-none justify-self-start"
         >
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] transition-transform group-hover:-translate-y-px"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] transition-transform group-"
             style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 20px -8px rgb(var(--brand-accent-rgb) / 0.85)" }}
           >
             <Home className="h-[22px] w-[22px]" strokeWidth={2.3} />

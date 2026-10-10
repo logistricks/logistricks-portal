@@ -750,14 +750,14 @@ export default function RequestDetailPage() {
             onClick={() => setFwdOpen(true)}
             disabled={activeQuotes.length === 0 || request.status === "Closed"}
             title={activeQuotes.length === 0 ? "Needs at least one active quote" : "Send a quotation to the original sender"}
-            className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
+            className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all enabled:.5 enabled: disabled:cursor-not-allowed disabled:opacity-45"
             style={{ background: "var(--brand-accent)", boxShadow: activeQuotes.length ? "0 0 0 1px rgb(var(--brand-accent-rgb) / 0.35), 0 6px 16px -4px rgb(var(--brand-accent-rgb) / 0.6), 0 0 22px rgb(var(--brand-accent-rgb) / 0.35)" : "none" }}>
             <Send className="h-3.5 w-3.5" /> Forward to {request.senderName}
           </button>
         ) : (
           <>
         <button onClick={() => setRfqOpen(true)}
-          className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all hover:-translate-y-0.5 active:translate-y-0"
+          className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all"
           style={{ background: "var(--brand-accent)", boxShadow: "0 0 0 1px rgb(var(--brand-accent-rgb) / 0.35), 0 6px 16px -4px rgb(var(--brand-accent-rgb) / 0.6), 0 0 22px rgb(var(--brand-accent-rgb) / 0.35)" }}>
           <Mail className="h-3.5 w-3.5" /> Send to Carrier
         </button>
@@ -770,7 +770,7 @@ export default function RequestDetailPage() {
               setActiveTab("details")
             }
           }}
-          className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
+          className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold transition-all"
           style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)", boxShadow: "0 6px 16px -6px rgba(0,0,0,0.35), 0 0 18px rgb(var(--brand-accent-rgb) / 0.12)" }}>
           <Reply className="h-3.5 w-3.5" />
           Reply to {request.senderName}

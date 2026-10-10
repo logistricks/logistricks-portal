@@ -70,7 +70,7 @@ function ColorField({
       {/* Color swatch / native picker */}
       <div className="relative shrink-0">
         <div
-          className="h-10 w-10 cursor-pointer rounded-lg border-2 transition-transform hover:scale-105"
+          className="h-10 w-10 cursor-pointer rounded-lg border-2 transition-transform"
           style={{ background: value, borderColor: "var(--card-border)" }}
           onClick={() => inputRef.current?.click()}
           title="Pick colour"
