@@ -70,8 +70,8 @@ export function IntakeLogButton() {
   return (
     <>
       <button onClick={() => setOpen(true)} title="Email intake log — what happened to each email you added"
-        className="relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
-        style={{ color: "var(--text-secondary)", border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
+        className="relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition hover:bg-white/15"
+        style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.08)" }}>
         {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "#2563eb" }} /> : <Activity className="h-3.5 w-3.5" />}
         Intake log
         {failed > 0 && !running && (

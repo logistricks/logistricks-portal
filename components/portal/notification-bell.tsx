@@ -194,11 +194,11 @@ export function NotificationBell() {
         type="button"
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-9 w-9 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F0F4F8] hover:text-[#0F172A] dark:text-[#94A3B8] dark:hover:bg-[#1E3A5F] dark:hover:text-white"
+        className="nib"
       >
         <Bell className="h-[18px] w-[18px]" />
         {unread > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--brand-accent)] text-[9px] font-bold leading-none text-white">
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold leading-none" style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", border: "2px solid var(--brand-navy-mid)" }}>
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -206,16 +206,16 @@ export function NotificationBell() {
 
       {/* Tray */}
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-[#E2E8F0] bg-white shadow-xl dark:border-[#1E3A5F] dark:bg-[#0D1B2A] sm:w-96">
+        <div className="absolute right-0 top-[52px] z-50 w-[22rem] overflow-hidden rounded-[20px] border border-[#DCE3EE] bg-white shadow-[0_30px_60px_-24px_rgba(15,30,54,0.55)] dark:border-[#1E3A5F] dark:bg-[#0D1B2A] sm:w-[26rem]">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3 dark:border-[#1E3A5F]">
-            <span className="text-sm font-semibold text-[#0F172A] dark:text-white">Notifications</span>
+          <div className="flex items-center justify-between px-5 py-4" style={{ background: "linear-gradient(135deg, var(--brand-navy), var(--brand-navy-mid))" }}>
+            <span className="text-[17px] font-extrabold text-white" style={{ fontFamily: "var(--font-display), var(--font-sans), sans-serif" }}>Notifications</span>
             <div className="flex items-center gap-2">
               {unread > 0 && (
                 <button
                   type="button"
                   onClick={markAllRead}
-                  className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] dark:text-[#94A3B8] dark:hover:bg-[#1E3A5F] dark:hover:text-white"
+                  className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10 hover:text-white"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
                   Mark all read
@@ -224,7 +224,7 @@ export function NotificationBell() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded p-1 text-[#94A3B8] hover:bg-[#F8FAFC] dark:hover:bg-[#1E3A5F]"
+                className="rounded-full p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>

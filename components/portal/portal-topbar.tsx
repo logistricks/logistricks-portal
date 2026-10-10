@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"
+import { Home, LogOut } from "lucide-react"
 import { Suspense, useEffect, useRef, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 import { useBranding } from "@/lib/use-branding"
@@ -63,27 +63,35 @@ export function PortalTopbar() {
   return (
     <>
       <header
-        className="sticky top-0 z-40 flex h-[60px] items-center justify-between gap-1 px-3 sm:gap-2 md:px-6"
+        className="sticky top-0 z-40 grid h-[68px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 sm:grid-cols-[1fr_auto_1fr] md:px-7"
         style={{
           background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           fontFamily: "var(--font-sans), system-ui, sans-serif",
-          boxShadow: "0 2px 12px rgba(15,30,54,0.35)",
+          boxShadow: "0 2px 14px rgba(15,30,54,0.38)",
         }}
       >
-        {/* Home — logo only */}
+        {/* Home button + name (left) */}
         <Link
           href={HOME_HREF}
           onClick={() => { try { sessionStorage.removeItem("portal_nav_pin") } catch { /* */ } }}
           aria-label="Home"
           title="Home"
-          className="flex h-10 shrink-0 items-center justify-center rounded-xl select-none"
-          style={{ background: branding.logo ? "#ffffff" : "var(--brand-accent)", minWidth: 40, padding: branding.logo ? "0 8px" : 0, boxShadow: "0 4px 14px -6px rgb(var(--brand-accent-rgb) / 0.7)" }}
+          className="group flex min-w-0 shrink-0 items-center gap-3 select-none justify-self-start"
         >
-          {branding.logo ? (
-            <img src={branding.logo} alt={branding.displayName || "Home"} className="max-h-7 max-w-[120px] object-contain" />
-          ) : (
-            <span className="text-[19px] font-extrabold leading-none text-white" style={{ fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif" }}>L</span>
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] transition-transform group-hover:-translate-y-px"
+            style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 20px -8px rgb(var(--brand-accent-rgb) / 0.85)" }}
+          >
+            <Home className="h-[22px] w-[22px]" strokeWidth={2.3} />
+          </span>
+          <span className="hidden text-[19px] font-extrabold leading-none tracking-[0.08em] text-white sm:block" style={{ fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif" }}>
+            LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span>
+          </span>
+          {branding.logo && (
+            <span className="hidden h-9 shrink-0 items-center rounded-lg bg-white px-2 lg:flex">
+              <img src={branding.logo} alt={branding.displayName || ""} className="max-h-6 max-w-[110px] object-contain" />
+            </span>
           )}
         </Link>
 
@@ -92,17 +100,16 @@ export function PortalTopbar() {
         </Suspense>
 
         {/* Right actions */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 justify-self-end">
           <ThemeToggle />
           <NotificationBell />
           <div className="flex items-center gap-1.5 pl-1">
             <button
               onClick={handleLogout}
               title={`${displayName} — Log out`}
-              className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white transition-colors"
-              style={{ background: "rgba(255,255,255,0.1)", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
-              onMouseEnter={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgb(var(--brand-accent-rgb) / 0.25)" }}
-              onMouseLeave={(e) => { ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)" }}
+              className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold transition-colors"
+              style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+              
             >
               {avatarInitials}
             </button>
@@ -131,7 +138,7 @@ export function PortalTopbar() {
         </div>
       </header>
       {/* keeps page content below the sub bar while a page is pinned */}
-      <div aria-hidden style={{ height: pinned ? 48 : 0, transition: "height .16s ease" }} />
+      <div aria-hidden style={{ height: pinned ? 54 : 0, transition: "height .16s ease" }} />
     </>
   )
 }

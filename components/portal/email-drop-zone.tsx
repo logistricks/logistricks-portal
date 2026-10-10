@@ -213,7 +213,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
   }
 
   const upd = (p: Partial<Staged>) => setStaged((s) => (s ? { ...s, ...p } : s))
-  const field = "w-full rounded border px-2 py-1.5 text-xs"
+  const field = "w-full rounded-xl border px-3 py-2 text-[13px]"
   const fstyle = { borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
 
   return (
@@ -235,22 +235,36 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
       )}
       {!staged && (
         <div
-          className={`relative flex items-center justify-center rounded-lg border border-dashed text-xs font-medium transition-colors ${slim ? "flex-row flex-wrap gap-x-3 gap-y-1 px-3 py-1.5" : `flex-col gap-1 border-2 ${compact ? "px-3 py-2" : "px-4 py-4"}`}`}
-          style={{ borderColor: over ? "var(--brand-accent)" : "var(--card-border)", background: over ? "rgba(59,130,246,0.06)" : "transparent", color: "var(--text-secondary)" }}
+          className={`relative flex items-center rounded-[18px] border-2 border-dashed transition-all ${slim ? "flex-row flex-wrap justify-between gap-x-5 gap-y-3 px-5 py-4" : `flex-col justify-center gap-2 text-center ${compact ? "px-4 py-4" : "px-6 py-6"}`}`}
+          style={{
+            borderColor: "var(--brand-accent)",
+            background: over ? "rgb(var(--brand-accent-rgb) / 0.16)" : "rgb(var(--brand-accent-rgb) / 0.07)",
+            color: "var(--text-secondary)",
+            boxShadow: over ? "0 0 0 5px var(--brand-accent-ring)" : "none",
+          }}
         >
-          <span className="flex items-center gap-2">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailPlus className="h-4 w-4" />}
-            {busy ? "Reading the email…" : kind === "request"
-              ? (slim ? "Drop a request email (.eml / .msg) or click" : "Drop a client's request email (.eml / .msg) — or click to choose a file")
-              : "Drop a carrier's reply email (.eml / .msg) — or click to choose a file"}
+          <span className="flex items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-white" style={{ color: "var(--brand-accent)", border: "1px solid rgb(var(--brand-accent-rgb) / 0.3)" }}>
+              {busy ? <Loader2 className="h-6 w-6 animate-spin" /> : <MailPlus className="h-6 w-6" />}
+            </span>
+            <span className="text-left">
+              <span className="block text-[17px] font-bold leading-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display), var(--font-sans), sans-serif" }}>
+                {busy ? "Reading the email…" : kind === "request"
+                  ? (slim ? "Drop a request email here to add it" : "Drop a client's request email here")
+                  : "Drop a carrier's reply email here"}
+              </span>
+              <span className="mt-0.5 block text-[13.5px] font-normal" style={{ color: "var(--text-secondary)" }}>
+                {kind === "request" ? ".eml or .msg, or click to choose a file" : ".eml or .msg, or click to choose a file"}
+              </span>
+            </span>
           </span>
-          <span className={`${slim ? "hidden" : "flex"} items-center gap-1 text-[11px] font-normal`} style={{ color: "var(--text-muted)" }}>
+          <span className={`${slim ? "hidden" : "flex"} items-center gap-1 text-[12px] font-normal`} style={{ color: "var(--text-muted)" }}>
             <ClipboardPaste className="h-3 w-3" /> Web mail / Apple Mail: copy the email text (Cmd+A, Cmd+C in the email) and paste it here (Cmd/Ctrl+V), then add its PDFs
           </span>
           <button type="button" onClick={(e) => { e.stopPropagation(); void pasteFromClipboard() }}
-            className={`relative z-20 ${slim ? "" : "mt-1"} inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold`}
-            style={{ borderColor: "var(--card-border)", color: "var(--brand-accent)" }}>
-            <ClipboardPaste className="h-3 w-3" /> Paste copied email
+            className="relative z-20 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-bold"
+            style={{ background: "var(--brand-accent)" }}>
+            <ClipboardPaste className="h-4 w-4" /> Paste copied email
           </button>
           {safari && !slim && (
             <span className="mt-1 text-center text-[11px] font-normal" style={{ color: "#b45309" }}>
@@ -266,7 +280,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
       )}
 
       {staged && (
-        <div className="space-y-2 rounded-lg border p-3 text-xs" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+        <div className="space-y-3 rounded-[18px] border p-5 text-[13px]" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", boxShadow: "var(--card-shadow)" }}>
           <div className="flex items-center justify-between">
             <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
               Step 2 of 2 — check, then process {staged.file ? `(${staged.file.name})` : "(pasted text)"}

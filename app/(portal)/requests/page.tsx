@@ -1,5 +1,6 @@
 "use client"
 
+import { HeroChip, PageHero } from "@/components/portal/page-hero"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
@@ -265,31 +266,30 @@ export default function RequestsPage() {
 
   return (
     <div className="portal-page space-y-4 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
-            Requests
-          </h2>
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)" }}>
-            {requests.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-        <IntakeLogButton />
-        <button
-          onClick={() => load()}
-          title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-          style={{ color: "var(--text-secondary)", border: "1px solid var(--card-border)", background: "var(--card-bg)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-accent)" }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)" }}
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh
-        </button>
-        </div>
-      </div>
+      <PageHero
+        eyebrow="Inbox"
+        title="Requests"
+        chips={
+          <>
+            <HeroChip>{requests.length} total</HeroChip>
+            <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
+          </>
+        }
+        actions={
+          <>
+            <IntakeLogButton />
+            <button
+              onClick={() => load()}
+              title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
+              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-white/10"
+              style={{ border: "1px solid rgba(255,255,255,0.32)" }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </>
+        }
+      />
 
       <EmailDropZone kind="request" slim onDone={() => load(true)} />
 

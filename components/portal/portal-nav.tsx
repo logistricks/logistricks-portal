@@ -61,7 +61,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
   return (
     <div onMouseLeave={leave} className="contents">
       {/* ── Section buttons ── */}
-      <nav aria-label="Main" className="flex min-w-0 flex-1 items-center justify-center gap-0.5 px-1 sm:gap-2 sm:px-2">
+      <nav aria-label="Main" className="flex min-w-0 items-center justify-center gap-0.5 sm:gap-1.5">
         {NAV.map((s) => {
           const isCurrent = current?.key === s.key
           const isShown = shownKey === s.key
@@ -74,12 +74,12 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
               onMouseEnter={() => enter(s.key)}
               onFocus={() => enter(s.key)}
               aria-current={isCurrent ? "page" : undefined}
-              className="relative flex items-center gap-2 rounded-full px-2.5 py-2 text-[13px] font-semibold sm:px-5 sm:text-[14px]"
+              className="relative flex items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
               style={{
                 background: isShown ? "rgba(255,255,255,0.14)" : "transparent",
                 color: isCurrent || isShown ? "#ffffff" : "rgba(255,255,255,0.72)",
                 fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif",
-                letterSpacing: "0.005em",
+                letterSpacing: "0.01em",
               }}
             >
               <span>{s.label}</span>
@@ -96,7 +96,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
                 </>
               )}
               {isCurrent && (
-                <span aria-hidden className="absolute -bottom-[9px] left-1/2 h-[3px] w-6 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
+                <span aria-hidden className="absolute -bottom-[11px] left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
               )}
             </Link>
           )
@@ -139,7 +139,7 @@ function SubBar({
         boxShadow: "0 14px 28px -18px rgba(15,30,54,0.35)",
       }}
     >
-      <div className="mx-auto flex h-[48px] max-w-[1600px] items-center gap-1 overflow-x-auto px-3 sm:justify-center sm:gap-1.5 md:px-6" role="menu" aria-label={`${shown.label} pages`}>
+      <div className="mx-auto flex h-[54px] items-center gap-1 overflow-x-auto px-3 sm:justify-center sm:gap-1.5 md:px-6" role="menu" aria-label={`${shown.label} pages`}>
         {shown.items.map((i) => {
           const active = i.match(pathname, tab)
           const n = i.badge ? counts[i.badge] ?? 0 : 0
@@ -150,7 +150,7 @@ function SubBar({
               onClick={onPick}
               role="menuitem"
               aria-current={active ? "page" : undefined}
-              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold"
+              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[14px] font-semibold"
               style={{
                 background: active ? "rgb(var(--brand-accent-rgb) / 0.12)" : "transparent",
                 color: active ? "var(--brand-accent)" : "var(--text-secondary)",
