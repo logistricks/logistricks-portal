@@ -120,7 +120,7 @@ function restore(run){
   renderResult1();renderReply1();
   if(run.quote){quote=run.quote;st.parsed2=true;renderQuote();renderMarkup();renderOut3()}
   renderIn2();updateRail();ready1();paintTries();
-  toast("Welcome back. Your try in progress was restored.");
+  toast("Your try in progress was restored.");
 }
 function viewToCur(v){return v}
 
@@ -516,7 +516,7 @@ function startHelpers(){
   setInterval(function(){flushDwell(false)},30000);
   document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")flushDwell(true)});
   window.addEventListener("pagehide",function(){flushDwell(true)});
-  setTimeout(function(){if(!st.parsed1&&!st.busy&&$("#bodyIn").value.trim().length<10&&!st.file)tip("idle","New here? Tap a sample","Pick any of the five samples. One is written in Arabic. It fills the email box, then you can read it in one click.")},30000);
+  setTimeout(function(){if(!st.parsed1&&!st.busy&&$("#bodyIn").value.trim().length<10&&!st.file)tip("idle","Start with a sample","Tap any of the five samples. One is written in Arabic. It fills the email box, then you read it in one click.")},30000);
 }
 function flushDwell(beacon){
   var keys=Object.keys(pend);if(!keys.length)return;
