@@ -67,7 +67,7 @@ function Toggle({ on, onClick, children, count, tone }: { on: boolean; onClick: 
 function Chip({ tone, icon, children, title }: { tone: "red" | "amber" | "blue" | "slate"; icon?: React.ReactNode; children: React.ReactNode; title?: string }) {
   const t = { red: "#ef4444", amber: "#d97706", blue: "#3b82f6", slate: "#64748b" }[tone]
   return (
-    <span title={title} className="inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-bold"
+    <span title={title} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[12px] font-bold"
       style={{ background: `color-mix(in srgb, ${t} 14%, transparent)`, color: t, border: `1px solid color-mix(in srgb, ${t} 35%, transparent)` }}>
       {icon}{children}
     </span>
@@ -84,9 +84,9 @@ function StatusPill({ status, quoteCount }: { status: RequestStatus; quoteCount?
   const c = STATUS_TONE[stage]
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `color-mix(in srgb, ${c} 16%, transparent)`, color: c }}>{stage === "Waiting" ? "Waiting for approval" : stage}{stage === "Quoted" && quoteCount ? ` · ${quoteCount}` : ""}</span>
-      {target && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}>{target}</span>}
-      {delivery && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ border: "1px solid var(--card-border)", color: delivery === "Sent" ? "#10b981" : "#d97706" }}>{delivery}</span>}
+      <span className="rounded-full px-3 py-1 text-[12px] font-bold" style={{ background: `color-mix(in srgb, ${c} 16%, transparent)`, color: c }}>{stage === "Waiting" ? "Waiting for approval" : stage}{stage === "Quoted" && quoteCount ? ` · ${quoteCount}` : ""}</span>
+      {target && <span className="rounded-full px-3 py-1 text-[12px] font-semibold" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}>{target}</span>}
+      {delivery && <span className="rounded-full px-3 py-1 text-[12px] font-semibold" style={{ border: "1px solid var(--card-border)", color: delivery === "Sent" ? "#10b981" : "#d97706" }}>{delivery}</span>}
     </span>
   )
 }
@@ -398,7 +398,7 @@ export default function RequestsPage() {
                   />
                 </th>
                 {["Ref", "Sender", "Route", "Cargo", "Flags", "Status", "Received", ""].map((h, i) => (
-                  <th key={i} className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{h}</th>
+                  <th key={i} className="px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -413,7 +413,7 @@ export default function RequestsPage() {
                     className={`rq-row ${r.aog ? "rq-aog" : ""}`}
                     title="Click to open the request"
                   >
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-4">
                       <input
                         type="checkbox"
                         aria-label={`Select ${r.senderName}`}
@@ -424,10 +424,10 @@ export default function RequestsPage() {
                         style={{ accentColor: "var(--brand-accent)" }}
                       />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                    <td className="whitespace-nowrap px-3 py-4 font-mono text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                       {r.requestRef ?? (r.id ? `LT-${r.id}` : "")}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-4">
                       <p className="flex items-center gap-1.5 font-medium" style={{ color: "var(--text-primary)" }}>
                         {r.source === "WhatsApp" ? <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
                         {r.senderName}
@@ -436,17 +436,17 @@ export default function RequestsPage() {
                         {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
                       </p>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-4">
                       <span className="whitespace-nowrap font-medium" style={{ color: "var(--text-primary)" }}>
                         {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
                       </span>
                       {r.incoterm && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{r.incoterm}</span>}
                     </td>
-                    <td className="max-w-[200px] px-3 py-2.5">
+                    <td className="max-w-[200px] px-3 py-4">
                       <p className="truncate" style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
                       {r.equipment && <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-4">
                       <div className="flex flex-wrap items-center gap-1">
                         {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
                         {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
@@ -462,7 +462,7 @@ export default function RequestsPage() {
                         {!isFlagged(r) && !(r.specialRequirements?.length) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-4">
                       <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
                       {r.outcome && (
                         <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
@@ -471,10 +471,10 @@ export default function RequestsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[12.5px] tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
+                    <td className="whitespace-nowrap px-3 py-4 font-mono text-[12.5px] tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
                       {r.receivedRelative}
                     </td>
-                    <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setActive(r)}

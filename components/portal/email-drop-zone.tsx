@@ -235,7 +235,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
       )}
       {!staged && (
         <div
-          className={`relative flex items-center rounded-[18px] border-2 border-dashed transition-all ${slim ? "flex-row flex-wrap justify-between gap-x-5 gap-y-3 px-5 py-4" : `flex-col justify-center gap-2 text-center ${compact ? "px-4 py-4" : "px-6 py-6"}`}`}
+          className={`relative flex items-center rounded-[18px] border-2 border-dashed transition-all ${slim ? "flex-row flex-wrap justify-center gap-x-8 gap-y-3 px-5 py-5 text-center" : `flex-col justify-center gap-2 text-center ${compact ? "px-4 py-4" : "px-6 py-6"}`}`}
           style={{
             borderColor: "var(--brand-accent)",
             background: over ? "rgb(var(--brand-accent-rgb) / 0.16)" : "rgb(var(--brand-accent-rgb) / 0.07)",

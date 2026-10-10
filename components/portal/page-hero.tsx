@@ -23,16 +23,16 @@ export function PageHero({ eyebrow, title, chips, aside, actions }: {
         boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)",
       }}
     >
-      <div className="relative flex flex-wrap items-center justify-between gap-6">
+      <div className="relative flex flex-wrap items-center justify-center gap-6 text-center">
         <div className="min-w-0 flex-1" style={{ flexBasis: 320 }}>
           {eyebrow && (
-            <div className="mb-3 flex items-center gap-2 font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>
+            <div className="mb-3 flex items-center justify-center gap-2 font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>
               {eyebrow}
             </div>
           )}
           <h1 className="text-[32px] font-extrabold leading-[1.08] text-white sm:text-[42px]">{title}</h1>
-          {chips && <div className="mt-4 flex flex-wrap items-center gap-2">{chips}</div>}
-          {actions && <div className="mt-5 flex flex-wrap items-center gap-2.5">{actions}</div>}
+          {chips && <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{chips}</div>}
+          {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">{actions}</div>}
         </div>
         {aside}
       </div>

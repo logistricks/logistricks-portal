@@ -59,7 +59,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
       <ToastProvider>
         <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f2f5fa]"} ${theme}`}>
           <PortalTopbar />
-          <main className="px-4 pb-10 pt-6 md:px-8">{children}</main>
+          <main className="mx-auto w-full max-w-[1440px] px-4 pb-10 pt-6 md:px-8">{children}</main>
         </div>
       </ToastProvider>
     </PortalThemeContext.Provider>
