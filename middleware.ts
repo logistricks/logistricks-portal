@@ -66,8 +66,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.redirect(new URL("/", request.url))
   }
-  // The owner console exists only on the trial host, never on the client portal's address.
-  if (pathname.startsWith("/trial-admin") || pathname.startsWith("/api/trial-admin")) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  // Owner console: its own page and login at /admin on any host (nothing to do with the client portal login).
+  if (pathname === "/admin") return NextResponse.rewrite(new URL("/trial-admin", request.url))
+  if (pathname === "/trial-admin") return NextResponse.json({ error: "Not found" }, { status: 404 })
   if (!PORTAL_PATHS.test(pathname)) return NextResponse.next()
 
   const cookie = request.cookies.get("portal_session")?.value
