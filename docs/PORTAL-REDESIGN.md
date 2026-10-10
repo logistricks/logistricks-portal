@@ -102,3 +102,14 @@ Automated smoke test: all 20 portal addresses load with no page error and the ri
 ## Files
 
 `lib/portal-nav.ts` (menu map) · `components/portal/portal-nav.tsx` (hover and pin) · `components/portal/portal-topbar.tsx` · `components/portal/page-hero.tsx` · `components/portal/email-sources-panel.tsx` · `app/globals.css` (tokens) · `app/layout.tsx` (font) · Settings, Users and Approvals pages.
+
+## Visual revamp (branch `redesign`)
+
+Beyond the navigation, every page now follows the trial page's look:
+
+- **Top bar**: Home button (accent tile) and LOGISTRICKS name at the left; Work | Builder | Admin truly centred; theme, notifications, avatar and logout on the right. Hover shows the sub bar, click opens the section's main page, picking a sub page pins it.
+- **Header band**: every page opens with a navy band (orange glow, display font, large title) holding that page's buttons. Requests also shows counts.
+- **Global skin**: Bricolage Grotesque display font, orange primary buttons with navy text and lift, orange focus ring on inputs, 18–22px rounded cards and pop-ups with blurred backdrop, mono uppercase table headers.
+- **Requests**: large dashed drop-zone card with "Paste copied email"; request pop-up has a bigger navy header, route card, larger tabs.
+- **Notifications tray**: navy header, rounded tray, accent badge.
+- Per-client colours still drive everything through the brand CSS variables. No page, button or API call was removed.

@@ -614,11 +614,14 @@ table thead th { font-family: var(--font-mono), ui-monospace, monospace; font-si
 }
 .page-band h1, .page-band h2 { color: #fff !important; font-family: var(--font-display), system-ui, sans-serif; font-size: 36px !important; line-height: 1.1; }
 .page-band p { color: rgba(255,255,255,0.72) !important; }
-.page-band button:not([style*="background: var(--brand-accent)"]):not(.bg-\[var\(--brand-accent\)\]),
-.page-band a:not([style*="background: var(--brand-accent)"]) {
+/* secondary buttons/links: white outline on navy */
+.page-band button, .page-band a {
   color: #fff !important; background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.28) !important;
   border-radius: 12px !important; font-weight: 600; transition: background .15s;
 }
-.page-band button:not([style*="background: var(--brand-accent)"]):hover, .page-band a:not([style*="background: var(--brand-accent)"]):hover { background: rgba(255,255,255,0.16) !important; }
-.page-band .bg-\[var\(--brand-accent\)\], .page-band .bg-\[var\(--brand-accent\,\#E8821A\)\] { color: var(--brand-navy) !important; background: var(--brand-accent) !important; border: 0 !important; }
-.page-band .page-band-seg button { border-radius: 0 !important; border: 0 !important; }
+.page-band button:hover, .page-band a:hover { background: rgba(255,255,255,0.16) !important; }
+/* primary buttons: orange with navy text (declared later so it wins at equal specificity) */
+.page-band button[style*="--brand-accent)"], .page-band button.bg-\[var\(--brand-accent\)\], .page-band button[class*="bg-[var(--brand-accent"],
+.page-band a[style*="--brand-accent)"] {
+  color: var(--brand-navy) !important; background: var(--brand-accent) !important; border: 0 !important; font-weight: 700;
+}
