@@ -154,7 +154,7 @@ export default function DashboardPage() {
         </button>
         <button type="button" onClick={exportCsv}
           className="flex items-center gap-2 rounded-xl border-[1.5px] px-6 py-3 text-[14px] font-bold transition"
-          style={{ borderColor: "var(--brand-navy)", color: "var(--brand-navy)", background: "var(--card-bg)" }}>
+          style={{ borderColor: "var(--text-secondary)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
           <Download className="h-3.5 w-3.5" />
           Export
         </button>

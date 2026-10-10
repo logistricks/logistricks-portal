@@ -156,8 +156,8 @@
   --card-border:       #1e3a5f;
   --card-shadow:       0 1px 4px rgba(0,0,0,0.25);
   --text-primary:      #e2e8f0;
-  --text-secondary:    #64748b;
-  --text-muted:        #475569;
+  --text-secondary:    #a9b7cb;
+  --text-muted:        #8496ae;
   --divider:           #1a2a40;
   --table-header-bg:   #0f1e36;
   --input-bg:          #0f1e36;
@@ -214,8 +214,8 @@
     --card-border:       #1e3a5f;
     --card-shadow:       0 1px 4px rgba(0,0,0,0.25);
     --text-primary:      #e2e8f0;
-    --text-secondary:    #64748b;
-    --text-muted:        #475569;
+    --text-secondary:    #a9b7cb;
+    --text-muted:        #8496ae;
     --divider:           #1a2a40;
     --table-header-bg:   #0f1e36;
     --input-bg:          #0f1e36;
@@ -725,3 +725,4 @@ a.hero-chip-link:hover { filter: brightness(.9); }
 .rq-list td { vertical-align: middle; }
 .on-navy input[type="checkbox"] { width:16px !important; height:16px !important; min-height:0 !important; padding:0 !important; border-radius:5px; }
 .on-navy label { font-size: 12.5px; }
+.dark .kpi-card > p.font-mono { color: var(--text-secondary) !important; }

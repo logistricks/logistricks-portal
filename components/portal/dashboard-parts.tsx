@@ -135,7 +135,7 @@ export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent
       <p className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>{label}</p>
       <div className="mt-3 flex justify-center">
         {loading || !kpi ? <Skeleton h={44} w={96} /> : (
-          <p className="font-display text-[46px] font-extrabold leading-none tabular-nums" style={{ color: "var(--brand-navy)", letterSpacing: "-0.03em" }}>
+          <p className="font-display text-[46px] font-extrabold leading-none tabular-nums" style={{ color: "var(--text-primary)", letterSpacing: "-0.03em" }}>
             <CountUp value={kpi.value} format={f} />
           </p>
         )}
