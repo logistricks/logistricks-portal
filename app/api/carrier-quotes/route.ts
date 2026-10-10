@@ -78,7 +78,7 @@ async function insertQuote(admin: any, base: Record<string, unknown>, ext: Recor
   return admin.from("carrier_quotes").insert(base).select("id").single()
 }
 
-type LinkMethod = "rfq_reference" | "request_and_carrier" | "email_thread"
+type LinkMethod = "rfq_reference" | "request_and_carrier" | "email_thread" | "manual"
 type Match = { id: number; freight_request_id: string; carrier_id: number }
 
 export async function POST(req: NextRequest) {
@@ -191,6 +191,26 @@ export async function POST(req: NextRequest) {
       .eq("email_thread_id", body.email_thread_id as string)
       .maybeSingle()
     if (data) { match = data; method = "email_thread" }
+  }
+
+  // Dropped by hand inside a request: the person chose the request, so link it there even when no RFQ was sent from the
+  // portal for this carrier (the RFQ row is created, as the manual "link" action does).
+  if (!match && body.intake_source === "manual" && freightRequestId && carrierPk) {
+    const { data: own } = await admin.from("freight_requests").select("id").eq("id", freightRequestId).eq("client_code", client_code).maybeSingle()
+    if (own) {
+      const { data: created } = await admin
+        .from("carrier_quote_requests")
+        .insert({
+          freight_request_id: freightRequestId,
+          carrier_id:         carrierPk,
+          email_thread_id:    (body.email_thread_id as string | undefined) ?? `manual-drop-${Date.now()}`,
+          email_message_id:   (body.email_message_id as string | undefined) ?? null,
+          status:             "sent",
+        })
+        .select(cols)
+        .single()
+      if (created) { match = created; method = "manual" }
+    }
   }
 
   // A reply may only link to a request of the client whose mailbox received it.
