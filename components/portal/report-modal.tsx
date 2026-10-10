@@ -95,32 +95,32 @@ export function ReportModal({ report, onClose }: { report: ReportDef; onClose: (
   const shown = result?.rows.slice(0, 500) ?? []
   const Btn = ({ k, icon: I, label, primary }: { k: "display" | "print" | "xls" | "csv"; icon: React.ElementType; label: string; primary?: boolean }) => (
     <button type="button" disabled={!!busy} onClick={() => go(k)}
-      className="flex items-center gap-1.5 rounded-[7px] border px-3.5 py-2 text-[12.5px] font-semibold disabled:opacity-60"
-      style={primary ? { background: "var(--brand-accent)", borderColor: "var(--brand-accent)", color: "#fff" } : { background: "var(--card-bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+      className="flex items-center gap-2 rounded-xl border-[1.5px] px-5 py-2.5 text-[14px] font-bold transition hover:-translate-y-0.5 disabled:opacity-60"
+      style={primary ? { background: "var(--brand-accent)", borderColor: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 20px -10px rgb(var(--brand-accent-rgb) / .8)" } : { background: "var(--card-bg)", borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
       {busy === k ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <I className="h-3.5 w-3.5" />}{label}
     </button>
   )
 
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/55 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-[1100px] rounded-xl border shadow-2xl" style={{ background: "var(--page-bg)", borderColor: "var(--card-border)" }}>
-        <div className="flex items-start justify-between gap-4 rounded-t-xl border-b px-5 py-4" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+      <div className="w-full max-w-[1100px] overflow-hidden rounded-[22px] border shadow-2xl" style={{ background: "var(--page-bg)", borderColor: "var(--card-border)" }}>
+        <div className="flex items-start justify-between gap-4 px-7 py-6" style={{ background: "radial-gradient(700px 260px at 95% -40%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)" }}>
           <div>
-            <h3 className="text-[17px] font-bold" style={{ color: "var(--text-primary)" }}>{report.title}</h3>
-            <p className="mt-0.5 max-w-[720px] text-[12.5px]" style={{ color: "var(--text-secondary)" }}>{report.description}</p>
+            <h3 className="font-display text-[28px] font-extrabold leading-tight text-white">{report.title}</h3>
+            <p className="mt-1 max-w-[720px] text-[14px]" style={{ color: "rgba(255,255,255,0.72)" }}>{report.description}</p>
           </div>
-          <button type="button" onClick={onClose} title="Close (Esc)" className="rounded-md border p-1.5" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} title="Close (Esc)" className="rounded-xl p-2 transition hover:bg-white/15" style={{ border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}><X className="h-5 w-5" /></button>
         </div>
 
         <div className="space-y-4 p-5">
-          <div className="ds-card p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Filters</p>
+          <div className="ds-card p-6">
+            <p className="mb-4 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Filters</p>
             {!report.snapshot && (
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <div className="flex flex-wrap gap-0.5 rounded-[7px] p-0.5" style={{ background: "var(--page-bg)", border: "1px solid var(--card-border)" }}>
+                <div className="flex flex-wrap gap-1 rounded-2xl p-1.5" style={{ background: "var(--card-bg)", border: "1.5px solid var(--card-border)" }}>
                   {PERIODS.map((k) => (
-                    <button key={k} type="button" onClick={() => { dirty.current = true; setPk(k) }} className="rounded-[5px] px-3 py-1 text-[12px] font-medium"
-                      style={pk === k ? { background: "var(--brand-accent)", color: "#fff" } : { background: "transparent", color: "var(--text-secondary)" }}>{PLABEL[k]}</button>
+                    <button key={k} type="button" onClick={() => { dirty.current = true; setPk(k) }} className="rounded-xl px-4 py-2 text-[13.5px] font-bold transition"
+                      style={pk === k ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 16px -10px rgb(var(--brand-accent-rgb) / .9)" } : { background: "transparent", color: "var(--text-secondary)" }}>{PLABEL[k]}</button>
                   ))}
                 </div>
                 {pk === "custom" && (
@@ -137,7 +137,7 @@ export function ReportModal({ report, onClose }: { report: ReportDef; onClose: (
               {report.filters.map((f) => {
                 const options = f.dynamic ? [...(f.options ?? []), ...(opts?.[f.dynamic] ?? [])] : f.options
                 return (
-                  <label key={f.key} className="block text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  <label key={f.key} className="block text-[12px] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono), monospace" }}>
                     {f.label}
                     {f.type === "select" ? (
                       <select value={vals[f.key]} onChange={(e) => setVal(f.key, e.target.value)} className="ds-input mt-1 w-full">
@@ -172,7 +172,7 @@ export function ReportModal({ report, onClose }: { report: ReportDef; onClose: (
               )}
               <div className="ds-card overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5" style={{ borderColor: "var(--divider)" }}>
-                  <span className="text-[12.5px] font-semibold" style={{ color: "var(--text-primary)" }}>{meta.client} — {meta.title}</span>
+                  <span className="font-display text-[17px] font-extrabold" style={{ color: "var(--text-primary)" }}>{meta.client} — {meta.title}</span>
                   <span className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>{meta.period}{meta.filters ? ` · ${meta.filters}` : ""}</span>
                 </div>
                 <div className="max-h-[52vh] overflow-auto">

@@ -1,6 +1,6 @@
 "use client"
 
-import { Check } from "lucide-react"
+import { Check, ChevronDown } from "lucide-react"
 import type { ReactNode } from "react"
 
 /**
@@ -8,13 +8,44 @@ import type { ReactNode } from "react"
  * Colours come from the brand variables, so each client's theme still applies.
  * Every portal page starts with one.
  */
-export function PageHero({ eyebrow, title, chips, aside, actions }: {
+export function PageHero({ eyebrow, title, chips, aside, actions, left, right, onDown }: {
   eyebrow?: ReactNode
   title: ReactNode
   chips?: ReactNode
   aside?: ReactNode
   actions?: ReactNode
+  /** compact layout: `left` and `right` sit either side of the title; `onDown` shows a jump arrow under it */
+  left?: ReactNode
+  right?: ReactNode
+  onDown?: () => void
 }) {
+  if (left || right) {
+    return (
+      <section
+        className="relative mb-4 overflow-hidden rounded-[22px] px-6 py-4 sm:px-8"
+        style={{
+          background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)",
+          boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)",
+        }}
+      >
+        <div className="relative grid items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 md:justify-start">{left}</div>
+          <div className="text-center">
+            {eyebrow && <div className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--brand-accent)" }}>{eyebrow}</div>}
+            <h1 className="text-[32px] font-extrabold leading-[1.05] text-white sm:text-[40px]">{title}</h1>
+            {onDown && (
+              <button type="button" onClick={onDown} aria-label="Jump to the list"
+                className="mx-auto mt-1 flex h-9 w-9 items-center justify-center rounded-full transition hover:scale-110"
+                style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 8px 18px -8px rgb(var(--brand-accent-rgb) / 0.9)", animation: "hero-bob 1.8s ease-in-out infinite" }}>
+                <ChevronDown className="h-5 w-5" strokeWidth={3} />
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">{right}</div>
+        </div>
+      </section>
+    )
+  }
   return (
     <section
       className="relative mb-6 overflow-hidden rounded-[22px] px-6 py-6 sm:px-9 sm:py-8"

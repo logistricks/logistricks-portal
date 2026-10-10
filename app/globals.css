@@ -601,8 +601,9 @@ table thead th { font-family: var(--font-mono), ui-monospace, monospace; font-si
 [aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .18)); }
 
 /* Page entrance */
-@keyframes lt-page-in { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
-.portal-page, main > div { animation: lt-page-in .32s cubic-bezier(.2,.8,.3,1) both; }
+/* fade only: a transform/translate left on the page would trap position:fixed pop-ups inside it */
+@keyframes lt-page-in { from { opacity: 0; } to { opacity: 1; } }
+.portal-page, main > div { animation: lt-page-in .28s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) { .portal-page, main > div { animation: none; } }
 
 /* ── Page band: navy header used on every page (trial-page hero look) ── */
@@ -645,3 +646,38 @@ table td .flex, table td p.flex { justify-content: center; }
 .ds-table tbody td { padding: 16px; font-size: 14px; }
 .kpi-card { transition: transform .18s ease, box-shadow .18s ease; }
 .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 18px 36px -18px rgb(var(--brand-accent-rgb) / .45); }
+
+/* ── Frosted cards (like the "This period" box), light and dark ── */
+.ds-card {
+  border-radius: 22px;
+  background:
+    radial-gradient(520px 180px at 100% 0%, rgb(var(--brand-accent-rgb) / 0.07), transparent 70%),
+    linear-gradient(160deg, var(--card-bg) 0%, color-mix(in srgb, var(--card-bg) 94%, var(--brand-navy)) 100%);
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, var(--brand-navy));
+  box-shadow: 0 1px 2px rgba(15,30,54,0.05), 0 18px 40px -26px rgba(15,30,54,0.28);
+}
+.dark .ds-card {
+  background:
+    radial-gradient(520px 180px at 100% 0%, rgb(var(--brand-accent-rgb) / 0.10), transparent 70%),
+    linear-gradient(150deg, color-mix(in srgb, var(--brand-navy-mid) 62%, var(--card-bg)) 0%, var(--card-bg) 100%);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 22px 44px -26px rgba(0,0,0,0.65);
+}
+@keyframes hero-bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(5px) } }
+
+/* A panel that sits inside the navy header band: same colours, translucent */
+.on-navy {
+  --text-primary: #ffffff; --text-secondary: rgba(255,255,255,0.78); --text-muted: rgba(255,255,255,0.58);
+  --card-bg: rgba(255,255,255,0.07); --card-border: rgba(255,255,255,0.20); --table-header-bg: rgba(255,255,255,0.07);
+  --divider: rgba(255,255,255,0.14); --input-bg: rgba(255,255,255,0.08); --page-bg: rgba(255,255,255,0.05);
+}
+.on-navy .ds-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.18); box-shadow: none; backdrop-filter: blur(6px); border-radius: 18px; }
+.on-navy input[type="text"], .on-navy input[type="number"], .on-navy textarea, .on-navy select { color: #fff; }
+
+/* ── Dropdowns and inputs: roomy, rounded, custom arrow ── */
+select.ds-input, select.ds-select {
+  appearance: none; -webkit-appearance: none; height: 46px; border-radius: 12px; padding: 0 40px 0 14px; font-size: 14.5px; font-weight: 500;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2356667E' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; cursor: pointer;
+}
+input.ds-input { height: 46px; border-radius: 12px; padding: 0 14px; font-size: 14.5px; }

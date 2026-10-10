@@ -265,13 +265,14 @@ export default function RequestsPage() {
       <PageHero
         eyebrow="Inbox"
         title="Requests"
-        chips={
+        onDown={() => document.getElementById("requests-table")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        right={
           <>
             <HeroChip>{requests.length} total</HeroChip>
             <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
           </>
         }
-        actions={
+        left={
           <>
             <IntakeLogButton />
             <button
@@ -377,7 +378,7 @@ export default function RequestsPage() {
       )}
 
       {/* Table */}
-      <div className="ds-card overflow-hidden">
+      <div id="requests-table" className="ds-card scroll-mt-24 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="rq-table w-full text-left text-sm">
             <thead style={{ background: "var(--table-header-bg)" }}>
@@ -394,7 +395,7 @@ export default function RequestsPage() {
                   />
                 </th>
                 {["Ref", "Sender", "Route", "Cargo", "Flags", "Status", "Received", ""].map((h, i) => (
-                  <th key={i} className={`${h === "Cargo" ? "hidden xl:table-cell " : ""}${h === "Received" ? "hidden lg:table-cell " : ""}px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide`} style={{ color: "var(--text-muted)" }}>{h}</th>
+                  <th key={i} className={`${h === "Cargo" ? "hidden 2xl:table-cell " : ""}${h === "Received" ? "hidden xl:table-cell " : ""}px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide`} style={{ color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -428,17 +429,17 @@ export default function RequestsPage() {
                         {r.source === "WhatsApp" ? <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
                         {r.senderName}
                       </p>
-                      <p className="max-w-[220px] truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+                      <p className="max-w-[200px] truncate text-xs" style={{ color: "var(--text-secondary)" }}>
                         {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
                       </p>
                     </td>
                     <td className="px-3 py-4">
-                      <span className="whitespace-nowrap font-medium" style={{ color: "var(--text-primary)" }}>
+                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
                         {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
                       </span>
                       {r.incoterm && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{r.incoterm}</span>}
                     </td>
-                    <td className="hidden max-w-[200px] px-3 py-4 xl:table-cell">
+                    <td className="hidden max-w-[200px] px-3 py-4 2xl:table-cell">
                       <p className="truncate" style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
                       {r.equipment && <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>}
                     </td>
@@ -467,7 +468,7 @@ export default function RequestsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="hidden whitespace-nowrap px-3 py-4 font-mono text-[12.5px] tabular-nums lg:table-cell" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
+                    <td className="hidden whitespace-nowrap px-3 py-4 font-mono text-[12.5px] tabular-nums xl:table-cell" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
                       {r.receivedRelative}
                     </td>
                     <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>

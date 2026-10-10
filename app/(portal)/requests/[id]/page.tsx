@@ -276,6 +276,8 @@ export default function RequestDetailPage() {
 
   const [request, setRequest]       = useState<FreightRequest | null>(null)
   const [loading, setLoading]       = useState(true)
+  const [showTimeline, setShowTimeline] = useState(true)
+  const [showThread, setShowThread]     = useState(true)
   const [carriers, setCarriers]     = useState<Carrier[]>([])
   const [templates, setTemplates]   = useState<Template[]>([])
   const [sendMethod, setSendMethod] = useState<"Email" | "Reply" | null>(null)
@@ -421,7 +423,7 @@ export default function RequestDetailPage() {
     <div className="portal-page flex flex-col" style={{ minHeight: "100vh" }}>
 
       {/* ── Back bar + header ────────────────────────────────────────────── */}
-      <div className="relative mt-4 w-full overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
+      <div className="relative mx-6 mt-4 overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
         {/* breadcrumb */}
         <div className="flex items-center justify-center gap-2 px-6 pt-5 pb-1">
           <Link href="/requests" className="flex items-center gap-1 text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
@@ -464,19 +466,21 @@ export default function RequestDetailPage() {
         </div>
 
         {/* outcome & booking: the decision on this request, always at the top */}
-        <div className="px-6 pb-3">
+        <div className="on-navy px-5 pb-5 sm:px-6">
           <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
         </div>
+      </div>
 
-        {/* tabs */}
-        <div className="flex justify-center gap-2 px-6 pb-5 pt-1">
+      {/* tabs: attached, outside the band */}
+      <div className="mt-4 flex justify-center">
+        <div className="inline-flex rounded-2xl p-1.5" style={{ background: "var(--card-bg)", border: "1.5px solid var(--card-border)", boxShadow: "var(--card-shadow)" }}>
           {(["details", "quotes"] as const).map((t) => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className="rounded-full px-6 py-2.5 text-[15px] font-bold capitalize transition"
+              className="rounded-xl px-7 py-3 text-[15px] font-bold transition"
               style={{
-                color: activeTab === t ? "var(--brand-navy)" : "rgba(255,255,255,0.8)",
-                background: activeTab === t ? "var(--brand-accent)" : "rgba(255,255,255,0.08)",
-                border: activeTab === t ? "1.5px solid var(--brand-accent)" : "1.5px solid rgba(255,255,255,0.22)",
+                color: activeTab === t ? "var(--brand-navy)" : "var(--text-secondary)",
+                background: activeTab === t ? "var(--brand-accent)" : "transparent",
+                boxShadow: activeTab === t ? "0 8px 18px -10px rgb(var(--brand-accent-rgb) / 0.9)" : "none",
               }}>
               {t === "details" ? "Shipment Details" : "Carrier Quotes"}
             </button>
@@ -669,11 +673,15 @@ export default function RequestDetailPage() {
 
               {/* Timeline */}
               <div className="ds-card p-6">
-                <div className="mb-3 flex items-center justify-between">
+                <button type="button" onClick={() => setShowTimeline((v) => !v)} aria-expanded={showTimeline}
+                  className="flex w-full items-center justify-between gap-3 text-left">
                   <h4 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
-                  <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
-                </div>
-                <RequestTimeline requestId={request.id} refreshKey={request.status} />
+                  <span className="flex items-center gap-3">
+                    <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
+                    <ChevronDown className="h-5 w-5 transition-transform" style={{ color: "var(--text-muted)", transform: !showTimeline ? "rotate(180deg)" : "none" }} />
+                  </span>
+                </button>
+                {showTimeline && <div className="mt-3"><RequestTimeline requestId={request.id} refreshKey={request.status} /></div>}
               </div>
 
               {/* Special flags */}
@@ -698,8 +706,12 @@ export default function RequestDetailPage() {
 
               {/* Reply thread */}
               <div className="ds-card p-6">
-                <h4 className="mb-4 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Reply Thread</h4>
-                {replyThread.length > 0 ? (
+                <button type="button" onClick={() => setShowThread((v) => !v)} aria-expanded={showThread}
+                  className="flex w-full items-center justify-between gap-3 text-left">
+                  <h4 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Reply Thread{replyThread.length ? ` (${replyThread.length})` : ""}</h4>
+                  <ChevronDown className="h-5 w-5 transition-transform" style={{ color: "var(--text-muted)", transform: !showThread ? "rotate(180deg)" : "none" }} />
+                </button>
+                {showThread && <div className="mt-4">{replyThread.length > 0 ? (
                   <div className="space-y-2">
                     {replyThread.map((msg, i) => (
                       <div key={i} className="rounded-2xl p-4 text-[13.5px] leading-relaxed"
@@ -723,7 +735,7 @@ export default function RequestDetailPage() {
                   <p className="rounded-lg px-4 py-3 text-center text-xs" style={{ border: "1px dashed var(--card-border)", color: "var(--text-muted)" }}>
                     No replies sent yet.
                   </p>
-                )}
+                )}</div>}
               </div>
             </div>
 
