@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
     const selQ = (extra: string) =>
       fetchAll<any>((a, b) =>
         admin.from("carrier_quotes")
-          .select(`id, freight_request_id, carrier_id, rate_usd, received_at${extra}, freight_requests!inner(client_code)`)
+          .select(`id, freight_request_id, carrier_id, rate_usd, received_at${extra}, freight_requests!freight_request_id!inner(client_code)`)
           .eq("freight_requests.client_code", code)
           .gte("received_at", new Date(prevFrom).toISOString()).lt("received_at", new Date(to).toISOString()).range(a, b))
     let cqs: any[] = []

@@ -91,7 +91,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const rs = reqFilter(await requests())
       const ids = new Set(rs.map((r) => r.id))
       const rfq = await all<any>((a, b) => admin.from("carrier_quote_requests").select("freight_request_id, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => [])
-      const cq = await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => [])
+      const cq = await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, freight_requests!freight_request_id!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => [])
       const qu = await all<any>((a, b) => admin.from("quotations").select("freight_request_id, status").eq("client_code", code).eq("status", "sent").range(a, b)).catch(() => [])
       const st = (xs: any[]) => new Set(xs.filter((x) => ids.has(x.freight_request_id)).map((x) => x.freight_request_id)).size
       const stages = [["Received", rs.length], ["RFQ sent to carriers", st(rfq)], ["Carrier quote received", st(cq)], ["Quotation sent", st(qu)], ["Closed", rs.filter((r) => r.status === "Closed").length]] as const
@@ -115,7 +115,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const b = new Map<string, any>()
       const get = (k: string) => { if (!b.has(k)) b.set(k, { period: k, requests: 0, quotes: 0, quotations: 0, closed: 0, value: 0 }); return b.get(k) }
       for (const r of rs) { get(key(Date.parse(r.received_at))).requests++; if (r.status === "Closed") get(key(Date.parse(r.closed_at ?? r.updated_at ?? r.received_at))).closed++ }
-      const cq = await all<any>((a, bb) => admin.from("carrier_quotes").select("freight_request_id, received_at, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).gte("received_at", fromIso).lt("received_at", toIso).range(a, bb)).catch(() => [])
+      const cq = await all<any>((a, bb) => admin.from("carrier_quotes").select("freight_request_id, received_at, freight_requests!freight_request_id!inner(client_code)").eq("freight_requests.client_code", code).gte("received_at", fromIso).lt("received_at", toIso).range(a, bb)).catch(() => [])
       for (const q of cq) if (!f.mode || ids.has(q.freight_request_id)) get(key(Date.parse(q.received_at))).quotes++
       const qu = (await quotationsInRange()).filter((q) => q.status === "sent" && (!f.mode || ids.has(q.freight_request_id)))
       for (const q of qu) { const g = get(key(Date.parse(q.sent_at ?? q.created_at))); g.quotations++; g.value += n(q.final_price_usd) ?? 0 }
@@ -138,7 +138,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
         if (/^\s*(exw|ex[\s-]?works?)\b/i.test(r.incoterm || "") && !String(r.pickup_address || "").trim()) issues.push("exw")
         if (!issues.length || age < minAge || (f.issue && !issues.includes(f.issue))) continue
         out.push({ ref: r.request_ref ?? "", received: r.received_at, age: Math.round(age * 10) / 10, sender: r.sender_name ?? "", route: lane(r), status: r.status,
-          issue: issues.map((i) => ({ stale: "Stale", missing: `Missing: ${(r.missing_fields || []).join(", ")}`, exw: "EXW – no pickup address" }[i])).join(" · ") })
+          issue: issues.map((i) => ({ stale: "Stale", missing: `Missing: ${(Array.isArray(r.missing_fields) ? r.missing_fields : []).join(", ")}`, exw: "EXW – no pickup address" }[i])).join(" · ") })
       }
       columns = [{ key: "ref", label: "Ref" }, { key: "received", label: "Received", type: "datetime" }, { key: "age", label: "Age (days)", type: "num" }, { key: "sender", label: "Sender" }, { key: "route", label: "Lane" }, { key: "status", label: "Status" }, { key: "issue", label: "Issue" }]
       rows = out.sort((a, b) => b.age - a.age)
@@ -147,7 +147,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
     }
     case "carrier_quotes": {
       const sel = (x: string) => all<any>((a, b) => admin.from("carrier_quotes")
-        .select(`id, freight_request_id, carrier_id, rate_usd, transit_days, free_days, validity_date, received_at${x}, freight_requests!inner(client_code, request_ref, origin_city, origin_country, destination_city, destination_country)`)
+        .select(`id, freight_request_id, carrier_id, rate_usd, transit_days, free_days, validity_date, received_at${x}, freight_requests!freight_request_id!inner(client_code, request_ref, origin_city, origin_country, destination_city, destination_country)`)
         .eq("freight_requests.client_code", code).gte("received_at", fromIso).lt("received_at", toIso).order("received_at", { ascending: false }).range(a, b))
       let qs: any[]; try { qs = await sel(", response_type") } catch { qs = await sel("") }
       qs = qs.filter((q) => !q.response_type || ["quote", "update", "counter_offer", "counter"].includes(q.response_type))
@@ -168,7 +168,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
     }
     case "carrier_perf": {
       const rf = await all<any>((a, b) => admin.from("carrier_quote_requests").select("id, carrier_id, status, sent_at, responded_at, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).gte("sent_at", fromIso).lt("sent_at", toIso).range(a, b)).catch(() => [])
-      const cq = await all<any>((a, b) => admin.from("carrier_quotes").select("carrier_id, carrier_quote_request_id, rate_usd, received_at, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).gte("received_at", fromIso).lt("received_at", toIso).range(a, b)).catch(() => [])
+      const cq = await all<any>((a, b) => admin.from("carrier_quotes").select("carrier_id, carrier_quote_request_id, rate_usd, received_at, freight_requests!freight_request_id!inner(client_code)").eq("freight_requests.client_code", code).gte("received_at", fromIso).lt("received_at", toIso).range(a, b)).catch(() => [])
       const names = await carrierNames([...rf, ...cq].map((x) => x.carrier_id))
       const ids = Array.from(new Set([...rf, ...cq].map((x) => String(x.carrier_id)))).filter((c) => !f.carrier || c === f.carrier)
       rows = ids.map((cid) => {
@@ -203,7 +203,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const rs = reqFilter(await requests())
       const ids = new Set(rs.map((r) => r.id))
       const qu = (await all<any>((a, b) => admin.from("quotations").select("freight_request_id, final_price_usd, status").eq("client_code", code).range(a, b)).catch(() => [])).filter((q) => ids.has(q.freight_request_id))
-      const cq = (await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, rate_usd, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => [])).filter((q) => ids.has(q.freight_request_id))
+      const cq = (await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, rate_usd, freight_requests!freight_request_id!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => [])).filter((q) => ids.has(q.freight_request_id))
       const g = new Map<string, any[]>(); for (const r of rs) { const l = lane(r) || "(unspecified)"; g.set(l, [...(g.get(l) ?? []), r]) }
       const minReq = n(f.minReq) ?? 1
       rows = Array.from(g.entries()).filter(([, v]) => v.length >= minReq).map(([l, v]) => {
@@ -234,7 +234,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const ids = new Set(rs.map((r) => r.id))
       const first = (xs: any[], tf: (x: any) => string) => { const m = new Map<string, number>(); for (const x of xs) { if (!ids.has(x.freight_request_id)) continue; const t = Date.parse(tf(x)); if (!m.has(x.freight_request_id) || t < m.get(x.freight_request_id)!) m.set(x.freight_request_id, t) } return m }
       const rf = first(await all<any>((a, b) => admin.from("carrier_quote_requests").select("freight_request_id, sent_at, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => []), (x) => x.sent_at)
-      const cq = first(await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, received_at, freight_requests!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => []), (x) => x.received_at)
+      const cq = first(await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, received_at, freight_requests!freight_request_id!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => []), (x) => x.received_at)
       const qu = first(await all<any>((a, b) => admin.from("quotations").select("freight_request_id, created_at").eq("client_code", code).range(a, b)).catch(() => []), (x) => x.created_at)
       const h = (m: Map<string, number>, r: any) => { const t = m.get(r.id); const d = t != null ? (t - Date.parse(r.received_at)) / HOUR : null; return d != null && d >= 0 ? d : null }
       rows = rs.map((r) => ({ ref: r.request_ref ?? "", received: r.received_at, sender: r.sender_name ?? "", status: r.status, rfq: h(rf, r), quote: h(cq, r), quotation: h(qu, r) }))
