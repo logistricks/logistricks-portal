@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
+import { summarizeOutcomes } from "@/lib/win-loss"
 
 export const dynamic = "force-dynamic"
 
@@ -79,6 +80,16 @@ export async function GET(req: NextRequest) {
       .gte("updated_at", new Date(prevFrom).toISOString()).limit(5000)
     const closedCur = (closedRows ?? []).filter((r: any) => closedAt(r) >= from && closedAt(r) < to)
     const closedPrev = (closedRows ?? []).filter((r: any) => closedAt(r) >= prevFrom && closedAt(r) < from)
+
+    // ── won / lost results (by the day the outcome was marked). Closed = dismissed, not a result. ──
+    const outRows = await fetchAll<any>((a, b) =>
+      admin.from("freight_requests").select("*").eq("client_code", code).in("outcome", ["won", "lost"])
+        .gte("outcome_at", new Date(prevFrom).toISOString()).lt("outcome_at", new Date(to).toISOString()).range(a, b)
+    ).catch(() => [] as any[])
+    const oAt = (r: any) => Date.parse(r.outcome_at)
+    const outCur = outRows.filter((r) => oAt(r) >= from)
+    const outPrev = outRows.filter((r) => oAt(r) < from)
+    const salesCur = summarizeOutcomes(outCur), salesPrev = summarizeOutcomes(outPrev)
 
     // ── quotations (outbound, with real money) ──────────────────────
     const quos = await fetchAll<any>((a, b) =>
@@ -170,9 +181,9 @@ export async function GET(req: NextRequest) {
       if (unit === "month") return d.toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" })
       return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
     }
-    const buckets: { t: number; label: string; requests: number; quotes: number; quotations: number; closed: number; value: number; margin: number }[] = []
+    const buckets: { t: number; label: string; requests: number; quotes: number; quotations: number; closed: number; value: number; margin: number; won: number; lost: number; profit: number }[] = []
     for (let t = floorLocal(from); t < local(to) && buckets.length < 400; t = nextLocal(t))
-      buckets.push({ t, label: label(t), requests: 0, quotes: 0, quotations: 0, closed: 0, value: 0, margin: 0 })
+      buckets.push({ t, label: label(t), requests: 0, quotes: 0, quotations: 0, closed: 0, value: 0, margin: 0, won: 0, lost: 0, profit: 0 })
     const at = (abs: number) => {
       const l = floorLocal(abs)
       return buckets.find((b) => b.t === l)
@@ -188,6 +199,10 @@ export async function GET(req: NextRequest) {
       }
     }
     for (const r of closedCur) { const b = at(closedAt(r)); if (b) b.closed++ }
+    for (const r of outCur) {
+      const b = at(oAt(r)); if (!b) continue
+      if (r.outcome === "won") { b.won++; b.profit += num(r.won_margin_usd) ?? 0 } else b.lost++
+    }
 
     // ── breakdowns (current period) ─────────────────────────────────
     const status = new Map<string, number>(); const source = new Map<string, number>()
@@ -234,7 +249,7 @@ export async function GET(req: NextRequest) {
       { label: "RFQ sent", value: withRfq.size },
       { label: "Carrier quote", value: withQuote.size },
       { label: "Quotation sent", value: withQuotation.size },
-      { label: "Closed", value: cur.filter((r) => r.status === "Closed").length },
+      { label: "Won", value: cur.filter((r) => r.outcome === "won").length },
     ]
 
     const kpi = (c: number | null, p: number | null) => ({ value: c, prev: p })
@@ -252,7 +267,12 @@ export async function GET(req: NextRequest) {
         margin: kpi(sumMargin(sentCur), sumMargin(sentPrev)),
         closed: kpi(closedCur.length, closedPrev.length),
         hoursToQuote: kpi(hoursToQuote(cur, quos), hoursToQuote(prev, quos)),
-        winRate: kpi(pct(closedCur.length, Math.max(sentCur.length, 0)), pct(closedPrev.length, sentPrev.length)),
+        winRate: kpi(salesCur.winRate, salesPrev.winRate),
+        won: kpi(salesCur.won, salesPrev.won),
+        lost: kpi(salesCur.lost, salesPrev.lost),
+        wonRevenue: kpi(salesCur.revenue, salesPrev.revenue),
+        profit: kpi(salesCur.profit, salesPrev.profit),
+        profitPaid: kpi(salesCur.profitPaid, salesPrev.profitPaid),
         autoReplies: kpi(autoReplies ?? 0, autoRepliesPrev ?? 0),
         avgQuotation: kpi(sentCur.length ? sumFinal(sentCur) / sentCur.length : null, sentPrev.length ? sumFinal(sentPrev) / sentPrev.length : null),
       },
@@ -262,7 +282,7 @@ export async function GET(req: NextRequest) {
       source: top(source), lanes: top(lanes), senders: top(senders), cargo: top(cargo), incoterms: top(incoterms),
       urgency: top(urgency),
       mode, intake, flags: { aog, dgr, exw, incomplete },
-      carriers, funnel,
+      carriers, funnel, sales: salesCur,
     })
   } catch (e: any) {
     console.error("[api/dashboard]", e?.message ?? e)

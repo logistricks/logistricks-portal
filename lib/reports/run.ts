@@ -1,6 +1,7 @@
 /** Server-only report queries. Everything is scoped to the session's client_code. */
 import type { ColumnDef, ReportResult } from "./catalog"
 import { reportById } from "./catalog"
+import { wonStage, WON_STAGE_LABEL, LOST_REASON_LABEL, summarizeOutcomes } from "@/lib/win-loss"
 
 const HOUR = 3600_000, DAY = 24 * HOUR
 const CAP = 5000
@@ -82,7 +83,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
         origin: [r.origin_city, r.origin_country].filter(Boolean).join(", "), destination: [r.destination_city, r.destination_country].filter(Boolean).join(", "),
         mode: modeOf(r), cargo: r.cargo_type ?? "", incoterm: r.incoterm ?? "", urgency: r.urgency ?? "", status: r.status ?? "",
         intake: r.intake_source === "manual" ? "Manual" : "Automatic" }))
-      summary = [{ label: "Requests", value: rs.length, type: "num" }, { label: "Closed", value: rs.filter((r) => r.status === "Closed").length, type: "num" },
+      summary = [{ label: "Requests", value: rs.length, type: "num" }, { label: "Closed (dismissed)", value: rs.filter((r) => r.status === "Closed").length, type: "num" },
         { label: "Incomplete", value: rs.filter((r) => Array.isArray(r.missing_fields) && r.missing_fields.length).length, type: "num" },
         { label: "Manual intake", value: rs.filter((r) => r.intake_source === "manual").length, type: "num" }]
       break
@@ -94,7 +95,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const cq = await all<any>((a, b) => admin.from("carrier_quotes").select("freight_request_id, freight_requests!freight_request_id!inner(client_code)").eq("freight_requests.client_code", code).range(a, b)).catch(() => [])
       const qu = await all<any>((a, b) => admin.from("quotations").select("freight_request_id, status").eq("client_code", code).eq("status", "sent").range(a, b)).catch(() => [])
       const st = (xs: any[]) => new Set(xs.filter((x) => ids.has(x.freight_request_id)).map((x) => x.freight_request_id)).size
-      const stages = [["Received", rs.length], ["RFQ sent to carriers", st(rfq)], ["Carrier quote received", st(cq)], ["Quotation sent", st(qu)], ["Closed", rs.filter((r) => r.status === "Closed").length]] as const
+      const stages = [["Received", rs.length], ["RFQ sent to carriers", st(rfq)], ["Carrier quote received", st(cq)], ["Quotation sent", st(qu)], ["Won", rs.filter((r) => r.outcome === "won").length]] as const
       columns = [{ key: "stage", label: "Stage" }, { key: "count", label: "Requests", type: "num" }, { key: "share", label: "% of received", type: "pct" }, { key: "step", label: "Conversion from previous stage", type: "pct" }, { key: "drop", label: "Dropped before this stage", type: "num" }]
       rows = stages.map(([stage, count], i) => ({ stage, count, share: pct(count, stages[0][1]), step: i ? pct(count, stages[i - 1][1]) : null, drop: i ? Math.max(0, stages[i - 1][1] - count) : null }))
       const byStatus = new Map<string, number>(); for (const r of rs) byStatus.set(r.status, (byStatus.get(r.status) ?? 0) + 1)
@@ -120,7 +121,7 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const qu = (await quotationsInRange()).filter((q) => q.status === "sent" && (!f.mode || ids.has(q.freight_request_id)))
       for (const q of qu) { const g = get(key(Date.parse(q.sent_at ?? q.created_at))); g.quotations++; g.value += n(q.final_price_usd) ?? 0 }
       columns = [{ key: "period", label: unit === "month" ? "Month starting" : unit === "week" ? "Week starting" : "Day", type: "date" }, { key: "requests", label: "Requests", type: "num" }, { key: "quotes", label: "Carrier quotes", type: "num" },
-        { key: "quotations", label: "Quotations sent", type: "num" }, { key: "closed", label: "Closed", type: "num" }, { key: "value", label: "Quoted value (USD)", type: "money" }]
+        { key: "quotations", label: "Quotations sent", type: "num" }, { key: "won", label: "Won", type: "num" }, { key: "value", label: "Quoted value (USD)", type: "money" }]
       rows = Array.from(b.values()).sort((a, c) => a.period.localeCompare(c.period))
       summary = [{ label: "Requests", value: sum(rows.map((r) => r.requests)), type: "num" }, { label: "Carrier quotes", value: sum(rows.map((r) => r.quotes)), type: "num" },
         { label: "Quotations sent", value: sum(rows.map((r) => r.quotations)), type: "num" }, { label: "Quoted value", value: sum(rows.map((r) => r.value)), type: "money" }]
@@ -199,6 +200,47 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
         { label: "Margin (sent)", value: sum(sent.map((r) => r.markup)), type: "money" }, { label: "Avg margin %", value: avg(sent.map((r) => r.marginPct)), type: "pct" }]
       break
     }
+    case "won_deals": {
+      let rs = await all<any>((a, b) => admin.from("freight_requests").select("*").eq("client_code", code).eq("outcome", "won").gte("outcome_at", fromIso).lt("outcome_at", toIso).order("outcome_at", { ascending: false }).range(a, b))
+      rs = rs.filter((r) => (!f.stage || wonStage(r) === f.stage) && (!f.mode || modeOf(r).toLowerCase() === f.mode) &&
+        (!f.q || has([r.request_ref, r.sender_name, r.sender_email, r.won_carrier_name, r.booking_reference], f.q)))
+      columns = [
+        { key: "ref", label: "Ref" }, { key: "won", label: "Won on", type: "datetime" }, { key: "sender", label: "Requester" }, { key: "lane", label: "Lane" }, { key: "mode", label: "Mode" },
+        { key: "carrier", label: "Carrier" }, { key: "stage", label: "Stage" }, { key: "booking", label: "Booking ref" }, { key: "booked", label: "Booked", type: "date" },
+        { key: "invoiced", label: "Invoiced", type: "date" }, { key: "paid", label: "Paid", type: "date" },
+        { key: "cost", label: "Carrier price (USD)", type: "money" }, { key: "sold", label: "Sold (USD)", type: "money" }, { key: "profit", label: "Profit (USD)", type: "money" }, { key: "margin", label: "Margin on cost", type: "pct" }]
+      rows = rs.map((r) => {
+        const cost = n(r.won_cost_usd), sold = n(r.won_sell_usd), profit = n(r.won_margin_usd)
+        return { ref: r.request_ref ?? "", won: r.outcome_at, sender: r.sender_name || r.sender_email || "", lane: lane(r), mode: modeOf(r), carrier: r.won_carrier_name ?? "",
+          stage: WON_STAGE_LABEL[wonStage(r)], booking: r.booking_reference ?? "", booked: r.booked_at, invoiced: r.invoiced_at, paid: r.paid_at,
+          cost, sold, profit, margin: cost ? ((profit ?? 0) / cost) * 100 : null }
+      })
+      const sm = summarizeOutcomes(rs)
+      summary = [{ label: "Won deals", value: sm.won, type: "num" }, { label: "Sold", value: sm.revenue, type: "money" }, { label: "Carrier cost", value: sm.cost, type: "money" },
+        { label: "Profit (markup)", value: sm.profit, type: "money" }, { label: "Avg margin on cost", value: sm.cost ? (sm.profit / sm.cost) * 100 : null, type: "pct" },
+        ...sm.stages.map((x) => ({ label: `${x.label} · profit`, value: x.profit, type: "money" as const })),
+        { label: "Profit collected", value: sm.profitPaid, type: "money" }]
+      if (sm.profitMissing) note = `${sm.profitMissing} won deal${sm.profitMissing > 1 ? "s have" : " has"} no carrier price, so no profit is counted for ${sm.profitMissing > 1 ? "them" : "it"}.`
+      break
+    }
+    case "lost_deals": {
+      let rs = await all<any>((a, b) => admin.from("freight_requests").select("*").eq("client_code", code).eq("outcome", "lost").gte("outcome_at", fromIso).lt("outcome_at", toIso).order("outcome_at", { ascending: false }).range(a, b))
+      rs = rs.filter((r) => (!f.reason || r.outcome_reason === f.reason) && (!f.mode || modeOf(r).toLowerCase() === f.mode) && (!f.q || has([r.request_ref, r.sender_name, r.sender_email], f.q)))
+      const ids = rs.map((r) => r.id)
+      const best = new Map<string, number>()
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data } = await admin.from("quotations").select("freight_request_id, final_price_usd, status").eq("client_code", code).in("freight_request_id", ids.slice(i, i + 200))
+        for (const q of data ?? []) { const v = n(q.final_price_usd); if (v != null && q.status === "sent") best.set(q.freight_request_id, Math.max(best.get(q.freight_request_id) ?? 0, v)) }
+      }
+      columns = [{ key: "ref", label: "Ref" }, { key: "lost", label: "Lost on", type: "datetime" }, { key: "sender", label: "Requester" }, { key: "lane", label: "Lane" }, { key: "mode", label: "Mode" },
+        { key: "reason", label: "Reason" }, { key: "quoted", label: "Quoted (USD)", type: "money" }, { key: "note", label: "Note" }, { key: "by", label: "Marked by" }]
+      rows = rs.map((r) => ({ ref: r.request_ref ?? "", lost: r.outcome_at, sender: r.sender_name || r.sender_email || "", lane: lane(r), mode: modeOf(r),
+        reason: LOST_REASON_LABEL[String(r.outcome_reason)] ?? "Not stated", quoted: best.get(r.id) ?? null, note: r.outcome_note ?? "", by: r.outcome_by ?? "" }))
+      const sm = summarizeOutcomes(rs)
+      summary = [{ label: "Lost deals", value: rows.length, type: "num" }, { label: "Quoted value lost", value: sum(rows.map((r) => r.quoted)), type: "money" },
+        ...sm.lostReasons.slice(0, 5).map((x) => ({ label: x.label, value: x.value, type: "num" as const }))]
+      break
+    }
     case "lanes": {
       const rs = reqFilter(await requests())
       const ids = new Set(rs.map((r) => r.id))
@@ -208,10 +250,10 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const minReq = n(f.minReq) ?? 1
       rows = Array.from(g.entries()).filter(([, v]) => v.length >= minReq).map(([l, v]) => {
         const s = new Set(v.map((r) => r.id))
-        return { lane: l, requests: v.length, closed: v.filter((r) => r.status === "Closed").length,
+        return { lane: l, requests: v.length, won: v.filter((r) => r.outcome === "won").length,
           avgCarrier: avg(cq.filter((q) => s.has(q.freight_request_id)).map((q) => n(q.rate_usd))), avgFinal: avg(qu.filter((q) => s.has(q.freight_request_id) && q.status === "sent").map((q) => n(q.final_price_usd))) }
       }).sort((a, b) => b.requests - a.requests)
-      columns = [{ key: "lane", label: "Lane" }, { key: "requests", label: "Requests", type: "num" }, { key: "closed", label: "Closed", type: "num" }, { key: "avgCarrier", label: "Avg carrier rate (USD)", type: "money" }, { key: "avgFinal", label: "Avg quoted price (USD)", type: "money" }]
+      columns = [{ key: "lane", label: "Lane" }, { key: "requests", label: "Requests", type: "num" }, { key: "won", label: "Won", type: "num" }, { key: "avgCarrier", label: "Avg carrier rate (USD)", type: "money" }, { key: "avgFinal", label: "Avg quoted price (USD)", type: "money" }]
       summary = [{ label: "Lanes", value: rows.length, type: "num" }, { label: "Requests", value: sum(rows.map((r) => r.requests)), type: "num" }]
       break
     }
@@ -223,9 +265,9 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       const g = new Map<string, any[]>(); for (const r of rs) { const k = (r.sender_email || r.sender_name || "").toLowerCase(); if (k) g.set(k, [...(g.get(k) ?? []), r]) }
       rows = Array.from(g.entries()).map(([k, v]) => {
         const mine = qu.filter((q) => owner.get(q.freight_request_id) === k)
-        return { sender: v[0].sender_name || k, email: v[0].sender_email ?? "", requests: v.length, closed: v.filter((r) => r.status === "Closed").length, quotations: mine.length, value: sum(mine.map((q) => n(q.final_price_usd))), last: v.map((r) => r.received_at).sort().pop() }
+        return { sender: v[0].sender_name || k, email: v[0].sender_email ?? "", requests: v.length, won: v.filter((r) => r.outcome === "won").length, quotations: mine.length, value: sum(mine.map((q) => n(q.final_price_usd))), last: v.map((r) => r.received_at).sort().pop() }
       }).sort((a, b) => b.requests - a.requests)
-      columns = [{ key: "sender", label: "Requester" }, { key: "email", label: "Email" }, { key: "requests", label: "Requests", type: "num" }, { key: "quotations", label: "Quotations sent", type: "num" }, { key: "closed", label: "Closed", type: "num" }, { key: "value", label: "Quoted value (USD)", type: "money" }, { key: "last", label: "Last request", type: "datetime" }]
+      columns = [{ key: "sender", label: "Requester" }, { key: "email", label: "Email" }, { key: "requests", label: "Requests", type: "num" }, { key: "quotations", label: "Quotations sent", type: "num" }, { key: "won", label: "Won", type: "num" }, { key: "value", label: "Quoted value (USD)", type: "money" }, { key: "last", label: "Last request", type: "datetime" }]
       summary = [{ label: "Requesters", value: rows.length, type: "num" }, { label: "Requests", value: sum(rows.map((r) => r.requests)), type: "num" }, { label: "Quoted value", value: sum(rows.map((r) => r.value)), type: "money" }]
       break
     }

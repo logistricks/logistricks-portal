@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
       patch.won_sell_usd = sell
       patch.won_margin_usd = sell != null && cost != null ? r2(sell - cost) : null
     }
+    if (b.booked === true && !txt(b.booking_reference, 120)) return NextResponse.json({ error: "A booked deal needs its booking reference." }, { status: 400 })
     if (b.booked === true) {
       patch.booking_reference = txt(b.booking_reference, 120)
       patch.booking_description = txt(b.booking_description, 1000)

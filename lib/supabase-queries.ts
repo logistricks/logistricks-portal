@@ -66,6 +66,8 @@ export interface DbFreightRequest {
   won_sell_usd?: number | null
   won_margin_usd?: number | null
   paid_at?: string | null
+  booked_at?: string | null
+  invoiced_at?: string | null
 }
 
 export interface DashboardStats {
@@ -337,6 +339,8 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     wonSellUsd:        row.won_sell_usd != null ? Number(row.won_sell_usd) : null,
     wonMarginUsd:      row.won_margin_usd != null ? Number(row.won_margin_usd) : null,
     paidAt:            row.paid_at ?? null,
+    bookedAt:          row.booked_at ?? null,
+    invoicedAt:        row.invoiced_at ?? null,
   }
 }
 

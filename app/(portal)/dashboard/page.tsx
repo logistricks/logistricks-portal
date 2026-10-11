@@ -17,7 +17,7 @@ import { type FreightRequest } from "@/lib/portal-data"
 import { type DashboardStats, formatRelative } from "@/lib/supabase-queries"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
-import { BigDashboard, KpiTile, MainCharts, RangeFilter, useDashboard } from "@/components/portal/dashboard-parts"
+import { BigDashboard, KpiTile, MainCharts, RangeFilter, SalesResults, useDashboard } from "@/components/portal/dashboard-parts"
 import { makeRange, money, hours, type DashRange } from "@/lib/dashboard-range"
 import { CHART_COLORS } from "@/components/portal/charts"
 import { HeroChecklist, HeroChip, PageHero } from "@/components/portal/page-hero"
@@ -170,6 +170,9 @@ export default function DashboardPage() {
 
       {/* The 3 main charts */}
       <MainCharts data={dash} loading={dashLoading} />
+
+      {/* Won / lost and profit */}
+      <SalesResults data={dash} loading={dashLoading} />
 
       {/* Main grid: table left, sidebar right */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_340px]">

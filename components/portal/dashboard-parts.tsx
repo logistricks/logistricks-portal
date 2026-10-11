@@ -7,13 +7,15 @@ import { ArrowDownRight, ArrowUpRight, Calendar, RefreshCw, X } from "lucide-rea
 import { makeRange, type DashRange, type RangeKey, money, hours, percent } from "@/lib/dashboard-range"
 import { CHART_COLORS, CountUp, Donut, Funnel, HBars, Legend, Spark, TrendChart } from "@/components/portal/charts"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { WinLossSummary } from "@/lib/win-loss"
 
 export interface Kpi { value: number | null; prev: number | null }
 export interface DashData {
   range: { from: number; to: number; unit: string }
   generatedAt: number
-  kpis: Record<"requests" | "active" | "needsAttention" | "carrierQuotes" | "rfqs" | "quotationsSent" | "quotedValue" | "margin" | "closed" | "hoursToQuote" | "winRate" | "autoReplies" | "avgQuotation", Kpi>
-  series: { label: string; requests: number; quotes: number; quotations: number; closed: number; value: number; margin: number }[]
+  kpis: Record<"requests" | "active" | "needsAttention" | "carrierQuotes" | "rfqs" | "quotationsSent" | "quotedValue" | "margin" | "closed" | "hoursToQuote" | "winRate" | "autoReplies" | "avgQuotation" | "won" | "lost" | "wonRevenue" | "profit" | "profitPaid", Kpi>
+  series: { label: string; requests: number; quotes: number; quotations: number; closed: number; value: number; margin: number; won: number; lost: number; profit: number }[]
+  sales: WinLossSummary
   statusPeriod: { label: string; value: number }[]
   statusSnapshot: { label: string; value: number }[]
   source: { label: string; value: number }[]
@@ -70,7 +72,7 @@ const enc = encodeURIComponent
 export const stageHref = (label: string) => `/requests?stage=${enc(label)}`
 const FUNNEL_HREF: Record<string, string> = {
   "Received": "/requests?stage=all", "RFQ sent": "/requests?stage=Sent%20to%20Carrier", "Carrier quote": "/requests?stage=Quoted",
-  "Quotation sent": "/requests?stage=Quoted", "Closed": "/requests?stage=Closed",
+  "Quotation sent": "/requests?stage=Quoted", "Won": "/requests?outcome=won",
 }
 export const funnelHref = (label: string) => FUNNEL_HREF[label] ?? "/requests"
 export const searchHref = (label: string) => `/requests?q=${enc(label)}&stage=all`
@@ -165,6 +167,58 @@ export function Card({ title, sub, right, children, className = "" }: { title: s
 
 const ChartSkeleton = ({ h = 200 }: { h?: number }) => <Skeleton h={h} className="w-full" />
 
+/* ───────────── Won / lost results and profit ───────────── */
+const STAGE_COLOR: Record<string, string> = { won: "#16a34a", booked: "#0ea5e9", invoiced: "#8b5cf6", paid: "#059669" }
+export function SalesResults({ data, loading }: { data: DashData | null; loading: boolean }) {
+  const k = data?.kpis, sa = data?.sales
+  const L = loading && !data
+  const s = data?.series ?? []
+  const col = (key: "won" | "lost" | "profit") => s.map((x) => Number(x[key]) || 0)
+  const maxStage = Math.max(1, ...(sa?.stages ?? []).map((x) => x.count))
+  return (
+    <section className="space-y-5">
+      <h3 className="text-center font-display text-[24px] font-extrabold" style={{ color: "var(--text-primary)" }}>Won &amp; lost</h3>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <KpiTile loading={L} label="Won" kpi={k?.won} spark={col("won")} color="#16a34a" href="/requests?outcome=won" hint="Requests marked Won in this period" />
+        <KpiTile loading={L} label="Lost" kpi={k?.lost} spark={col("lost")} color="#ef4444" lowerIsBetter href="/requests?outcome=lost" hint="Requests marked Lost in this period" />
+        <KpiTile loading={L} label="Win rate" kpi={k?.winRate} format={percent} color="#16a34a" hint="Won ÷ (won + lost). Closed requests are dismissed and not counted." />
+        <KpiTile loading={L} label="Won value" kpi={k?.wonRevenue} format={money} color={CHART_COLORS[3]} hint="What the won deals were sold for" />
+        <KpiTile loading={L} label="Profit (markup)" kpi={k?.profit} format={money} spark={col("profit")} color="#16a34a" hint="Won price minus the carrier price, on won deals" />
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Card title="Won deals by stage" sub="Won in this period · count and profit">
+          {L ? <ChartSkeleton h={160} /> : (
+            <div className="space-y-3">
+              {(sa?.stages ?? []).map((st) => (
+                <div key={st.stage}>
+                  <div className="mb-0.5 flex justify-between gap-2 text-[12.5px]">
+                    <span style={{ color: "var(--text-primary)" }}>{st.label}</span>
+                    <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>{st.count} · {money(st.profit)}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "var(--divider)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${(st.count / maxStage) * 100}%`, background: STAGE_COLOR[st.stage], transition: "width .6s" }} />
+                  </div>
+                </div>
+              ))}
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t pt-3 text-center" style={{ borderColor: "var(--divider)" }}>
+                <div><p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Profit invoiced</p><p className="text-[18px] font-extrabold tabular-nums" style={{ color: "var(--text-primary)" }}>{money(sa?.profitInvoiced ?? 0)}</p></div>
+                <div><p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Profit collected</p><p className="text-[18px] font-extrabold tabular-nums" style={{ color: "#059669" }}>{money(sa?.profitPaid ?? 0)}</p></div>
+              </div>
+              {!!sa?.profitMissing && <p className="text-[11.5px]" style={{ color: "#b45309" }}>{sa.profitMissing} won deal{sa.profitMissing > 1 ? "s" : ""} without a carrier price — profit not counted for them.</p>}
+            </div>
+          )}
+        </Card>
+        <Card title="Why deals were lost" sub="Lost in this period"><HBars color="#ef4444" items={sa?.lostReasons ?? []} empty="No lost deals in this period." /></Card>
+        <Card title="Profit by carrier" sub="Won deals, USD"><HBars color="#16a34a" format={money} items={sa?.profitByCarrier ?? []} empty="No won deals in this period." /></Card>
+      </div>
+      <Card title="Profit over time" sub="Markup on won deals (USD) and number won" right={<Legend items={[{ label: "Profit", color: "#16a34a" }, { label: "Won", color: CHART_COLORS[0] }, { label: "Lost", color: "#ef4444" }]} />}>
+        {L ? <ChartSkeleton /> : <TrendChart data={s} format={(n) => (Number.isInteger(n) && n < 1000 ? String(n) : money(n))} series={[
+          { key: "profit", label: "Profit", color: "#16a34a" }, { key: "won", label: "Won", color: CHART_COLORS[0], kind: "line" }, { key: "lost", label: "Lost", color: "#ef4444", kind: "line" }]} />}
+      </Card>
+    </section>
+  )
+}
+
 /* ───────────── The three main cards ───────────── */
 export function MainCharts({ data, loading }: { data: DashData | null; loading: boolean }) {
   const s = data?.series ?? []
@@ -172,7 +226,7 @@ export function MainCharts({ data, loading }: { data: DashData | null; loading: 
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.6fr_1fr_1.1fr]">
       <Card title="Request volume" sub="Requests received, carrier quotes and closed" right={<Legend items={[
-        { label: "Requests", color: CHART_COLORS[0] }, { label: "Carrier quotes", color: CHART_COLORS[1] }, { label: "Closed", color: CHART_COLORS[2] }]} />}>
+        { label: "Requests", color: CHART_COLORS[0] }, { label: "Carrier quotes", color: CHART_COLORS[1] }, { label: "Closed (dismissed)", color: CHART_COLORS[2] }]} />}>
         {loading && !data ? <ChartSkeleton /> : (
           <TrendChart data={s} height={210} series={[
             { key: "requests", label: "Requests", color: CHART_COLORS[0] },
@@ -184,7 +238,7 @@ export function MainCharts({ data, loading }: { data: DashData | null; loading: 
       <Card title="Pipeline status" sub="Requests received in this period">
         {loading && !data ? <ChartSkeleton /> : <Donut hrefFor={stageHref} items={status.slice(0, 6)} centerValue={data?.kpis.requests.value ?? 0} centerLabel="Requests" />}
       </Card>
-      <Card title="Conversion funnel" sub="From received to closed">
+      <Card title="Conversion funnel" sub="From received to won">
         {loading && !data ? <ChartSkeleton /> : <Funnel hrefFor={funnelHref} steps={data?.funnel ?? []} />}
       </Card>
     </div>
@@ -244,12 +298,14 @@ export function BigDashboard({ range, onRange, data, loading, refreshing, onRelo
             <KpiTile href="/reports" newTab loading={L} label="Margin" kpi={k?.margin} format={money} spark={col("margin")} color={CHART_COLORS[2]} hint="Final price minus carrier base rate, quotations sent" />
             <KpiTile href="/reports" newTab loading={L} label="Avg quotation" kpi={k?.avgQuotation} format={money} />
             <KpiTile href="/reports" newTab loading={L} label="Median time to quote" kpi={k?.hoursToQuote} format={hours} lowerIsBetter hint="Request received → first quotation prepared" />
-            <KpiTile href="/requests?stage=Closed" newTab loading={L} label="Closed" kpi={k?.closed} spark={col("closed")} color={CHART_COLORS[2]} />
-            <KpiTile href="/reports" newTab loading={L} label="Closed ÷ quotes sent" kpi={k?.winRate} format={percent} />
+            <KpiTile href="/requests?stage=Closed" newTab loading={L} label="Closed (dismissed)" kpi={k?.closed} spark={col("closed")} color={CHART_COLORS[2]} hint="Requests dismissed. Not a win or a loss." />
+            <KpiTile href="/reports" newTab loading={L} label="Win rate" kpi={k?.winRate} format={percent} hint="Won ÷ (won + lost)" color="#16a34a" />
           </div>
 
+          <SalesResults data={data} loading={L} />
+
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card title="Request volume" right={<Legend items={[{ label: "Requests", color: CHART_COLORS[0] }, { label: "Carrier quotes", color: CHART_COLORS[1] }, { label: "Closed", color: CHART_COLORS[2] }]} />}>
+            <Card title="Request volume" right={<Legend items={[{ label: "Requests", color: CHART_COLORS[0] }, { label: "Carrier quotes", color: CHART_COLORS[1] }, { label: "Closed (dismissed)", color: CHART_COLORS[2] }]} />}>
               {L ? <ChartSkeleton /> : <TrendChart data={s} series={[
                 { key: "requests", label: "Requests", color: CHART_COLORS[0] }, { key: "quotes", label: "Carrier quotes", color: CHART_COLORS[1] },
                 { key: "closed", label: "Closed", color: CHART_COLORS[2], kind: "line" }]} />}

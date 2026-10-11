@@ -32,6 +32,8 @@ type SourceKey = (typeof SOURCES)[number]
 
 const POLL_INTERVAL = 30_000
 const PREFS_KEY = "lt_requests_filters_v2"
+/** Won deals show how far they are: to book → booked → invoiced → paid. Closed is only "dismissed" and never a result. */
+const outcomeLabel = (r: FreightRequest) => r.outcome === "won" ? `won · ${r.paidAt ? "paid" : r.invoicedAt ? "invoiced" : r.bookedAt ? "booked" : "to book"}` : r.outcome ?? ""
 
 function parseArrayField(value: string | null | undefined): string {
   if (!value) return ""
@@ -103,6 +105,7 @@ export default function RequestsPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [sources, setSources]   = useState<SourceKey[]>([])
   const [onlyFlagged, setOnlyFlagged] = useState(false)
+  const [results, setResults] = useState<("won" | "lost")[]>([])
   const searchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch]             = useState("")
   const [selected, setSelected]         = useState<string[]>([])
@@ -148,6 +151,7 @@ export default function RequestsPage() {
       const st = p.get("stage")
       if (st) { const hit = STAGES.find((x) => x.toLowerCase() === st.toLowerCase()); setStages(hit ? [hit] : []); setTargets([]); setDeliveries([]) }
       if (p.get("attention")) setOnlyFlagged(true)
+      const oc = p.get("outcome"); if (oc === "won" || oc === "lost") { setResults([oc]); setStages([]); setTargets([]); setDeliveries([]) }
       const qq = p.get("q"); if (qq) setSearch(qq)
     } catch { /* ignore */ }
     setPrefsReady(true)
@@ -198,6 +202,7 @@ export default function RequestsPage() {
         if (targets.length && !(p.target && targets.includes(p.target))) return false
         if (deliveries.length && !(p.delivery && deliveries.includes(p.delivery))) return false
       }
+      if (results.length && !(r.outcome && (results as string[]).includes(r.outcome))) return false
       if (sources.length && !sources.includes(r.source as SourceKey)) return false
       if (onlyFlagged && !isFlagged(r)) return false
       if (q) {
@@ -212,10 +217,10 @@ export default function RequestsPage() {
       if (sb !== sa) return sb - sa
       return (b.receivedIso ?? "").localeCompare(a.receivedIso ?? "")
     })
-  }, [requests, stages, targets, deliveries, sources, onlyFlagged, search, isFlagged])
+  }, [requests, stages, targets, deliveries, sources, onlyFlagged, results, search, isFlagged])
 
   const flip = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, v: NoInfer<T>) => set((a) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]))
-  function clearFilters() { setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
+  function clearFilters() { setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
   function showAll() { setStages([]); setTargets([]); setDeliveries([]) }
 
   function toggle(id: string, e: React.MouseEvent) {
@@ -312,6 +317,12 @@ export default function RequestsPage() {
                 {st === "Waiting" ? "Waiting for approval" : st}
               </Toggle>
             ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-14 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Result</span>
+            <Toggle on={results.includes("won")} onClick={() => { flip(setResults, "won"); setStages([]) }} count={requests.filter((r) => r.outcome === "won").length} tone="#16a34a">Won</Toggle>
+            <Toggle on={results.includes("lost")} onClick={() => { flip(setResults, "lost"); setStages([]) }} count={requests.filter((r) => r.outcome === "lost").length} tone="#ef4444">Lost</Toggle>
+            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Closed means dismissed — it is not a result.</span>
           </div>
           {stages.includes("Approved") && (
             <div className="flex flex-wrap items-center gap-2 pl-0" style={{ animation: "lt-drop-in .18s ease-out" }}>
@@ -444,7 +455,7 @@ export default function RequestsPage() {
                     {r.outcome && (
                       <span className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
                         style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
-                        {r.outcome}{r.outcome === "won" && r.paidAt ? " · paid" : ""}
+                        {outcomeLabel(r)}
                       </span>
                     )}
                   </div>
@@ -544,7 +555,7 @@ export default function RequestsPage() {
                       {r.outcome && (
                         <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
                           style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
-                          {r.outcome}{r.outcome === "won" && r.paidAt ? " · paid" : ""}
+                          {outcomeLabel(r)}
                         </span>
                       )}
                     </td>

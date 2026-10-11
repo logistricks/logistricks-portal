@@ -202,6 +202,8 @@ export type FreightRequest = {
   wonSellUsd?: number | null
   wonMarginUsd?: number | null
   paidAt?: string | null
+  bookedAt?: string | null
+  invoicedAt?: string | null
 }
 
 export type ConversationMessage = {

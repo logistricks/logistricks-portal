@@ -124,7 +124,7 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
           {dis && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>View only</span>}
           {msg && <span className="text-xs font-semibold" style={{ color: msg.ok ? "#16a34a" : "#ef4444" }}>{msg.text}</span>}
           {saved.outcome_at && !msg && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Saved by {saved.outcome_by ?? "—"}</span>}
-          {saved.outcome && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome}</span>}
+          {saved.outcome && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome === "won" ? `won · ${saved.paid_at ? "paid" : saved.invoiced_at ? "invoiced" : saved.booked_at ? "booked" : "to book"}` : saved.outcome}</span>}
           <button onClick={save} disabled={busy || dis} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
           </button>
