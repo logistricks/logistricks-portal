@@ -441,7 +441,17 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const tnorm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim()
   const sameAs = (a: string, b: string) => !!a && !!b && (tnorm(a).includes(tnorm(b)) || tnorm(b).includes(tnorm(a)) || (/space/.test(tnorm(a)) && /space/.test(tnorm(b)) && /equipment/.test(tnorm(a)) === /equipment/.test(tnorm(b))))
   const spaceRow = sameAs(v.space_status, v.subject_to_conditions) || (/^subject to\b/i.test(v.space_status) && /\b(space|equipment)\b/i.test(v.subject_to_conditions)) ? "" : v.space_status
-  const insuranceRow = /insur/i.test(v.exclusions) ? "" : v.insurance_note
+  // "Not included" must not repeat what "Additional charges" already lists (customs, insurance ...): keep only the other items.
+  const words = (x: string) => tnorm(x).split(" ").filter((w) => w.length > 2 && !/^(the|and|for|per|you|need|nor|not|any|are|may)$/.test(w))
+  const optionalWords = optional.map((c) => words(String(c.carrier_label ?? "")))
+  const coveredByOptional = (item: string) => {
+    const w = words(item)
+    return w.length > 0 && optionalWords.some((ow) => ow.length > 0 && (ow.filter((x) => w.includes(x)).length >= Math.min(2, ow.length, w.length) || ow.every((x) => w.includes(x))))
+  }
+  const excl = optional.length
+    ? String(v.exclusions || "").split(/,(?![^()]*\))|;/).map((x) => x.trim()).filter((x) => x && !coveredByOptional(x)).join(", ")
+    : v.exclusions
+  const insuranceRow = /insur/i.test(v.exclusions) || optional.some((c) => /insur/i.test(String(c.carrier_label ?? ""))) ? "" : v.insurance_note
   const stated = [v.subject_to_conditions, v.exclusions, free].map(tnorm).filter(Boolean)
   const notesRow = String(v.quote_notes || "").split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter((sent) => {
     const n = tnorm(sent)
@@ -452,7 +462,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   }).join(" ").trim()
   const terms: [string, string][] = ([
     ["Quotation valid until", v.quotation_valid_until], ["Space / equipment", spaceRow], ["Free time", free],
-    ["Payment terms", v.payment_terms], ["Subject to", v.subject_to_conditions], ["Not included", v.exclusions],
+    ["Payment terms", v.payment_terms], ["Subject to", v.subject_to_conditions], ["Not included", excl],
     ["Documents required", v.required_documents], ["Liability", v.liability_limit], ["Cancellation", v.cancellation_terms],
     ["Insurance", insuranceRow], ["Tax", v.tax_note], ["Notes", notesRow],
   ] as [string, string][]).filter(([, val]) => val)
