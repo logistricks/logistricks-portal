@@ -9,11 +9,12 @@
  * POST                              -> create a new quotation (renders the doc)
  * PATCH  { id, status: "sent" }     -> mark a quotation as sent
  */
+import { cleanFx } from "@/lib/fx"
 import { NextRequest, NextResponse } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
 import { logActivity } from "@/lib/log-activity"
-import { buildContext, carrierBase, renderQuotation } from "@/lib/quotation-render"
+import { buildContext, carrierBaseDetail, renderQuotation } from "@/lib/quotation-render"
 import { normalizeOptions } from "@/lib/quotation-variables"
 
 function auth(req: NextRequest) {
@@ -112,7 +113,11 @@ export async function POST(req: NextRequest) {
     .single()
   if (tplErr || !template) return NextResponse.json({ error: "Quotation template not found" }, { status: 404 })
 
-  const baseRate = carrierBase(quoteRow as Record<string, any>)
+  const fxRates = cleanFx(body.fx_rates)
+  const baseInfo = carrierBaseDetail(quoteRow as Record<string, any>, fxRates)
+  if (baseInfo.missingRate.length)
+    return NextResponse.json({ error: `No exchange rate for ${baseInfo.missingRate.join(", ")}. Enter one in the quotation so the charge is not left out.` }, { status: 400 })
+  const baseRate = baseInfo.base
   let finalPrice = markupType === "percent"
     ? Math.round(baseRate * (1 + markupAmount / 100) * 100) / 100
     : Math.round((baseRate + markupAmount) * 100) / 100
@@ -157,6 +162,7 @@ export async function POST(req: NextRequest) {
       charges_style: options.charges_style,
       lines,
       mixed_currency: mixed,
+      fx: baseInfo.converted,
     })
   }
 

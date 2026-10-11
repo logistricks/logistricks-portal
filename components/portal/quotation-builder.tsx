@@ -329,6 +329,7 @@ export function QuotationBuilder({
   const [error, setError]         = useState<string | null>(null)
 
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null)
+  const [fxRates, setFxRates]     = useState<Record<string, string>>({})
   const [markupType, setMarkupType]     = useState<"flat" | "percent">("flat")
   const [markupAmount, setMarkupAmount] = useState<string>("0")
   const [showPct, setShowPct]     = useState(false)
@@ -340,7 +341,7 @@ export function QuotationBuilder({
   const [building, setBuilding]         = useState(false)
   const [sendingQuotation, setSendingQuotation] = useState<Quotation | null>(null)
   const [expiredPrompt, setExpiredPrompt] = useState<{ q: Quotation; msg: string } | null>(null)
-  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number; charges_style?: ChargesStyle; lines?: PriceLine[]; mixed_currency?: boolean } | null>(null)
+  const [preview, setPreview] = useState<{ template_name: string; generated_subject: string; generated_html: string | null; generated_body: string; quotation_number: string; final_price_usd?: number; base_rate_usd?: number; charges_style?: ChargesStyle; lines?: PriceLine[]; mixed_currency?: boolean; fx?: { currency: string; amount: number; rate: number | null; usd: number | null }[] } | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [styleOverride, setStyleOverride] = useState<ChargesStyle | null>(null) // null = what the template says (default: markup inside each price)
   const [overrides, setOverrides] = useState<PriceLine[] | null>(null)       // manually edited prices; null = automatic
@@ -447,7 +448,7 @@ export function QuotationBuilder({
           body: JSON.stringify({
             preview: true, freight_request_id: request.id, carrier_quote_id: selectedQuoteId,
             quotation_template_id: templateId ?? undefined, markup_type: markupType, markup_amount: Number(markupAmount) || 0, show_markup_percent: showPct,
-            charges_style: styleOverride ?? undefined, line_overrides: overrides ?? undefined,
+            charges_style: styleOverride ?? undefined, line_overrides: overrides ?? undefined, fx_rates: fxRates,
           }),
         })
         setPreview(res.ok ? await res.json() : null)
@@ -455,7 +456,7 @@ export function QuotationBuilder({
       finally { setPreviewing(false) }
     }, 400)
     return () => { clearTimeout(timer); ctl.abort() }
-  }, [selectedQuoteId, templateId, markupType, markupAmount, showPct, styleOverride, overrides, templates.length, request.id])
+  }, [selectedQuoteId, templateId, markupType, markupAmount, showPct, styleOverride, overrides, fxRates, templates.length, request.id])
 
   async function handleBuild() {
     if (!selectedRow?.quote || templates.length === 0) return
@@ -473,6 +474,7 @@ export function QuotationBuilder({
           show_markup_percent: showPct,
           charges_style: styleOverride ?? undefined,
           line_overrides: overrides ?? undefined,
+          fx_rates: fxRates,
         }),
       })
       if (!res.ok) {
@@ -641,10 +643,19 @@ export function QuotationBuilder({
             </div>
             {shownStyle !== "total_only" && !overrides && preview?.mixed_currency && editableLines.length > 0 && (
               <div className="space-y-1">
-                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>This quote has charges in several currencies. They are listed as the carrier stated them; the total is the all-in USD price (carrier total + markup).</p>
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>This quote has charges in several currencies. They are listed as the carrier stated them; the foreign-currency lines are converted to USD below (edit the rate if needed) and included in the all-in total.</p>
                 {editableLines.map((l, i) => (
                   <div key={i} className="flex items-center justify-between rounded-md px-2 py-1 text-xs" style={{ background: "var(--table-header-bg)", color: "var(--text-primary)" }}>
                     <span>{l.label}</span><span className="tabular-nums">{l.currency ?? "USD"} {Number(l.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
+                {(preview.fx ?? []).map((f) => (
+                  <div key={f.currency} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                    <span>{f.currency} {f.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} converted to USD at</span>
+                    <span className="flex items-center gap-2">
+                      <input type="number" step="0.0001" value={fxRates[f.currency] ?? (f.rate ?? "")} onChange={(e) => setFxRates((cur) => ({ ...cur, [f.currency]: e.target.value }))} className="h-7 w-24 rounded-md border px-2 text-right tabular-nums" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
+                      <span className="tabular-nums">= USD {(f.usd ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                    </span>
                   </div>
                 ))}
               </div>

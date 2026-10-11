@@ -8,6 +8,7 @@
  * Template syntax: see lib/quotation-variables.ts.
  */
 import { parseSpecial } from "@/lib/special"
+import { usdPer, type FxOverrides } from "@/lib/fx"
 import { isSeaOnly, isExw } from "@/lib/shipment-labels"
 import { ALL_VARIABLES, BLOCK_KEYS, VARIABLE_KEYS, type TemplateOptions, normalizeOptions } from "@/lib/quotation-variables"
 
@@ -274,18 +275,42 @@ export interface BuildInput {
 
 const dash = (s: string | null | undefined) => (s && s !== "—" ? s : "")
 
-/** The carrier's price: headline rate, else the computed total, else the sum of the included charge lines. */
-export function carrierBase(q: Record<string, any>): number {
-  const direct = num(q.rate_usd) ?? num(q.total_amount)
-  if (direct !== null && direct > 0) return direct
-  // The carrier's own stated total in USD (kept even when its lines are in several currencies).
-  const stated = num(q.rate_original)
-  if (stated !== null && stated > 0 && String(q.rate_currency || "USD").toUpperCase() === "USD") return stated
+export interface FxLine { currency: string; amount: number; rate: number | null; usd: number | null }
+export interface BaseDetail { base: number; mixed: boolean; converted: FxLine[]; missingRate: string[] }
+
+/**
+ * The carrier's price in USD with how it was reached. When the included lines are in several currencies, the
+ * carrier's stated USD total usually leaves the foreign line out, so it is NOT trusted: every line is converted to USD
+ * (rates from lib/fx, overridable per quotation) and summed. A currency with no known rate is reported in missingRate
+ * and the base is 0, so it can never be dropped silently.
+ */
+export function carrierBaseDetail(q: Record<string, any>, fx?: FxOverrides | null): BaseDetail {
   const rows: ChargeIn[] = Array.isArray(q.charges) ? q.charges : []
-  const inc = rows.filter((c) => (c.inclusion ?? "included") === "included")
-  // Never add amounts in different currencies together.
-  if (mixedCurrency(inc)) return 0
-  return round2(inc.reduce((t, c) => t + (num(c.amount) ?? 0), 0))
+  const inc = rows.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) !== null)
+  if (mixedCurrency(inc)) {
+    const converted: FxLine[] = []
+    const missingRate: string[] = []
+    let total = 0
+    for (const c of inc) {
+      const cur = String(c.currency || "USD").toUpperCase()
+      const amount = num(c.amount) as number
+      const rate = usdPer(cur, fx)
+      const usd = rate === null ? null : round2(amount * rate)
+      if (rate === null) { if (!missingRate.includes(cur)) missingRate.push(cur) } else total += usd as number
+      if (cur !== "USD") converted.push({ currency: cur, amount, rate, usd })
+    }
+    return { base: missingRate.length ? 0 : round2(total), mixed: true, converted, missingRate }
+  }
+  const direct = num(q.rate_usd) ?? num(q.total_amount)
+  if (direct !== null && direct > 0) return { base: direct, mixed: false, converted: [], missingRate: [] }
+  const stated = num(q.rate_original)
+  if (stated !== null && stated > 0 && String(q.rate_currency || "USD").toUpperCase() === "USD") return { base: stated, mixed: false, converted: [], missingRate: [] }
+  return { base: round2(inc.reduce((t, c) => t + (num(c.amount) ?? 0), 0)), mixed: false, converted: [], missingRate: [] }
+}
+
+/** The carrier's price in USD (see carrierBaseDetail). */
+export function carrierBase(q: Record<string, any>, fx?: FxOverrides | null): number {
+  return carrierBaseDetail(q, fx).base
 }
 
 /** True when the charge lines are not all in one currency. */

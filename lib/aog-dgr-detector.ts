@@ -68,9 +68,14 @@ const DGR_KEYWORDS = [
 // UN numbers (UN3481, UN 3481), packing instructions PI 965-970, "class 9" etc. need patterns, not plain substrings.
 const DGR_PATTERNS = [/\bun\s?-?\d{4}\b/i, /\bpi\s?9[5-7]\d\b/i, /\bpacking instruction\s?\d{3}\b/i, /\bclass\s?[1-9](\.\d)?\b/i]
 
+const esc = (k: string) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+// Whole words/phrases only: "apu" must not match "Capua", "sds" must not match "thresholds".
+// A leading/trailing hyphen counts as a boundary so "lithium-ion" and "li-ion" still match; "lithium" also matches "lithium-ion".
+const compiled = new Map<string[], RegExp>()
 function scan(text: string, keywords: string[]): boolean {
-  const lower = text.toLowerCase()
-  return keywords.some((kw) => lower.includes(kw))
+  let re = compiled.get(keywords)
+  if (!re) { re = new RegExp(`(?<![a-z0-9])(?:${keywords.map((k) => esc(k.trim())).join("|")})(?![a-z0-9])`, "i"); compiled.set(keywords, re) }
+  return re.test(text)
 }
 
 export interface DetectFlagsInput {
