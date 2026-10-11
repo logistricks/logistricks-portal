@@ -196,7 +196,7 @@ export type QuoteIn = Record<string, any>
  * Carrier text that is safe to show a customer: drops any sentence that names the carrier (or its people), gives contact
  * details, or talks about the carrier's own cost basis ("deduct ... USD 350"). Everything else is kept as written.
  */
-export function cleanCarrierText(text: unknown, carrierName?: string | null): string {
+export function cleanCarrierText(text: unknown, carrierName?: string | null, priceFactor = 1): string {
   const t = String(text ?? "").replace(/\s+/g, " ").trim()
   if (!t) return ""
   const names = String(carrierName ?? "").split(/\s+/).filter((w) => w.length > 2 && !/^(line|lines|shipping|logistics|group|co|ltd|llc|inc|the|and)$/i.test(w))
@@ -206,8 +206,16 @@ export function cleanCarrierText(text: unknown, carrierName?: string | null): st
     !(nameRe && nameRe.test(x)) &&
     !/\bcarrier is\b|\bour (sales|pricing|agent)\b/i.test(x) &&
     !/[\w.+-]+@[\w-]+\.[\w.]+|https?:\/\/|\+?\d[\d\s()-]{8,}\d/.test(x) &&
-    !/\bdeduct(ed|ion)?\b/i.test(x)
-  ).join(" ").trim()
+    true
+  ).map((x) => {
+    // Prices the carrier states for the shipment itself (an option's total, a deduction, a rate) are the carrier's COST:
+    // they are scaled by the same markup the quotation applies, so the customer never sees the carrier's cost.
+    if (Math.abs(priceFactor - 1) < 0.0001 || !/\b(total|deduct\w*|subtract\w*|less|rate|price|freight|all[- ]in)\b/i.test(x)) return x
+    const scale = (n: string) => (Number(n.replace(/,/g, "")) * priceFactor).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return x
+      .replace(/\b(USD|EUR|GBP|AED|JOD|SAR)\s?(\d[\d,]*(?:\.\d+)?)/g, (_m, c: string, n: string) => `${c} ${scale(n)}`)
+      .replace(/(\$|€|£)\s?(\d[\d,]*(?:\.\d+)?)/g, (_m, c: string, n: string) => `${c}${scale(n)}`)
+  }).join(" ").trim()
 }
 
 const readDate = (v: unknown): string => {
@@ -383,7 +391,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     required_documents: q.required_documents ?? "", liability_limit: q.liability_limit ?? "",
     cancellation_terms: q.cancellation_terms ?? "",
     insurance_note: q.insurance_offered === true ? "Insurance available" : q.insurance_offered === false ? "Insurance not included" : "",
-    quote_notes: cleanCarrierText(q.notes, input.carrierName),
+    quote_notes: cleanCarrierText(q.notes, input.carrierName, input.baseRate > 0 ? finalPrice / input.baseRate : 1),
   }
 
   // blocks
