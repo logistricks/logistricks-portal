@@ -190,6 +190,18 @@ export async function POST(req: NextRequest) {
   // outcome itself by watching for the records the workflow writes.
   const answeredEarly = /workflow (was )?started/i.test(text) || !text.trim()
   const outcome = await waitForOutcome(admin, { clientCode, kind, messageId: merged.message_id ? normId(merged.message_id) : null, filename, since: started - 2000, patient: answeredEarly, deadline: started + 112_000 })
+  // A carrier quote dropped inside a request belongs to that request: if the workflow could not link it (no RFQ reference
+  // in the email, or it never passed the request on), link it here, the same way the "Link to request" action does.
+  if (outcome.found && kind === "carrier_reply" && freightRequestId && outcome.result.linked === false && outcome.result.quote_id) {
+    try {
+      const lr = await fetch(new URL("/api/carrier-quotes/link", req.url), {
+        method: "POST", headers: { "Content-Type": "application/json", cookie: req.headers.get("cookie") ?? "" },
+        body: JSON.stringify({ quote_id: outcome.result.quote_id, freight_request_id: freightRequestId }),
+      })
+      if (lr.ok) outcome.result = { ...outcome.result, linked: true, request_id: freightRequestId, linked_by: "dropped_in_request" }
+      else { const e = await lr.json().catch(() => null); outcome.result = { ...outcome.result, link_error: e?.error ?? `HTTP ${lr.status}` } }
+    } catch { /* leave it as a non-linked quote */ }
+  }
   const resultObj = { ...(out && typeof out === "object" ? { response: out } : {}), ...outcome.result }
   if (outcome.found) {
     await finish("success", { stage: "done", http_status: res.status, n8n_response: text.slice(0, 20000), result: resultObj, freight_request_id: outcome.result.request_id ?? freightRequestId })
