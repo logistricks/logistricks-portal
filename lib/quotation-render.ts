@@ -324,8 +324,20 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
 
   // Sea shipments are described by ports (POL / POD), not a route.
   const seaShip = isSeaOnly(r.modes ?? []) || quotedMode === "Sea"
-  const pol = seaShip ? (op || dash(r.originCity)) : ""
-  const pod = seaShip ? (dp || dash(r.destinationCity)) : ""
+  // The carrier's "place" can be the inland pickup / delivery town (Gebze, Sahab) rather than the port: for sea, such a place
+  // is never the port of loading / discharge, so the request's ports (already resolved to seaports) are used instead.
+  const inlandNames = [
+    ...((r.specialRequirements ?? []) as string[]).filter((x) => /^\s*inland (pickup|delivery)\s*:/i.test(x)).map((x) => x.replace(/^[^:]*:/, "")),
+    r.pickupAddress ?? "",
+  ].map((x) => String(x).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()).filter(Boolean)
+  const isInland = (place: string) => {
+    const n = String(place).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+    if (!n) return false
+    const first = n.split(" ")[0]
+    return inlandNames.some((i) => i.includes(n) || n.includes(i) || (first.length >= 4 && i.split(" ").includes(first)))
+  }
+  const pol = seaShip ? ((op && !isInland(op) ? op : "") || dash(r.originCity)) : ""
+  const pod = seaShip ? ((dp && !isInland(dp) ? dp : "") || dash(r.destinationCity)) : ""
   const pickup = String(q.pickup_address || r.pickupAddress || "").trim()
 
   const v: Record<string, string> = {
@@ -420,13 +432,21 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const free = [freeDays && `${freeDays} free days`, v.free_days_demurrage && `${v.free_days_demurrage} days demurrage`, v.free_days_detention && `${v.free_days_detention} days detention`, v.per_diem_note].filter(Boolean).join(", ")
   const tnorm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim()
   const sameAs = (a: string, b: string) => !!a && !!b && (tnorm(a).includes(tnorm(b)) || tnorm(b).includes(tnorm(a)) || (/space/.test(tnorm(a)) && /space/.test(tnorm(b)) && /equipment/.test(tnorm(a)) === /equipment/.test(tnorm(b))))
-  const spaceRow = sameAs(v.space_status, v.subject_to_conditions) ? "" : v.space_status
+  const spaceRow = sameAs(v.space_status, v.subject_to_conditions) || (/^subject to\b/i.test(v.space_status) && /\b(space|equipment)\b/i.test(v.subject_to_conditions)) ? "" : v.space_status
   const insuranceRow = /insur/i.test(v.exclusions) ? "" : v.insurance_note
+  const stated = [v.subject_to_conditions, v.exclusions, free].map(tnorm).filter(Boolean)
+  const notesRow = String(v.quote_notes || "").split(/(?<=[.!?])\s+(?=[A-Z0-9])/).filter((sent) => {
+    const n = tnorm(sent)
+    if (!n) return false
+    if (stated.some((x) => x.includes(n))) return false                         // already said in another row
+    if (free && /\bfree (time|days)\b/i.test(sent) && !/\b(request|possible|approval|extend|additional)\b/i.test(sent)) return false
+    return true
+  }).join(" ").trim()
   const terms: [string, string][] = ([
     ["Quotation valid until", v.quotation_valid_until], ["Space / equipment", spaceRow], ["Free time", free],
     ["Payment terms", v.payment_terms], ["Subject to", v.subject_to_conditions], ["Not included", v.exclusions],
     ["Documents required", v.required_documents], ["Liability", v.liability_limit], ["Cancellation", v.cancellation_terms],
-    ["Insurance", insuranceRow], ["Tax", v.tax_note], ["Notes", v.quote_notes],
+    ["Insurance", insuranceRow], ["Tax", v.tax_note], ["Notes", notesRow],
   ] as [string, string][]).filter(([, val]) => val)
   blocks.terms_block = {
     html: terms.length ? `<ul>${terms.map(([k, val]) => `<li><strong>${esc(k)}:</strong> ${esc(val)}</li>`).join("")}</ul>` : "",
