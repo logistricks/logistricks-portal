@@ -9,7 +9,7 @@ import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
-type Info = { smtp: { configured: boolean; enabled: boolean }; n8n: boolean; templates: { template_id: number; template_name: string; is_default: boolean }[] }
+type Info = { smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -34,7 +34,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
       setSelected(new Set(ranked.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id)))
     }).catch(() => {}).finally(() => setLoading(false))
     fetch(`/api/requests/${requestId}/send-rfq`).then((r) => (r.ok ? r.json() : null)).then((d: Info | null) => {
-      if (d) { setInfo(d); const def = d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
+      if (d) { setInfo(d); const def = d.templates.find((t) => t.template_id === d.default_template_id) ?? d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
     }).catch(() => {})
   }, [requestId, modes, originCountry, destinationCountry])
 
@@ -120,7 +120,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>RFQ template</label>
                   <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="h-8 w-full rounded-md px-2 text-xs outline-none" style={field}>
-                    {info.templates.map((t) => <option key={t.template_id} value={t.template_id}>{t.template_name}{t.is_default ? " (default)" : ""}</option>)}
+                    {info.templates.map((t) => <option key={t.template_id} value={t.template_id}>{t.template_name}{t.template_id === info.default_template_id ? " (default)" : ""}</option>)}
                   </select>
                 </div>
               )}

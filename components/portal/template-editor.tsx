@@ -124,7 +124,7 @@ export function TemplateEditor({
   const [type] = useState<"Email" | "WhatsApp">(template.type)
   const [subject, setSubject]           = useState(template.subject ?? "")
   const [linkedCarrierIds, setLinkedCarrierIds] = useState<number[]>(template.linked_carrier_ids)
-  const [isDefault, setIsDefault]       = useState(template.is_default)
+  const [defModes, setDefModes]         = useState({ sea: !!template.default_sea, air: !!template.default_air, land: !!template.default_land })
   const [carriers, setCarriers]         = useState<Carrier[]>([])
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState<string | null>(null)
@@ -281,7 +281,7 @@ export function TemplateEditor({
         subject:            isEmail ? subject || null : null,
         body:               getEditorHtml(),
         linked_carrier_ids: linkedCarrierIds,
-        is_default:         isDefault,
+        default_modes:      defModes,
       }
       const res = await fetch("/api/templates", {
         method: "POST",
@@ -416,10 +416,17 @@ export function TemplateEditor({
                   </div>
                 </div>
               )}
-              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--text-primary)" }}>
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
-                Set as Default Template
-              </label>
+              <div>
+                <p className="mb-1.5 text-sm font-medium" style={{ color: "var(--text-primary)" }}>Default Quote Request for <span className="font-normal" style={{ color: "var(--text-muted)" }}>— one default per mode</span></p>
+                <div className="flex gap-4">
+                  {([["sea", "Sea"], ["air", "Air"], ["land", "Land"]] as const).map(([k, label]) => (
+                    <label key={k} className="flex cursor-pointer items-center gap-2 text-sm" style={{ color: "var(--text-primary)" }}>
+                      <input type="checkbox" checked={defModes[k]} onChange={(e) => setDefModes({ ...defModes, [k]: e.target.checked })} className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
               {error && (
                 <p className="rounded-md px-4 py-3 text-sm" style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>{error}</p>
               )}

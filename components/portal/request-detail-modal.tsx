@@ -1,6 +1,7 @@
 "use client"
 
 import { rankCarriers } from "@/lib/carrier-match"
+import { defaultTemplateFor } from "@/lib/template-defaults"
 import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 import { carrierFacingSpecial, forCarrier } from "@/lib/special"
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
@@ -76,6 +77,7 @@ function rowToTemplate(row: TemplateRow): Template {
     body: row.body,
     linked_carrier_ids: row.linked_carrier_ids,
     is_default: row.is_default,
+    default_sea: row.default_sea, default_air: row.default_air, default_land: row.default_land,
     is_reply_template: row.is_reply_template,
     is_missing_reply_template: row.is_missing_reply_template,
     active: row.active,
@@ -495,6 +497,14 @@ export function RequestDetailModal({
     )
   }
 
+  // pre-select the default Quote Request template for this request's mode when the email form opens
+  useEffect(() => {
+    if (sendMethod !== "Email" || templateId || !templates.length) return
+    const d = defaultTemplateFor(templates.filter((t) => t.type === "Email"), request.modes)
+    if (d) onSelectTemplate(String(d.template_id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendMethod, templates])
+
   function onSelectTemplate(id: string) {
     setTemplateId(id)
     if (id) {
@@ -881,7 +891,7 @@ export function RequestDetailModal({
                                 <option value="">Select template…</option>
                                 {templates.map((t) => (
                                   <option key={t.template_id} value={String(t.template_id)}>
-                                    {t.template_name}{t.is_default ? " (Default)" : ""}
+                                    {t.template_name}{t.template_id === defaultTemplateFor(templates, request.modes)?.template_id ? " (Default)" : ""}
                                   </option>
                                 ))}
                               </select>

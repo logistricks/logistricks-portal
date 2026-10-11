@@ -7,6 +7,7 @@ import { createHmac } from "crypto"
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { logActivity } from "@/lib/log-activity"
+import { setDefaultModes } from "@/lib/template-defaults"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   const dotIndex = cookie.lastIndexOf(".")
@@ -119,7 +120,6 @@ export async function POST(req: NextRequest) {
         subject:            body.subject ?? null,
         body:               body.body,
         linked_carrier_ids: body.linked_carrier_ids ?? [],
-        is_default:         body.is_default ?? false,
         active:             body.active       ?? true,
         updated_at:         new Date().toISOString(),
       })
@@ -127,6 +127,11 @@ export async function POST(req: NextRequest) {
       .eq("id",          body.row_id)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    if (body.default_modes) {
+      const { data: row } = await db.from("templates").select("template_id").eq("client_code", session.clientCode).eq("id", body.row_id).maybeSingle()
+      if (row) { const err = await setDefaultModes(db, session.clientCode, row.template_id, body.default_modes); if (err) return NextResponse.json({ error: err }, { status: 500 }) }
+    }
 
     await logActivity({
       clientCode:  session.clientCode,
@@ -157,9 +162,10 @@ export async function POST(req: NextRequest) {
     subject:            body.subject ?? null,
     body:               body.body,
     linked_carrier_ids: body.linked_carrier_ids ?? [],
-    is_default:         body.is_default ?? false,
+    is_default:         false,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (body.default_modes) { const err = await setDefaultModes(db, session.clientCode, nextId, body.default_modes); if (err) return NextResponse.json({ error: err }, { status: 500 }) }
 
   await logActivity({
     clientCode:  session.clientCode,
@@ -234,6 +240,14 @@ export async function PATCH(req: NextRequest) {
 
   const patch: Record<string, unknown> = {}
   if (body.active !== undefined) patch.active = body.active
+
+  // "Quote Request" default per mode (Sea / Air / Land): one template per mode and channel, may cover several modes
+  if (body.default_modes && typeof body.default_modes === "object") {
+    const m = body.default_modes as { sea?: boolean; air?: boolean; land?: boolean }
+    const err = await setDefaultModes(admin(), session.clientCode, body.template_id, { sea: m.sea, air: m.air, land: m.land })
+    if (err) return NextResponse.json({ error: err }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
 
   // is_reply_template: only one per client — unset all others first
   if (body.is_reply_template !== undefined) {

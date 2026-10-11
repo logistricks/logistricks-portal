@@ -6,6 +6,8 @@ import { TemplateEditor } from "@/components/portal/template-editor"
 import { QuotationTemplatesPanel } from "@/components/portal/quotation-templates-panel"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 import { templateHasRef } from "@/lib/template-render"
+import { TemplatePreview } from "@/components/portal/template-preview"
+import { QuoteDefaultDialog, defaultLabel, type DefaultModes } from "@/components/portal/quote-default-dialog"
 
 type Tab = "All" | "Email" | "WhatsApp" | "Quotation"
 const tabs: Tab[] = ["All", "Email", "WhatsApp", "Quotation"]
@@ -20,6 +22,9 @@ function rowToTemplate(row: TemplateRow): Template {
     body:               row.body,
     linked_carrier_ids: row.linked_carrier_ids,
     is_default:         row.is_default,
+    default_sea:        row.default_sea,
+    default_air:        row.default_air,
+    default_land:       row.default_land,
     is_reply_template:  row.is_reply_template,
     is_missing_reply_template: row.is_missing_reply_template,
     is_complete_reply_template: row.is_complete_reply_template,
@@ -73,6 +78,7 @@ function TagButton({
 export function TemplatesPanel() {
   const [list, setList]           = useState<Template[]>([])
   const [loading, setLoading]     = useState(true)
+  const [defaultFor, setDefaultFor] = useState<Template | null>(null)
   const [error, setError]         = useState<string | null>(null)
   const [tab, setTab]             = useState<Tab>("All")
   const [editing, setEditing]     = useState<Template | null>(null)
@@ -158,16 +164,16 @@ export function TemplatesPanel() {
     }
   }
 
-  async function handleSetDefault(t: Template) {
-    const next = !t.is_default
-    setList((l) => l.map((x) => x.template_id === t.template_id ? { ...x, is_default: next } : { ...x, is_default: false }))
+  async function saveDefaultModes(t: Template, m: DefaultModes) {
     try {
       const res = await fetch("/api/templates", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: t.template_id, is_default: next }),
+        body: JSON.stringify({ template_id: t.template_id, default_modes: m }),
       })
-      if (!res.ok) throw new Error(`Server error ${res.status}`)
-    } catch (e) { setError((e as Error).message); await loadTemplates() }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Server error ${res.status}`)
+      setDefaultFor(null)
+    } catch (e) { setError((e as Error).message) }
+    await loadTemplates()
   }
 
   async function handleSetReplyTemplate(t: Template) {
@@ -299,6 +305,8 @@ export function TemplatesPanel() {
         </div>
       </div>
 
+      {defaultFor && <QuoteDefaultDialog template={defaultFor} others={list} onSave={(m) => saveDefaultModes(defaultFor, m)} onClose={() => setDefaultFor(null)} />}
+
       {error && (
         <p className="rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-400" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{error}</p>
       )}
@@ -325,6 +333,11 @@ export function TemplatesPanel() {
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[14px] font-bold leading-tight" style={{ color: "var(--text-primary)" }}>{t.template_name}</h3>
                   {t.subject ? <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-secondary)" }}>{t.subject}</p> : null}
+                  {defaultLabel(t).length > 0 && (
+                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)" }}>
+                      <Star className="h-3 w-3" /> Default · {defaultLabel(t).join(" · ")}
+                    </span>
+                  )}
                   {t.type === "Email" && !templateHasRef(t) && (
                     <span
                       className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
@@ -339,19 +352,19 @@ export function TemplatesPanel() {
 
               {/* Body preview */}
               <p className="line-clamp-3 flex-1 px-5 pb-4 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                {t.body?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() || <em style={{ color: "var(--text-muted)" }}>No content</em>}
+                <TemplatePreview body={t.body} />
               </p>
 
               {/* Tags row — Default / Auto-reply / Missing / Complete with BIGGER icons + labels */}
               <div className="flex items-center gap-1 border-t px-3 py-3" style={{ borderColor: "var(--divider)" }}>
                 <TagButton
-                  active={t.is_default}
+                  active={defaultLabel(t).length > 0}
                   activeClass="bg-[var(--brand-accent)]/15 text-[var(--brand-accent)]"
                   inactiveClass="text-[var(--text-muted)] hover:bg-[var(--brand-accent)]/8 hover:text-[var(--brand-accent)]"
                   icon={Star}
-                  label="Default"
-                  title={t.is_default ? "Remove default" : "Set as default"}
-                  onClick={() => handleSetDefault(t)}
+                  label="Quote Request"
+                  title={defaultLabel(t).length ? `Default quote request for ${defaultLabel(t).join(", ")} — click to change` : "Set as the default quote request for Sea, Air or Land"}
+                  onClick={() => setDefaultFor(t)}
                 />
                 <TagButton
                   active={t.is_reply_template}

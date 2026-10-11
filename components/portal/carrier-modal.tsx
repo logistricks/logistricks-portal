@@ -229,7 +229,7 @@ export function CarrierModal({
                 role="switch"
                 aria-checked={active}
                 onClick={() => setActive((v) => !v)}
-                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
+                className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors ${active ? "bg-[#059669]" : "bg-[#CBD5E1]"}`}
               >
                 <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${active ? "translate-x-5" : "translate-x-0"}`} />
               </button>
@@ -237,19 +237,19 @@ export function CarrierModal({
             </label>
 
             {/* Auto-send RFQ */}
-            <label className="flex items-center gap-3">
+            <label className="flex items-start gap-3 sm:col-span-2">
               <button
                 type="button"
                 role="switch"
                 aria-checked={autoSendRfq}
                 onClick={() => setAutoSendRfq((v) => !v)}
-                className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors ${autoSendRfq ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}
+                className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors ${autoSendRfq ? "bg-[var(--brand-accent)]" : "bg-[#CBD5E1]"}`}
               >
                 <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${autoSendRfq ? "translate-x-5" : "translate-x-0"}`} />
               </button>
-              <span className="text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
+              <span className="min-w-0 text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
                 Include in Auto-Send RFQ
-                <span className="ml-1.5 block font-normal text-[#94A3B8]">Sent automatically when a complete request matches this carrier&apos;s modes</span>
+                <span className="ml-1.5 block font-normal text-[#94A3B8]">Sent automatically when a complete request matches this carrier&apos;s modes and countries</span>
               </span>
             </label>
           </div>

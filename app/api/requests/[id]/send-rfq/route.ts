@@ -16,6 +16,7 @@ import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { loadSmtp } from "@/lib/notify"
 import { logActivity } from "@/lib/log-activity"
+import { defaultTemplateFor } from "@/lib/template-defaults"
 import { loadCarrierContacts, registerRfqRows, renderRfqDraft } from "@/lib/rfq-send"
 
 export const dynamic = "force-dynamic"
@@ -46,12 +47,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const out: Record<string, unknown> = {
     smtp: { configured: !!cfg, enabled: !!cfg?.enabled },
     n8n: !!(process.env.N8N_RFQ_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_RFQ_WEBHOOK_URL),
-    templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default })),
+    templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default, default_sea: !!t.default_sea, default_air: !!t.default_air, default_land: !!t.default_land })),
+    default_template_id: defaultTemplateFor(tpls, [row.is_sea ? "Sea" : "", row.is_air ? "Air" : "", row.is_land ? "Land" : ""].filter(Boolean))?.template_id ?? null,
   }
   const carrierIds = ids(req.nextUrl.searchParams.get("carrier_ids"))
   if (carrierIds.length) {
     const wanted = Number(req.nextUrl.searchParams.get("template_id"))
-    const tpl = tpls.find((t) => t.template_id === wanted) ?? tpls.find((t) => t.is_default) ?? tpls[0]
+    const tpl = tpls.find((t) => t.template_id === wanted) ?? defaultTemplateFor(tpls, [row.is_sea ? "Sea" : "", row.is_air ? "Air" : "", row.is_land ? "Land" : ""].filter(Boolean)) ?? tpls[0]
     const contacts = await loadCarrierContacts(admin, s.session.clientCode, carrierIds)
     out.template_id = tpl?.template_id ?? null
     out.drafts = tpl ? contacts.map((c) => ({ carrier_id: c.carrier_id, carrier_name: c.carrier_name, to: c.email, cc: c.cc, ...renderRfqDraft(tpl, row, c) })) : []

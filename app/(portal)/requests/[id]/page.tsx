@@ -69,7 +69,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
 function rowToTemplate(row: TemplateRow): Template {
   return {
     row_id: row.id, template_id: row.template_id, template_name: row.template_name, type: row.type,
-    subject: row.subject, body: row.body, linked_carrier_ids: row.linked_carrier_ids, is_default: row.is_default,
+    subject: row.subject, body: row.body, linked_carrier_ids: row.linked_carrier_ids, is_default: row.is_default, default_sea: row.default_sea, default_air: row.default_air, default_land: row.default_land,
     is_reply_template: row.is_reply_template, is_missing_reply_template: row.is_missing_reply_template,
     is_complete_reply_template: row.is_complete_reply_template, active: row.active, updated_at: row.updated_at,
   }
