@@ -7,7 +7,7 @@ import { QuotationTemplatesPanel } from "@/components/portal/quotation-templates
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 import { templateHasRef } from "@/lib/template-render"
 import { TemplatePreview } from "@/components/portal/template-preview"
-import { QuoteDefaultDialog, defaultLabel, type DefaultModes } from "@/components/portal/quote-default-dialog"
+import { QuoteDefaultDialog, modeNames, type ModeSet } from "@/components/portal/quote-default-dialog"
 
 type Tab = "All" | "Email" | "WhatsApp" | "Quotation"
 const tabs: Tab[] = ["All", "Email", "WhatsApp", "Quotation"]
@@ -22,6 +22,9 @@ function rowToTemplate(row: TemplateRow): Template {
     body:               row.body,
     linked_carrier_ids: row.linked_carrier_ids,
     is_default:         row.is_default,
+    mode_sea:           row.mode_sea,
+    mode_air:           row.mode_air,
+    mode_land:          row.mode_land,
     default_sea:        row.default_sea,
     default_air:        row.default_air,
     default_land:       row.default_land,
@@ -164,15 +167,16 @@ export function TemplatesPanel() {
     }
   }
 
-  async function saveDefaultModes(t: Template, m: DefaultModes) {
+  async function saveModes(t: Template, modes: ModeSet, defaults: ModeSet) {
     try {
       const res = await fetch("/api/templates", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: t.template_id, default_modes: m }),
+        body: JSON.stringify({ template_id: t.template_id, modes, default_modes: defaults }),
       })
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Server error ${res.status}`)
       setDefaultFor(null)
-    } catch (e) { setError((e as Error).message) }
+      setError(null)
+    } catch (e) { setError((e as Error).message); setDefaultFor(null) }
     await loadTemplates()
   }
 
@@ -305,7 +309,7 @@ export function TemplatesPanel() {
         </div>
       </div>
 
-      {defaultFor && <QuoteDefaultDialog template={defaultFor} others={list} onSave={(m) => saveDefaultModes(defaultFor, m)} onClose={() => setDefaultFor(null)} />}
+      {defaultFor && <QuoteDefaultDialog template={defaultFor} others={list} onSave={(m, d) => saveModes(defaultFor, m, d)} onClose={() => setDefaultFor(null)} />}
 
       {error && (
         <p className="rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-400" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{error}</p>
@@ -333,11 +337,20 @@ export function TemplatesPanel() {
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[14px] font-bold leading-tight" style={{ color: "var(--text-primary)" }}>{t.template_name}</h3>
                   {t.subject ? <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-secondary)" }}>{t.subject}</p> : null}
-                  {defaultLabel(t).length > 0 && (
-                    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)" }}>
-                      <Star className="h-3 w-3" /> Default · {defaultLabel(t).join(" · ")}
-                    </span>
-                  )}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {modeNames(t).length === 0 ? (
+                      <span className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ border: "1px dashed var(--card-border)", color: "var(--text-muted)" }}>No mode set</span>
+                    ) : modeNames(t).map((m) => (
+                      <span
+                        key={m.key}
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+                        style={m.isDefault ? { background: "var(--brand-accent)", color: "#fff" } : { background: "rgb(var(--brand-accent-rgb) / 0.1)", color: "var(--brand-accent)" }}
+                        title={m.isDefault ? `Default quote request for ${m.name}` : `For ${m.name} requests`}
+                      >
+                        {m.isDefault && <Star className="h-3 w-3" fill="currentColor" />}{m.name}{m.isDefault ? " · Default" : ""}
+                      </span>
+                    ))}
+                  </div>
                   {t.type === "Email" && !templateHasRef(t) && (
                     <span
                       className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
@@ -351,19 +364,24 @@ export function TemplatesPanel() {
               </div>
 
               {/* Body preview */}
-              <p className="line-clamp-3 flex-1 px-5 pb-4 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                <TemplatePreview body={t.body} />
-              </p>
+              <div className="flex-1 px-5 pb-4">
+                <p
+                  className="h-[4.6rem] overflow-hidden text-sm leading-relaxed"
+                  style={{ color: "var(--text-secondary)", WebkitMaskImage: "linear-gradient(to bottom, #000 55%, transparent 100%)", maskImage: "linear-gradient(to bottom, #000 55%, transparent 100%)" }}
+                >
+                  <TemplatePreview body={t.body} />
+                </p>
+              </div>
 
               {/* Tags row — Default / Auto-reply / Missing / Complete with BIGGER icons + labels */}
               <div className="flex items-center gap-1 border-t px-3 py-3" style={{ borderColor: "var(--divider)" }}>
                 <TagButton
-                  active={defaultLabel(t).length > 0}
+                  active={modeNames(t).some((m) => m.isDefault)}
                   activeClass="bg-[var(--brand-accent)]/15 text-[var(--brand-accent)]"
                   inactiveClass="text-[var(--text-muted)] hover:bg-[var(--brand-accent)]/8 hover:text-[var(--brand-accent)]"
                   icon={Star}
                   label="Quote Request"
-                  title={defaultLabel(t).length ? `Default quote request for ${defaultLabel(t).join(", ")} — click to change` : "Set as the default quote request for Sea, Air or Land"}
+                  title="Choose the modes this template is for and which it is the default for"
                   onClick={() => setDefaultFor(t)}
                 />
                 <TagButton

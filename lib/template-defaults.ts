@@ -17,20 +17,28 @@ export function defaultTemplateFor<T extends Flags & { template_id: number; is_d
   return templates.find((x) => x.is_default) ?? undefined
 }
 
-/** Set which modes a template is the default for. Takes the mode away from any other template of the same channel. */
-export async function setDefaultModes(db: any, clientCode: string, templateId: number, modes: DefaultModes): Promise<string | null> {
-  const { data: me, error: e0 } = await db.from("templates").select("id, type, default_sea, default_air, default_land").eq("client_code", clientCode).eq("template_id", templateId).maybeSingle()
-  if (e0 || !me) return e0?.message ?? "Template not found"
-  const next = { default_sea: modes.sea ?? !!me.default_sea, default_air: modes.air ?? !!me.default_air, default_land: modes.land ?? !!me.default_land }
-  // free the modes this template is taking, then set them (the unique indexes allow one holder per mode)
-  for (const k of ["default_sea", "default_air", "default_land"] as const) {
-    if (!next[k]) continue
-    const { error } = await db.from("templates").update({ [k]: false }).eq("client_code", clientCode).eq("type", me.type).eq(k, true).neq("template_id", templateId)
-    if (error) return error.message
+const MODES = ["sea", "air", "land"] as const
+/**
+ * Save which modes a template is FOR and which of those it is the DEFAULT for.
+ * - a default needs its mode; removing a mode removes its default
+ * - one default per mode and channel: if another template already holds it, nothing is changed and a message is returned
+ *   (remove that default first)
+ * Returns an error message, or null on success.
+ */
+export async function setTemplateModes(db: any, clientCode: string, templateId: number, input: { modes?: DefaultModes; defaults?: DefaultModes }): Promise<{ error: string; conflict?: boolean } | null> {
+  const { data: me, error: e0 } = await db.from("templates").select("*").eq("client_code", clientCode).eq("template_id", templateId).maybeSingle()
+  if (e0 || !me) return { error: e0?.message ?? "Template not found" }
+  const patch: Record<string, boolean> = {}
+  for (const m of MODES) {
+    const mode = input.modes?.[m] ?? !!me[`mode_${m}`]
+    const def = (input.defaults?.[m] ?? !!me[`default_${m}`]) && mode
+    if (def && !me[`default_${m}`]) {
+      const { data: other } = await db.from("templates").select("template_name").eq("client_code", clientCode).eq("type", me.type).eq(`default_${m}`, true).neq("template_id", templateId).limit(1).maybeSingle()
+      if (other) return { error: `${m[0].toUpperCase() + m.slice(1)} already has a default quote request: "${other.template_name}". Remove that default first.`, conflict: true }
+    }
+    patch[`mode_${m}`] = mode
+    patch[`default_${m}`] = def
   }
-  const { error } = await db.from("templates").update({ ...next, is_default: next.default_sea || next.default_air || next.default_land }).eq("client_code", clientCode).eq("template_id", templateId)
-  if (error) return error.message
-  // keep is_default honest on the templates that just lost a mode
-  await db.from("templates").update({ is_default: false }).eq("client_code", clientCode).eq("default_sea", false).eq("default_air", false).eq("default_land", false).eq("is_default", true)
-  return null
+  const { error } = await db.from("templates").update({ ...patch, is_default: MODES.some((m) => patch[`default_${m}`]) }).eq("client_code", clientCode).eq("template_id", templateId)
+  return error ? { error: error.message } : null
 }

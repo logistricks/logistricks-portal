@@ -81,6 +81,9 @@ export type TemplateRow = {
   body: string
   linked_carrier_ids: number[]
   is_default: boolean
+  mode_sea?: boolean
+  mode_air?: boolean
+  mode_land?: boolean
   default_sea?: boolean
   default_air?: boolean
   default_land?: boolean
@@ -101,6 +104,9 @@ export type Template = {
   body: string
   linked_carrier_ids: number[]
   is_default: boolean
+  mode_sea?: boolean
+  mode_air?: boolean
+  mode_land?: boolean
   default_sea?: boolean
   default_air?: boolean
   default_land?: boolean
