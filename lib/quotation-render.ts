@@ -191,6 +191,61 @@ export interface RequestIn {
 }
 export type QuoteIn = Record<string, any>
 
+
+/**
+ * Carrier text that is safe to show a customer: drops any sentence that names the carrier (or its people), gives contact
+ * details, or talks about the carrier's own cost basis ("deduct ... USD 350"). Everything else is kept as written.
+ */
+export function cleanCarrierText(text: unknown, carrierName?: string | null): string {
+  const t = String(text ?? "").replace(/\s+/g, " ").trim()
+  if (!t) return ""
+  const names = String(carrierName ?? "").split(/\s+/).filter((w) => w.length > 2 && !/^(line|lines|shipping|logistics|group|co|ltd|llc|inc|the|and)$/i.test(w))
+  const nameRe = names.length ? new RegExp("\\b" + names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+") + "\\b|\\b" + names[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i") : null
+  const sentences = t.split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+  return sentences.filter((x) =>
+    !(nameRe && nameRe.test(x)) &&
+    !/\bcarrier is\b|\bour (sales|pricing|agent)\b/i.test(x) &&
+    !/[\w.+-]+@[\w-]+\.[\w.]+|https?:\/\/|\+?\d[\d\s()-]{8,}\d/.test(x) &&
+    !/\bdeduct(ed|ion)?\b/i.test(x)
+  ).join(" ").trim()
+}
+
+const readDate = (v: unknown): string => {
+  const t = String(v ?? "").trim()
+  return /^\d{4}-\d{2}-\d{2}/.test(t) ? fmtDate(t) : t
+}
+
+/** Cargo / port cut-off and document cut-off from the carrier quote's `cutoffs` field (object or text). */
+function cutoffsOf(c: unknown): { cargo: string; docs: string } {
+  if (!c) return { cargo: "", docs: "" }
+  if (typeof c === "string") { const t = c.trim(); return { cargo: /^[\[{]/.test(t) ? "" : readDate(t), docs: "" } }
+  if (typeof c === "object") {
+    const o = c as Record<string, unknown>
+    const pick = (re: RegExp) => { const k = Object.keys(o).find((x) => re.test(x) && o[x]); return k ? readDate(o[k]) : "" }
+    const cargo = pick(/cargo|port|gate|container|fcl|general|cut/i)
+    return { cargo: cargo || readDate(Object.values(o).find((x) => typeof x === "string" && x) ?? ""), docs: pick(/doc|si\b|bl\b|vgm/i) }
+  }
+  return { cargo: "", docs: "" }
+}
+
+/** "via Port Said" from the quote's legs / mode_details, if the carrier stated a routing. */
+function routingOf(q: Record<string, any>): string {
+  const via = new Set<string>()
+  const add = (x: unknown) => { const t = String(x ?? "").trim(); if (t) via.add(t) }
+  const legs = Array.isArray(q.legs) ? q.legs : []
+  for (const l of legs) {
+    if (typeof l === "string") continue
+    for (const k of ["via", "transshipment", "transshipment_port", "ts_port", "routing"]) {
+      const val = (l as any)?.[k]
+      if (Array.isArray(val)) val.forEach(add); else add(val)
+    }
+  }
+  const md = q.mode_details && typeof q.mode_details === "object" ? q.mode_details as Record<string, unknown> : null
+  if (md) for (const k of ["via", "routing", "transshipment", "transshipment_port"]) { const val = md[k]; if (Array.isArray(val)) val.forEach(add); else add(val) }
+  const list = Array.from(via).filter((x) => !/^(direct|n\/a|none)$/i.test(x))
+  return list.length ? `via ${list.join(", ")}` : ""
+}
+
 export interface BuildInput {
   request: RequestIn
   quote: QuoteIn
@@ -293,7 +348,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     service_level: q.service_level ?? "", quote_status: status,
     route: !seaShip && op && dp ? `${op} → ${dp}` : "", origin_port: op, destination_port: dp,
     direct_or_connecting: q.direct_or_connecting ? String(q.direct_or_connecting).replace(/^./, (c: string) => c.toUpperCase()) : "",
-    etd: fmtDate(q.etd), eta: fmtDate(q.eta),
+    etd: fmtDate(q.etd), eta: fmtDate(q.eta), cut_off_date: cutoffsOf(q.cutoffs).cargo, doc_cut_off: cutoffsOf(q.cutoffs).docs, routing: routingOf(q),
     transit_days: q.transit_days != null ? String(q.transit_days) : "", frequency: q.frequency ?? "",
     space_status: space, incoterm_quoted: q.incoterm ?? "",
     container: q.container_type ? `${q.container_count ?? 1} x ${q.container_type}` : "",
@@ -312,11 +367,11 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     free_days_demurrage: q.free_days_demurrage != null ? String(q.free_days_demurrage) : "",
     free_days_detention: q.free_days_detention != null ? String(q.free_days_detention) : "",
     per_diem_note: q.per_diem_note ?? "", payment_terms: q.payment_terms ?? "",
-    subject_to_conditions: q.subject_to_conditions ?? "", exclusions: q.exclusions ?? "",
+    subject_to_conditions: cleanCarrierText(q.subject_to_conditions, input.carrierName), exclusions: cleanCarrierText(q.exclusions, input.carrierName),
     required_documents: q.required_documents ?? "", liability_limit: q.liability_limit ?? "",
     cancellation_terms: q.cancellation_terms ?? "",
     insurance_note: q.insurance_offered === true ? "Insurance available" : q.insurance_offered === false ? "Insurance not included" : "",
-    quote_notes: q.notes ?? "",
+    quote_notes: cleanCarrierText(q.notes, input.carrierName),
   }
 
   // blocks
@@ -363,11 +418,15 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   blocks.special_requirements_list = { html: sr.length ? `<ul>${sr.map((s) => { const p = parseSpecial(s); return `<li>${p.label ? `<strong>${esc(p.label)}:</strong> ${esc(p.value)}` : esc(s)}</li>` }).join("")}</ul>` : "", text: sr.map((s) => `- ${s}`).join("\n") }
 
   const free = [freeDays && `${freeDays} free days`, v.free_days_demurrage && `${v.free_days_demurrage} days demurrage`, v.free_days_detention && `${v.free_days_detention} days detention`, v.per_diem_note].filter(Boolean).join(", ")
+  const tnorm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim()
+  const sameAs = (a: string, b: string) => !!a && !!b && (tnorm(a).includes(tnorm(b)) || tnorm(b).includes(tnorm(a)) || (/space/.test(tnorm(a)) && /space/.test(tnorm(b)) && /equipment/.test(tnorm(a)) === /equipment/.test(tnorm(b))))
+  const spaceRow = sameAs(v.space_status, v.subject_to_conditions) ? "" : v.space_status
+  const insuranceRow = /insur/i.test(v.exclusions) ? "" : v.insurance_note
   const terms: [string, string][] = ([
-    ["Quotation valid until", v.quotation_valid_until], ["Space / equipment", v.space_status], ["Free time", free],
+    ["Quotation valid until", v.quotation_valid_until], ["Space / equipment", spaceRow], ["Free time", free],
     ["Payment terms", v.payment_terms], ["Subject to", v.subject_to_conditions], ["Not included", v.exclusions],
     ["Documents required", v.required_documents], ["Liability", v.liability_limit], ["Cancellation", v.cancellation_terms],
-    ["Insurance", v.insurance_note], ["Tax", v.tax_note], ["Notes", v.quote_notes],
+    ["Insurance", insuranceRow], ["Tax", v.tax_note], ["Notes", v.quote_notes],
   ] as [string, string][]).filter(([, val]) => val)
   blocks.terms_block = {
     html: terms.length ? `<ul>${terms.map(([k, val]) => `<li><strong>${esc(k)}:</strong> ${esc(val)}</li>`).join("")}</ul>` : "",
