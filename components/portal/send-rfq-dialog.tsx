@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CheckCircle2, Clock, Copy, ExternalLink, Loader2, Mail, Send, X, XCircle, Zap } from "lucide-react"
 import type { Carrier, CarrierRow } from "@/lib/portal-data"
 import { groupCarrierRows } from "@/components/portal/send-to-carriers-modal"
+import { rankCarriers, type Match } from "@/lib/carrier-match"
+import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
@@ -12,8 +14,8 @@ type Info = { smtp: { configured: boolean; enabled: boolean }; n8n: boolean; tem
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
 
-export function SendRfqDialog({ requestId, modes, onClose, onDone }: { requestId: string; modes: string[]; onClose: () => void; onDone: () => void }) {
-  const [carriers, setCarriers] = useState<Carrier[]>([])
+export function SendRfqDialog({ requestId, modes, originCountry, destinationCountry, onClose, onDone }: { requestId: string; modes: string[]; originCountry?: string; destinationCountry?: string; onClose: () => void; onDone: () => void }) {
+  const [carriers, setCarriers] = useState<{ carrier: Carrier; match: Match }[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [info, setInfo] = useState<Info | null>(null)
@@ -26,15 +28,18 @@ export function SendRfqDialog({ requestId, modes, onClose, onDone }: { requestId
 
   useEffect(() => {
     fetch("/api/carriers").then((r) => (r.ok ? r.json() : [])).then((rows: CarrierRow[]) => {
-      const eligible = groupCarrierRows(rows).filter((c) => c.email && c.active && ((modes.includes("Sea") && c.is_sea) || (modes.includes("Air") && c.is_air) || (modes.includes("Land") && c.is_land)))
-      setCarriers(eligible)
+      const ranked = rankCarriers(groupCarrierRows(rows).filter((c) => c.email), { modes, originCountry, destinationCountry })
+      setCarriers(ranked)
+      // pre-tick the suggested carriers so the common case is one click
+      setSelected(new Set(ranked.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id)))
     }).catch(() => {}).finally(() => setLoading(false))
     fetch(`/api/requests/${requestId}/send-rfq`).then((r) => (r.ok ? r.json() : null)).then((d: Info | null) => {
       if (d) { setInfo(d); const def = d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
     }).catch(() => {})
-  }, [requestId, modes])
+  }, [requestId, modes, originCountry, destinationCountry])
 
   const ids = useMemo(() => Array.from(selected), [selected])
+  const suggestedIds = useMemo(() => carriers.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id), [carriers])
   const toggle = (id: number) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n
 
@@ -88,19 +93,22 @@ export function SendRfqDialog({ requestId, modes, onClose, onDone }: { requestId
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Carriers</span>
-                    <button className="text-[11px] font-semibold" style={{ color: "var(--brand-accent)" }} onClick={() => setSelected(selected.size === carriers.length ? new Set() : new Set(carriers.map((c) => c.carrier_id)))}>
-                      {selected.size === carriers.length ? "Clear" : "Select all"}
-                    </button>
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Carriers{suggestedIds.length > 0 ? ` · ${suggestedIds.length} suggested` : ""}</span>
+                    <div className="flex gap-3">
+                      {suggestedIds.length > 0 && <button className="text-[11px] font-semibold" style={{ color: "var(--brand-accent)" }} onClick={() => setSelected(new Set(suggestedIds))}>Select suggested</button>}
+                      <button className="text-[11px] font-semibold" style={{ color: "var(--brand-accent)" }} onClick={() => setSelected(selected.size === carriers.length ? new Set() : new Set(carriers.map((x) => x.carrier.carrier_id)))}>
+                        {selected.size === carriers.length ? "Clear" : "Select all"}
+                      </button>
+                    </div>
                   </div>
                   <ul className="overflow-hidden rounded-lg" style={{ border: "1px solid var(--card-border)" }}>
-                    {carriers.map((c) => (
+                    {carriers.map(({ carrier: c, match }) => (
                       <li key={c.carrier_id} style={{ borderBottom: "1px solid var(--divider)" }}>
                         <label className="flex cursor-pointer items-center gap-3 px-3 py-2">
                           <input type="checkbox" checked={selected.has(c.carrier_id)} onChange={() => toggle(c.carrier_id)} className="h-4 w-4 accent-[var(--brand-accent)]" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{c.carrier_name}{c.person_name ? <span className="font-normal" style={{ color: "var(--text-muted)" }}> — {c.person_name}</span> : null}</p>
-                            <p className="truncate text-[11px]" style={{ color: "var(--text-muted)" }}>{c.email}</p>
+                            <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{c.carrier_name}{c.person_name ? <span className="font-normal" style={{ color: "var(--text-muted)" }}> — {c.person_name}</span> : null}<FitTag match={match} /></p>
+                            <p className="truncate text-[11px]" style={{ color: "var(--text-muted)" }}>{c.email} · {fitHint(match)}</p>
                           </div>
                         </label>
                       </li>

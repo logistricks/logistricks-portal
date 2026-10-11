@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { Loader2, Send, X } from "lucide-react"
 import type { Carrier, CarrierRow } from "@/lib/portal-data"
+import { rankCarriers, type Match } from "@/lib/carrier-match"
+import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 
 export function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
   const map = new Map<number, Carrier>()
@@ -21,6 +23,7 @@ export function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
         is_land: row.is_land,
         lang: row.lang,
         routes: row.routes,
+        countries: row.countries ?? [],
         active: row.active,
         auto_send_rfq: row.auto_send_rfq,
         cc_emails: [],
@@ -39,12 +42,14 @@ export function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
 interface Props {
   freightRequestId: string
   modes: string[]
+  originCountry?: string
+  destinationCountry?: string
   onClose: () => void
   onSent: () => void
 }
 
-export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }: Props) {
-  const [carriers, setCarriers]     = useState<Carrier[]>([])
+export function SendToCarriersModal({ freightRequestId, modes, originCountry, destinationCountry, onClose, onSent }: Props) {
+  const [carriers, setCarriers]     = useState<{ carrier: Carrier; match: Match }[]>([])
   const [selected, setSelected]     = useState<Set<number>>(new Set())
   const [sending, setSending]       = useState(false)
   const [error, setError]           = useState<string | null>(null)
@@ -54,20 +59,14 @@ export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }
     fetch("/api/carriers")
       .then((r) => r.ok ? r.json() : [])
       .then((rows: CarrierRow[]) => {
-        const all = groupCarrierRows(rows)
-        const filtered = all.filter((c) => {
-          if (!c.email || !c.active) return false
-          return (
-            (modes.includes("Sea")  && c.is_sea) ||
-            (modes.includes("Air")  && c.is_air) ||
-            (modes.includes("Land") && c.is_land)
-          )
-        })
+        const ranked = rankCarriers(groupCarrierRows(rows).filter((c) => c.email), { modes, originCountry, destinationCountry })
+        const filtered = ranked
+        setSelected(new Set(ranked.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id)))
         setCarriers(filtered)
         setLoadingCarriers(false)
       })
       .catch(() => setLoadingCarriers(false))
-  }, [modes])
+  }, [modes, originCountry, destinationCountry])
 
   function toggle(id: number) {
     setSelected((prev) => {
@@ -129,7 +128,7 @@ export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }
             <p className="py-4 text-sm text-[#94A3B8]">No eligible carriers found for the selected modes.</p>
           ) : (
             <ul className="divide-y divide-[#F1F5F9] dark:divide-[#1A2A40]">
-              {carriers.map((c) => {
+              {carriers.map(({ carrier: c, match }) => {
                 const checked = selected.has(c.carrier_id)
                 return (
                   <li key={c.carrier_id}>
@@ -141,8 +140,8 @@ export function SendToCarriersModal({ freightRequestId, modes, onClose, onSent }
                         className="h-4 w-4 accent-[var(--brand-accent)]"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{c.carrier_name} <span className="font-normal text-[#64748B]">— {c.person_name}</span></p>
-                        <p className="truncate text-xs text-[#94A3B8]">{c.email}</p>
+                        <p className="text-sm font-medium">{c.carrier_name} <span className="font-normal text-[#64748B]">— {c.person_name}</span><FitTag match={match} /></p>
+                        <p className="truncate text-xs text-[#94A3B8]">{c.email} · {fitHint(match)}</p>
                       </div>
                     </label>
                   </li>

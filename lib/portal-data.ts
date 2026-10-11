@@ -22,6 +22,7 @@ export type CarrierRow = {
   is_land: boolean
   lang: number
   routes: string
+  countries?: string[] | null
   is_cc: boolean
   active: boolean
   auto_send_rfq: boolean
@@ -41,6 +42,7 @@ export type Carrier = {
   is_land: boolean
   lang: number
   routes: string
+  countries: string[]
   active: boolean
   auto_send_rfq: boolean
   cc_emails: string[]  // from is_cc=true rows

@@ -1,5 +1,7 @@
 "use client"
 
+import { rankCarriers } from "@/lib/carrier-match"
+import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 import { carrierFacingSpecial, forCarrier } from "@/lib/special"
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
 import { RequestTimeline } from "@/components/portal/request-timeline"
@@ -48,6 +50,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
         is_land: row.is_land,
         lang: row.lang,
         routes: row.routes,
+        countries: row.countries ?? [],
         active: row.active,
         auto_send_rfq: row.auto_send_rfq,
         cc_emails: [],
@@ -344,14 +347,9 @@ export function RequestDetailModal({
     }
   }
 
-  const availableCarriersForEmail = carriers.filter((c) => {
-    if (!c.email || !c.active) return false
-    return (
-      (request.modes.includes("Sea")  && c.is_sea) ||
-      (request.modes.includes("Air")  && c.is_air) ||
-      (request.modes.includes("Land") && c.is_land)
-    )
-  })
+  const rankedCarriers = rankCarriers(carriers.filter((c) => c.email), { modes: request.modes, originCountry: request.originCountry, destinationCountry: request.destinationCountry })
+  const availableCarriersForEmail = rankedCarriers.map((x) => x.carrier)
+  const matchOf = (id: number) => rankedCarriers.find((x) => x.carrier.carrier_id === id)?.match
 
   const sentToCarrier = request.status === "Sent to Carrier"
     ? carriers.find((c) => c.carrier_name === request.preferredCarrier) ?? null
@@ -859,9 +857,10 @@ export function RequestDetailModal({
                                           <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                                             {c.carrier_name}
                                             <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>— {c.person_name}</span>
+                                            {matchOf(c.carrier_id) && <FitTag match={matchOf(c.carrier_id)!} />}
                                           </p>
                                           <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                                            {c.email}
+                                            {c.email}{matchOf(c.carrier_id) ? ` · ${fitHint(matchOf(c.carrier_id)!)}` : ""}
                                             {c.cc_emails.length > 0 && <span className="ml-1.5" style={{ color: "var(--text-muted)" }}>CC: {c.cc_emails.join(", ")}</span>}
                                           </p>
                                         </div>

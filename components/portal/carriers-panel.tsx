@@ -1,5 +1,6 @@
 "use client"
 
+import { ALL_CODES } from "@/lib/countries"
 import { useEffect, useState } from "react"
 import { Check, Copy, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
 import { ModeBadge } from "@/components/portal/badges"
@@ -19,6 +20,7 @@ interface CarrierRow {
   is_land: boolean
   lang: number
   routes: string
+  countries?: string[] | null
   is_cc: boolean
   active: boolean
   auto_send_rfq: boolean
@@ -55,6 +57,7 @@ function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
         is_land: row.is_land,
         lang: row.lang,
         routes: row.routes,
+        countries: row.countries ?? [],
         active: row.active,
         auto_send_rfq: row.auto_send_rfq,
         cc_emails: [],
@@ -226,7 +229,7 @@ export function CarriersPanel() {
 
               <p className="mb-0.5 text-[15px] font-bold" style={{ color: "var(--text-primary)" }}>{c.carrier_name}</p>
               <p className="mb-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                {modesFromCarrier(c).join(" & ")} · {langLabel(c.lang)}
+                {modesFromCarrier(c).join(" & ")} · {langLabel(c.lang)} · {c.countries.length === 0 ? "No countries set" : c.countries.length >= ALL_CODES.length ? "All countries" : `${c.countries.length} countr${c.countries.length === 1 ? "y" : "ies"}`}
               </p>
 
               <div className="mb-3.5 grid grid-cols-2 gap-2.5">

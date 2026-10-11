@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Loader2, Plus, X } from "lucide-react"
 import { type Carrier, langLabel, langValue } from "@/lib/portal-data"
+import { CountryPicker } from "@/components/portal/country-picker"
 
 const langOptions = ["Arabic", "English", "Both"] as const
 
@@ -27,6 +28,7 @@ export function CarrierModal({
   const [isLand,      setIsLand]      = useState(carrier?.is_land       ?? false)
   const [lang,        setLang]        = useState<number>(carrier?.lang  ?? -1)
   const [routes,      setRoutes]      = useState(carrier?.routes        ?? "")
+  const [countries,   setCountries]   = useState<string[]>(carrier?.countries ?? [])
   const [active,      setActive]      = useState(carrier?.active        ?? true)
   const [autoSendRfq, setAutoSendRfq] = useState(carrier?.auto_send_rfq  ?? false)
   const [ccEmails,    setCcEmails]    = useState<string[]>(carrier?.cc_emails ?? [])
@@ -61,6 +63,7 @@ export function CarrierModal({
       is_land:      isLand,
       lang,
       routes,
+      countries,
       active,
       auto_send_rfq: autoSendRfq,
       cc_emails:    ccEmails,
@@ -179,9 +182,18 @@ export function CarrierModal({
               </div>
             </div>
 
+            {/* Countries */}
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">
+                Countries covered
+                <span className="ml-1.5 font-normal text-[#94A3B8]">— used to suggest this carrier for matching requests</span>
+              </label>
+              <CountryPicker value={countries} onChange={setCountries} />
+            </div>
+
             {/* Routes */}
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Routes / Lanes</label>
+              <label className="mb-1.5 block text-sm font-medium text-[#0F172A] dark:text-[#E2E8F0]">Routes / Lanes <span className="font-normal text-[#94A3B8]">— notes only</span></label>
               <textarea
                 value={routes}
                 onChange={(e) => setRoutes(e.target.value)}

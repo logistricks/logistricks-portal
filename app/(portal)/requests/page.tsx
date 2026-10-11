@@ -618,6 +618,8 @@ export default function RequestsPage() {
         <SendToCarriersModal
           freightRequestId={selected[0]}
           modes={requests.find(r => r.id === selected[0])?.modes ?? []}
+          originCountry={requests.find(r => r.id === selected[0])?.originCountry}
+          destinationCountry={requests.find(r => r.id === selected[0])?.destinationCountry}
           onClose={() => setShowRfqModal(false)}
           onSent={() => {
             setShowRfqModal(false)

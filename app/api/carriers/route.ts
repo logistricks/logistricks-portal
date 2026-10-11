@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
 import { logActivity } from "@/lib/log-activity"
+import { cleanCodes } from "@/lib/countries"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest) {
     is_land:      body.is_land      ?? false,
     lang:         body.lang         ?? -1,
     routes:       body.routes       ?? "",
+    countries:    cleanCodes(body.countries),
     active:       body.active       ?? true,
     auto_send_rfq: body.auto_send_rfq ?? false,
     is_cc:        false,
@@ -141,6 +143,7 @@ export async function PATCH(req: NextRequest) {
   for (const f of fields) {
     if (body[f] !== undefined) patch[f] = body[f]
   }
+  if (body.countries !== undefined) patch.countries = cleanCodes(body.countries)
 
   if (Object.keys(patch).length > 0) {
     const { error } = await db

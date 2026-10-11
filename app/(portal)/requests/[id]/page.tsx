@@ -830,7 +830,7 @@ export default function RequestDetailPage() {
       )}
 
       {rfqOpen && (
-        <SendRfqDialog requestId={request.id} modes={request.modes} onClose={() => setRfqOpen(false)} onDone={() => { load(); setRfqRefreshSignal((n) => n + 1) }} />
+        <SendRfqDialog requestId={request.id} modes={request.modes} originCountry={request.originCountry} destinationCountry={request.destinationCountry} onClose={() => setRfqOpen(false)} onDone={() => { load(); setRfqRefreshSignal((n) => n + 1) }} />
       )}
     </div>
   )
