@@ -11,6 +11,7 @@ import { toStringList } from "@/lib/special"
 import { NextResponse, after, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { notify, requestValues } from "@/lib/notify"
+import { detectFlags } from "@/lib/aog-dgr-detector"
 import { isExw, hasText } from "@/lib/shipment-labels"
 
 export const runtime = "nodejs"
@@ -37,6 +38,8 @@ export async function POST(req: NextRequest) {
   if (!client) return NextResponse.json({ error: `unknown client ${clientCode}` }, { status: 404 })
 
   const modes = list(b.modes).map((m) => m.toLowerCase())
+  // Safety net behind the AI flags: a keyword scan of the request text (UN numbers, lithium, etc.).
+  const scanned = detectFlags({ isAir: modes.includes("air"), fields: [b.raw_message, b.cargo_type, ...list(b.special_requirements), ...list(b.availability_questions)] })
   const row: Record<string, unknown> = {
     client_code: client.client_code,
     sender_name: s(b.sender_name, 100), sender_email: s(b.sender_email, 255), sender_phone: s(b.sender_phone, 30),
@@ -53,12 +56,14 @@ export async function POST(req: NextRequest) {
     is_sea: modes.includes("sea"), is_air: modes.includes("air"), is_land: modes.includes("land"),
     status: "Pending", is_done: false,
     special_requirements: toStringList(b.special_requirements), availability_questions: toStringList(b.availability_questions),
-    aog: b.aog === true, dgr: b.dgr === true,
+    aog: b.aog === true, dgr: b.dgr === true || scanned.dgr,
   }
 
   // Mandatory-field check, same rules as the automatic flow.
   const critical: string[] = client.require_critical_data && Array.isArray(client.critical_fields) ? client.critical_fields : []
+  const seaOnlyField = (f: string) => (f === "equipment" || f === "bl_type") && !modes.includes("sea") && (modes.includes("air") || modes.includes("land"))
   const missing = critical.filter((f) => {
+    if (seaOnlyField(f)) return false // container / BL type don't apply to air or land
     if (f === "pickup_address") return isExw(row.incoterm as string | null) && !hasText(b.pickup_address)
     return !hasText(row[f])
   }).map((f) => LABELS[f] ?? f)

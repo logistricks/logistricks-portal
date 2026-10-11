@@ -41,11 +41,12 @@ const DGR_KEYWORDS = [
   "toxic",
   "radioactive",
   "infectious substance",
-  "lithium battery",
-  "lithium batteries",
+  "lithium",       // lithium-ion, lithium metal, lithium battery/batteries
   "li-ion",
+  "li ion",
   "lipo",
-  "un ",           // matches UN1234, UN 1234, etc.
+  "dry ice",
+  "aerosol",
   "class 1",
   "class 2",
   "class 3",
@@ -63,6 +64,9 @@ const DGR_KEYWORDS = [
   "imco",
   "dgd",           // dangerous goods declaration
 ]
+
+// UN numbers (UN3481, UN 3481), packing instructions PI 965-970, "class 9" etc. need patterns, not plain substrings.
+const DGR_PATTERNS = [/\bun\s?-?\d{4}\b/i, /\bpi\s?9[5-7]\d\b/i, /\bpacking instruction\s?\d{3}\b/i, /\bclass\s?[1-9](\.\d)?\b/i]
 
 function scan(text: string, keywords: string[]): boolean {
   const lower = text.toLowerCase()
@@ -87,7 +91,7 @@ export interface DetectFlagsResult {
  */
 export function detectFlags({ isAir, fields }: DetectFlagsInput): DetectFlagsResult {
   const text = fields.filter(Boolean).join(" ")
-  const dgr  = scan(text, DGR_KEYWORDS)
+  const dgr  = scan(text, DGR_KEYWORDS) || DGR_PATTERNS.some((re) => re.test(text))
   const aog  = isAir ? scan(text, AOG_KEYWORDS) : false
   return { aog, dgr }
 }

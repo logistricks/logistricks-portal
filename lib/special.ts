@@ -84,7 +84,11 @@ export function joinList(v: unknown, sep = ", "): string {
  * The special-requests list as it goes to a CARRIER: no repeats of fields the request already has, and nothing that is the
  * client's own business (which lines they want to avoid or prefer). One string per item, ready to print one per line.
  */
+// Commercial intel the client gave us (target / competing / budget rates) must never reach a carrier.
+const COMMERCIAL = /\b(target|budget|competitor|competing|benchmark|beat|match)\b.*\b(rate|price|quote|offer|usd|eur|\$|€)|\b(rate|price)\s+to\s+beat\b|\b(target|budget)\s+(rate|price)\b/i
+
 export function forCarrier(items: string[], fields: unknown[]): string[] {
+  items = items.filter((it) => !COMMERCIAL.test(it))
   const internal = /^(carrier|preferred carrier|shipping line|line|airline)\s+(preference|preferences|to avoid|avoid)\b/i
   return dropRepeats(items, fields).filter((it) => {
     const p = parseSpecial(it)
@@ -100,6 +104,7 @@ export function forCarrier(items: string[], fields: unknown[]): string[] {
 export function carrierFacingSpecial(items: string[]): string[] {
   const out: string[] = []
   for (const raw of items) {
+    if (COMMERCIAL.test(raw)) continue
     const { label, value } = parseSpecial(raw)
     if (!label) { out.push(raw.trim()); continue }
     const l = label.toLowerCase()
