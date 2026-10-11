@@ -28,7 +28,7 @@ import { ConfirmStepsDialog, type ConfirmStep } from "@/components/portal/confir
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function ResponseTimeBadge({ sentAt, respondedAt }: { sentAt: string; respondedAt: string | null }) {
+function ResponseTimeBadge({ sentAt, respondedAt, rfqSent = true }: { sentAt: string; respondedAt: string | null; rfqSent?: boolean }) {
   // Waiting carriers count up live, to the second; answered ones show the exact time they took.
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -36,6 +36,14 @@ function ResponseTimeBadge({ sentAt, respondedAt }: { sentAt: string; respondedA
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [respondedAt])
+  if (!rfqSent) {
+    return (
+      <span title="No request was sent to this carrier from the portal, so there is no response time to measure" className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-[#1A2A40] dark:text-[#94A3B8]">
+        <Clock className="h-3 w-3" />
+        Response time: N/A
+      </span>
+    )
+  }
   if (!respondedAt) {
     return (
       <span className="inline-flex items-center gap-1 rounded bg-[color-mix(in_srgb,var(--brand-accent)_10%,white)] px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--brand-accent)]">
@@ -98,9 +106,11 @@ interface Props {
   onChanged?: () => void
   /** Reports the carrier quotes that are still active (not disregarded) whenever they load or change. */
   onActiveQuotes?: (quotes: CarrierQuote[]) => void
+  /** When the request itself arrived (ISO): the quote card shows how long after it the carrier's quote came in. */
+  requestReceivedAt?: string
 }
 
-export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged, onActiveQuotes }: Props) {
+export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged, onActiveQuotes, requestReceivedAt }: Props) {
   const [rows, setRows]       = useState<CarrierQuoteRequest[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -275,7 +285,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                   <p className="truncate text-sm font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">
                     {row.carrierName}
                   </p>
-                  <ResponseTimeBadge sentAt={row.sentAt} respondedAt={row.respondedAt} />
+                  <ResponseTimeBadge sentAt={row.sentAt} respondedAt={row.respondedAt} rfqSent={row.rfqSent} />
                 </div>
               </div>
 
@@ -312,6 +322,24 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                       </span>
                     </div>
                   )}
+
+                  {/* Received (date and time) + how long after the request arrived */}
+                  {row.quote.receivedAt && fmtDateTimeSec(row.quote.receivedAt) && (() => {
+                    const gap = requestReceivedAt ? new Date(row.quote.receivedAt).getTime() - new Date(requestReceivedAt).getTime() : NaN
+                    return (
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">Quote received</span>
+                        <span className="text-right text-xs font-semibold text-[#0F172A] dark:text-[#E2E8F0]">
+                          {fmtDateTimeSec(row.quote.receivedAt)}
+                          {Number.isFinite(gap) && gap >= 0 && (
+                            <span className="block text-[11px] font-medium text-[#64748B] dark:text-[#94A3B8]" title={`Request received ${fmtDateTimeSec(requestReceivedAt as string)}`}>
+                              {fmtDuration(gap)} after the request
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })()}
 
                   {/* Validity */}
                   {row.quote.validityDate && (

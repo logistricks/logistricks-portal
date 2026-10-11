@@ -511,6 +511,7 @@ export default function RequestDetailPage() {
             <QuoteComparisonPanel
               key={rfqRefreshSignal}
               freightRequestId={request.id}
+              requestReceivedAt={request.receivedIso}
               locked={request.status === "Closed"}
               onChanged={() => { setRfqRefreshSignal((n) => n + 1); void load() }}
               onActiveQuotes={setActiveQuotes}

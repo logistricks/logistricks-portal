@@ -24,6 +24,8 @@ export interface CarrierQuoteRequest {
   status: CarrierQuoteStatus
   sentAt: string
   respondedAt: string | null
+  /** False when no request was sent from the portal for this quote (it was dropped / linked by hand), so there is no real response time. */
+  rfqSent: boolean
   quote: CarrierQuote | null
 }
 
@@ -197,6 +199,7 @@ export async function fetchQuotesForRequest(
     status: row.status as CarrierQuoteStatus,
     sentAt: row.sent_at,
     respondedAt: row.responded_at,
+    rfqSent: !/^manual-/.test(String(row.email_thread_id ?? "")),
     quote: row.carrier_quotes?.[0]
       ? {
           id: row.carrier_quotes[0].id,

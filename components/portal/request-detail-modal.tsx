@@ -697,6 +697,7 @@ export function RequestDetailModal({
             <div className="p-5">
               <QuoteComparisonPanel
                 freightRequestId={request.id}
+                requestReceivedAt={request.receivedIso}
                 key={rfqRefreshSignal}
                 locked={request.status === "Closed"}
                 onChanged={() => setRfqRefreshSignal((n) => n + 1)}
