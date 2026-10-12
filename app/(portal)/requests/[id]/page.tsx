@@ -38,6 +38,7 @@ import {
   UrgencyBadge,
 } from "@/components/portal/badges"
 import { IntakeBadge } from "@/components/portal/intake-badge"
+import { RequestAttachments } from "@/components/portal/request-attachments"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
 import { ForwardQuotationDialog } from "@/components/portal/forward-quotation-dialog"
@@ -605,6 +606,9 @@ export default function RequestDetailPage() {
                 reference={request.requestRef}
                 openState={[specialOpen, setSpecialOpen]}
               />
+
+              {/* Files that came with the email */}
+              <RequestAttachments requestId={request.id} files={request.attachments ?? []} />
 
               {/* Raw message */}
               {request.rawMessage && (

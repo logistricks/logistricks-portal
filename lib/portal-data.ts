@@ -187,6 +187,8 @@ export type FreightRequest = {
   missingFields: string[]
   suggestedReply: string | null
   rawMessage: string
+  /** Files that came with the request email */
+  attachments?: import("@/lib/attachments").RequestAttachment[]
   aog: boolean
   dgr: boolean
   history: StatusEvent[]

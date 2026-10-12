@@ -1,5 +1,6 @@
 "use client"
 
+import { RequestAttachments } from "@/components/portal/request-attachments"
 import { rankCarriers } from "@/lib/carrier-match"
 import { defaultTemplateFor } from "@/lib/template-defaults"
 import { FitTag, fitHint } from "@/components/portal/suggested-badge"
@@ -754,6 +755,8 @@ export function RequestDetailModal({
                   reference={request.requestRef}
                   openState={[specialOpen, setSpecialOpen]}
                 />
+
+                <RequestAttachments requestId={request.id} files={request.attachments ?? []} />
 
                 {/* Raw message — collapsible */}
                 <div className="ds-card">

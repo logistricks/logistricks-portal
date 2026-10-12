@@ -1,3 +1,4 @@
+import { parseAttachments } from "@/lib/attachments"
 /**
  * lib/supabase-queries.ts
  * Typed Supabase fetch / realtime helpers for the portal.
@@ -24,6 +25,7 @@ export interface DbFreightRequest {
   source: string
   received_at: string
   raw_message: string | null
+  attachments?: unknown
   origin_city: string | null
   origin_country: string | null
   destination_city: string | null
@@ -323,6 +325,7 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     missingFields:     Array.isArray(row.missing_fields)           ? row.missing_fields           as string[] : [],
     suggestedReply:    row.suggested_reply ?? null,
     rawMessage:        row.raw_message     ?? "",
+    attachments:       parseAttachments(row.attachments),
     aog:               row.aog             ?? false,
     dgr:               row.dgr             ?? false,
     history:           Array.isArray(row.history) && row.history.length > 0
