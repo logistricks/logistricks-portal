@@ -373,6 +373,7 @@ tr.dt>td{background:var(--surface2);padding:18px}
     <div class="card"><h3>Activity</h3><p class="hint">Every event is logged: logins, tries, steps, locked clicks.</p><div class="timeline" id="log"></div></div>
     <div class="card"><h3>What leads reach for</h3><p class="hint">Locked-feature taps across all leads.</p><div id="sig" style="margin-top:10px"></div></div>
   </div>
+  <div class="card" id="aiCard"><h3>AI examples: prompts</h3><p class="hint" style="max-width:75ch">The text the AI follows when a lead taps Generate with AI. Edits apply to the next generation. Reset puts the built-in version back.</p><div class="err" id="aiWarn"></div><div id="aiList" style="display:grid;gap:22px;margin-top:14px"></div></div>
 </main></div>
 <script>
 (function(){
@@ -386,7 +387,7 @@ function pt(){$("#tb").textContent=dark()?"Light":"Dark"}
 $("#tb").addEventListener("click",function(){document.documentElement.setAttribute("data-theme",dark()?"light":"dark");pt()});pt();
 function ago(i){if(!i)return "Never";var s=Math.max(1,Math.round((Date.now()-Date.parse(i))/1000));if(s<3600)return Math.max(1,Math.round(s/60))+" min ago";if(s<86400)return Math.round(s/3600)+" h ago";return Math.round(s/86400)+" d ago"}
 function inDays(i){if(!i)return "No data";var d=Math.ceil((Date.parse(i)-Date.now())/86400000);return d<=0?"Due now":d===1?"in 1 day":"in "+d+" days"}
-var EV={login:function(){return "Signed in"},login_failed:function(){return "Wrong password"},expired_login:function(){return "Tried to sign in after expiry"},page_opened:function(){return "Opened the page"},try_start:function(m){return "Started try "+(m&&m.try_no)+" ("+((m&&m.mode)||"")+", "+((m&&m.source)||"")+")"},request_read:function(m){return "Request read, "+((m&&m.missing)||0)+" missing"},parse_failed:function(){return "Email could not be read (free)"},quote_read:function(m){return "Carrier quote read, "+((m&&m.charges)||0)+" charges"},quote_failed:function(){return "Quote could not be read (free)"},markup_set:function(m){return "Set markup "+(m&&m.value)+(m&&m.type==="percent"?"%":"")},format_switched:function(m){return "Switched format to "+(m&&m.format)},pdf_downloaded:function(){return "Downloaded the PDF"},excel_exported:function(){return "Downloaded the Excel"},reply_copied:function(){return "Copied the suggested reply"},email_copied:function(){return "Copied the email body"},try_finished:function(m){return "Finished try "+(m&&m.try_no)+(m&&m.duration_ms?" in "+Math.round(m.duration_ms/1000)+" s":"")},locked_click:function(m){return "Tapped locked: "+(m&&m.feature)},cta_click:function(m){return "Tapped: "+((m&&m.feature)||"Book now")},sample_picked:function(m){return "Picked sample: "+(m&&m.feature)},file_dropped:function(){return "Dropped an email file"},tip_open:function(m){return "Opened tip: "+(m&&m.feature)},next_click:function(m){return "Used the next arrow: "+(m&&m.feature)},theme_switched:function(){return "Switched light or dark"},dwell:function(){return "Time on page"}};
+var EV={login:function(){return "Signed in"},login_failed:function(){return "Wrong password"},expired_login:function(){return "Tried to sign in after expiry"},page_opened:function(){return "Opened the page"},try_start:function(m){return "Started try "+(m&&m.try_no)+" ("+((m&&m.mode)||"")+", "+((m&&m.source)||"")+")"},request_read:function(m){return "Request read, "+((m&&m.missing)||0)+" missing"},parse_failed:function(){return "Email could not be read (free)"},quote_read:function(m){return "Carrier quote read, "+((m&&m.charges)||0)+" charges"},quote_failed:function(){return "Quote could not be read (free)"},markup_set:function(m){return "Set markup "+(m&&m.value)+(m&&m.type==="percent"?"%":"")},format_switched:function(m){return "Switched format to "+(m&&m.format)},pdf_downloaded:function(){return "Downloaded the PDF"},excel_exported:function(){return "Downloaded the Excel"},reply_copied:function(){return "Copied the suggested reply"},email_copied:function(){return "Copied the email body"},try_finished:function(m){return "Finished try "+(m&&m.try_no)+(m&&m.duration_ms?" in "+Math.round(m.duration_ms/1000)+" s":"")},locked_click:function(m){return "Tapped locked: "+(m&&m.feature)},cta_click:function(m){return "Tapped: "+((m&&m.feature)||"Book now")},sample_picked:function(m){return "Picked sample: "+(m&&m.feature)},file_dropped:function(){return "Dropped an email file"},tip_open:function(m){return "Opened tip: "+(m&&m.feature)},next_click:function(m){return "Used the next arrow: "+(m&&m.feature)},theme_switched:function(){return "Switched light or dark"},generated:function(m){return "AI wrote a "+((m&&m.kind)==="quote"?"carrier reply":"request")+" ("+((m&&m.level)||"")+")"+(m&&m.kw_dropped?", "+m.kw_dropped+" keyword"+(m.kw_dropped==1?"":"s")+" dropped":"")},tab_opened:function(m){return "Opened tab: "+(m&&m.feature)},level_picked:function(m){return "Picked level: "+(m&&m.feature)},key_features_click:function(){return "Tapped Key Features"},dwell:function(){return "Time on page"}};
 function evt(e){return EV[e.type]?EV[e.type](e.meta):e.type.replace(/^admin_/,"Admin: ").replace(/_/g," ")}
 var data=null;
 var openId=null;
@@ -448,8 +449,23 @@ $("#lf").addEventListener("submit",function(e){e.preventDefault();$("#le").textC
   function done(){b.innerHTML=b.dataset.h;b.disabled=false;b.classList.remove("busy");ins.forEach(function(i){i.disabled=false})}
   send("/api/trial-admin/login","POST",{user:$("#u").value,password:$("#p").value}).then(function(r){
     if(!r.ok){done();$("#le").textContent=r.json.error||"Could not sign in.";return}
-    $("#p").value="";return load().then(done)})});
+    $("#p").value="";return load().then(function(){loadPrompts()}).then(done)})});
 $("#lo").addEventListener("click",function(){send("/api/trial-admin/logout","POST").then(function(){location.reload()})});
-load();setInterval(function(){if(!$("#app").hidden)load()},30000);
+load().then(function(){if(!$("#app").hidden)loadPrompts()});setInterval(function(){if(!$("#app").hidden)load()},30000);
 })();
+
+/* ---------- AI prompts ---------- */
+function loadPrompts(){return api("/api/trial-admin/prompts").then(function(r){
+  if(!r.ok)return;
+  $("#aiWarn").textContent=r.json.configured?"":"The Gemini key is not set on the server (GEMINI_API_KEY), so leads cannot generate examples yet.";
+  $("#aiList").innerHTML=r.json.prompts.map(function(p){return '<div data-k="'+p.key+'"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b style="font:700 16px/1.2 var(--font-display)">'+esc(p.label)+'</b><span class="pill">'+(p.custom?"Edited":"Built-in")+'</span></div><p class="hint" style="margin:6px 0 8px">'+esc(p.hint)+'</p><textarea rows="14" style="min-height:240px;font:13px/1.5 ui-monospace,Menlo,monospace" spellcheck="false">'+esc(p.body)+'</textarea><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px"><button class="btn btn-primary btn-sm" data-a="save" type="button">Save</button><button class="btn btn-line btn-sm" data-a="reset" type="button">Reset to built-in</button><span class="hint" data-s></span></div></div>'}).join("");
+  Array.prototype.slice.call(document.querySelectorAll("#aiList [data-a]")).forEach(function(b){b.addEventListener("click",function(){
+    var box=b.closest("[data-k]"),k=box.dataset.k,st=box.querySelector("[data-s]");
+    st.textContent="Saving...";
+    (b.dataset.a==="save"?send("/api/trial-admin/prompts","PUT",{key:k,body:box.querySelector("textarea").value}):send("/api/trial-admin/prompts?key="+k,"DELETE")).then(function(x){
+      if(!x.ok){st.textContent=x.json.error||"Could not save.";return}
+      loadPrompts();
+    });
+  })});
+})}
 </script></body></html>

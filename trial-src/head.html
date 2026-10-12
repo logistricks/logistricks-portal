@@ -440,6 +440,81 @@ table.xl td.r{text-align:right;font-variant-numeric:tabular-nums}
 body.locked-app>#appRoot{display:none}
 .errcard{border:1.5px solid color-mix(in srgb,var(--crit) 50%,transparent);background:var(--crit-soft);border-radius:18px;padding:22px;display:grid;gap:8px}
 .errcard b{font:700 18px/1.2 var(--font-display);color:var(--crit)}
+
+/* ===== guided flow: one thing at a time ===== */
+body{padding-bottom:92px}
+.how{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.how.how3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.howbtn{display:grid;justify-items:center;gap:6px;text-align:center;background:var(--surface);border:1.5px solid var(--line);border-radius:18px;padding:18px 12px 16px;box-shadow:var(--shadow);transition:transform .18s ease,border-color .18s ease,background .18s ease;position:relative}
+.howbtn .hi{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong);transition:background .18s,color .18s}
+.howbtn b{font:700 16.5px/1.15 var(--font-display)}
+.howbtn small{font-size:12.5px;color:var(--muted);line-height:1.3}
+.howbtn:hover:not(:disabled){transform:translateY(-2px);border-color:var(--accent)}
+.howbtn[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.howbtn[aria-selected="true"] .hi{background:var(--accent);color:var(--on-accent)}
+.howbtn[aria-selected="true"]:after{content:"";position:absolute;left:50%;bottom:-9px;width:16px;height:16px;background:var(--accent-soft);border-right:1.5px solid var(--accent);border-bottom:1.5px solid var(--accent);transform:translateX(-50%) rotate(45deg);z-index:1}
+.howbtn:disabled{opacity:.55;cursor:not-allowed}
+.howbtn.islocked .hi{background:var(--surface2);color:var(--lock)}
+.panes{display:grid}
+.pane:not([hidden]){animation:paneIn .38s cubic-bezier(.2,.8,.2,1) both}
+@keyframes paneIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.privacy{display:flex;gap:10px;align-items:flex-start;background:var(--good-soft);border-radius:12px;padding:11px 14px;font-size:14px;margin-bottom:14px}
+.privacy svg{flex:none;color:var(--good);margin-top:2px}
+.levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.levels button{display:grid;gap:3px;justify-items:center;text-align:center;background:var(--surface2);border:1.5px solid var(--line);border-radius:14px;padding:14px 8px;transition:border-color .15s,background .15s}
+.levels button b{font:700 16px/1.1 var(--font-display)}
+.levels button small{font-size:12px;color:var(--muted);line-height:1.3}
+.levels button:hover{border-color:var(--accent)}
+.levels button[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.emailbox-card{margin-top:16px}
+.emailbox-card:not([hidden]){animation:paneIn .4s cubic-bezier(.2,.8,.2,1) both}
+.readrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.filechip{display:inline-flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;margin-top:4px}
+.dropped{margin-top:10px;font-size:13px;color:var(--muted);background:var(--surface2);border:1px dashed var(--line);border-radius:10px;padding:8px 12px}
+.lockline{display:flex;gap:8px;align-items:center;justify-content:center;font-size:13px;color:var(--muted);margin:-6px 0 14px}
+.go{display:flex;justify-content:center;margin-top:30px}
+.go:not([hidden]){animation:paneIn .5s ease both}
+.btn-go{padding:16px 28px;font-size:17px;border-radius:999px;box-shadow:0 10px 26px -10px rgba(232,130,26,.7)}
+.btn-go svg{animation:nbounce 1.4s ease-in-out infinite}
+.rv{opacity:0;transform:translateY(14px);transition:opacity .55s ease,transform .55s cubic-bezier(.2,.8,.2,1)}
+.rv.in{opacity:1;transform:none}
+section.step.enter{animation:stepIn .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes stepIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+.sep:not([hidden]){animation:sepGrow .6s ease both;transform-origin:top}
+@keyframes sepGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.s3note{display:flex;gap:12px;align-items:flex-start;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-left:6px solid var(--accent);border-radius:14px;padding:16px 18px;font-size:16px;line-height:1.45}
+.s3note svg{flex:none;color:var(--accent-strong);margin-top:2px}
+.flatprog{padding:4px 0}
+.shimmer{height:12px;border-radius:8px;background:linear-gradient(90deg,var(--surface2),var(--line),var(--surface2));background-size:200% 100%;animation:shim 1.3s linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
+.rail a.off{opacity:.4;pointer-events:none}
+.fabs{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:70;display:flex;gap:10px;align-items:center}
+.fabs[hidden]{display:none}
+.fabs .bookfab{position:static;right:auto;bottom:auto}
+.fabkey{display:inline-flex;align-items:center;gap:8px;background:var(--navy);color:#fff;border:2px solid rgba(255,255,255,.85);border-radius:999px;padding:13px 18px;font:700 15px/1 var(--font-body);box-shadow:0 8px 22px rgba(0,0,0,.28)}
+.fabkey:hover{background:var(--navy3)}
+@media (max-width:760px){
+  .how{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .how.how3{grid-template-columns:minmax(0,1fr)}
+  .how.how3 .howbtn{grid-template-columns:auto 1fr;justify-items:start;text-align:left;column-gap:14px;row-gap:0;padding:14px 16px}
+  .how.how3 .howbtn .hi{grid-row:1/3}
+  .how.how3 .howbtn[aria-selected="true"]:after{display:none}
+  .howbtn{padding:14px 8px 12px}
+  .howbtn .hi{width:40px;height:40px}
+  .howbtn b{font-size:15px}
+  .levels{gap:8px}
+  .levels button{padding:12px 4px}
+  .levels button small{font-size:11.5px}
+  .btn-go{width:100%;padding:16px 18px;font-size:16px}
+  .readrow .btn{width:100%}
+  .fabs{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));gap:8px}
+  .fabs>*{flex:1;justify-content:center;padding:13px 10px;font-size:14px}
+  .s3note{font-size:15px;padding:14px}
+  .emailbox-card textarea{min-height:170px}
+}
+@media (max-width:360px){.howbtn small{display:none}}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.pane,.emailbox-card,.go,section.step.enter,.sep{animation:none!important}.btn-go svg,.shimmer{animation:none}}
+[hidden]{display:none!important}
 </style></head><body class="locked-app">
 
 
@@ -489,7 +564,7 @@ body.locked-app>#appRoot{display:none}
       <h1>Your client's email in. A <em>sendable quotation</em> out.</h1>
       <p class="lead">Run one real request through Logistricks, from any country: read the email, price the carrier quote, and leave with a quotation you can send. You have <b id="heroTries">two</b> full tries<span id="heroExp"></span>.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="#s1" id="startBtn">Start with a sample</a>
+        <a class="btn btn-primary" href="#s1" id="startBtn">Start the trial</a>
         <a class="btn btn-ghost" href="#what">See what else is inside</a>
       </div>
     </div>
@@ -513,92 +588,152 @@ body.locked-app>#appRoot{display:none}
   <div class="step-head">
     <div class="step-no">1</div>
     <div>
-      <h2>Drop in a client's request email</h2>
-      <div class="io"><span><b>You give:</b> an email, typed, pasted or dropped as a file</span><span><b>You get:</b> a clean request and an AI-written suggested reply</span></div>
+      <h2>Start with the request</h2>
+      <div class="io"><span><b>You give:</b> a client's request email, any way you like</span><span><b>You get:</b> a clean request, a suggested reply and the email to your carrier</span></div>
     </div>
   </div>
-  <div class="grid2 s1grid">
-    <div class="card">
-      <h3>The email</h3>
-      <p class="hint" style="margin-bottom:14px">Start from a sample or drop your own email file. Samples are only a starting point: change anything, in any language.</p>
-      <div class="inrow">
-        <div class="incol"><span class="eyebrow">Start from a sample</span><div class="sampbar" id="sampbar"></div></div>
-        <div class="incol"><span class="eyebrow">Or drop your own email</span>
-          <label class="drop dropfill" id="dropBox" for="fileIn">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-            <b id="dropTxt">Drop an email file here, or click to choose</b>
-            <span class="hint">.eml, .msg or PDF. Attachments are read as part of the request.</span>
-          </label>
-          <input id="fileIn" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
+
+  <div class="how" id="how1" role="tablist" aria-label="How do you want to start?">
+    <button type="button" role="tab" class="howbtn" data-t="drop" aria-selected="false"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span><b>Drop Email</b><small>.eml, .msg or PDF</small></button>
+    <button type="button" role="tab" class="howbtn" data-t="type" aria-selected="false"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span><b>Type Request</b><small>Write or paste it</small></button>
+    <button type="button" role="tab" class="howbtn" data-t="sample" aria-selected="false"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span><b>Use Sample</b><small>Five ready examples</small></button>
+    <button type="button" role="tab" class="howbtn" data-t="ai" aria-selected="false"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg></span><b>Generate with AI</b><small>We write one for you</small></button>
+  </div>
+
+  <div class="panes" id="panes1">
+    <div class="pane" id="pane-drop" hidden>
+      <div class="card">
+        <div class="privacy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span><b>Your email is read, not saved.</b> Only the shipment details are kept, for 5 days.</span></div>
+        <label class="drop dropfill" id="dropBox" for="fileIn">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <b id="dropTxt">Drop an email file here, or click to choose</b>
+          <span class="hint">.eml, .msg or PDF. Attachments are read as part of the request.</span>
+        </label>
+        <input id="fileIn" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-type" hidden>
+      <div class="card"><p class="hint">Type or paste the client's email below, in any language.</p></div>
+    </div>
+
+    <div class="pane" id="pane-sample" hidden>
+      <div class="card"><span class="eyebrow">Pick one. You can edit it before it is read.</span><div class="sampbar" id="sampbar" style="margin-top:12px"></div></div>
+    </div>
+
+    <div class="pane" id="pane-ai" hidden>
+      <div class="card">
+        <span class="eyebrow">How complicated should it be?</span>
+        <div class="levels" id="lv1" role="radiogroup" aria-label="Level">
+          <button type="button" role="radio" data-l="low" aria-checked="false"><b>Low</b><small>Complete and simple</small></button>
+          <button type="button" role="radio" data-l="medium" aria-checked="false"><b>Medium</b><small>Something is missing</small></button>
+          <button type="button" role="radio" data-l="complex" aria-checked="false"><b>Complex</b><small>Messy, urgent, risky</small></button>
         </div>
-      </div>
-      <label class="f" for="bodyIn" style="margin-top:18px">Email text. Edit a sample, or type or paste your own.
-        <textarea id="bodyIn" dir="auto" rows="8" placeholder="Paste or type the client's request here, in any language."></textarea>
-      </label>
-      <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-primary" id="parse1" type="button" disabled>Read this email</button>
-        <span class="hint" id="parse1hint">Pick a sample or paste your own email.</span>
-      </div>
-    </div>
-    <div id="out1" aria-live="polite">
-      <div class="placeholder">
-        <span class="eyebrow">What appears here</span>
-        <b>The request, as a clean record</b>
-        <p>Route with ports and airports, cargo, equipment, weight, incoterm, special requirements and what is missing. In English, whatever language the email was written in.</p>
-        <div class="ghostrows"><i style="width:80%"></i><i style="width:62%"></i><i style="width:71%"></i></div>
+        <label class="f" for="kw1" style="margin-top:18px">Key words <span class="hint">(optional)</span>
+          <input id="kw1" type="text" maxlength="100" autocomplete="off" placeholder="For example: lithium batteries, Jebel Ali, reefer">
+        </label>
+        <p class="hint" style="margin-top:-6px">Logistics terms only. Anything unrelated is ignored.</p>
+        <div style="margin-top:16px"><button class="btn btn-primary" id="gen1" type="button" disabled>Generate the email</button></div>
+        <div id="genOut1" aria-live="polite" style="margin-top:16px"></div>
       </div>
     </div>
   </div>
+
+  <div class="card emailbox-card" id="emailCard" hidden>
+    <div id="bodyWrap">
+      <label class="f" for="bodyIn" id="bodyLbl" style="margin-bottom:0">The email
+        <textarea id="bodyIn" dir="auto" rows="9" placeholder="Paste or type the client's request here, in any language."></textarea>
+      </label>
+    </div>
+    <div class="filechip" id="fileChip" hidden></div>
+    <div class="readrow">
+      <button class="btn btn-primary" id="parse1" type="button" disabled>Read this email</button>
+      <span class="hint" id="parse1hint"></span>
+    </div>
+  </div>
+
+  <div id="out1" aria-live="polite" style="margin-top:20px"></div>
   <div id="reply1" style="margin-top:20px"></div>
+  <div id="rfq2" style="margin-top:20px"></div>
+  <div class="go" id="go2wrap" hidden><button class="btn btn-primary btn-go" id="go2" type="button">Continue to the carrier's reply <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m0 0-6-6m6 6 6-6"/></svg></button></div>
 </section>
 
-<div class="sep" aria-hidden="true"></div>
+<div class="sep" id="sep2" aria-hidden="true" hidden></div>
 
 <!-- STEP 2 -->
-<section class="step" id="s2">
+<section class="step" id="s2" hidden>
   <div class="step-head">
     <div class="step-no">2</div>
     <div>
-      <h2>Drop in the carrier's quotation</h2>
-      <div class="io"><span><b>You give:</b> the carrier's reply email, dropped as a file or pasted</span><span><b>You get:</b> every charge itemised, flags raised, your markup applied</span></div>
+      <h2>Bring in the carrier's reply</h2>
+      <div class="io"><span><b>You give:</b> the carrier's reply to that request</span><span><b>You get:</b> every charge itemised, flags raised, your markup applied</span></div>
     </div>
   </div>
-  <div id="rfq2"></div>
-  <div class="grid2">
-    <div class="card" id="in2"></div>
-    <div id="out2" aria-live="polite">
-      <div class="placeholder">
-        <span class="eyebrow">What appears here</span>
-        <b>The quote, line by line</b>
-        <p>Rates, surcharges, transit, validity and free time. Flags warn you when the carrier's terms do not match what the client asked for.</p>
-        <div class="ghostrows"><i style="width:84%"></i><i style="width:60%"></i><i style="width:68%"></i></div>
+
+  <div class="how how3" id="how2" role="tablist" aria-label="How do you want to add the reply?">
+    <button type="button" role="tab" class="howbtn" data-t="drop" aria-selected="false" id="how2drop"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span><b>Drop Email</b><small id="how2dropSub">.eml, .msg or PDF</small></button>
+    <button type="button" role="tab" class="howbtn" data-t="type" aria-selected="false"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span><b>Type Reply</b><small>Write or paste it</small></button>
+    <button type="button" role="tab" class="howbtn" data-t="ai" aria-selected="false"><span class="hi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg></span><b>Generate with AI</b><small>Matches your request</small></button>
+  </div>
+
+  <div class="panes" id="panes2">
+    <div class="pane" id="pane2-drop" hidden>
+      <div class="card">
+        <label class="drop dropfill" id="drop2" for="file2">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <b id="dropTxt2">Drop the carrier's email here, or click to choose</b>
+          <span class="hint">.eml, .msg or PDF</span>
+        </label>
+        <input id="file2" type="file" accept=".eml,.msg,.pdf,.txt" hidden>
+      </div>
+    </div>
+    <div class="pane" id="pane2-type" hidden><div class="card"><p class="hint">Type or paste the carrier's reply below.</p></div></div>
+    <div class="pane" id="pane2-ai" hidden>
+      <div class="card">
+        <span class="eyebrow">How complicated should the quote be?</span>
+        <div class="levels" id="lv2" role="radiogroup" aria-label="Level">
+          <button type="button" role="radio" data-l="low" aria-checked="false"><b>Low</b><small>Clean, all in</small></button>
+          <button type="button" role="radio" data-l="medium" aria-checked="false"><b>Medium</b><small>Surcharges, conditions</small></button>
+          <button type="button" role="radio" data-l="complex" aria-checked="false"><b>Complex</b><small>Mixed currencies, short validity</small></button>
+        </div>
+        <div style="margin-top:16px"><button class="btn btn-primary" id="gen2" type="button" disabled>Generate the carrier's reply</button></div>
+        <div id="genOut2" aria-live="polite" style="margin-top:16px"></div>
       </div>
     </div>
   </div>
-  <div id="markup2"></div>
+
+  <div class="card emailbox-card" id="emailCard2" hidden>
+    <div id="bodyWrap2"><label class="f" for="carrIn" style="margin-bottom:0">The carrier's reply
+      <textarea id="carrIn" dir="auto" rows="9" placeholder="Paste the carrier's reply here."></textarea></label></div>
+    <div class="filechip" id="fileChip2" hidden></div>
+    <div class="readrow"><button class="btn btn-primary" id="parse2" type="button" disabled>Read this quote</button><span class="hint" id="p2h"></span></div>
+  </div>
+
+  <div id="out2" aria-live="polite" style="margin-top:20px"></div>
+  <div id="markup2" style="margin-top:20px"></div>
+  <div class="go" id="go3wrap" hidden><button class="btn btn-primary btn-go" id="go3" type="button">Continue to the quotation <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m0 0-6-6m6 6 6-6"/></svg></button></div>
 </section>
 
-<div class="sep" aria-hidden="true"></div>
+<div class="sep" id="sep3" aria-hidden="true" hidden></div>
 
 <!-- STEP 3 -->
-<section class="step" id="s3">
+<section class="step" id="s3" hidden>
   <div class="step-head">
     <div class="step-no">3</div>
     <div>
-      <h2>Generate the quotation</h2>
+      <h2>Your quotation</h2>
       <div class="io"><span><b>You give:</b> a template and your markup</span><span><b>You get:</b> a ready quotation as a PDF and an email body, same content</span></div>
     </div>
   </div>
-  <div id="out3">
-    <div class="placeholder"><span class="eyebrow">What appears here</span><b>A quotation you can send today</b><p>Your price, the carrier's validity, the terms, laid out and ready. Finish step 2 to build it.</p></div>
-  </div>
+  <div class="s3note rv" id="s3note" role="note"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20z" style="display:none"/><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span><b>Built on the carrier's quote as read.</b> If something does not add up, our system flags it and handles it.</span></div>
+  <div id="out3" style="margin-top:18px"></div>
   <div id="done"></div>
 </section>
 
-<div class="sep" aria-hidden="true"></div>
+<div class="sep" id="sepx" aria-hidden="true" hidden></div>
 
 <!-- EXPORT -->
-<section class="step" id="export">
+<section class="step" id="export" hidden>
   <div class="step-head">
     <div class="step-no" aria-hidden="true"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13l3 3 3-3M12 16V11"/></svg></div>
     <div>
@@ -650,8 +785,7 @@ body.locked-app>#appRoot{display:none}
 </div>
 
 
-<button class="nextbtn" id="nextBtn" type="button" hidden aria-label="Go to the next thing to do"><span class="nlbl" id="nextLbl">Next</span><span class="ncirc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14m0 0-6-6m6 6 6-6"/></svg></span></button>
-<button class="bookfab" id="bookFab" type="button" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Book now</button>
+<div class="fabs" id="fabs" hidden><button class="fabkey" id="keyBtn" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/></svg>Key Features</button><button class="bookfab" id="bookFab" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Book now</button></div>
 <div class="tipchip" id="tipChip" hidden role="status"><button type="button" class="tc-main" id="tipChipMain"><span class="tc-ic" aria-hidden="true">i</span><span><b id="tipChipT"></b><small>Tap to read more</small></span></button><button type="button" class="tc-x" id="tipChipX" aria-label="Dismiss">&times;</button><i class="tc-bar" id="tipBar"></i></div>
 <div class="tipbox" id="tipBox" hidden role="dialog" aria-labelledby="tipBoxT"><button type="button" class="tb-x" id="tipBoxX" aria-label="Close">&times;</button><span class="eyebrow">Good to know</span><b id="tipBoxT"></b><p id="tipBoxP"></p></div>
 <div class="mback" id="bookModal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="bkT"><button type="button" class="tb-x" id="bkX" aria-label="Close">&times;</button><span class="eyebrow">Arrange a demo</span><h3 id="bkT">See it run on your own carriers and templates</h3><p>A 20-minute walkthrough on your real requests. No slides. Tell us a time that suits you and we will confirm it.</p><button class="btn btn-primary" id="bkGo" type="button">Choose a time</button></div></div>

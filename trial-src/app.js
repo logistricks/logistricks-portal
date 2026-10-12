@@ -67,8 +67,9 @@ function api(path,opts){
 function post(path,body){return api(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})}
 function logEv(type,extra,runId){var b={type:type,run_id:runId||st.runId||undefined};if(extra)for(var k in extra)b[k]=extra[k];post("/api/trial/event",b)}
 /* Shows the steps while the real request runs; holds on the last step until it answers. */
-function runProgress(el,labels,promise,done){
-  el.innerHTML='<div class="card"><h3>Working on it</h3><div class="prog">'+labels.map(function(l,i){return '<div data-i="'+i+'"><span class="dot"></span><span>'+l+'</span></div>'}).join("")+'</div></div>';
+function runProgress(el,labels,promise,done,flat){
+  var rowsHtml=labels.map(function(l,i){return '<div data-i="'+i+'"><span class="dot"></span><span>'+l+'</span></div>'}).join("");
+  el.innerHTML=flat?'<div class="prog flatprog">'+rowsHtml+'</div>':'<div class="card"><h3>Working on it</h3><div class="prog">'+rowsHtml+'</div></div>';
   var i=0,rows=$$(".prog div",el),settled=false,result;
   promise.then(function(r){settled=true;result=r});
   function paint(upTo){rows.forEach(function(r,j){var d=$(".dot",r);if(!d)return;if(j<upTo){r.className="ok";d.outerHTML='<span class="dot" style="color:var(--good)">'+ICON.check+'</span>'}else if(j===upTo){r.className="on";d.outerHTML='<span class="dot spin"></span>'}})}
@@ -111,29 +112,58 @@ function boot(){
     $("#coName").textContent=l.company;paintAccess(l);
     $("#loginBox").hidden=true;document.body.classList.remove("locked-app");
     logEv("page_opened");
-    renderSamples();ready1();renderIn2();renderExport();updateRail();paintTries();
+    renderSamples();setMode1(null,true);ready1();ready2();renderExport();updateRail();paintTries();
     if(r.json.run)restore(r.json.run);
     startHelpers();
   });
 }
 function restore(run){
   st.runId=run.id;st.tryNo=run.tryNo;st.t0=Date.now();cur=viewToCur(run.request);srcText="";
-  st.parsed1=true;st.mtype=run.markup.type;st.mval=run.markup.value;st.fmt=run.format||"pdf";
-  renderResult1();renderReply1();
-  if(run.quote){quote=run.quote;st.parsed2=true;renderQuote();renderMarkup();renderOut3()}
-  renderIn2();updateRail();ready1();paintTries();
+  st.parsed1=true;st.src1=run.source||null;st.mtype=run.markup.type;st.mval=run.markup.value;st.fmt=run.format||"pdf";
+  applyLock2();showStep1Results(true);
+  if(run.quote){
+    quote=run.quote;st.parsed2=true;st.s3on=true;st.out3Anim=true;
+    enter($("#s2"),"sep2",true);setMode2(null,true);renderQuote();renderMarkup();
+    enter($("#s3"),"sep3",true);renderOut3();enter($("#export"),"sepx",true);
+  }else{enter($("#s2"),"sep2",true);setMode2(null,true)}
+  show($("#go2wrap"),false);show($("#go3wrap"),false);
+  updateRail();ready1();ready2();paintTries();
   toast("Your try in progress was restored.");
 }
 function viewToCur(v){return v}
 
-/* ---------- step 1 ---------- */
+/* ---------- guided flow helpers ---------- */
+function show(el,on){if(el)el.hidden=!on}
+function wait(ms){return new Promise(function(r){setTimeout(r,reduced()?0:ms)})}
+/* Reveals elements one after another. Returns how long it takes. */
+function rvIn(els,gap){
+  els=els.filter(Boolean);gap=gap==null?240:gap;
+  els.forEach(function(e,i){e.classList.add("rv");e.classList.remove("in");setTimeout(function(){e.classList.add("in")},reduced()?0:i*gap+40)});
+  return reduced()?0:els.length*gap+200;
+}
+function stage(root){return rvIn($$("[data-rv]",root))}
+function instant(root){$$(".rv",root).forEach(function(e){e.classList.add("in")})}
+function enter(sec,sepId,noScroll){
+  if(!sec.hidden)return;
+  if(sepId)show($("#"+sepId),true);
+  sec.hidden=false;sec.classList.add("enter");updateRail();
+  if(!noScroll)setTimeout(function(){sec.scrollIntoView({behavior:reduced()?"auto":"smooth",block:"start"})},90);
+}
+function hideSteps(){["s2","s3","export"].forEach(function(id){var e=$("#"+id);if(e){e.hidden=true;e.classList.remove("enter")}});["sep2","sep3","sepx"].forEach(function(id){show($("#"+id),false)});show($("#go2wrap"),false);show($("#go3wrap"),false);updateRail()}
+function pickLevel(group,key,btn){
+  st[key]=btn.dataset.l;$$("button",group).forEach(function(b){b.setAttribute("aria-checked",String(b===btn))});logEv("level_picked",{feature:(key==="lv1"?"Request: ":"Reply: ")+btn.dataset.l});ready1();ready2();
+}
+$$("#lv1 button").forEach(function(b){b.addEventListener("click",function(){pickLevel($("#lv1"),"lv1",b)})});
+$$("#lv2 button").forEach(function(b){b.addEventListener("click",function(){pickLevel($("#lv2"),"lv2",b)})});
+
+/* ---------- step 1: start with the request ---------- */
 var DROP_DEFAULT="Drop an email file here, or click to choose";
 function renderSamples(){
   $("#sampbar").innerHTML=ORDER.map(function(k){var s=S[k];return '<button type="button" class="sample" data-k="'+k+'" aria-pressed="'+(st.pick===k)+'"><b>'+s.label+'</b><span class="tag">'+s.tag+'</span><small>'+s.blurb+'</small></button>'}).join("");
   $$(".sample").forEach(function(b){b.addEventListener("click",function(){
-    st.pick=b.dataset.k;logEv("sample_picked",{feature:S[st.pick].label});st.file=null;$("#dropTxt").textContent=DROP_DEFAULT;
-    $("#bodyIn").value=S[st.pick].email;renderSamples();ready1();
-    try{$("#bodyIn").focus({preventScroll:true})}catch(e){}
+    st.pick=b.dataset.k;logEv("sample_picked",{feature:S[st.pick].label});
+    $("#bodyIn").value=S[st.pick].email;renderSamples();showEmail1();
+    var c=$("#emailCard");setTimeout(function(){reveal(c)},120);
   })});
 }
 function busyBtn(b,on,label){
@@ -147,26 +177,44 @@ function reveal(el){
   if(r.top<72||r.top>window.innerHeight*0.55)el.scrollIntoView({behavior:reduced()?"auto":"smooth",block:"start"});
 }
 function triesLeftForNew(){return st.usedTries<st.total}
+function setMode1(m,silent){
+  st.mode1=m;st.pick=null;st.file=null;st.fileText=false;st.aiGen=false;
+  $$("#how1 .howbtn").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===m))});
+  ["drop","type","sample","ai"].forEach(function(k){show($("#pane-"+k),k===m)});
+  $("#bodyIn").value="";$("#dropTxt").textContent=DROP_DEFAULT;$("#genOut1").innerHTML="";
+  renderSamples();showEmail1();
+  if(!silent){logEv("tab_opened",{feature:"Step 1: "+m});if(m)setTimeout(function(){reveal($("#pane-"+m))},60)}
+}
+function showEmail1(){
+  var m=st.mode1,card=$("#emailCard");
+  var on=m==="type"||(m==="sample"&&!!st.pick)||(m==="ai"&&st.aiGen)||(m==="drop"&&!!st.file);
+  card.hidden=!on;
+  show($("#bodyWrap"),m!=="drop"||st.fileText);
+  var chip=$("#fileChip");
+  if(m==="drop"&&st.file&&!st.fileText){chip.hidden=false;chip.innerHTML=ICON.file+" "+esc(st.file.name)}else chip.hidden=true;
+  $("#bodyLbl").firstChild.nodeValue=m==="ai"?"The generated email. Edit it if you like.":m==="sample"?"The sample. Edit it if you like.":"The email";
+  ready1();
+}
 function ready1(){
-  var ok=$("#bodyIn").value.trim().length>10||!!st.file,hint=ok?"Ready. Edit the text first if you like.":"Pick a sample or paste your own email.";
+  var ok=$("#bodyIn").value.trim().length>10||!!st.file,hint="";
   if(!st.runId&&!triesLeftForNew()){ok=false;hint="Both of your tries are used."}
+  else if(ok&&!st.runId)hint="Reading it uses one of your "+st.total+" tries.";
   if(st.busy)ok=false;
   $("#parse1").disabled=!ok;$("#parse1hint").textContent=hint;
+  $("#gen1").disabled=!st.lv1||st.busy||!!st.genBusy;
 }
-$("#bodyIn").addEventListener("input",function(){
-  if(st.pick&&$("#bodyIn").value.indexOf(S[st.pick].email.slice(0,25))<0){st.pick=null;renderSamples()}
-  if(st.file){st.file=null;$("#dropTxt").textContent=DROP_DEFAULT}
-  ready1();
-});
+$("#bodyIn").addEventListener("input",ready1);
+$$("#how1 .howbtn").forEach(function(b){b.addEventListener("click",function(){setMode1(b.dataset.t)})});
 function readTextFile(f,done){
   if(!/\.(eml|txt)$/i.test(f.name)||!window.FileReader){done(null);return}
   var r=new FileReader();r.onload=function(){done(String(r.result||"").slice(0,20000))};r.onerror=function(){done(null)};r.readAsText(f);
 }
 function takeFile1(f){
   if(f.size>10*1024*1024){toast("That file is larger than 10 MB.");return}
-  st.file=f;st.pick=null;logEv("file_dropped",{feature:"Step 1"});$("#dropTxt").textContent=f.name;renderSamples();
-  readTextFile(f,function(t){if(t&&st.file===f)$("#bodyIn").value=t;ready1()});
-  ready1();
+  st.file=f;st.pick=null;st.fileText=false;logEv("file_dropped",{feature:"Step 1"});$("#dropTxt").textContent=f.name;
+  showEmail1();
+  readTextFile(f,function(t){if(t&&st.file===f){$("#bodyIn").value=t;st.fileText=true;showEmail1()}});
+  setTimeout(function(){reveal($("#emailCard"))},120);
 }
 $("#fileIn").addEventListener("change",function(e){var f=e.target.files&&e.target.files[0];if(f)takeFile1(f)});
 function bindDrop(el,fn){
@@ -174,56 +222,85 @@ function bindDrop(el,fn){
   ["dragleave","drop"].forEach(function(ev){el.addEventListener(ev,function(e){e.preventDefault();el.classList.remove("over");if(ev==="drop"&&e.dataTransfer&&e.dataTransfer.files[0])fn(e.dataTransfer.files[0])})});
 }
 bindDrop($("#dropBox"),takeFile1);
-
-var ph3=$("#out3").innerHTML;
-$("#out2").dataset.ph=$("#out2").innerHTML;
 function rl(m){return m==="Sea"?["PORT OF LOADING","PORT OF DISCHARGE"]:m==="Air"?["ORIGIN AIRPORT","DESTINATION AIRPORT"]:["ORIGIN","DESTINATION"]}
+
+/* AI writes the request */
+$("#gen1").addEventListener("click",function(){
+  var kw=$("#kw1").value.trim(),box=$("#genOut1");
+  st.genBusy=true;st.aiGen=false;$("#emailCard").hidden=true;ready1();
+  runProgress(box,kw?["Checking your key words","Writing the email"]:["Writing the email"],post("/api/trial/generate",{kind:"request",level:st.lv1,keywords:kw}),function(r){
+    st.genBusy=false;
+    if(!r.ok){errCard(box,"We could not write the email",r.json.error||"Please try again.");ready1();return}
+    var k=r.json.keywords||{used:[],dropped:[]},note="";
+    if(kw&&k.used.length)note+='<div class="dropped">Key words used: '+esc(k.used.join(", "))+'</div>';
+    if(kw&&k.dropped.length)note+='<div class="dropped">Ignored, not about logistics: '+esc(k.dropped.join(", "))+'</div>';
+    box.innerHTML=note;$("#bodyIn").value=r.json.text;st.aiGen=true;showEmail1();
+    var c=$("#emailCard");c.classList.remove("rv");setTimeout(function(){reveal(c)},120);
+  },true);
+});
 
 $("#parse1").addEventListener("click",function(){
   var text=$("#bodyIn").value,body,opts;
-  st.busy=true;ready1();srcText=text;setTimeout(function(){reveal($("#out1"))},60);
-  var source=st.file?"file":(st.pick&&text.indexOf(S[st.pick].email.slice(0,25))>-1?"sample":"paste");
+  st.busy=true;ready1();srcText=text;
+  var source=st.mode1==="ai"&&st.aiGen?"ai":st.file?"file":(st.mode1==="sample"&&st.pick?"sample":"paste");
   if(st.file&&!/\.txt$/i.test(st.file.name)){
     body=new FormData();body.append("file",st.file);body.append("text",text);body.append("source",source);if(st.runId)body.append("run_id",st.runId);
     opts={method:"POST",body:body};
   }else{opts={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:text,source:source,run_id:st.runId||undefined})}}
-  st.parsed2=false;st.finished=false;quote=null;st.carrText="";st.file2=null;
-  $("#out2").innerHTML=$("#out2").dataset.ph;$("#markup2").innerHTML="";$("#done").innerHTML="";$("#out3").innerHTML=ph3;$("#reply1").innerHTML="";
-  renderIn2();renderExport();
+  st.parsed2=false;st.finished=false;st.s3on=false;st.out3Anim=false;quote=null;
+  hideSteps();$("#out1").innerHTML="";$("#reply1").innerHTML="";$("#rfq2").innerHTML="";st.rfqKey=null;$("#out2").innerHTML="";$("#markup2").innerHTML="";$("#out3").innerHTML="";$("#done").innerHTML="";
+  resetStep2Inputs();
+  setTimeout(function(){reveal($("#out1"))},60);
   runProgress($("#out1"),["Reading the email","Extracting the shipment details","Resolving ports and airports","Checking what is missing"],api("/api/trial/parse-request",opts),function(r){
     st.busy=false;
-    if(!r.ok){st.parsed1=false;errCard($("#out1"),r.status===422?"This does not look like a rate request":"We could not read that email",r.json.error||"Please try again.",r.json.free||r.status===422);renderIn2();updateRail();ready1();return}
-    var j=r.json;st.runId=j.runId;st.tryNo=j.tryNo;st.usedTries=j.triesUsed;st.total=j.triesTotal;
+    if(!r.ok){st.parsed1=false;errCard($("#out1"),r.status===422?"This does not look like a rate request":"We could not read that email",r.json.error||"Please try again.",r.json.free||r.status===422);updateRail();ready1();return}
+    var j=r.json;st.runId=j.runId;st.tryNo=j.tryNo;st.usedTries=j.triesUsed;st.total=j.triesTotal;st.src1=source;
     if(!st.t0||!st.parsed1)st.t0=Date.now();
     cur=j.view;st.parsed1=true;
-    renderResult1();renderReply1();renderIn2();updateRail();ready1();paintTries();onParsed1();reveal($("#out1"));
+    updateRail();ready1();paintTries();onParsed1();applyLock2();
+    showStep1Results(false);
   });
+});
+/* One block after another: the request, the suggested reply, the carrier email, then the way on. */
+function showStep1Results(fast){
+  renderResult1();
+  if(fast){renderReply1();renderRfq();instant($("#out1"));instant($("#reply1"));instant($("#rfq2"));show($("#go2wrap"),true);return Promise.resolve()}
+  var t=stage($("#out1"));
+  return wait(t+150).then(function(){
+    renderReply1();var t2=stage($("#reply1"));reveal($("#reply1"));return wait(t2+200);
+  }).then(function(){
+    renderRfq();var t3=stage($("#rfq2"));reveal($("#rfq2"));return wait(t3+250);
+  }).then(function(){show($("#go2wrap"),true)});
+}
+$("#go2").addEventListener("click",function(){
+  enter($("#s2"),"sep2");logEv("tab_opened",{feature:"Step 2 opened"});show($("#go2wrap"),false);
+  if(!st.parsed2){setMode2(null,true)}
 });
 
 function renderResult1(){
   var s=cur,r=s.route,L=rl(s.mode);
-  var h='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px"><div><span class="eyebrow">Parsed request</span></div><span class="masked" title="Masked, never stored">From '+esc(s.sender)+'</span></div>';
-  h+='<div class="route"><div class="pt"><small>'+L[0]+'</small><b>'+esc(r.from)+'</b><span>'+esc(r.fc)+'</span></div><div class="arrow">'+ICON.arrow+'</div><div class="pt"><small>'+L[1]+'</small><b>'+esc(r.to)+'</b><span>'+esc(r.tc)+'</span></div></div>';
-  if(r.chosen)h+='<div class="note"><span style="color:var(--accent-strong)">'+ICON.info+'</span><span><b>Ports chosen for you.</b> '+esc(r.note)+'</span></div>';
-  if(s.portWarning)h+='<div class="flag warn" style="margin-bottom:14px"><span>'+ICON.warn+'</span><span><b>Check the ports.</b> '+esc(s.portWarning)+'</span></div>';
-  h+='<div class="fields"><div class="field"><small>Mode</small><b>'+esc(s.mode)+'</b></div>'+s.fields.map(function(f){return f[1]?'<div class="field"><small>'+esc(f[0])+'</small><b>'+esc(f[1])+'</b></div>':'<div class="field empty"><small>'+esc(f[0])+'</small><b>Not given</b></div>'}).join("")+'</div>';
-  if(s.special.length)h+='<div class="sub">Special requirements</div><div class="chips">'+s.special.map(function(x){return '<span class="chip">'+esc(x)+'</span>'}).join("")+'</div>';
-  if(s.missing.length)h+='<div class="miss"><b>Missing before this can be priced</b><ul>'+s.missing.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul></div>';
-  else h+='<div class="flag ok" style="margin-top:16px"><span>'+ICON.check+'</span><span>Nothing missing. This request can be priced as it is.</span></div>';
-  h+='<div class="conf"><span>Confidence <b style="color:var(--ink)">'+esc(s.confL)+'</b></span><div class="bar"><i style="width:'+s.conf+'%"></i></div><span class="mono">'+s.conf+'%</span></div>';
-  if(srcText)h+='<details style="margin-top:14px"><summary class="hint" style="cursor:pointer">Show the email as received</summary><div class="emailbox" dir="auto" style="margin:10px 0 0">'+esc(srcText)+'</div></details>';
+  var h='<div class="card"><div data-rv style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px"><div><span class="eyebrow">Parsed request</span></div><span class="masked" title="Masked, never stored">From '+esc(s.sender)+'</span></div>';
+  h+='<div class="route" data-rv><div class="pt"><small>'+L[0]+'</small><b>'+esc(r.from)+'</b><span>'+esc(r.fc)+'</span></div><div class="arrow">'+ICON.arrow+'</div><div class="pt"><small>'+L[1]+'</small><b>'+esc(r.to)+'</b><span>'+esc(r.tc)+'</span></div></div>';
+  if(r.chosen)h+='<div class="note" data-rv><span style="color:var(--accent-strong)">'+ICON.info+'</span><span><b>Ports chosen for you.</b> '+esc(r.note)+'</span></div>';
+  if(s.portWarning)h+='<div class="flag warn" data-rv style="margin-bottom:14px"><span>'+ICON.warn+'</span><span><b>Check the ports.</b> '+esc(s.portWarning)+'</span></div>';
+  h+='<div class="fields" data-rv><div class="field"><small>Mode</small><b>'+esc(s.mode)+'</b></div>'+s.fields.map(function(f){return f[1]?'<div class="field"><small>'+esc(f[0])+'</small><b>'+esc(f[1])+'</b></div>':'<div class="field empty"><small>'+esc(f[0])+'</small><b>Not given</b></div>'}).join("")+'</div>';
+  if(s.special.length)h+='<div data-rv><div class="sub">Special requirements</div><div class="chips">'+s.special.map(function(x){return '<span class="chip">'+esc(x)+'</span>'}).join("")+'</div></div>';
+  if(s.missing.length)h+='<div class="miss" data-rv><b>Missing before this can be priced</b><ul>'+s.missing.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul></div>';
+  else h+='<div class="flag ok" data-rv style="margin-top:16px"><span>'+ICON.check+'</span><span>Nothing missing. This request can be priced as it is.</span></div>';
+  h+='<div class="conf" data-rv><span>Confidence <b style="color:var(--ink)">'+esc(s.confL)+'</b></span><div class="bar"><i style="width:'+s.conf+'%"></i></div><span class="mono">'+s.conf+'%</span></div>';
+  if(srcText)h+='<details data-rv style="margin-top:14px"><summary class="hint" style="cursor:pointer">Show the email as received</summary><div class="emailbox" dir="auto" style="margin:10px 0 0">'+esc(srcText)+'</div></details>';
   h+='</div>';
   $("#out1").innerHTML=h;
 }
 function renderReply1(){
   var s=cur,has=!!s.reply,left;
   if(has){
-    left='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Suggested reply</h3><span class="tag">'+esc(s.replyKind)+'</span></div><p class="hint" style="margin-bottom:12px">Written by the AI from what is missing, in the sender\'s language. Edit it, then copy it. Nothing is sent from the trial.</p><textarea class="reply" id="replyTxt" dir="auto" rows="9">'+esc(s.reply)+'</textarea><div style="margin-top:12px"><button class="btn btn-line btn-sm" id="copyReply" type="button">'+ICON.copy+' Copy reply</button></div></div>';
+    left='<div class="card" data-rv><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Suggested reply</h3><span class="tag">'+esc(s.replyKind)+'</span></div><p class="hint" style="margin-bottom:12px">Written by the AI from what is missing, in the sender\'s language. Edit it, then copy it. Nothing is sent from the trial.</p><textarea class="reply" id="replyTxt" dir="auto" rows="9">'+esc(s.reply)+'</textarea><div style="margin-top:12px"><button class="btn btn-line btn-sm" id="copyReply" type="button">'+ICON.copy+' Copy reply</button></div></div>';
   }else{
-    left='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Suggested reply</h3><span class="tag">No reply needed</span></div><div class="flag ok" style="margin-top:14px"><span>'+ICON.check+'</span><span>The request is complete. There is nothing to ask the sender, so the AI suggests no reply and you can go straight to the carrier.</span></div></div>';
+    left='<div class="card" data-rv><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Suggested reply</h3><span class="tag">No reply needed</span></div><div class="flag ok" style="margin-top:14px"><span>'+ICON.check+'</span><span>The request is complete. There is nothing to ask the sender, so the AI suggests no reply and you can go straight to the carrier.</span></div></div>';
   }
   $("#reply1").innerHTML='<div class="grid2 g-reply">'+left
-  +lockedBlock("Custom reply templates","Your own wording, tone and signature, chosen automatically by what is missing.",'<div class="card"><h3>Your reply templates</h3><div class="tpls" style="margin:10px 0 0"><div class="tpl"><b>Missing information</b><div class="thumb"></div></div><div class="tpl"><b>Acknowledgement</b><div class="thumb"></div></div></div></div>')+'</div>';
+  +'<div data-rv>'+lockedBlock("Custom reply templates","Your own wording, tone and signature, chosen automatically by what is missing.",'<div class="card"><h3>Your reply templates</h3><div class="tpls" style="margin:10px 0 0"><div class="tpl"><b>Missing information</b><div class="thumb"></div></div><div class="tpl"><b>Acknowledgement</b><div class="thumb"></div></div></div></div>')+'</div></div>';
   var cr=$("#copyReply");if(cr)cr.addEventListener("click",function(){copy($("#replyTxt").value,"Reply copied");logEv("reply_copied")});
   bindLocks($("#reply1"));
 }
@@ -233,8 +310,7 @@ function lockedBlock(name,desc,inner){
 function bindLocks(root){$$(".lockbtn",root).forEach(function(b){b.addEventListener("click",function(){signal(b.dataset.feat)})})}
 function signal(name){logEv("locked_click",{feature:name});tip("lock","Locked on purpose","This part belongs to the full system. We note what you tap, so your walkthrough starts with the features you care about.");toast("Noted. We will show \""+name+"\" in your walkthrough.")}
 
-/* ---------- step 2 ---------- */
-var DROP2="Drop a File";
+/* the email to the carrier, built from the request */
 function rfqRef(){return "RFQ-"+quoteNo().slice(3)}
 function rfqParts(){
   var s=cur;
@@ -256,10 +332,9 @@ function rfqFallback(){
 }
 function renderRfq(){
   var box=$("#rfq2");
-  if(!st.parsed1||!cur){box.innerHTML="";st.rfqKey=null;return}
-  var key=String(st.runId);if(st.rfqKey===key&&box.firstChild)return;st.rfqKey=key;
+  if(!st.parsed1||!cur){box.innerHTML="";return}
   var e=rfqParts();
-  box.innerHTML='<div class="card rfq"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Request for quotation to the carrier</h3><span class="tag">'+esc(rfqRef())+'</span></div>'
+  box.innerHTML='<div class="card rfq" data-rv><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3>Request for quotation to the carrier</h3><span class="tag">'+esc(rfqRef())+'</span></div>'
   +'<p class="hint" style="margin:6px 0 12px">Built from your request. In the full system this goes to your chosen carriers in one click and the reply comes back to the same reference. Here you can edit it and copy it. Nothing is sent from the trial.</p>'
   +'<label class="f" for="rfqSubj">Subject<input id="rfqSubj" dir="auto" value="'+esc(e.subj)+'"></label>'
   +'<textarea class="reply" id="rfqTxt" dir="auto" rows="14">'+esc(e.body)+'</textarea>'
@@ -267,46 +342,81 @@ function renderRfq(){
   $("#cpRfq").addEventListener("click",function(){copy($("#rfqTxt").value,"Request email copied");logEv("rfq_copied")});
   $("#cpRfqS").addEventListener("click",function(){copy($("#rfqSubj").value,"Subject copied")});
 }
-function renderIn2(){
-  renderRfq();
-  var on=st.parsed1,txt=st.carrText||"";
-  $("#in2").innerHTML='<h3>Carrier reply</h3><p class="hint" style="margin-bottom:14px">'+(on?'Drop the carrier\'s email as a file, or paste its text. You can edit anything before it is read.':'Finish step 1 first. This step opens as soon as your request has been read.')+'</p>'
-  +'<label class="drop big'+(on?'':' off')+'" id="drop2" for="file2"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b id="dropTxt2">'+esc(st.file2?st.file2.name:DROP2)+'</b><span class="hint">'+(st.file2?'File added':'The carrier\'s email as .eml, .msg or PDF. Or click to choose.')+'</span></label>'
-  +'<input id="file2" type="file" accept=".eml,.msg,.pdf,.txt" hidden'+(on?'':' disabled')+'>'
-  +'<div class="or"><span>or paste the text</span></div>'
-  +'<textarea id="carrIn" dir="auto" rows="8" placeholder="Paste the carrier\'s reply here."'+(on?'':' disabled')+'>'+esc(txt)+'</textarea>'
-  +'<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn btn-primary" id="parse2" type="button" disabled>Read this quote</button><button class="btn btn-line" id="loadC" type="button"'+(on?'':' disabled')+'>Load a sample quote</button></div>'
-  +'<p class="hint" id="p2h" style="margin-top:10px"></p>';
-  $("#parse2").addEventListener("click",parse2);
-  $("#carrIn").addEventListener("input",function(){st.carrText=$("#carrIn").value;if(st.file2){st.file2=null;$("#dropTxt2").textContent=DROP2}ready2()});
-  $("#loadC").addEventListener("click",function(){var k=st.pick||SAMPLE_BY_MODE[cur&&cur.mode]||"A";st.carrText=S[k].carrier;st.file2=null;renderIn2();ready2()});
-  $("#file2").addEventListener("change",function(e){var f=e.target.files&&e.target.files[0];if(f)takeFile2(f)});
-  bindDrop($("#drop2"),function(f){if(st.parsed1)takeFile2(f)});
+
+/* ---------- step 2: bring in the carrier's reply ---------- */
+function setMode2(m,silent){
+  st.mode2=m;st.file2=null;st.fileText2=false;st.aiGen2=false;
+  $$("#how2 .howbtn").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.t===m))});
+  ["drop","type","ai"].forEach(function(k){show($("#pane2-"+k),k===m)});
+  $("#carrIn").value="";$("#dropTxt2").textContent="Drop the carrier's email here, or click to choose";$("#genOut2").innerHTML="";
+  showEmail2();
+  if(!silent){logEv("tab_opened",{feature:"Step 2: "+m});if(m)setTimeout(function(){reveal($("#pane2-"+m))},60)}
+}
+function showEmail2(){
+  var m=st.mode2,card=$("#emailCard2");
+  card.hidden=!(m==="type"||(m==="ai"&&st.aiGen2)||(m==="drop"&&!!st.file2));
+  show($("#bodyWrap2"),m!=="drop"||st.fileText2);
+  var chip=$("#fileChip2");
+  if(m==="drop"&&st.file2&&!st.fileText2){chip.hidden=false;chip.innerHTML=ICON.file+" "+esc(st.file2.name)}else chip.hidden=true;
   ready2();
 }
+function resetStep2Inputs(){st.mode2=null;st.file2=null;st.carrText="";$("#carrIn").value="";$("#genOut2").innerHTML="";$$("#how2 .howbtn").forEach(function(b){b.setAttribute("aria-selected","false")});["drop","type","ai"].forEach(function(k){show($("#pane2-"+k),false)});show($("#emailCard2"),false)}
+/* A generated request needs a matching reply, so a dropped file is locked for it. */
+function applyLock2(){
+  var lock=st.src1==="ai",b=$("#how2drop");
+  b.disabled=lock;b.classList.toggle("islocked",lock);
+  $("#how2dropSub").textContent=lock?"Locked: your request was AI-written":".eml, .msg or PDF";
+  if(lock&&st.mode2==="drop")setMode2(null,true);
+}
+$$("#how2 .howbtn").forEach(function(b){b.addEventListener("click",function(){if(!b.disabled)setMode2(b.dataset.t)})});
 function takeFile2(f){
   if(f.size>10*1024*1024){toast("That file is larger than 10 MB.");return}
-  st.file2=f;
-  readTextFile(f,function(t){if(t&&st.file2===f)st.carrText=t;renderIn2()});
-  renderIn2();
+  st.file2=f;st.fileText2=false;$("#dropTxt2").textContent=f.name;showEmail2();
+  readTextFile(f,function(t){if(t&&st.file2===f){$("#carrIn").value=t;st.fileText2=true;showEmail2()}});
+  setTimeout(function(){reveal($("#emailCard2"))},120);
 }
+$("#file2").addEventListener("change",function(e){var f=e.target.files&&e.target.files[0];if(f)takeFile2(f)});
+bindDrop($("#drop2"),function(f){if(st.parsed1&&!$("#how2drop").disabled)takeFile2(f)});
+$("#carrIn").addEventListener("input",function(){st.carrText=$("#carrIn").value;ready2()});
 function ready2(){
   var b=$("#parse2");if(!b)return;
-  var ok=st.parsed1&&!st.parsed2&&!st.busy&&((st.carrText||"").trim().length>10||!!st.file2);
+  var ok=st.parsed1&&!st.parsed2&&!st.busy&&(($("#carrIn").value||"").trim().length>10||!!st.file2);
   b.disabled=!ok;
-  $("#p2h").textContent=!st.parsed1?"":ok?"Ready.":(st.parsed2?"Quote read.":"Add the carrier's email to continue.");
+  $("#p2h").textContent=ok?"":(st.parsed2?"Quote read.":"");
+  $("#gen2").disabled=!st.lv2||st.busy||!!st.genBusy2||!st.parsed1;
 }
+$("#gen2").addEventListener("click",function(){
+  var box=$("#genOut2");st.genBusy2=true;st.aiGen2=false;$("#emailCard2").hidden=true;ready2();
+  runProgress(box,["Reading your request","Writing the carrier's reply"],post("/api/trial/generate",{kind:"quote",level:st.lv2,run_id:st.runId}),function(r){
+    st.genBusy2=false;
+    if(!r.ok){errCard(box,"We could not write the reply",r.json.error||"Please try again.");ready2();return}
+    box.innerHTML="";$("#carrIn").value=r.json.text;st.carrText=r.json.text;st.aiGen2=true;showEmail2();
+    setTimeout(function(){reveal($("#emailCard2"))},120);
+  },true);
+});
+$("#parse2").addEventListener("click",parse2);
 function parse2(){
-  var opts;st.busy=true;ready2();setTimeout(function(){reveal($("#out2"))},60);
-  if(st.file2&&!/\.txt$/i.test(st.file2.name)){var fd=new FormData();fd.append("file",st.file2);fd.append("text",st.carrText||"");fd.append("run_id",st.runId);opts={method:"POST",body:fd}}
-  else opts={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:st.carrText,run_id:st.runId})};
+  var opts,text=$("#carrIn").value;st.busy=true;ready2();
+  $("#out2").innerHTML="";$("#markup2").innerHTML="";show($("#go3wrap"),false);
+  setTimeout(function(){reveal($("#out2"))},60);
+  if(st.file2&&!/\.txt$/i.test(st.file2.name)){var fd=new FormData();fd.append("file",st.file2);fd.append("text",text||"");fd.append("run_id",st.runId);opts={method:"POST",body:fd}}
+  else opts={method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:text,run_id:st.runId})};
   runProgress($("#out2"),["Reading the carrier email","Itemising every charge","Checking totals against the request","Raising flags"],api("/api/trial/parse-quote",opts),function(r){
     st.busy=false;
     if(!r.ok){errCard($("#out2"),"We could not read a quote",r.json.error||"Please try again.",true);ready2();return}
     quote=r.json.quote;st.parsed2=true;
-    saveRun(false).then(function(){renderQuote();renderMarkup();renderOut3();updateRail();ready2();onParsed2();reveal($("#out2"))});
+    saveRun(false).then(function(){
+      renderQuote();updateRail();ready2();onParsed2();
+      var t=stage($("#out2"));
+      return wait(t+150).then(function(){renderMarkup();var t2=rvIn($$("#markup2 > [data-rv]"),260);reveal($("#markup2"));return wait(t2+250)});
+    }).then(function(){show($("#go3wrap"),true);paintTries()});
   });
 }
+$("#go3").addEventListener("click",function(){
+  enter($("#s3"),"sep3");show($("#go3wrap"),false);st.s3on=true;logEv("tab_opened",{feature:"Step 3 opened"});
+  rvIn([$("#s3note")],0);
+  setTimeout(function(){renderOut3();setTimeout(function(){enter($("#export"),"sepx",true)},1600)},reduced()?0:750);
+});
 function base(){return Math.round(quote.lines.reduce(function(t,l){return t+Math.round(l.amount*100)/100},0)*100)/100}
 function pricing(){
   var b=base(),v=Number(st.mval)||0;if(v<0)v=0;
@@ -323,17 +433,17 @@ function saveRun(evt,fmtChanged){
 function saveSoon(){clearTimeout(saveT);saveT=setTimeout(function(){saveRun(true)},900)}
 function renderQuote(){
   var q=quote,cur_=q.currency;
-  var h='<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><span class="eyebrow">Parsed carrier quote</span><h3 style="margin-top:6px;font-size:24px">'+esc(q.name)+'</h3></div><span class="tag">Ref '+esc(q.ref)+'</span></div>';
-  h+='<div class="kv"><div class="stat"><small>Carrier total</small><b class="mono">'+money(base(),cur_)+'</b></div><div class="stat"><small>Transit</small><b>'+esc(q.transit)+'</b></div><div class="stat"><small>Valid until</small><b>'+(q.validUntil?fmtDate(q.validUntil):"Not stated")+'</b></div><div class="stat"><small>Free time</small><b>'+esc(q.free)+'</b></div></div>';
-  h+='<div class="tablewrap"><table class="lines"><thead><tr><th>Charge</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount</th></tr></thead><tbody>'+q.lines.map(function(l){return '<tr><td>'+esc(l.label)+(l.note?'<br><span class="hint">'+esc(l.note)+'</span>':'')+'</td><td>'+esc(l.basis)+'</td><td class="r">'+l.qty+'</td><td class="r">'+money(l.amount,cur_)+'</td></tr>'}).join("")+'</tbody><tfoot><tr><td colspan="3">Carrier total</td><td class="r">'+money(base(),cur_)+'</td></tr></tfoot></table></div>';
-  if(q.excluded&&q.excluded.length)h+='<div class="sub">Excluded or optional (not counted)</div><div class="tablewrap"><table class="lines"><tbody>'+q.excluded.map(function(l){return '<tr style="color:var(--muted)"><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+money(l.amount,cur_)+'</td></tr>'}).join("")+'</tbody></table></div>';
-  h+='<div class="flags">'+q.flags.map(function(f){return '<div class="flag '+f[0]+'"><span>'+ICON[f[0]==="ok"?"check":f[0]==="warn"?"warn":"info"]+'</span><span>'+esc(f[1])+'</span></div>'}).join("")+'</div></div>';
+  var h='<div class="card"><div data-rv style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><span class="eyebrow">Parsed carrier quote</span><h3 style="margin-top:6px;font-size:24px">'+esc(q.name)+'</h3></div><span class="tag">Ref '+esc(q.ref)+'</span></div>';
+  h+='<div class="kv" data-rv><div class="stat"><small>Carrier total</small><b class="mono">'+money(base(),cur_)+'</b></div><div class="stat"><small>Transit</small><b>'+esc(q.transit)+'</b></div><div class="stat"><small>Valid until</small><b>'+(q.validUntil?fmtDate(q.validUntil):"Not stated")+'</b></div><div class="stat"><small>Free time</small><b>'+esc(q.free)+'</b></div></div>';
+  h+='<div class="tablewrap" data-rv><table class="lines"><thead><tr><th>Charge</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount</th></tr></thead><tbody>'+q.lines.map(function(l){return '<tr><td>'+esc(l.label)+(l.note?'<br><span class="hint">'+esc(l.note)+'</span>':'')+'</td><td>'+esc(l.basis)+'</td><td class="r">'+l.qty+'</td><td class="r">'+money(l.amount,cur_)+'</td></tr>'}).join("")+'</tbody><tfoot><tr><td colspan="3">Carrier total</td><td class="r">'+money(base(),cur_)+'</td></tr></tfoot></table></div>';
+  if(q.excluded&&q.excluded.length)h+='<div class="sub" data-rv>Excluded or optional (not counted)</div><div class="tablewrap" data-rv><table class="lines"><tbody>'+q.excluded.map(function(l){return '<tr style="color:var(--muted)"><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+money(l.amount,cur_)+'</td></tr>'}).join("")+'</tbody></table></div>';
+  h+='<div class="flags">'+q.flags.map(function(f){return '<div class="flag '+f[0]+'" data-rv><span>'+ICON[f[0]==="ok"?"check":f[0]==="warn"?"warn":"info"]+'</span><span>'+esc(f[1])+'</span></div>'}).join("")+'</div></div>';
   $("#out2").innerHTML=h;
 }
 function renderMarkup(){
   var p=pricing(),pct=p.final?(p.markup/p.final*100):0,c=quote.currency;
   var cmp='<div class="card"><h3>Compare carriers side by side</h3><table class="lines"><tbody><tr><td>Carrier 1</td><td class="r">4,885.00</td></tr><tr><td>Carrier 2</td><td class="r">4,720.00</td></tr><tr><td>Carrier 3</td><td class="r">5,010.00</td></tr></tbody></table></div>';
-  $("#markup2").innerHTML='<div class="markup"><div class="card"><h3>Your markup</h3><p class="hint" style="margin-bottom:14px">Add it the way you quote. The prices in the quotation update as you type.</p><div class="tabs" role="group" aria-label="Markup type"><button type="button" data-m="percent" aria-selected="'+(st.mtype==="percent")+'">Percent</button><button type="button" data-m="flat" aria-selected="'+(st.mtype==="flat")+'">Flat amount ('+esc(c)+')</button></div><label class="f" for="mval">'+(st.mtype==="percent"?"Markup (%)":"Markup ("+esc(c)+")")+'<input id="mval" type="number" min="0" step="any" value="'+st.mval+'"></label>'
+  $("#markup2").innerHTML='<div class="markup" data-rv><div class="card"><h3>Your markup</h3><p class="hint" style="margin-bottom:14px">Add it the way you quote. The prices in the quotation update as you type.</p><div class="tabs" role="group" aria-label="Markup type"><button type="button" data-m="percent" aria-selected="'+(st.mtype==="percent")+'">Percent</button><button type="button" data-m="flat" aria-selected="'+(st.mtype==="flat")+'">Flat amount ('+esc(c)+')</button></div><label class="f" for="mval">'+(st.mtype==="percent"?"Markup (%)":"Markup ("+esc(c)+")")+'<input id="mval" type="number" min="0" step="any" value="'+st.mval+'"></label>'
   +'<div class="kv" style="margin-bottom:0"><div class="stat"><small>Carrier cost</small><b class="mono" id="mBase">'+money(p.base,c)+'</b></div><div class="stat"><small>Your margin</small><b class="mono" id="mMar" style="color:var(--good)">'+money(p.markup,c)+'</b></div></div></div>'
   +'<div style="display:grid;gap:20px;align-content:start"><div class="card"><span class="eyebrow">You quote</span><div class="num" id="mFinal" style="color:var(--accent-strong);margin-top:8px">'+money(p.final,c)+'</div><p class="hint" id="mPct" style="margin-top:6px">Margin '+pct.toFixed(1)+'% of the selling price</p></div>'
   +lockedBlock("Quote comparison","Several carriers on one request, with the best rate and the gaps between them.",cmp)+'</div></div>';
@@ -345,7 +455,7 @@ function renderMarkup(){
 /* the markup, shown on every charge: carrier cost + your share = what the client sees */
 function paintBreak(){
   var p=pricing(),c=quote.currency,box=$("#mBreak");
-  if(!box){box=document.createElement("div");box.id="mBreak";$("#markup2").appendChild(box)}
+  if(!box){box=document.createElement("div");box.id="mBreak";box.setAttribute("data-rv","");$("#markup2").appendChild(box)}
   var rows=p.lines.map(function(l,i){var cost=Math.round(quote.lines[i].amount*100)/100,mk=Math.round((l.amount-cost)*100)/100,pc=cost?mk/cost*100:0;
     return '<tr><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+money(cost,c)+'</td><td class="r m">+ '+money(mk,c)+'</td><td class="r m">'+pc.toFixed(1)+'%</td><td class="r"><b>'+money(l.amount,c)+'</b></td></tr>'}).join("");
   box.innerHTML='<div class="card bd" style="margin-top:20px"><h3>Where your markup lands</h3><p class="hint" style="margin:6px 0 12px">The markup is spread across every charge in proportion to its cost, so the client sees a clean quotation with no single hidden margin line.</p><div class="tablewrap"><table class="lines"><thead><tr><th>Charge</th><th>Basis</th><th class="r">Carrier</th><th class="r">Markup</th><th class="r">Markup %</th><th class="r">You quote</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">'+money(p.base,c)+'</td><td class="r m">+ '+money(p.markup,c)+'</td><td class="r m">'+(p.base?(p.markup/p.base*100).toFixed(1):"0.0")+'%</td><td class="r">'+money(p.final,c)+'</td></tr></tfoot></table></div></div>';
@@ -360,7 +470,7 @@ function emailParts(){
   return {subj:subj,body:body};
 }
 function renderOut3(){
-  if(!st.parsed2)return;
+  if(!st.parsed2||!st.s3on)return;
   var p=pricing(),s=cur,c=quote,cu=c.currency;
   var tpl='<div class="tpls"><button type="button" class="tpl" aria-pressed="true"><b>Default template</b><span class="hint">Clean layout with your price, validity and terms.</span><div class="thumb"></div></button>'
   +'<div class="locked"><div class="inner"><div class="tpl"><b>Custom template</b><span class="hint">Your logo, wording and layout.</span><div class="thumb"></div></div></div><div class="veil"><span class="lockbadge">'+ICON.lock+' Locked</span><button type="button" class="btn btn-line btn-sm lockbtn" data-feat="Branded quotation templates">Show me this</button></div></div></div>';
@@ -377,12 +487,13 @@ function renderOut3(){
     out='<div class="mail"><div class="subj">'+esc(e.subj)+'</div>'+esc(e.body)+'<div><span class="attach">'+ICON.file+' '+esc(quoteNo())+'.pdf</span></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px"><button class="btn btn-primary" id="cpMail" type="button">'+ICON.copy+' Copy email</button><button class="btn btn-line" id="cpSubj" type="button">Copy subject</button><button class="btn btn-line" id="dlPdf2" type="button">'+ICON.file+' Download the PDF attachment</button></div>';
   }
   var fin=!st.finished?'<p class="hint" style="margin-top:22px">Your try completes when you download the PDF or copy the email.</p>':'';
-  $("#out3").innerHTML='<div class="grid2 g-out"><div class="card"><h3>Template</h3><p class="hint" style="margin-bottom:14px">Pick how the quotation looks. Same price and terms either way.</p>'+tpl+'<h3>Format</h3><p class="hint" style="margin-bottom:12px">Same content, two ways to send it.</p>'+tabs+fin+'</div><div>'+out+'</div></div>';
+  $("#out3").innerHTML='<div class="grid2 g-out"><div class="card" data-rv><h3>Template</h3><p class="hint" style="margin-bottom:14px">Pick how the quotation looks. Same price and terms either way.</p>'+tpl+'<h3>Format</h3><p class="hint" style="margin-bottom:12px">Same content, two ways to send it.</p>'+tabs+fin+'</div><div data-rv>'+out+'</div></div>';
   $$("#out3 .tabs button").forEach(function(b){b.addEventListener("click",function(){st.fmt=b.dataset.f;renderOut3();saveRun(false,true)})});
   [$("#dlPdf"),$("#dlPdf2")].forEach(function(d){if(d)d.addEventListener("click",function(){download("/api/trial/pdf",d,true)})});
   var cm=$("#cpMail");if(cm)cm.addEventListener("click",function(){copy(emailParts().body,"Email body copied");logEv("email_copied");autoFinish()});
   var cs=$("#cpSubj");if(cs)cs.addEventListener("click",function(){copy(emailParts().subj,"Subject copied")});
   bindLocks($("#out3"));
+  if(!st.out3Anim){st.out3Anim=true;stage($("#out3"))}
   renderExport();onOut3();
 }
 /* Fetches the file first, so the button keeps spinning until the browser actually has it and offers the download. */
@@ -416,15 +527,15 @@ function finish(){
   });
 }
 function resetCycle(){
-  st.mTouched=false;st.dl=false;st.runId=null;st.tryNo=0;st.parsed1=false;st.parsed2=false;st.finished=false;st.finishing=false;st.pick=null;st.file=null;st.file2=null;st.carrText="";quote=null;cur=null;srcText="";
-  $("#bodyIn").value="";$("#dropTxt").textContent=DROP_DEFAULT;
-  $("#out1").innerHTML='<div class="placeholder"><span class="eyebrow">What appears here</span><b>The request, as a clean record</b><p>Pick a sample or add your own email to start try '+(st.usedTries+1)+'.</p></div>';
-  $("#reply1").innerHTML="";$("#out2").innerHTML=$("#out2").dataset.ph;$("#markup2").innerHTML="";$("#out3").innerHTML=ph3;$("#done").innerHTML="";
-  renderIn2();renderExport();renderSamples();ready1();updateRail();paintTries();$("#s1").scrollIntoView({behavior:reduced()?"auto":"smooth"});
+  st.mTouched=false;st.dl=false;st.runId=null;st.tryNo=0;st.parsed1=false;st.parsed2=false;st.finished=false;st.finishing=false;st.s3on=false;st.out3Anim=false;st.src1=null;st.lv1=null;st.lv2=null;st.genBusy=false;st.genBusy2=false;st.busy=false;quote=null;cur=null;srcText="";
+  ["out1","reply1","rfq2","out2","markup2","out3","done"].forEach(function(id){$("#"+id).innerHTML=""});
+  $$("#lv1 button,#lv2 button").forEach(function(b){b.setAttribute("aria-checked","false")});$("#kw1").value="";
+  hideSteps();resetStep2Inputs();setMode1(null,true);applyLock2();renderExport();ready1();ready2();updateRail();paintTries();
+  $("#s1").scrollIntoView({behavior:reduced()?"auto":"smooth"});
 }
 function paintTries(){$("#triesPill").textContent=st.usedTries>=st.total&&(!st.runId||st.finished)?"Both tries used":"Try "+Math.max(1,st.runId?st.tryNo:st.usedTries+1)+" of "+st.total}
 function updateRail(){
-  $$("#rail a").forEach(function(a){var n=Number(a.dataset.s),d=(n===1&&st.parsed1)||(n===2&&st.parsed2)||(n===3&&st.finished);a.classList.toggle("done",d);var i=$("i",a);i.innerHTML=d?ICON.check.replace('width="18" height="18"','width="13" height="13"'):String(n)});
+  $$("#rail a").forEach(function(a){var n=Number(a.dataset.s),d=(n===1&&st.parsed1)||(n===2&&st.parsed2)||(n===3&&st.finished);a.classList.toggle("done",d);a.classList.toggle("off",(n===2&&$("#s2").hidden)||(n===3&&$("#s3").hidden));var i=$("i",a);i.innerHTML=d?ICON.check.replace('width="18" height="18"','width="13" height="13"'):String(n)});
 }
 if("IntersectionObserver" in window){
   var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){$$("#rail a").forEach(function(a){if(a.getAttribute("href")==="#"+e.target.id)a.setAttribute("aria-current","step");else a.removeAttribute("aria-current")})}})},{rootMargin:"-35% 0px -55% 0px"});
@@ -514,7 +625,7 @@ document.addEventListener("click",function(e){if(tipsOpenBox()&&!$("#tipBox").co
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeBox();closeBook()}});
 function onParsed1(){
   tip("reply","The AI wrote your reply too","The AI reads the email and also writes the suggested reply for you, in the sender's language.");
-  tip("step2","Now the carrier's side","Step 2 is open. Paste or drop the carrier's quote and every charge is itemised, with flags where it does not match what the client asked for.");
+  tip("step2","Now the carrier's side","Continue to step 2 and add the carrier's reply. Every charge is itemised, with flags where it does not match what the client asked for.");
 }
 function onParsed2(){
   tip("markup","Set your margin","Add a percent or a flat amount. It is spread across the lines and the price in your quotation updates as you type.");
@@ -522,43 +633,11 @@ function onParsed2(){
 var out3Shown=false;
 function onOut3(){if(out3Shown)return;out3Shown=true;tip("fmt","One quotation, two formats","The PDF and the email body carry the same content. Nothing is sent from this page, you copy or download it.")}
 
-/* ---------- next-step arrow ---------- */
-function nextStep(){
-  if(!st.lead)return null;
-  if(!st.parsed1){
-    if(!st.runId&&!triesLeftForNew())return {el:$("#what"),lbl:"See what else is inside"};
-    var has=$("#bodyIn").value.trim().length>10||!!st.file;
-    return has?{el:$("#parse1"),lbl:"Next: read this email"}:{el:$("#sampbar"),lbl:"Next: pick a sample or drop an email"};
-  }
-  if(!st.parsed2){
-    var has2=(st.carrText||"").trim().length>10||!!st.file2;
-    return has2?{el:$("#parse2"),lbl:"Next: read the carrier quote"}:{el:$("#drop2"),lbl:"Next: add the carrier's quote"};
-  }
-  if(!st.finished){
-    if(!st.mTouched&&$("#mval"))return {el:$("#mval"),lbl:"Next: set your markup"};
-    if(!st.dl&&($("#dlPdf")||$("#dlPdf2")))return {el:$("#dlPdf")||$("#dlPdf2"),lbl:"Next: download your quotation"};
-    return {el:$("#finish")||$("#out3"),lbl:"Next: finish this try"};
-  }
-  if($("#again"))return {el:$("#again"),lbl:"Next: start try "+(st.usedTries+1)};
-  return {el:$("#what"),lbl:"See what else is inside"};
-}
-var nextT=null;
-function paintNext(){
-  var n=st.lead?nextStep():null,b=$("#nextBtn");
-  if(!n||!n.el){b.hidden=true;return}
-  b.hidden=false;if($("#nextLbl").textContent!==n.lbl)$("#nextLbl").textContent=n.lbl;b.setAttribute("aria-label",n.lbl);nextT=n;
-}
-$("#nextBtn").addEventListener("click",function(){
-  paintNext();var n=nextT;if(!n||!n.el)return;logEv("next_click",{feature:n.lbl});
-  n.el.scrollIntoView({behavior:reduced()?"auto":"smooth",block:"center"});
-  n.el.classList.remove("nudge");void n.el.offsetWidth;n.el.classList.add("nudge");
-  setTimeout(function(){n.el.classList.remove("nudge");if(/^(TEXTAREA|INPUT|BUTTON)$/.test(n.el.tagName)){try{n.el.focus({preventScroll:true})}catch(e){}}},1700);
-});
-
 /* ---------- book now ---------- */
 function openBook(){$("#bookModal").hidden=false;logEv("cta_click",{feature:"Book now"})}
 function closeBook(){$("#bookModal").hidden=true}
 $("#bookFab").addEventListener("click",openBook);
+$("#keyBtn").addEventListener("click",function(){logEv("key_features_click");$("#what").scrollIntoView({behavior:reduced()?"auto":"smooth",block:"start"})});
 $("#bkX").addEventListener("click",closeBook);
 $("#bookModal").addEventListener("click",function(e){if(e.target===$("#bookModal"))closeBook()});
 $("#bkGo").addEventListener("click",function(){logEv("cta_click",{feature:"Choose a time"});if(BOOKING_URL)window.open(BOOKING_URL,"_blank","noopener")});
@@ -566,8 +645,7 @@ $("#bkGo").addEventListener("click",function(){logEv("cta_click",{feature:"Choos
 /* ---------- what each lead looks at: time per section, sent in small batches ---------- */
 var SECT=["s1","s2","s3","export","what","roi"],vis={},pend={};
 function startHelpers(){
-  $("#nextBtn").hidden=false;$("#bookFab").hidden=false;
-  setInterval(paintNext,500);paintNext();
+  $("#fabs").hidden=false;
   if("IntersectionObserver" in window){
     var iv=new IntersectionObserver(function(es){es.forEach(function(e){vis[e.target.id]=e.isIntersecting})},{rootMargin:"-40% 0px -40% 0px"});
     SECT.forEach(function(id){var el=document.getElementById(id);if(el)iv.observe(el)});
@@ -581,7 +659,7 @@ function startHelpers(){
   setInterval(function(){flushDwell(false)},30000);
   document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")flushDwell(true)});
   window.addEventListener("pagehide",function(){flushDwell(true)});
-  setTimeout(function(){if(!st.parsed1&&!st.busy&&$("#bodyIn").value.trim().length<10&&!st.file)tip("idle","Start with a sample","Tap any of the five samples. One is written in Arabic. It fills the email box, then you read it in one click.")},30000);
+  setTimeout(function(){if(!st.parsed1&&!st.busy&&!st.mode1)tip("idle","Not sure where to start?","Choose Use Sample, or let the AI write a request for you. Then read it in one click.")},30000);
 }
 function flushDwell(beacon){
   var keys=Object.keys(pend);if(!keys.length)return;

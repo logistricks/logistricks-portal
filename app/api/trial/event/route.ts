@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { activeLead, logEvent } from "@/lib/trial-server"
 
 export const runtime = "nodejs"
-const ALLOWED = new Set(["locked_click", "cta_click", "reply_copied", "email_copied", "excel_exported", "pdf_downloaded", "page_opened", "theme_switched", "roi_used", "dwell", "sample_picked", "file_dropped", "tip_open", "next_click"])
+const ALLOWED = new Set(["locked_click", "cta_click", "reply_copied", "email_copied", "excel_exported", "pdf_downloaded", "page_opened", "theme_switched", "roi_used", "dwell", "sample_picked", "file_dropped", "tip_open", "next_click", "tab_opened", "level_picked", "key_features_click", "rfq_copied"])
 const SECTIONS = new Set(["s1", "s2", "s3", "export", "what", "roi"])
 
 export async function POST(req: NextRequest) {
