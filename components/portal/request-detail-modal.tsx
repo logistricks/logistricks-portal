@@ -1163,6 +1163,7 @@ export function RequestDetailModal({
 function templateVars(req: FreightRequest, carrier: Carrier | undefined): Record<string, string> {
   return {
     request_ref: req.requestRef ?? "",
+    dgr: req.dgr ? "Yes" : "", aog: req.aog ? "Yes" : "",
     origin_city: req.originCity, origin_country: req.originCountry,
     destination_city: req.destinationCity, destination_country: req.destinationCountry,
     cargo_type: req.cargoType, equipment: req.equipment, weight: req.weight,

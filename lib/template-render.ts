@@ -9,6 +9,8 @@
  *                                         removed completely, together with its own line and the blank line after it.
  *                                         In the editor the block is made of two chips (data-cond="start" / "end");
  *                                         typed {{#if_exw}} ... {{/if_exw}} works too.
+ *   [if dangerous goods] ... [end if]  -> kept only when the request is flagged DGR (vars.dgr = "Yes"); same for AOG
+ *                                         ({{#if_dgr}} ... {{/if_dgr}}, {{#if_aog}} ... {{/if_aog}}).
  */
 import { hasText, isExw } from "@/lib/shipment-labels"
 
@@ -41,9 +43,12 @@ export function applyTemplate(text: string, vars: Record<string, string>, opts: 
   // editor chips -> markers. EXW block: data-cond="start|end"; special-requests block: data-cond="special-start|special-end"
   s = s.replace(/<span[^>]*data-cond="(start|end)"[^>]*>[\s\S]*?<\/span>/gi, (_m, k: string) => (k === "start" ? "{{#if_exw}}" : "{{/if_exw}}"))
   s = s.replace(/<span[^>]*data-cond="special-(start|end)"[^>]*>[\s\S]*?<\/span>/gi, (_m, k: string) => (k === "start" ? "{{#if_special}}" : "{{/if_special}}"))
+  s = s.replace(/<span[^>]*data-cond="dgr-(start|end)"[^>]*>[\s\S]*?<\/span>/gi, (_m, k: string) => (k === "start" ? "{{#if_dgr}}" : "{{/if_dgr}}"))
+  s = s.replace(/<span[^>]*data-cond="aog-(start|end)"[^>]*>[\s\S]*?<\/span>/gi, (_m, k: string) => (k === "start" ? "{{#if_aog}}" : "{{/if_aog}}"))
   // conditional blocks: kept only when there is something to show, otherwise removed with their own line
   const hasSpecial = hasText(vars.special_requirements)
-  for (const [tag, on] of [["exw", show], ["special", hasSpecial]] as const) {
+  const flag = (v: unknown) => /^(yes|true|1)$/i.test(String(v ?? "").trim())
+  for (const [tag, on] of [["exw", show], ["special", hasSpecial], ["dgr", flag(vars.dgr)], ["aog", flag(vars.aog)]] as const) {
     if (!on) s = s.replace(loneBlock(tag), "")
     s = s.replace(anyBlock(tag), (_m, inner: string) => (on ? inner : ""))
     s = s.replace(new RegExp("\\{\\{[#/]if_" + tag + "\\}\\}", "g"), "")   // a lone marker never reaches a recipient

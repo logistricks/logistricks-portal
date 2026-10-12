@@ -104,7 +104,7 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
     origin: `${req.originCity}, ${req.originCountry}`, destination: `${req.destinationCity}, ${req.destinationCountry}`,
     cargo_type: req.cargoType ?? "", quantity: req.quantity ?? "", weight: req.weight ?? "", dimensions: req.dimensions ?? "",
     equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "",
-    bl_type: req.blType ?? "", preferred_carrier: req.preferredCarrier ?? "", request_ref: req.requestRef ?? "",
+    bl_type: req.blType ?? "", preferred_carrier: req.preferredCarrier ?? "", request_ref: req.requestRef ?? "", dgr: req.dgr ? "Yes" : "", aog: req.aog ? "Yes" : "",
     special_requirements: list(req.specialRequirements), availability_questions: list(req.availabilityQuestions),
     carrier_name: carrier?.name ?? "", contact_name: carrier?.name ? "" : (req.senderName ?? ""),
     missing_fields: (req.missingFields ?? []).join(", ") || (req.suggestedReply ?? ""),

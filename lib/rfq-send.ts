@@ -38,6 +38,7 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
     incoterm: s(row.incoterm), pickup_address: exw && hasText(pickup) ? pickup : "", bl_type: s(row.bl_type), urgency: s(row.urgency),
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),
+    dgr: row.dgr ? "Yes" : "", aog: row.aog ? "Yes" : "",
     request_ref: s(row.request_ref), special_requirements: carrierFacingSpecial(forCarrier(toStringList(row.special_requirements), [row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, joinList(row.equipment), row.weight, row.quantity, row.dimensions, row.preferred_carrier])).join("\n"), availability_questions: list(row.availability_questions), missing_fields: list(row.missing_fields),
     carrier_name: carrier.carrier_name, contact_name: carrier.person_name || "there", carrier_email: carrier.email, carrier_phone: "",
   }

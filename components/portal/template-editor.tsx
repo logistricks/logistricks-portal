@@ -19,6 +19,8 @@ import {
   Loader2,
   MapPin,
   ListChecks,
+  AlertTriangle,
+  Plane,
   MessageSquareReply,
   Strikethrough,
   Table,
@@ -210,6 +212,17 @@ export function TemplateEditor({
     insertHtmlAtCursor(`<div>${chip("start", "if special requests")}Special requests:&nbsp;${pill}${chip("end", "end if")}</div>​`)
   }
 
+  // "If dangerous goods" / "If AOG" blocks: the line inside only reaches the recipient when the request is flagged.
+  function insertFlagBlock(kind: "dgr" | "aog") {
+    const chip = (k: "start" | "end", label: string) =>
+      `<span class="tpl-cond" contenteditable="false" data-cond="${kind}-${k}" style="display:inline-block;background:rgba(37,99,235,0.12);color:#2563EB;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;font-family:monospace;margin:0 1px;cursor:default;">${label}</span>`
+    const text = kind === "dgr"
+      ? "Dangerous goods: this shipment contains dangerous goods. Please confirm acceptance, DG handling charges and the documents required."
+      : "AOG: this is an aircraft-on-ground request. Please prioritise the earliest available flight."
+    editorRef.current?.focus()
+    insertHtmlAtCursor(`<div>${chip("start", kind === "dgr" ? "if dangerous goods" : "if AOG")}${text}${chip("end", "end if")}</div>​`)
+  }
+
   function insertTable() {
     const table = `<table style="width:100%;border-collapse:collapse;margin:8px 0;">
 <thead><tr>
@@ -244,6 +257,8 @@ export function TemplateEditor({
     "sep",
     { icon: MapPin,       label: "EXW address block (shown only when the request is EXW)", action: insertExwBlock },
     { icon: ListChecks,   label: "Special requests block (shown only when the request has special requests)", action: insertSpecialBlock },
+    { icon: AlertTriangle, label: "Dangerous goods block (shown only when the request is flagged DGR)", action: () => insertFlagBlock("dgr") },
+    { icon: Plane,         label: "AOG block (shown only when the request is flagged AOG)", action: () => insertFlagBlock("aog") },
     { icon: Table,        label: "Table",   action: insertTable },
     { icon: Link2,        label: "Link",    action: insertLink },
     "sep",
