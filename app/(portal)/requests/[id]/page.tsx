@@ -163,7 +163,7 @@ function EditableFieldRow({
   value: string | null
   lockReason: string | null
   onSaved: (field: string, newVal: string) => void
-  optional?: boolean
+  optional?: boolean | string
 }) {
   const display = value && value !== "—" ? value : null
   const [editing, setEditing]   = useState(false)
@@ -229,7 +229,7 @@ function EditableFieldRow({
       ) : (
         <div className="flex flex-1 items-center justify-end gap-1.5">
           <span className="text-[15.5px] font-semibold whitespace-pre-line text-right" style={{ color: display ? "var(--text-primary)" : optional ? "var(--text-muted)" : "#ef4444" }}>
-            {display ?? (optional ? "— only needed for EXW" : "— Missing")}
+            {display ?? (optional ? (typeof optional === "string" ? optional : "— only needed for EXW") : "— Missing")}
           </span>
           {LABEL_TO_FIELD[label] && (
             lockReason ? (
@@ -425,7 +425,10 @@ export default function RequestDetailPage() {
     )
   }
 
-  const missingCount = request.missingFields?.length ?? 0
+  const hasSea = (request.modes ?? []).some((m) => String(m).toLowerCase() === "sea")
+  // Container and BL type only apply to sea shipments; the carrier is optional.
+  const notNeeded = (f: string) => !hasSea && /equipment|container|bl[ _]?type/i.test(f)
+  const missingCount = (request.missingFields ?? []).filter((f) => !notNeeded(String(f))).length
   const seaOnly = isSeaOnly(request.modes)
   const curIncoterm = fieldValues.incoterm ?? request.incoterm
   const exwMissing = exwNeedsAddress(curIncoterm, fieldValues.pickupAddress ?? request.pickupAddress)
@@ -585,7 +588,9 @@ export default function RequestDetailPage() {
                           value={fieldValues[camel] ?? null}
                           lockReason={fieldLockReason}
                           onSaved={handleFieldSaved}
-                          optional={camel === "pickupAddress" && !isExw(curIncoterm)}
+                          optional={camel === "pickupAddress" && !isExw(curIncoterm) ? true
+                            : (camel === "equipment" || camel === "blType") && !hasSea ? "— not needed for air or land"
+                            : camel === "preferredCarrier" ? "— none specified" : false}
                         />
                       ))}
                     </div>
