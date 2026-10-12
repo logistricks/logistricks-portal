@@ -633,6 +633,50 @@ function onParsed2(){
 var out3Shown=false;
 function onOut3(){if(out3Shown)return;out3Shown=true;tip("fmt","One quotation, two formats","The PDF and the email body carry the same content. Nothing is sent from this page, you copy or download it.")}
 
+/* ---------- next-step arrow: points at the next thing to do ---------- */
+function shown(el){return !!el&&!el.hidden&&el.offsetParent!==null}
+function nextStep(){
+  if(!st.lead||st.busy||st.genBusy||st.genBusy2||st.finishing)return null;
+  if(!st.parsed1){
+    if(!st.runId&&!triesLeftForNew())return {el:$("#what"),lbl:"See what else is inside"};
+    var m=st.mode1;
+    if(!m)return {el:$("#how1"),lbl:"Next: choose how to start"};
+    if(m==="ai"&&!st.aiGen)return st.lv1?{el:$("#gen1"),lbl:"Next: generate the email"}:{el:$("#lv1"),lbl:"Next: pick a level"};
+    if(m==="sample"&&!st.pick)return {el:$("#sampbar"),lbl:"Next: pick a sample"};
+    if(m==="drop"&&!st.file)return {el:$("#dropBox"),lbl:"Next: drop an email"};
+    if(m==="type"&&$("#bodyIn").value.trim().length<=10)return {el:$("#bodyIn"),lbl:"Next: type the request"};
+    return {el:$("#parse1"),lbl:"Next: read this email"};
+  }
+  if($("#s2").hidden)return shown($("#go2wrap"))?{el:$("#go2"),lbl:"Next: the carrier's reply"}:null;
+  if(!st.parsed2){
+    var m2=st.mode2;
+    if(!m2)return {el:$("#how2"),lbl:"Next: choose how to add the reply"};
+    if(m2==="ai"&&!st.aiGen2)return st.lv2?{el:$("#gen2"),lbl:"Next: generate the reply"}:{el:$("#lv2"),lbl:"Next: pick a level"};
+    if(m2==="drop"&&!st.file2)return {el:$("#drop2"),lbl:"Next: drop the carrier's email"};
+    if(m2==="type"&&($("#carrIn").value||"").trim().length<=10)return {el:$("#carrIn"),lbl:"Next: paste the reply"};
+    return {el:$("#parse2"),lbl:"Next: read the carrier quote"};
+  }
+  if($("#s3").hidden)return shown($("#go3wrap"))?{el:$("#go3"),lbl:"Next: your quotation"}:null;
+  if(!st.finished){
+    if(!st.dl&&($("#dlPdf")||$("#dlPdf2")))return {el:$("#dlPdf")||$("#dlPdf2"),lbl:"Next: download your quotation"};
+    return {el:$("#out3"),lbl:"Finish: download or copy"};
+  }
+  if($("#again"))return {el:$("#again"),lbl:"Next: start try "+(st.usedTries+1)};
+  return {el:$("#what"),lbl:"See what else is inside"};
+}
+var nextT=null;
+function paintNext(){
+  var n=st.lead?nextStep():null,b=$("#nextBtn");
+  if(!n||!n.el||!shown(n.el)&&n.el.id!=="what"){b.hidden=true;nextT=null;return}
+  b.hidden=false;if($("#nextLbl").textContent!==n.lbl)$("#nextLbl").textContent=n.lbl;b.setAttribute("aria-label",n.lbl);nextT=n;
+}
+$("#nextBtn").addEventListener("click",function(){
+  paintNext();var n=nextT;if(!n||!n.el)return;logEv("next_click",{feature:n.lbl});
+  n.el.scrollIntoView({behavior:reduced()?"auto":"smooth",block:"center"});
+  n.el.classList.remove("nudge");void n.el.offsetWidth;n.el.classList.add("nudge");
+  setTimeout(function(){n.el.classList.remove("nudge");if(/^(TEXTAREA|INPUT)$/.test(n.el.tagName)){try{n.el.focus({preventScroll:true})}catch(e){}}},1700);
+});
+
 /* ---------- book now ---------- */
 function openBook(){$("#bookModal").hidden=false;logEv("cta_click",{feature:"Book now"})}
 function closeBook(){$("#bookModal").hidden=true}
@@ -646,6 +690,7 @@ $("#bkGo").addEventListener("click",function(){logEv("cta_click",{feature:"Choos
 var SECT=["s1","s2","s3","export","what","roi"],vis={},pend={};
 function startHelpers(){
   $("#fabs").hidden=false;
+  setInterval(paintNext,500);paintNext();
   if("IntersectionObserver" in window){
     var iv=new IntersectionObserver(function(es){es.forEach(function(e){vis[e.target.id]=e.isIntersecting})},{rootMargin:"-40% 0px -40% 0px"});
     SECT.forEach(function(id){var el=document.getElementById(id);if(el)iv.observe(el)});
