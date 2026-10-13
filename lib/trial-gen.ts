@@ -70,13 +70,17 @@ const fill = (t: string, vars: Record<string, string>) => t.replace(/\{\{(\w+)\}
 async function gemini(prompt: string, schema: unknown, temperature: number): Promise<any> {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error("not_configured")
-  const model = process.env.TRIAL_GEMINI_MODEL || "gemini-2.5-flash"
+  const model = process.env.TRIAL_GEMINI_MODEL || "gemini-3.6-flash"
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, responseMimeType: "application/json", responseSchema: schema, thinkingConfig: { thinkingBudget: 0 } } }),
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature, responseMimeType: "application/json", responseSchema: schema } }),
     signal: AbortSignal.timeout(50_000),
   })
-  if (!r.ok) throw new Error("gemini_" + r.status)
+  if (!r.ok) {
+    const detail = await r.text().catch(() => "")
+    console.error("[trial-gen] gemini", r.status, model, detail.slice(0, 400))
+    throw new Error("gemini_" + r.status)
+  }
   const j: any = await r.json()
   const text = j?.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error("empty")

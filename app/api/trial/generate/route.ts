@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ text })
   } catch (e: any) {
     const nc = String(e?.message) === "not_configured"
+    if (!nc) console.error("[trial/generate]", e?.message ?? e)
     return NextResponse.json({ error: nc ? "AI examples are not switched on yet. You can type or drop your own." : "We could not write an example just now. Please try again." }, { status: nc ? 503 : 502 })
   }
 }
