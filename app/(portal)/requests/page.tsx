@@ -139,12 +139,14 @@ export default function RequestsPage() {
   // Remember the filters between visits; "/" jumps to search.
   const [prefsReady, setPrefsReady] = useState(false)
   const [view, setView] = useState<"cards" | "table">("cards")
+  const [sortBy, setSortBy] = useState<"priority" | "newest">("priority")
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem(PREFS_KEY) || "null")
       if (v) { setStages(v.stages ?? ["Pending"]); setTargets(v.targets ?? []); setDeliveries(v.deliveries ?? []); setSources(v.sources ?? []); setOnlyFlagged(!!v.onlyFlagged) }
     } catch { /* ignore */ }
     try { const v = localStorage.getItem("lt_requests_view"); if (v === "table" || v === "cards") setView(v) } catch { /* ignore */ }
+    try { const v = localStorage.getItem("lt_requests_sort"); if (v === "priority" || v === "newest") setSortBy(v) } catch { /* ignore */ }
     // Links from the dashboard: ?stage=Quoted&q=Amman&attention=1
     try {
       const p = new URLSearchParams(window.location.search)
@@ -157,6 +159,7 @@ export default function RequestsPage() {
     setPrefsReady(true)
   }, [])
   useEffect(() => { try { localStorage.setItem("lt_requests_view", view) } catch { /* ignore */ } }, [view])
+  useEffect(() => { try { localStorage.setItem("lt_requests_sort", sortBy) } catch { /* ignore */ } }, [sortBy])
   useEffect(() => {
     if (!prefsReady) return
     try { localStorage.setItem(PREFS_KEY, JSON.stringify({ stages, targets, deliveries, sources, onlyFlagged })) } catch { /* ignore */ }
@@ -212,16 +215,18 @@ export default function RequestsPage() {
       return true
     })
     return base.sort((a, b) => {
-      const sa = (a.aog ? 2 : 0) + (a.dgr ? 1 : 0)
-      const sb = (b.aog ? 2 : 0) + (b.dgr ? 1 : 0)
-      if (sb !== sa) return sb - sa
+      if (sortBy === "priority") {
+        const sa = (a.aog ? 2 : 0) + (a.dgr ? 1 : 0)
+        const sb = (b.aog ? 2 : 0) + (b.dgr ? 1 : 0)
+        if (sb !== sa) return sb - sa
+      }
       // Newest first. Compare real times (not text), and fall back to the id so equal times never shuffle between refreshes.
       const ta = Date.parse(a.receivedIso ?? ""), tb = Date.parse(b.receivedIso ?? "")
       const na = Number.isNaN(ta) ? 0 : ta, nb = Number.isNaN(tb) ? 0 : tb
       if (nb !== na) return nb - na
       return String(a.id).localeCompare(String(b.id))
     })
-  }, [requests, stages, targets, deliveries, sources, onlyFlagged, results, search, isFlagged])
+  }, [requests, stages, targets, deliveries, sources, onlyFlagged, results, search, isFlagged, sortBy])
 
   const flip = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, v: NoInfer<T>) => set((a) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]))
   function clearFilters() { setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
@@ -374,6 +379,15 @@ export default function RequestsPage() {
             {hasActiveFilters && (
               <button onClick={clearFilters} className="text-xs font-medium" style={{ color: "var(--brand-accent)" }}>Reset</button>
             )}
+            <div className="inline-flex rounded-xl p-1" style={{ background: "var(--page-bg)", border: "1.5px solid var(--card-border)" }} role="group" aria-label="Sort order">
+              {([["priority", "AOG / DGR first"], ["newest", "Newest first"]] as const).map(([k, label]) => (
+                <button key={k} type="button" aria-pressed={sortBy === k} onClick={() => setSortBy(k)} title={k === "priority" ? "AOG and dangerous goods first, then newest" : "Strictly by date received, newest first"}
+                  className="inline-flex items-center rounded-lg px-3 py-1.5 text-[13px] font-bold transition"
+                  style={sortBy === k ? { background: "var(--brand-accent)", color: "var(--brand-navy)" } : { background: "transparent", color: "var(--text-secondary)" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="inline-flex rounded-xl p-1" style={{ background: "var(--page-bg)", border: "1.5px solid var(--card-border)" }} role="group" aria-label="View">
               {([["cards", LayoutGrid, "Cards"], ["table", ListIcon, "List"]] as const).map(([k, Ic, label]) => (
                 <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)} title={`${label} view`}
