@@ -45,6 +45,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       if (end > start) bytes = bytes.subarray(start, end)
     }
   }
+  // Other ways an upload can get mangled on the way in: a Buffer saved as JSON ({"type":"Buffer","data":[...]}) or saved as base64 text.
+  const lead = bytes.subarray(0, 24).toString("latin1")
+  if (lead.startsWith('{"type":"Buffer"')) {
+    try { const o = JSON.parse(bytes.toString("utf8")); if (Array.isArray(o?.data)) bytes = Buffer.from(o.data) } catch { /* leave as is */ }
+  } else if (/^"?[A-Za-z0-9+/=\s]{16}/.test(lead) && bytes.length < 40 * 1024 * 1024) {
+    const txt = bytes.toString("latin1").replace(/^"|"$/g, "").replace(/\s+/g, "")
+    if (/^[A-Za-z0-9+/]+={0,2}$/.test(txt) && txt.length % 4 === 0) {
+      const dec = Buffer.from(txt, "base64")
+      if (dec.subarray(0, 5).toString("latin1") === "%PDF-" || dec.subarray(0, 4).toString("hex") === "89504e47" || dec.subarray(0, 2).toString("hex") === "ffd8") bytes = dec
+    }
+  }
   if (/^application\/pdf$/i.test(type) && bytes.subarray(0, 5).toString("latin1") !== "%PDF-") {
     const peek = bytes.subarray(0, 60).toString("latin1").replace(/[^\x20-\x7e]/g, "?")
     return NextResponse.json({ error: "The stored file is not a valid PDF, so it cannot be opened. It was probably damaged when it was uploaded.", stored_bytes: bytes.length, starts_with: peek }, { status: 422 })
