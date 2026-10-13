@@ -20,6 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     case "reset_tries": patch.tries_used = 0; await admin.from("trial_runs").update({ finished_at: new Date().toISOString() }).eq("lead_id", id).is("finished_at", null); break
     case "extend": patch.expires_at = new Date(Math.max(Date.now(), Date.parse(lead.expires_at)) + (Math.min(Math.max(Number(b.days) || 7, 1), 90)) * 86400000).toISOString(); break
     case "add_tries": patch.tries_total = lead.tries_total + Math.min(Math.max(Number(b.count) || 1, 1), 5); break
+    case "gen_limit": { const n = Math.floor(Number(b.value)); if (!Number.isFinite(n) || n < 0 || n > 500) return NextResponse.json({ error: "Use a number from 0 to 500." }, { status: 400 }); patch.gen_limit = n; break }
     case "disable": patch.status = "disabled"; break
     case "enable": patch.status = "active"; break
     case "converted": patch.converted = !!b.value; break

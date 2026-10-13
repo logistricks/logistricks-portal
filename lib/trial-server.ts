@@ -33,6 +33,8 @@ export const hashPassword = (p: string) => createHash("sha256").update(p).digest
 export interface Lead {
   id: string; company: string; contact_name: string | null; code: string; tries_total: number; tries_used: number
   expires_at: string; status: string
+  /** AI-written examples allowed per rolling 24 hours (null/absent: the default) */
+  gen_limit?: number | null
 }
 /** The signed-in lead if the login is still valid (not disabled, not expired). */
 export async function activeLead(req: NextRequest): Promise<{ lead: Lead; admin: any } | { error: string; status: number }> {

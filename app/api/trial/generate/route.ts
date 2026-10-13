@@ -4,7 +4,7 @@ import { LEVELS, checkKeywords, cleanTerms, loadPrompts, requestSummary, writeCa
 
 export const runtime = "nodejs"
 export const maxDuration = 90
-const DAILY_CAP = 12
+export const DEFAULT_GEN_LIMIT = 12
 
 /** AI-written demo input for step 1 (a client request) or step 2 (a carrier reply that matches the request just read). */
 export async function POST(req: NextRequest) {
@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
 
   const day = new Date(Date.now() - 86400_000).toISOString()
   const { count } = await admin.from("trial_events").select("id", { count: "exact", head: true }).eq("lead_id", lead.id).eq("type", "generated").gte("created_at", day)
-  if ((count ?? 0) >= DAILY_CAP) return NextResponse.json({ error: "You have reached today's limit for AI-written examples. You can still type or drop your own." }, { status: 429 })
+  const cap = Number.isFinite(Number(lead.gen_limit)) && lead.gen_limit != null ? Number(lead.gen_limit) : DEFAULT_GEN_LIMIT
+  if ((count ?? 0) >= cap) return NextResponse.json({ error: cap === 0 ? "AI-written examples are switched off for your trial. You can type or drop your own." : `You have used your ${cap} AI-written examples for the last 24 hours. You can still type or drop your own.` }, { status: 429 })
 
   const prompts = await loadPrompts(admin)
   try {
