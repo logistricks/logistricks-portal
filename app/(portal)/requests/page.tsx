@@ -198,7 +198,7 @@ export default function RequestsPage() {
     const base = requests.filter((r) => {
       const p = parseStatus(r.status)
       if (stages.length && !stages.includes(p.stage)) return false
-      if (p.stage === "Approved") {
+      if (p.stage === "Approved" && stages.includes("Approved")) {
         if (targets.length && !(p.target && targets.includes(p.target))) return false
         if (deliveries.length && !(p.delivery && deliveries.includes(p.delivery))) return false
       }
@@ -215,13 +215,28 @@ export default function RequestsPage() {
       const sa = (a.aog ? 2 : 0) + (a.dgr ? 1 : 0)
       const sb = (b.aog ? 2 : 0) + (b.dgr ? 1 : 0)
       if (sb !== sa) return sb - sa
-      return (b.receivedIso ?? "").localeCompare(a.receivedIso ?? "")
+      // Newest first. Compare real times (not text), and fall back to the id so equal times never shuffle between refreshes.
+      const ta = Date.parse(a.receivedIso ?? ""), tb = Date.parse(b.receivedIso ?? "")
+      const na = Number.isNaN(ta) ? 0 : ta, nb = Number.isNaN(tb) ? 0 : tb
+      if (nb !== na) return nb - na
+      return String(a.id).localeCompare(String(b.id))
     })
   }, [requests, stages, targets, deliveries, sources, onlyFlagged, results, search, isFlagged])
 
   const flip = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, v: NoInfer<T>) => set((a) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]))
   function clearFilters() { setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
-  function showAll() { setStages([]); setTargets([]); setDeliveries([]) }
+  function showAll() { setStages([]); setTargets([]); setDeliveries([]); setResults([]) }
+  // Picking a status leaves the Won/Lost result filter, and dropping Approved drops its sub-filters, so no filter stays on out of sight.
+  function flipStage(st: Stage) {
+    setResults([])
+    if (st === "Approved" && stages.includes("Approved")) { setTargets([]); setDeliveries([]) }
+    flip(setStages, st)
+  }
+
+  // Rows that a filter has hidden must not stay selected for bulk actions.
+  useEffect(() => {
+    setSelected((s) => { const ids = new Set(filtered.map((r) => r.id)); const next = s.filter((x) => ids.has(x)); return next.length === s.length ? s : next })
+  }, [filtered])
 
   function toggle(id: string, e: React.MouseEvent) {
     e.stopPropagation()
@@ -231,7 +246,7 @@ export default function RequestsPage() {
     setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
   }
 
-  const hasActiveFilters = !(stages.length === 1 && stages[0] === "Pending") || targets.length > 0 || deliveries.length > 0 || sources.length > 0 || onlyFlagged || search !== ""
+  const hasActiveFilters = !(stages.length === 1 && stages[0] === "Pending") || results.length > 0 || targets.length > 0 || deliveries.length > 0 || sources.length > 0 || onlyFlagged || search !== ""
 
   async function bulkUpdateStatus(newStatus: string) {
     if (bulkBusy || selected.length === 0) return
@@ -313,7 +328,7 @@ export default function RequestsPage() {
             <span className="w-14 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Status</span>
             <Toggle on={stages.length === 0} onClick={showAll} count={requests.length} tone="#64748b">All</Toggle>
             {STAGES.map((st) => (
-              <Toggle key={st} on={stages.includes(st)} onClick={() => flip(setStages, st)} count={stageCounts[st] ?? 0} tone={STATUS_TONE[st]}>
+              <Toggle key={st} on={stages.includes(st)} onClick={() => flipStage(st)} count={stageCounts[st] ?? 0} tone={STATUS_TONE[st]}>
                 {st === "Waiting" ? "Waiting for approval" : st}
               </Toggle>
             ))}
