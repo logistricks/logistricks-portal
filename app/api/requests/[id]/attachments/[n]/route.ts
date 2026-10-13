@@ -34,13 +34,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (blob.size === 0) return NextResponse.json({ error: "This file was saved empty. Ask the sender to send it again." }, { status: 404 })
 
   const type = file.mimeType || blob.type || "application/octet-stream"
-  if (blob.size <= INLINE_MAX) {
+  let bytes = Buffer.from(await blob.arrayBuffer())
+  // A file that was uploaded as a multipart form body is stored with the form wrapper around it. Unwrap it.
+  if (bytes.subarray(0, 2).toString("latin1") === "--") {
+    const head = bytes.subarray(0, Math.min(bytes.length, 2048)).toString("latin1")
+    const m = /^(--[^\r\n]+)\r?\n[\s\S]*?\r?\n\r?\n/.exec(head)
+    if (m) {
+      const start = m[0].length, boundary = Buffer.from("\r\n" + m[1])
+      const end = bytes.lastIndexOf(boundary)
+      if (end > start) bytes = bytes.subarray(start, end)
+    }
+  }
+  if (/^application\/pdf$/i.test(type) && bytes.subarray(0, 5).toString("latin1") !== "%PDF-") {
+    const peek = bytes.subarray(0, 60).toString("latin1").replace(/[^\x20-\x7e]/g, "?")
+    return NextResponse.json({ error: "The stored file is not a valid PDF, so it cannot be opened. It was probably damaged when it was uploaded.", stored_bytes: bytes.length, starts_with: peek }, { status: 422 })
+  }
+  if (bytes.length <= INLINE_MAX) {
     const inline = INLINE_OK.test(type)
-    return new Response(blob, {
+    return new Response(bytes, {
       headers: {
         "Content-Type": inline ? type : "application/octet-stream",
         "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${name}"; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
-        "Content-Length": String(blob.size),
+        "Content-Length": String(bytes.length),
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },
