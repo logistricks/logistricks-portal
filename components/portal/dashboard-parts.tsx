@@ -38,16 +38,23 @@ export function useDashboard(range: DashRange) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const seq = useRef(0)
+  const cache = useRef(new Map<string, DashData>())
+  const hasData = useRef(false)
 
   const load = useCallback(async (silent = false) => {
     const id = ++seq.current
-    silent ? setRefreshing(true) : setLoading(true)
+    const key = `${range.from}-${range.to}`
+    const cached = cache.current.get(key)
+    // Show a cached/previous result instantly while the fresh one loads
+    if (cached) { setData(cached); hasData.current = true }
+    silent || cached || hasData.current ? setRefreshing(true) : setLoading(true)
     try {
       const qs = new URLSearchParams({ from: new Date(range.from).toISOString(), to: new Date(range.to).toISOString(), tz: String(new Date().getTimezoneOffset()) })
       const res = await fetch(`/api/dashboard?${qs}`, { cache: "no-store" })
       const json = await res.json()
       if (id !== seq.current) return
       if (!res.ok) throw new Error(json.error || "Failed to load")
+      cache.current.set(key, json); hasData.current = true
       setData(json); setError(null)
     } catch (e) {
       if (id === seq.current) setError((e as Error).message)

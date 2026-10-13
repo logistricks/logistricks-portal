@@ -58,44 +58,73 @@ export async function GET(req: NextRequest) {
   const admin = adminClient()
 
   try {
-    // ── freight requests in current + previous period ───────────────
-    const reqs = await fetchAll<any>((a, b) =>
-      admin.from("freight_requests").select("*").eq("client_code", code)
-        .gte("received_at", new Date(prevFrom).toISOString()).lt("received_at", new Date(to).toISOString())
-        .order("received_at", { ascending: false }).range(a, b))
+    const iso = (t: number) => new Date(t).toISOString()
+    const REQ_COLS = "id, received_at, status, source, is_sea, is_air, is_land, intake_source, origin_country, origin_city, destination_country, destination_city, sender_name, sender_email, cargo_type, incoterm, urgency, aog, dgr, missing_fields, outcome"
+    const loadReqs = (cols: string) =>
+      fetchAll<any>((a, b) =>
+        admin.from("freight_requests").select(cols).eq("client_code", code)
+          .gte("received_at", iso(prevFrom)).lt("received_at", iso(to))
+          .order("received_at", { ascending: false }).range(a, b))
+    const selQ = (extra: string) =>
+      fetchAll<any>((a, b) =>
+        admin.from("carrier_quotes")
+          .select(`id, freight_request_id, carrier_id, rate_usd, received_at${extra}, freight_requests!freight_request_id!inner(client_code)`)
+          .eq("freight_requests.client_code", code)
+          .gte("received_at", iso(prevFrom)).lt("received_at", iso(to)).range(a, b))
+
+    // All independent queries run in parallel (was sequential → slow period changes)
+    const [reqs, snap, closedRes, outRowsRaw, quos, cqsRaw, rfqs, autoRes, autoPrevRes] = await Promise.all([
+      loadReqs(REQ_COLS).catch(() => loadReqs("*")),
+      admin.from("freight_requests").select("status").eq("client_code", code).limit(20000),
+      admin.from("freight_requests").select("id, status, closed_at, updated_at, received_at").eq("client_code", code).eq("status", "Closed")
+        .gte("updated_at", iso(prevFrom)).limit(5000),
+      fetchAll<any>((a, b) =>
+        admin.from("freight_requests").select("*").eq("client_code", code).in("outcome", ["won", "lost"])
+          .gte("outcome_at", iso(prevFrom)).lt("outcome_at", iso(to)).range(a, b)
+      ).catch(() => [] as any[]),
+      fetchAll<any>((a, b) =>
+        admin.from("quotations").select("id, freight_request_id, base_rate_usd, final_price_usd, status, sent_at, created_at").eq("client_code", code)
+          .gte("created_at", iso(prevFrom)).lt("created_at", iso(to)).range(a, b)
+      ).catch(() => [] as any[]),
+      selQ(", response_type").catch(() => selQ("").catch(() => [] as any[])),
+      fetchAll<any>((a, b) =>
+        admin.from("carrier_quote_requests").select("id, freight_request_id, carrier_id, status, sent_at, freight_requests!inner(client_code)")
+          .eq("freight_requests.client_code", code)
+          .gte("sent_at", iso(prevFrom)).lt("sent_at", iso(to)).range(a, b)
+      ).catch(() => [] as any[]),
+      admin.from("auto_reply_logs").select("id", { count: "exact", head: true })
+        .eq("client_code", code).gte("created_at", iso(from)).lt("created_at", iso(to)),
+      admin.from("auto_reply_logs").select("id", { count: "exact", head: true })
+        .eq("client_code", code).gte("created_at", iso(prevFrom)).lt("created_at", iso(from)),
+    ])
     const ts = (r: any) => Date.parse(r.received_at)
     const cur = reqs.filter((r) => ts(r) >= from)
     const prev = reqs.filter((r) => ts(r) < from)
 
     // snapshot (not period based)
-    const { data: snap } = await admin.from("freight_requests").select("status").eq("client_code", code).limit(20000)
     const statusAll = new Map<string, number>()
-    for (const r of snap ?? []) bump(statusAll, (r as any).status)
+    for (const r of snap.data ?? []) bump(statusAll, (r as any).status)
     const openStatuses = Array.from(statusAll.keys()).filter((s) => s !== "Closed" && s !== "Rejected")
     const active = openStatuses.reduce((s, k) => s + (statusAll.get(k) ?? 0), 0)
 
     // closed in period (closed_at if the column exists, else updated_at)
     const closedAt = (r: any) => Date.parse(r.closed_at ?? r.updated_at ?? r.received_at)
-    const { data: closedRows } = await admin.from("freight_requests").select("*").eq("client_code", code).eq("status", "Closed")
-      .gte("updated_at", new Date(prevFrom).toISOString()).limit(5000)
-    const closedCur = (closedRows ?? []).filter((r: any) => closedAt(r) >= from && closedAt(r) < to)
-    const closedPrev = (closedRows ?? []).filter((r: any) => closedAt(r) >= prevFrom && closedAt(r) < from)
+    let closedRows: any[] = closedRes.data ?? []
+    if (closedRes.error) {
+      const fb = await admin.from("freight_requests").select("*").eq("client_code", code).eq("status", "Closed").gte("updated_at", iso(prevFrom)).limit(5000)
+      closedRows = fb.data ?? []
+    }
+    const closedCur = closedRows.filter((r: any) => closedAt(r) >= from && closedAt(r) < to)
+    const closedPrev = closedRows.filter((r: any) => closedAt(r) >= prevFrom && closedAt(r) < from)
 
     // ── won / lost results (by the day the outcome was marked). Closed = dismissed, not a result. ──
-    const outRows = await fetchAll<any>((a, b) =>
-      admin.from("freight_requests").select("*").eq("client_code", code).in("outcome", ["won", "lost"])
-        .gte("outcome_at", new Date(prevFrom).toISOString()).lt("outcome_at", new Date(to).toISOString()).range(a, b)
-    ).catch(() => [] as any[])
+    const outRows = outRowsRaw
     const oAt = (r: any) => Date.parse(r.outcome_at)
     const outCur = outRows.filter((r) => oAt(r) >= from)
     const outPrev = outRows.filter((r) => oAt(r) < from)
     const salesCur = summarizeOutcomes(outCur), salesPrev = summarizeOutcomes(outPrev)
 
     // ── quotations (outbound, with real money) ──────────────────────
-    const quos = await fetchAll<any>((a, b) =>
-      admin.from("quotations").select("id, freight_request_id, base_rate_usd, final_price_usd, status, sent_at, created_at").eq("client_code", code)
-        .gte("created_at", new Date(prevFrom).toISOString()).lt("created_at", new Date(to).toISOString()).range(a, b)
-    ).catch(() => [] as any[])
     const qTs = (q: any) => Date.parse(q.sent_at ?? q.created_at)
     const sentCur = quos.filter((q) => q.status === "sent" && qTs(q) >= from)
     const sentPrev = quos.filter((q) => q.status === "sent" && qTs(q) < from)
@@ -104,24 +133,11 @@ export async function GET(req: NextRequest) {
       xs.reduce((s, q) => s + (num(q.final_price_usd) != null && num(q.base_rate_usd) != null ? num(q.final_price_usd)! - num(q.base_rate_usd)! : 0), 0)
 
     // ── carrier quotes ──────────────────────────────────────────────
-    const selQ = (extra: string) =>
-      fetchAll<any>((a, b) =>
-        admin.from("carrier_quotes")
-          .select(`id, freight_request_id, carrier_id, rate_usd, received_at${extra}, freight_requests!freight_request_id!inner(client_code)`)
-          .eq("freight_requests.client_code", code)
-          .gte("received_at", new Date(prevFrom).toISOString()).lt("received_at", new Date(to).toISOString()).range(a, b))
-    let cqs: any[] = []
-    try { cqs = await selQ(", response_type") } catch { try { cqs = await selQ("") } catch { cqs = [] } }
-    cqs = cqs.filter((q) => !q.response_type || ["quote", "update", "counter_offer", "counter"].includes(q.response_type))
+    const cqs = cqsRaw.filter((q) => !q.response_type || ["quote", "update", "counter_offer", "counter"].includes(q.response_type))
     const cqCur = cqs.filter((q) => Date.parse(q.received_at) >= from)
     const cqPrev = cqs.filter((q) => Date.parse(q.received_at) < from)
 
     // RFQs sent
-    const rfqs = await fetchAll<any>((a, b) =>
-      admin.from("carrier_quote_requests").select("id, freight_request_id, carrier_id, status, sent_at, freight_requests!inner(client_code)")
-        .eq("freight_requests.client_code", code)
-        .gte("sent_at", new Date(prevFrom).toISOString()).lt("sent_at", new Date(to).toISOString()).range(a, b)
-    ).catch(() => [] as any[])
     const rfqCur = rfqs.filter((x) => Date.parse(x.sent_at) >= from)
     const rfqPrev = rfqs.filter((x) => Date.parse(x.sent_at) < from)
 
@@ -133,11 +149,7 @@ export async function GET(req: NextRequest) {
       for (const c of cs ?? []) carrierName.set(String((c as any).id), (c as any).carrier_name)
     }
 
-    // auto replies sent
-    const { count: autoReplies } = await admin.from("auto_reply_logs").select("id", { count: "exact", head: true })
-      .eq("client_code", code).gte("created_at", new Date(from).toISOString()).lt("created_at", new Date(to).toISOString())
-    const { count: autoRepliesPrev } = await admin.from("auto_reply_logs").select("id", { count: "exact", head: true })
-      .eq("client_code", code).gte("created_at", new Date(prevFrom).toISOString()).lt("created_at", new Date(from).toISOString())
+    const autoReplies = autoRes.count, autoRepliesPrev = autoPrevRes.count
 
     // ── response time: request received → first quotation created ──
     const firstQuoteAt = (list: any[]) => {
