@@ -1,5 +1,6 @@
 "use client"
 
+import { FieldConfirmation } from "@/components/portal/field-confirmation"
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
 import { SendRfqDialog } from "@/components/portal/send-rfq-dialog"
 import { RequestOutcomePanel } from "@/components/portal/request-outcome-panel"
@@ -304,6 +305,7 @@ export default function RequestDetailPage() {
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({})
+  const [fcKey, setFcKey] = useState(0)
 
   function handleFieldSaved(field: string, newVal: string) {
     const DB_TO_CAMEL: Record<string, string> = {
@@ -314,6 +316,7 @@ export default function RequestDetailPage() {
     }
     const camel = DB_TO_CAMEL[field] ?? field
     setFieldValues((prev) => ({ ...prev, [camel]: newVal }))
+    setFcKey((n) => n + 1)
   }
 
   const load = useCallback(async () => {
@@ -574,6 +577,7 @@ export default function RequestDetailPage() {
                         )}
                       </div>
                     </div>
+                    <div className="px-5 pt-3"><FieldConfirmation requestId={request.id} refreshKey={fcKey} /></div>
                     {exwMissing && (
                       <div className="mx-5 mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}>
                         <AlertTriangle className="h-4 w-4 shrink-0" />

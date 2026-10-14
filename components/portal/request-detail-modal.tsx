@@ -1,5 +1,6 @@
 "use client"
 
+import { FieldConfirmation } from "@/components/portal/field-confirmation"
 import { RequestAttachments } from "@/components/portal/request-attachments"
 import { rankCarriers } from "@/lib/carrier-match"
 import { defaultTemplateFor } from "@/lib/template-defaults"
@@ -567,6 +568,7 @@ export function RequestDetailModal({
   }
 
   // ── Local field values (updated optimistically on save) ──────────────────
+  const [fcKey, setFcKey] = useState(0)
   const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({
     cargoType:        request.cargoType,
     equipment:        request.equipment,
@@ -588,6 +590,7 @@ export function RequestDetailModal({
     }
     const camel = DB_TO_CAMEL[field] ?? field
     setFieldValues((prev) => ({ ...prev, [camel]: newVal }))
+    setFcKey((n) => n + 1)
   }
 
   // All cargo fields for the details tab
@@ -733,6 +736,7 @@ export function RequestDetailModal({
                       </span>
                     )}
                   </div>
+                  <div className="px-5 pt-3"><FieldConfirmation requestId={request.id} refreshKey={fcKey} /></div>
                   <div className="group px-5 pb-2">
                     {cargoFields.map((f) => (
                       <EditableFieldRow

@@ -112,12 +112,17 @@ export async function PATCH(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
 
-  const before = await snapshot(admin, "freight_requests", { id, client_code: session.clientCode }, ["id", "client_code", ...Object.keys(patch)].join(","))
-  const { error } = await admin
+  const before = await snapshot(admin, "freight_requests", { id, client_code: session.clientCode }, ["id", "client_code", ...Object.keys(patch), "fields_edited_at"].join(","))
+  // a field edit after confirmation marks the fields "changed" (needs migration 071; skipped if not run yet)
+  const editedPatch = fields && Object.keys(patch).some((k) => EDITABLE_FIELDS.has(k)) ? { ...patch, fields_edited_at: new Date().toISOString() } : patch
+  let { error } = await admin
     .from("freight_requests")
-    .update(patch)
+    .update(editedPatch)
     .eq("id", id)
     .eq("client_code", session.clientCode)
+  if (error && editedPatch !== patch && /fields_edited_at/.test(error.message)) {
+    ;({ error } = await admin.from("freight_requests").update(patch).eq("id", id).eq("client_code", session.clientCode))
+  }
 
   if (error) {
     console.error("[api/requests PATCH]", error.message)
