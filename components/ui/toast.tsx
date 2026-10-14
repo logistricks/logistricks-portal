@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -37,11 +37,8 @@ export function useToast(): ToastCtxValue {
 // ── Provider ───────────────────────────────────────────────────────────────────
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
-  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const dismiss = useCallback((id: string) => {
-    clearTimeout(timers.current[id])
-    delete timers.current[id]
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
@@ -49,10 +46,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (opts: Omit<Toast, "id">) => {
       const id       = Math.random().toString(36).slice(2)
       const duration = opts.duration ?? 5000
-      setToasts((prev) => [...prev.slice(-4), { ...opts, id }])
-      timers.current[id] = setTimeout(() => dismiss(id), duration)
+      setToasts((prev) => [...prev.slice(-4), { ...opts, duration, id }])
     },
-    [dismiss],
+    [],
   )
 
   const notification = useCallback(
@@ -81,62 +77,71 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// ── Single toast ───────────────────────────────────────────────────────────────
-const styles: Record<ToastVariant, { bar: string; icon: React.ElementType; cls: string }> = {
-  success: { bar: "bg-emerald-500", icon: CheckCircle,   cls: "text-emerald-500" },
-  error:   { bar: "bg-red-500",     icon: AlertCircle,   cls: "text-red-500"     },
-  warning: { bar: "bg-amber-400",   icon: AlertTriangle, cls: "text-amber-400"   },
-  info:    { bar: "bg-[#3B82F6]",   icon: Info,          cls: "text-[#3B82F6]"  },
+// ── Single toast (same look as the trial's popup: navy pill, white text) ──────
+const ICONS: Record<ToastVariant, { icon: React.ElementType; color: string }> = {
+  success: { icon: CheckCircle,   color: "#34D399" },
+  error:   { icon: AlertCircle,   color: "#F87171" },
+  warning: { icon: AlertTriangle, color: "#FBBF24" },
+  info:    { icon: Info,          color: "#7DB2FF" },
 }
 
-function ToastItem({ id, variant, title, message, url, action, duration, onDismiss }: Toast & { onDismiss: (id: string) => void }) {
-  const s = styles[variant]
-  const Icon = s.icon
+function ToastItem({ id, variant, title, message, url, action, duration = 5000, onDismiss }: Toast & { onDismiss: (id: string) => void }) {
+  const { icon: Icon, color } = ICONS[variant]
+  const [paused, setPaused] = useState(false)
+  const left = useRef(duration)          // time still to run
+  const startedAt = useRef(Date.now())
+  // Hovering pauses the countdown (and the bar); leaving resumes from where it stopped.
+  useEffect(() => {
+    if (paused) return
+    startedAt.current = Date.now()
+    const t = setTimeout(() => onDismiss(id), left.current)
+    return () => { clearTimeout(t); left.current = Math.max(0, left.current - (Date.now() - startedAt.current)) }
+  }, [paused, id, onDismiss])
+
   return (
     <div
       role="alert"
-      className="relative flex w-80 overflow-hidden rounded border border-[#E2E8F0] bg-white shadow-xl dark:border-[#1E3A5F] dark:bg-[#111E33]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="relative flex w-[min(92vw,380px)] items-center gap-3 overflow-hidden rounded-xl px-[18px] py-3 text-white"
+      style={{ background: "#0F1E36", border: "1px solid rgba(255,255,255,.2)", boxShadow: "0 1px 2px rgba(15,30,54,.06), 0 8px 24px -12px rgba(15,30,54,.35)", animation: "toast-in .25s ease-out" }}
     >
-      <div className={`w-1 shrink-0 ${s.bar}`} />
-      <div className="flex flex-1 items-start gap-3 px-3.5 py-3">
-        <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${s.cls}`} />
-        <button
-          type="button"
-          onClick={() => { if (url) window.location.href = url; onDismiss(id) }}
-          className={`min-w-0 flex-1 text-left ${url ? "cursor-pointer" : "cursor-default"}`}
-        >
-          <p className="text-sm font-semibold text-[#0D1B2A] dark:text-[#E2E8F0]">{title}</p>
-          {message && (
-            <p className="mt-0.5 text-xs text-[#64748B] dark:text-[#94A3B8]">{message}</p>
-          )}
-          {url && <p className="mt-1 text-[10px] text-[#94A3B8]">Tap to open →</p>}
-        </button>
-        {action && (
-          <button
-            type="button"
-            onClick={() => { onDismiss(id); void action.onClick() }}
-            className="shrink-0 self-center rounded-md px-2.5 py-1 text-[12.5px] font-bold"
-            style={{ background: "var(--brand-accent)", color: "var(--brand-navy, #0f1e36)" }}
-          >
-            {action.label}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onDismiss(id)}
-          aria-label="Dismiss notification"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#0D1B2A] dark:hover:bg-[#1E3A5F] dark:hover:text-[#E2E8F0]"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      <Icon className="h-4 w-4 shrink-0" style={{ color }} />
+      <button
+        type="button"
+        onClick={() => { if (url) window.location.href = url; onDismiss(id) }}
+        className={`min-w-0 flex-1 text-left ${url ? "cursor-pointer" : "cursor-default"}`}
+      >
+        <p className="text-[14.5px] font-medium leading-snug">{title}</p>
+        {message && <p className="mt-0.5 text-[12.5px] leading-snug text-white/70">{message}</p>}
+        {url && <p className="mt-1 text-[10px] text-white/50">Tap to open →</p>}
+      </button>
       {action && (
-        <div className="absolute bottom-0 left-0 h-[3px] w-full" style={{ background: "var(--brand-accent)", transformOrigin: "left", animation: `toast-bar ${duration ?? 10000}ms linear forwards` }} />
+        <button
+          type="button"
+          onClick={() => { onDismiss(id); void action.onClick() }}
+          className="shrink-0 rounded-lg px-3 py-1 text-[13px] font-bold"
+          style={{ background: "#E8821A", color: "#0F1E36" }}
+        >
+          {action.label}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onDismiss(id)}
+        aria-label="Dismiss notification"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+      {action && (
+        <div className="absolute bottom-0 left-0 h-[3px] w-full"
+          style={{ background: "#E8821A", transformOrigin: "left", animation: `toast-bar ${duration}ms linear forwards`, animationPlayState: paused ? "paused" : "running" }} />
       )}
       <style>{`
         @keyframes toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
         @keyframes toast-in {
-          from { transform: translateX(24px); opacity: 0; }
+          from { transform: translateY(12px); opacity: 0; }
           to   { transform: none; opacity: 1; }
         }
       `}</style>
