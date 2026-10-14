@@ -37,8 +37,7 @@ export async function GET(req: NextRequest) {
     .eq("client_code", s.clientCode)
     .order("created_at")
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  const undo = await saveUndo(admin(), s, "WhatsApp number added", [{ k: "remove", table: "client_whatsapp_numbers", where: { id: (data as any).id, client_code: s.clientCode } }])
-  return NextResponse.json(data, { headers: undo })
+  return NextResponse.json(data)
 }
 
 export async function POST(req: NextRequest) {
@@ -53,7 +52,8 @@ export async function POST(req: NextRequest) {
     .select("id, number, active, label")
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  const undo = await saveUndo(admin(), s, "WhatsApp number added", [{ k: "remove", table: "client_whatsapp_numbers", where: { id: (data as any).id, client_code: s.clientCode } }])
+  return NextResponse.json(data, { headers: undo })
 }
 
 export async function PATCH(req: NextRequest) {

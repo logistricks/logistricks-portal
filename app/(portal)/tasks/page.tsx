@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AlarmClock, ArrowRight, BellOff, CheckCircle2, Clock, Crosshair, Hourglass, Loader2, PartyPopper, RefreshCw, Siren } from "lucide-react"
 import { PageHero } from "@/components/portal/page-hero"
 import { useToast } from "@/components/ui/toast"
+import { rememberTaskReturn } from "@/components/portal/task-return"
 
 type Task = {
   key: string; requestId: string; ref: string; type: string; title: string; why: string; action: string
@@ -84,7 +85,7 @@ export default function TasksPage() {
   const [focus, setFocus] = useState(false)
   const [snoozeFor, setSnoozeFor] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const [showSnoozed, setShowSnoozed] = useState(false)
+  const [tab, setTab] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
   useEffect(() => { try { setFocus(localStorage.getItem("lt_tasks_focus") === "1") } catch { /* */ } }, [])
@@ -111,16 +112,22 @@ export default function TasksPage() {
 
   const groups = useMemo(() => {
     const eod = new Date(); eod.setHours(23, 59, 59, 999)
+    const eow = new Date(eod); eow.setDate(eow.getDate() + ((7 - eow.getDay()) % 7))              // end of this week (Sunday)
+    const eom = new Date(eod.getFullYear(), eod.getMonth() + 1, 0, 23, 59, 59, 999)               // end of this month
     const mine = (data?.tasks ?? []).filter((t) => !t.waiting)
+    const inRange = (t: Task, from: number, to: number) => t.dueAt > from && t.dueAt <= to
     return {
       overdue: mine.filter((t) => t.dueAt < when),
       today: mine.filter((t) => t.dueAt >= when && t.dueAt <= eod.getTime()),
-      later: mine.filter((t) => t.dueAt > eod.getTime()),
+      week: mine.filter((t) => inRange(t, eod.getTime(), eow.getTime())),
+      month: mine.filter((t) => inRange(t, eow.getTime(), eom.getTime())),
+      later: mine.filter((t) => t.dueAt > Math.max(eom.getTime(), eow.getTime())),
       waiting: (data?.tasks ?? []).filter((t) => t.waiting),
+      snoozed: data?.snoozed ?? [],
     }
   }, [data, when])
-  const next = groups.overdue[0] ?? groups.today[0] ?? groups.later[0] ?? null
-  const remaining = groups.overdue.length + groups.today.length + groups.later.length
+  const next = groups.overdue[0] ?? groups.today[0] ?? groups.week[0] ?? groups.month[0] ?? groups.later[0] ?? null
+  const remaining = groups.overdue.length + groups.today.length + groups.week.length + groups.month.length + groups.later.length
 
   async function act(task: Task, body: Record<string, unknown>) {
     setBusy(task.key); setSnoozeFor(null)
@@ -134,7 +141,7 @@ export default function TasksPage() {
   const setFocusPersist = (v: boolean) => { setFocus(v); try { localStorage.setItem("lt_tasks_focus", v ? "1" : "0") } catch { /* */ } }
 
   const Row = ({ t, muted }: { t: Task; muted?: boolean }) => (
-    <Link href={href(t)} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-5 py-3.5 text-center transition-colors"
+    <Link href={href(t)} onClick={() => rememberTaskReturn({ path: href(t), ref: t.ref, title: t.title })} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-5 py-3.5 text-center transition-colors"
       style={{ borderTop: "1px solid var(--divider)", opacity: muted ? 0.8 : 1 }}
       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")} onMouseLeave={(e) => (e.currentTarget.style.background = "")}>
       <span className="font-mono text-[12.5px] font-bold" style={{ color: "var(--text-primary)" }}>{t.ref}</span>
@@ -146,17 +153,6 @@ export default function TasksPage() {
       {t.urgent && <span className="rounded-full px-2 py-0.5 text-[10.5px] font-extrabold" style={{ background: "rgba(239,68,68,0.12)", color: "#dc2626" }}>URGENT</span>}
     </Link>
   )
-  const Section = ({ title, icon, items, tone, muted }: { title: string; icon: React.ReactNode; items: Task[]; tone?: string; muted?: boolean }) =>
-    items.length === 0 ? null : (
-      <div className="ds-card overflow-hidden">
-        <div className="ds-card-header" style={{ justifyContent: "center" }}>
-          <span className="flex items-center gap-2 font-display text-[18px] font-extrabold" style={{ color: tone ?? "var(--text-primary)" }}>{icon}{title}
-            <span className="rounded-full px-2.5 py-0.5 text-[12px] font-bold" style={{ background: "var(--page-bg)", color: "var(--text-secondary)" }}>{items.length}</span></span>
-        </div>
-        {items.map((t) => <Row key={t.key} t={t} muted={muted} />)}
-      </div>
-    )
-
   return (
     <div className="portal-page space-y-5 p-6">
       <PageHero
@@ -174,9 +170,11 @@ export default function TasksPage() {
       />
 
       <div className="flex justify-center">
-        <button type="button" onClick={() => setFocusPersist(!focus)} className="inline-flex items-center gap-2 rounded-xl border-[1.5px] px-5 py-2.5 text-[13.5px] font-bold"
-          style={{ borderColor: focus ? "var(--brand-accent)" : "var(--text-secondary)", color: "var(--text-primary)", background: focus ? "rgb(var(--brand-accent-rgb) / 0.12)" : "var(--card-bg)" }}>
-          <Crosshair className="h-4 w-4" /> Focus mode {focus ? "on" : "off"}
+        <button type="button" role="switch" aria-checked={focus} onClick={() => setFocusPersist(!focus)} className="inline-flex items-center gap-2 text-[13px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <span className="relative inline-block h-[20px] w-[36px] rounded-full transition-colors" style={{ background: focus ? "var(--brand-accent)" : "var(--card-border)" }}>
+            <span className="absolute top-[2px] h-[16px] w-[16px] rounded-full bg-white shadow transition-all" style={{ left: focus ? 18 : 2 }} />
+          </span>
+          Focus mode
         </button>
       </div>
 
@@ -202,7 +200,7 @@ export default function TasksPage() {
                 <Clock className="h-3.5 w-3.5" />{dueText(next, when)}
               </p>
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
-                <Link href={href(next)} className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[16px] font-extrabold"
+                <Link href={href(next)} onClick={() => rememberTaskReturn({ path: href(next), ref: next.ref, title: next.title })} className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[16px] font-extrabold"
                   style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 14px 28px -14px rgb(var(--brand-accent-rgb) / .8)" }}>
                   {next.action} <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -231,31 +229,45 @@ export default function TasksPage() {
             </div>
           )}
 
-          {!focus && (
-            <div className="mx-auto w-full max-w-[1000px] space-y-5">
-              <Section title="Overdue" icon={<Siren className="h-5 w-5" />} tone="#dc2626" items={groups.overdue.filter((t) => t !== next)} />
-              <Section title="Due today" icon={<Clock className="h-5 w-5" />} items={groups.today.filter((t) => t !== next)} />
-              <Section title="Later" icon={<CheckCircle2 className="h-5 w-5" />} items={groups.later.filter((t) => t !== next)} />
-              <Section title="Waiting on others" icon={<Hourglass className="h-5 w-5" />} items={groups.waiting} muted />
-              {(data?.snoozed.length ?? 0) > 0 && (
-                <div className="text-center">
-                  <button type="button" onClick={() => setShowSnoozed(!showSnoozed)} className="text-[13px] font-semibold underline" style={{ color: "var(--text-secondary)" }}>
-                    {showSnoozed ? "Hide" : "Show"} {data!.snoozed.length} snoozed
-                  </button>
-                  {showSnoozed && (
-                    <div className="ds-card mt-3 overflow-hidden">
-                      {data!.snoozed.map((t) => (
-                        <div key={t.key} className="flex flex-wrap items-center justify-center gap-4" style={{ borderTop: "1px solid var(--divider)" }}>
-                          <div className="flex-1"><Row t={t} muted /></div>
-                          <button type="button" onClick={() => void act(t, { action: "restore" })} className="mr-4 rounded-lg border px-3 py-1.5 text-[12px] font-bold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>Bring back</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+          {!focus && (() => {
+            const tabs: { key: string; label: string; items: Task[]; hot?: boolean }[] = [
+              { key: "overdue", label: "Overdue", items: groups.overdue, hot: true },
+              { key: "today", label: "Today", items: groups.today },
+              { key: "week", label: "This week", items: groups.week },
+              { key: "month", label: "This month", items: groups.month },
+              ...(groups.later.length ? [{ key: "later", label: "Later", items: groups.later }] : []),
+              { key: "waiting", label: "Waiting on others", items: groups.waiting },
+              { key: "snoozed", label: "Snoozed", items: groups.snoozed },
+            ]
+            const current = tabs.find((x) => x.key === tab) ?? tabs.find((x) => x.items.length > 0 && !["waiting", "snoozed"].includes(x.key)) ?? tabs[1]
+            return (
+              <div className="mx-auto w-full max-w-[1000px] space-y-4">
+                <div className="flex flex-wrap justify-center gap-1.5 rounded-full p-1.5" style={{ background: "var(--page-bg)" }}>
+                  {tabs.map((x) => {
+                    const on = x.key === current.key
+                    return (
+                      <button key={x.key} type="button" onClick={() => setTab(x.key)} className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-bold"
+                        style={on ? { background: "var(--card-bg)", color: "var(--text-primary)", boxShadow: "0 1px 3px rgba(15,30,54,0.12)" } : { color: "var(--text-secondary)" }}>
+                        {x.label}
+                        <span className="rounded-full px-2 py-0.5 text-[11.5px] font-extrabold"
+                          style={x.hot && x.items.length ? { background: "#ef4444", color: "#fff" } : { background: "rgba(100,116,139,0.16)", color: "var(--text-secondary)" }}>{x.items.length}</span>
+                      </button>
+                    )
+                  })}
                 </div>
-              )}
-            </div>
-          )}
+                <div className="ds-card overflow-hidden">
+                  {current.items.length === 0 ? (
+                    <p className="px-5 py-10 text-center text-[14px]" style={{ color: "var(--text-muted)" }}>Nothing here.</p>
+                  ) : current.items.map((t, i) => current.key === "snoozed" ? (
+                    <div key={t.key} className="flex flex-wrap items-center justify-center" style={{ borderTop: i ? "1px solid var(--divider)" : "none" }}>
+                      <div className="min-w-0 flex-1"><Row t={t} muted /></div>
+                      <button type="button" onClick={() => void act(t, { action: "restore" })} className="mr-4 rounded-lg border px-3 py-1.5 text-[12px] font-bold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>Bring back</button>
+                    </div>
+                  ) : <Row key={t.key} t={t} muted={current.key === "waiting"} />)}
+                </div>
+              </div>
+            )
+          })()}
         </>
       )}
     </div>

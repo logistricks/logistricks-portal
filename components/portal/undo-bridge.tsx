@@ -14,7 +14,8 @@ export function UndoBridge() {
     const patched: typeof window.fetch = async (...args) => {
       const res = await orig(...args)
       try {
-        const id = res.headers.get("x-undo-id")
+        const method = String((args[1] as RequestInit | undefined)?.method ?? (args[0] instanceof Request ? args[0].method : "GET")).toUpperCase()
+        const id = method === "GET" || method === "HEAD" ? null : res.headers.get("x-undo-id")
         if (id && res.ok) {
           const label = decodeURIComponent(res.headers.get("x-undo-label") || "Changed")
           toast({
