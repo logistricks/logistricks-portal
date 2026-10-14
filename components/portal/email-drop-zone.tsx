@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Loader2, MailPlus, CheckCircle2, AlertTriangle, Paperclip, X, ClipboardPaste } from "lucide-react"
+import { Loader2, MailPlus, CheckCircle2, AlertTriangle, Paperclip, X, ClipboardPaste, PenLine } from "lucide-react"
 
 type Props = {
   kind: "request" | "carrier_reply"
@@ -97,13 +97,26 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
   useEffect(() => { void loadMailboxes() }, [])
   const [safari, setSafari] = useState(false)
   useEffect(() => { setSafari(/^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent)) }, [])
-  async function pasteFromClipboard() {
+  async function enterManually() {
+    setMsg(null)
+    const m = await loadMailboxes()
+    setStaged({ file: null, extra: [], from_email: "", subject: "", body_text: "", mailbox: m.length === 1 ? m[0] : "", fileAttachments: [] })
+  }
+  /** Paste the clipboard into the email text box; blank sender / subject / mailbox are filled from it. */
+  async function pasteIntoBody() {
     setMsg(null)
     try {
       const text = await navigator.clipboard.readText()
-      if (!text.trim()) { setMsg({ ok: false, text: "The clipboard is empty. In your mail app open the email, press Cmd+A then Cmd+C, and try again." }); return }
-      await take([], text)
-    } catch { setMsg({ ok: false, text: "Your browser blocked clipboard access. Click on the page (not in a box) and press Cmd+V (Ctrl+V on Windows) instead." }) }
+      if (!text.trim()) { setMsg({ ok: false, text: "The clipboard is empty. Copy the email text first, then try again." }); return }
+      const m = await loadMailboxes()
+      const all = Array.from(new Set((text.match(/[^\s<>,;"'()]+@[^\s<>,;"'()]+\.[^\s<>,;"'()]+/g) || []).map((a) => a.toLowerCase())))
+      const fromLine = (text.match(/^From:.*?([^\s<>,;"'()]+@[^\s<>,;"'()]+\.[^\s<>,;"'()]+)/im) || [])[1]?.toLowerCase()
+      const subj = (text.match(/^Subject:\s*(.+)$/im) || [])[1]
+      setStaged((st) => st ? { ...st, body_text: text, hint: undefined,
+        from_email: st.from_email || fromLine || all.find((a) => !m.includes(a)) || "",
+        subject: st.subject || subj || "",
+        mailbox: st.mailbox || all.find((a) => m.includes(a)) || (m.length === 1 ? m[0] : "") } : st)
+    } catch { setMsg({ ok: false, text: "Your browser blocked clipboard access. Click inside the email text box and press Cmd+V (Ctrl+V on Windows) instead." }) }
   }
   async function loadMailboxes(): Promise<string[]> {
     if (mbRef.current.length) return mbRef.current
@@ -261,14 +274,14 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
           <span className={`${slim ? "hidden" : "flex"} items-center gap-1 text-[12px] font-normal`} style={{ color: "var(--text-muted)" }}>
             <ClipboardPaste className="h-3 w-3" /> Web mail / Apple Mail: copy the email text (Cmd+A, Cmd+C in the email) and paste it here (Cmd/Ctrl+V), then add its PDFs
           </span>
-          <button type="button" onClick={(e) => { e.stopPropagation(); void pasteFromClipboard() }}
+          <button type="button" onClick={(e) => { e.stopPropagation(); void enterManually() }}
             className="relative z-20 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-bold"
             style={{ background: "var(--brand-accent)" }}>
-            <ClipboardPaste className="h-4 w-4" /> Paste copied email
+            <PenLine className="h-4 w-4" /> Enter manually
           </button>
           {safari && !slim && (
             <span className="mt-1 text-center text-[11px] font-normal" style={{ color: "#b45309" }}>
-              Safari: drop the email onto this box itself (not elsewhere on the page). If Mail only sends the subject, use the copy &amp; paste button.
+              Safari: drop the email onto this box itself (not elsewhere on the page). If Mail only sends the subject, press Cmd+V on the page, or use Enter manually.
             </span>
           )}
           {/* The real drop target: a native file input stretched over the box. Dropping or clicking both land here. */}
@@ -283,7 +296,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
         <div className="space-y-3 rounded-[18px] border p-5 text-[13px]" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", boxShadow: "var(--card-shadow)" }}>
           <div className="flex items-center justify-between">
             <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-              Step 2 of 2 — check, then process {staged.file ? `(${staged.file.name})` : "(pasted text)"}
+              Step 2 of 2 — check, then process {staged.file ? `(${staged.file.name})` : "(entered by hand)"}
             </p>
             <button onClick={() => { setStaged(null); setMsg(null) }} aria-label="Cancel" style={{ color: "var(--text-muted)" }}><X className="h-4 w-4" /></button>
           </div>
@@ -303,8 +316,15 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
           </div>
           <label className="block space-y-1"><span style={{ color: "var(--text-muted)" }}>Subject</span>
             <input value={staged.subject} onChange={(e) => upd({ subject: e.target.value })} className={field} style={fstyle} /></label>
-          <label className="block space-y-1"><span style={{ color: "var(--text-muted)" }}>Email text</span>
-            <textarea value={staged.body_text} onChange={(e) => upd({ body_text: e.target.value })} rows={6} className={field} style={fstyle} /></label>
+          <div className="block space-y-1">
+            <div className="flex items-center justify-between">
+              <span style={{ color: "var(--text-muted)" }}>Email text</span>
+              <button type="button" onClick={() => void pasteIntoBody()} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[12px] font-semibold"
+                style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
+                <ClipboardPaste className="h-3.5 w-3.5" /> Paste from clipboard
+              </button>
+            </div>
+            <textarea value={staged.body_text} onChange={(e) => upd({ body_text: e.target.value })} rows={6} className={field} style={fstyle} /></div>
           <div className="flex flex-wrap items-center gap-1.5">
             {staged.fileAttachments.map((a) => (
               <span key={a.filename} className="inline-flex items-center gap-1 rounded px-2 py-0.5" style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}>
