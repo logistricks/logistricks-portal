@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
 
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
     .eq("client_code", s.clientCode)
     .order("created_at")
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  const undo = await saveUndo(admin(), s, "WhatsApp number added", [{ k: "remove", table: "client_whatsapp_numbers", where: { id: (data as any).id, client_code: s.clientCode } }])
+  return NextResponse.json(data, { headers: undo })
 }
 
 export async function POST(req: NextRequest) {
@@ -60,13 +62,15 @@ export async function PATCH(req: NextRequest) {
   if (s.role === "viewer") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   const { id, active } = await req.json().catch(() => ({}))
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
+  const prev = await snapshot(admin(), "client_whatsapp_numbers", { id, client_code: s.clientCode }, "id,client_code,active")
   const { error } = await admin()
     .from("client_whatsapp_numbers")
     .update({ active })
     .eq("id", id)
     .eq("client_code", s.clientCode)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin(), s, active ? "WhatsApp number activated" : "WhatsApp number deactivated", restoreRows("client_whatsapp_numbers", prev))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
 export async function DELETE(req: NextRequest) {
@@ -75,11 +79,13 @@ export async function DELETE(req: NextRequest) {
   if (s.role === "viewer") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   const { id } = await req.json().catch(() => ({}))
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
+  const prevDel = await snapshot(admin(), "client_whatsapp_numbers", { id, client_code: s.clientCode })
   const { error } = await admin()
     .from("client_whatsapp_numbers")
     .delete()
     .eq("id", id)
     .eq("client_code", s.clientCode)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin(), s, "WhatsApp number deleted", reinsertRows("client_whatsapp_numbers", prevDel))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

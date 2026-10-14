@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
+import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { sanitizeQuotationHtml } from "@/lib/quotation-html"
 import { htmlToPlainText } from "@/lib/quotation-render"
 import { normalizeOptions } from "@/lib/quotation-variables"
@@ -112,7 +113,8 @@ export async function POST(req: NextRequest) {
       description: `Duplicated quotation template "${src.template_name}" → "${src.template_name} (Copy)"`,
       meta: { template_id: nextId, source_template_id: srcId, duplicated: true },
     })
-    return NextResponse.json({ ok: true, template_id: nextId }, { status: 201 })
+    const undo = await saveUndo(db, session, "Quotation template duplicated", [{ k: "remove", table: "quotation_templates", where: { client_code: cc, template_id: nextId } }])
+    return NextResponse.json({ ok: true, template_id: nextId }, { status: 201, headers: undo })
   }
 
   // ── create / update ────────────────────────────────────────────────────────
@@ -131,6 +133,7 @@ export async function POST(req: NextRequest) {
   const active = body.active ?? true
 
   if (body.row_id && body.row_id > 0) {
+    const beforeRow = await snapshot(db, "quotation_templates", { client_code: cc, id: body.row_id })
     const patch = { ...common, active, updated_at: new Date().toISOString() }
     let { data: updated, error } = await db
       .from("quotation_templates").update(patch).eq("client_code", cc).eq("id", body.row_id).select("template_id").maybeSingle()
@@ -150,7 +153,8 @@ export async function POST(req: NextRequest) {
       clientCode: cc, eventType: "quotation_template_updated", actor: session.username,
       description: `Updated quotation template "${name}"`, meta: { row_id: body.row_id, template_name: name },
     })
-    return NextResponse.json({ ok: true })
+    const undo = await saveUndo(db, session, "Quotation template updated", restoreRows("quotation_templates", beforeRow))
+    return NextResponse.json({ ok: true }, { headers: undo })
   }
 
   const nextId = await nextTemplateId()
@@ -168,7 +172,8 @@ export async function POST(req: NextRequest) {
     clientCode: cc, eventType: "quotation_template_created", actor: session.username,
     description: `Created quotation template "${name}"`, meta: { template_id: nextId, template_name: name },
   })
-  return NextResponse.json({ ok: true, template_id: nextId }, { status: 201 })
+  const undo = await saveUndo(db, session, "Quotation template created", [{ k: "remove", table: "quotation_templates", where: { client_code: cc, template_id: nextId } }])
+  return NextResponse.json({ ok: true, template_id: nextId }, { status: 201, headers: undo })
 }
 
 export async function PATCH(req: NextRequest) {
@@ -185,6 +190,9 @@ export async function PATCH(req: NextRequest) {
   const { data: cur } = await db
     .from("quotation_templates").select("template_id, active, is_default").eq("client_code", cc).eq("template_id", id).maybeSingle()
   if (!cur) return NextResponse.json({ error: "Template not found" }, { status: 404 })
+  // before-image: every template's flags (not the content), so a default / active change is fully put back
+  const flagRows = (await snapshot(db, "quotation_templates", { client_code: cc })).map((r: any) => { const { body: _b, body_html: _h, subject: _s, ...f } = r; return f })
+  const flagUndo = () => saveUndo(db, session, body.is_default !== undefined ? "Default quotation template changed" : body.active ? "Quotation template activated" : "Quotation template deactivated", restoreRows("quotation_templates", flagRows))
 
   // Set / clear the default. Only one default per client, and it must be active.
   if (body.is_default !== undefined) {
@@ -194,7 +202,7 @@ export async function PATCH(req: NextRequest) {
     }
     const { error } = await db.from("quotation_templates").update({ is_default: !!body.is_default }).eq("client_code", cc).eq("template_id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true }, { headers: await flagUndo() })
   }
 
   if (body.active !== undefined) {
@@ -202,7 +210,7 @@ export async function PATCH(req: NextRequest) {
     if (!body.active) patch.is_default = false // deactivating the default leaves no default rather than a dead one
     const { error } = await db.from("quotation_templates").update(patch).eq("client_code", cc).eq("template_id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true }, { headers: await flagUndo() })
   }
 
   return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
@@ -240,6 +248,7 @@ export async function DELETE(req: NextRequest) {
     )
   }
 
+  const beforeDel = await snapshot(db, "quotation_templates", { client_code: session.clientCode, template_id: templateId })
   const { error } = await db
     .from("quotation_templates")
     .delete()
@@ -256,5 +265,6 @@ export async function DELETE(req: NextRequest) {
     meta: { template_id: templateId },
   })
 
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(db, session, "Quotation template deleted", reinsertRows("quotation_templates", beforeDel))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

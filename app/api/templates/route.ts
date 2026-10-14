@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { logActivity } from "@/lib/log-activity"
 import { setTemplateModes } from "@/lib/template-defaults"
+import { reinsertRows, restoreRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   const dotIndex = cookie.lastIndexOf(".")
@@ -108,10 +109,12 @@ export async function POST(req: NextRequest) {
       meta: { template_id: nextId, source_template_id: srcId, duplicated: true },
     })
 
-    return NextResponse.json({ ok: true, template_id: nextId }, { status: 201 })
+    const undo = await saveUndo(db, session, "Template duplicated", [{ k: "remove", table: "templates", where: { client_code: session.clientCode, template_id: nextId } }])
+    return NextResponse.json({ ok: true, template_id: nextId }, { status: 201, headers: undo })
   }
 
   if (body.row_id && body.row_id > 0) {
+    const beforeRow = await snapshot(db, "templates", { client_code: session.clientCode, id: body.row_id })
     const { error } = await db
       .from("templates")
       .update({
@@ -141,7 +144,8 @@ export async function POST(req: NextRequest) {
       meta: { row_id: body.row_id, template_name: body.template_name, type: body.type },
     })
 
-    return NextResponse.json({ ok: true })
+    const undo = await saveUndo(db, session, "Template updated", restoreRows("templates", beforeRow))
+    return NextResponse.json({ ok: true }, { headers: undo })
   }
 
   const { data: maxRow } = await db
@@ -175,7 +179,8 @@ export async function POST(req: NextRequest) {
     meta: { template_id: nextId, template_name: body.template_name, type: body.type },
   })
 
-  return NextResponse.json({ ok: true, template_id: nextId }, { status: 201 })
+  const undo = await saveUndo(db, session, "Template created", [{ k: "remove", table: "templates", where: { client_code: session.clientCode, template_id: nextId } }])
+  return NextResponse.json({ ok: true, template_id: nextId }, { status: 201, headers: undo })
 }
 
 export async function DELETE(req: NextRequest) {
@@ -212,6 +217,7 @@ export async function DELETE(req: NextRequest) {
     )
   }
 
+  const beforeDel = await snapshot(db, "templates", { client_code: session.clientCode, template_id: templateId })
   const { error } = await db
     .from("templates")
     .delete()
@@ -228,13 +234,11 @@ export async function DELETE(req: NextRequest) {
     meta: { template_id: templateId },
   })
 
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(db, session, "Template deleted", reinsertRows("templates", beforeDel))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
-export async function PATCH(req: NextRequest) {
-  const session = auth(req)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
+async function patchTemplate(req: NextRequest, session: { username: string; clientCode: string }): Promise<NextResponse> {
   const body = await req.json().catch(() => null)
   if (!body?.template_id) return NextResponse.json({ error: "template_id required" }, { status: 400 })
 
@@ -341,4 +345,25 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
+}
+
+const FLAG_LABEL = (b: any) =>
+  b.is_reply_template !== undefined || b.is_missing_reply_template !== undefined || b.is_complete_reply_template !== undefined ? "Reply template changed"
+  : b.modes || b.default_modes ? "Template defaults changed" : b.active !== undefined ? (b.active ? "Template activated" : "Template deactivated") : "Template updated"
+
+export async function PATCH(req: NextRequest) {
+  const session = auth(req)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const body = await req.clone().json().catch(() => null)
+  // before-image: every template's flags / modes (not the bodies), so one click puts them all back
+  let ops: UndoOp[] = []
+  if (body?.template_id) {
+    const rows = await snapshot(admin(), "templates", { client_code: session.clientCode })
+    ops = restoreRows("templates", rows.map((r: any) => { const { body: _b, subject: _s, ...flags } = r; return flags }))
+  }
+  const res = await patchTemplate(req, session)
+  if (res.status >= 400 || !ops.length) return res
+  const undo = await saveUndo(admin(), session, FLAG_LABEL(body), ops)
+  for (const [k, v] of Object.entries(undo)) res.headers.set(k, v)
+  return res
 }

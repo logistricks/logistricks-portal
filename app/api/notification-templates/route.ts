@@ -6,6 +6,7 @@
  * DELETE ?event_key=…                                              reset to the built-in default (admin)
  * POST   { action:"test", event_key, subject, body_html, to? }     send a sample email (admin)
  */
+import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
@@ -49,12 +50,16 @@ export async function PUT(req: NextRequest) {
   const bad = Array.isArray(b.recipients?.extra) ? (b.recipients.extra as unknown[]).map((x) => String(x).trim()).filter((x) => x && !EMAIL_RE.test(x)) : []
   if (bad.length) return NextResponse.json({ error: `These aren't valid email addresses: ${bad.join(", ")}` }, { status: 400 })
 
+  const beforeRows = await snapshot(adminClient(), "notification_templates", { client_code: s.session.clientCode, event_key: ev.key })
   const { error } = await adminClient().from("notification_templates").upsert({
     client_code: s.session.clientCode, event_key: ev.key, enabled: b.enabled !== false, subject, body_html: html,
     recipients: rec, updated_by: s.session.username, updated_at: new Date().toISOString(),
   }, { onConflict: "client_code,event_key" })
   if (error) return NextResponse.json({ error: missingTable(error) ? "The database update for email notifications (migration 046) hasn't been run yet." : error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(adminClient(), s.session, "Notification template updated",
+    beforeRows.length ? restoreRows("notification_templates", beforeRows, ["client_code", "event_key"])
+      : [{ k: "remove", table: "notification_templates", where: { client_code: s.session.clientCode, event_key: ev.key } }])
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
 export async function DELETE(req: NextRequest) {
@@ -63,9 +68,11 @@ export async function DELETE(req: NextRequest) {
   if (s.role !== "admin") return NextResponse.json({ error: "Only admins can reset notification templates." }, { status: 403 })
   const key = new URL(req.url).searchParams.get("event_key")
   if (!key || !EVENT_BY_KEY[key]) return NextResponse.json({ error: "Unknown notification" }, { status: 400 })
+  const beforeDel = await snapshot(adminClient(), "notification_templates", { client_code: s.session.clientCode, event_key: key })
   const { error } = await adminClient().from("notification_templates").delete().ilike("client_code", s.session.clientCode).eq("event_key", key)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(adminClient(), s.session, "Notification template reset", reinsertRows("notification_templates", beforeDel))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
 export async function POST(req: NextRequest) {

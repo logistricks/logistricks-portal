@@ -3,6 +3,7 @@
  * CRUD for the carriers table — scoped to the caller's client_code via session cookie.
  */
 
+import { reinsertRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
@@ -125,7 +126,8 @@ export async function POST(req: NextRequest) {
     meta: { carrier_id: nextId, carrier_name: body.carrier_name },
   })
 
-  return NextResponse.json({ ok: true, carrier_id: nextId }, { status: 201 })
+  const undo = await saveUndo(db, session, "Carrier added", [{ k: "remove", table: "carriers", where: { client_code: session.clientCode, carrier_id: nextId } }])
+  return NextResponse.json({ ok: true, carrier_id: nextId }, { status: 201, headers: undo })
 }
 
 export async function PATCH(req: NextRequest) {
@@ -145,6 +147,8 @@ export async function PATCH(req: NextRequest) {
   }
   if (body.countries !== undefined) patch.countries = cleanCodes(body.countries)
 
+  // before-image: the carrier's main row and its CC rows, put back as a whole
+  const beforeCarrier = await snapshot(db, "carriers", { client_code: session.clientCode, carrier_id: carrierId })
   if (Object.keys(patch).length > 0) {
     const { error } = await db
       .from("carriers")
@@ -196,7 +200,9 @@ export async function PATCH(req: NextRequest) {
     meta: { carrier_id: carrierId },
   })
 
-  return NextResponse.json({ ok: true })
+  const undoOps: UndoOp[] = [{ k: "remove", table: "carriers", where: { client_code: session.clientCode, carrier_id: carrierId } }, ...reinsertRows("carriers", beforeCarrier)]
+  const undo = await saveUndo(db, session, "Carrier updated", undoOps)
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
 export async function DELETE(req: NextRequest) {
@@ -234,6 +240,7 @@ export async function DELETE(req: NextRequest) {
     )
   }
 
+  const beforeDel = await snapshot(db, "carriers", { client_code: session.clientCode, carrier_id: carrierId })
   const { error } = await db
     .from("carriers")
     .delete()
@@ -250,5 +257,6 @@ export async function DELETE(req: NextRequest) {
     meta: { carrier_id: carrierId },
   })
 
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(db, session, "Carrier deleted", reinsertRows("carriers", beforeDel))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

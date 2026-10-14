@@ -6,6 +6,7 @@
  * PATCH /api/carrier-quotes/markup  { carrier_quote_id, markup_type, markup_amount, show_markup_percent, charges_style?, price_lines? }
  *         → { ok: true }   (ok:false, saved:false if migration 043 has not been run)
  */
+import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 
@@ -75,6 +76,7 @@ export async function PATCH(req: NextRequest) {
     show_markup_percent: body.show_markup_percent === true,
   }
   const admin = adminClient()
+  const beforeQ = await snapshot(admin, "carrier_quotes", { id: qid, client_code: session.clientCode }, "id,client_code,markup_type,markup_amount,show_markup_percent,charges_style,price_lines")
   let { error, count } = await admin
     .from("carrier_quotes")
     .update({ ...base, charges_style: style, price_lines: lines }, { count: "exact" })
@@ -89,5 +91,6 @@ export async function PATCH(req: NextRequest) {
   if (missingColumn(error)) return NextResponse.json({ ok: false, saved: false, reason: "migration_043_missing" })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!count) return NextResponse.json({ error: "Quote not found" }, { status: 404 })
-  return NextResponse.json({ ok: true, saved: true, extras_saved: extrasSaved })
+  const undo = await saveUndo(admin, session, "Quote markup updated", restoreRows("carrier_quotes", beforeQ))
+  return NextResponse.json({ ok: true, saved: true, extras_saved: extrasSaved }, { headers: undo })
 }

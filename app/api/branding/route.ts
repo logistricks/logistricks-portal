@@ -3,6 +3,7 @@
  * PUT /api/branding → { displayName?, logo? } (admin) — displayName updates clients.company_name,
  *                      logo (small PNG/JPEG/SVG data URL, or null to remove) lives in client_settings.branding.
  */
+import { restoreRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
@@ -28,10 +29,12 @@ export async function PUT(req: NextRequest) {
   if (!body) return NextResponse.json({ error: "Bad request" }, { status: 400 })
   const admin = adminClient()
   const code = s.session.clientCode
+  const ops: UndoOp[] = []
 
   if (typeof body.displayName === "string") {
     const name = body.displayName.trim().slice(0, 100)
     if (!name) return NextResponse.json({ error: "Display name cannot be empty" }, { status: 400 })
+    ops.push(...restoreRows("clients", await snapshot(admin, "clients", { client_code: code }, "client_code,company_name"), ["client_code"]))
     const { error } = await admin.from("clients").update({ company_name: name }).eq("client_code", code)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -40,11 +43,14 @@ export async function PUT(req: NextRequest) {
     if (logo !== null && !(typeof logo === "string" && /^data:image\/(png|jpeg|jpg|svg\+xml|webp);base64,/.test(logo)))
       return NextResponse.json({ error: "Logo must be a PNG, JPEG, WebP or SVG image" }, { status: 400 })
     if (logo && logo.length > 700_000) return NextResponse.json({ error: "Logo is too large (max ~500 KB)" }, { status: 400 })
+    const prevB = await snapshot(admin, "client_settings", { client_code: code, key: "branding" })
+    ops.push(...(prevB.length ? restoreRows("client_settings", prevB, ["client_code", "key"]) : [{ k: "remove" as const, table: "client_settings", where: { client_code: code, key: "branding" } }]))
     const { error } = await admin.from("client_settings").upsert(
       { client_code: code, key: "branding", value: { logo }, updated_at: new Date().toISOString() },
       { onConflict: "client_code,key" },
     )
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin, s.session, "Branding updated", ops)
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

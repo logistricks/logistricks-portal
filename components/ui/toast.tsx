@@ -13,6 +13,7 @@ interface Toast {
   message?: string
   duration?: number
   url?: string
+  action?: { label: string; onClick: () => void | Promise<void> }
 }
 
 interface ToastCtxValue {
@@ -88,7 +89,7 @@ const styles: Record<ToastVariant, { bar: string; icon: React.ElementType; cls: 
   info:    { bar: "bg-[#3B82F6]",   icon: Info,          cls: "text-[#3B82F6]"  },
 }
 
-function ToastItem({ id, variant, title, message, url, onDismiss }: Toast & { onDismiss: (id: string) => void }) {
+function ToastItem({ id, variant, title, message, url, action, duration, onDismiss }: Toast & { onDismiss: (id: string) => void }) {
   const s = styles[variant]
   const Icon = s.icon
   return (
@@ -110,6 +111,16 @@ function ToastItem({ id, variant, title, message, url, onDismiss }: Toast & { on
           )}
           {url && <p className="mt-1 text-[10px] text-[#94A3B8]">Tap to open →</p>}
         </button>
+        {action && (
+          <button
+            type="button"
+            onClick={() => { onDismiss(id); void action.onClick() }}
+            className="shrink-0 self-center rounded-md px-2.5 py-1 text-[12.5px] font-bold"
+            style={{ background: "var(--brand-accent)", color: "var(--brand-navy, #0f1e36)" }}
+          >
+            {action.label}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onDismiss(id)}
@@ -119,7 +130,11 @@ function ToastItem({ id, variant, title, message, url, onDismiss }: Toast & { on
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
+      {action && (
+        <div className="absolute bottom-0 left-0 h-[3px] w-full" style={{ background: "var(--brand-accent)", transformOrigin: "left", animation: `toast-bar ${duration ?? 10000}ms linear forwards` }} />
+      )}
       <style>{`
+        @keyframes toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
         @keyframes toast-in {
           from { transform: translateX(24px); opacity: 0; }
           to   { transform: none; opacity: 1; }

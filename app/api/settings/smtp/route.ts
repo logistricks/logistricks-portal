@@ -5,6 +5,7 @@
  * PUT  → save settings (admin). Leave `password` empty to keep the stored one.
  * POST { action: "test", to?, ...form values } → check the connection and send a test email (admin)
  */
+import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
@@ -67,6 +68,7 @@ export async function PUT(req: NextRequest) {
   const row: Record<string, unknown> = { client_code: s.session.clientCode, ...c, reply_to: c.reply_to || null, updated_at: new Date().toISOString() }
   if (typeof body.password === "string" && body.password !== "") row.password_enc = encryptSecret(body.password)
   if (typeof body.ms_client_secret === "string" && body.ms_client_secret !== "") row.ms_client_secret_enc = encryptSecret(body.ms_client_secret)
+  const beforeSmtp = await snapshot(adminClient(), "smtp_settings", { client_code: s.session.clientCode })
   let { error } = await adminClient().from("smtp_settings").upsert(row, { onConflict: "client_code" })
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // Migration 047 not run: password sign-in still works, modern authentication needs it.
@@ -79,7 +81,9 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: missing ? "The database update for email notifications (migration 046) hasn't been run yet." : error.message }, { status: 500 })
   }
   const { data } = await adminClient().from("smtp_settings").select("*").ilike("client_code", s.session.clientCode).maybeSingle()
-  return NextResponse.json(publicView(data))
+  const undo = await saveUndo(adminClient(), s.session, "Email server settings saved",
+    beforeSmtp.length ? restoreRows("smtp_settings", beforeSmtp, ["client_code"]) : [{ k: "remove", table: "smtp_settings", where: { client_code: s.session.clientCode } }])
+  return NextResponse.json(publicView(data), { headers: undo })
 }
 
 export async function POST(req: NextRequest) {

@@ -11,6 +11,7 @@ import { createHmac } from "crypto"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
 import { activeQuoteCounts } from "@/lib/request-status"
 import { logActivity } from "@/lib/log-activity"
+import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
@@ -111,6 +112,7 @@ export async function PATCH(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
 
+  const before = await snapshot(admin, "freight_requests", { id, client_code: session.clientCode }, ["id", "client_code", ...Object.keys(patch)].join(","))
   const { error } = await admin
     .from("freight_requests")
     .update(patch)
@@ -155,5 +157,6 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin, session, patch.status ? "Request status changed" : fields && Object.keys(fields).length ? "Request fields updated" : "Request flags updated", restoreRows("freight_requests", before))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

@@ -6,6 +6,7 @@
  * PUT    — update an email source (body includes id)
  * DELETE — delete an email source (body: { id })
  */
+import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { encryptSecret } from "@/lib/secret-box"
@@ -70,7 +71,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   if (payload.provider === "imap" && payload.active !== false) await ensureReceiverEmail(admin, session.clientCode, String(payload.imap_username ?? ""))
-  return NextResponse.json({ id: data.id })
+  const undo = await saveUndo(admin, session, "Email source added", [{ k: "remove", table: "email_sources", where: { id: data.id, client_code: session.clientCode } }])
+  return NextResponse.json({ id: data.id }, { headers: undo })
 }
 
 export async function PUT(req: NextRequest) {
@@ -95,6 +97,7 @@ export async function PUT(req: NextRequest) {
   if ("imap_host" in rest || "imap_username" in rest) { payload.imap_last_uid = null; payload.imap_uidvalidity = null }
 
   const admin = adminClient()
+  const prevSrc = await snapshot(admin, "email_sources", { id, client_code: session.clientCode })
   let { error } = await admin
     .from("email_sources")
     .update(payload)
@@ -110,7 +113,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   if (rest.provider === "imap" && rest.active !== false) await ensureReceiverEmail(admin, session.clientCode, String(rest.imap_username ?? ""))
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin, session, "Email source updated", restoreRows("email_sources", prevSrc))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
 export async function DELETE(req: NextRequest) {
@@ -125,6 +129,7 @@ export async function DELETE(req: NextRequest) {
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 })
 
   const admin = adminClient()
+  const prevDel = await snapshot(admin, "email_sources", { id: body.id, client_code: session.clientCode })
   const { error } = await admin
     .from("email_sources")
     .delete()
@@ -132,5 +137,6 @@ export async function DELETE(req: NextRequest) {
     .eq("client_code", session.clientCode)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin, session, "Email source deleted", reinsertRows("email_sources", prevDel))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

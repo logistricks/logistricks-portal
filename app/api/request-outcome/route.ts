@@ -6,6 +6,7 @@
  *   cost = the carrier's price, sell = the quotation's final price (after markup), margin = sell - cost.
  * A snapshot is stored, so later edits to quotations never change a closed deal.
  */
+import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest) {
     if (b.paid === true) { patch.paid_at = isoOrNull(b.paid_at) ?? new Date().toISOString(); patch.invoiced_at = patch.invoiced_at ?? patch.paid_at }
   }
 
+  const beforeOut = await snapshot(admin, "freight_requests", { id: fr.id, client_code: s.session.clientCode }, ["id", "client_code", ...Object.keys(patch)].join(","))
   const { error } = await admin.from("freight_requests").update(patch).eq("id", fr.id)
   if (error) {
     const missing = /outcome|won_|booking_|invoiced_at|paid_at/.test(error.message) && /column|schema/i.test(error.message)
@@ -123,5 +125,6 @@ export async function POST(req: NextRequest) {
     description: `${fr.request_ref ?? "Request"}: ${outcome ?? "outcome cleared"}${patch.booking_reference ? ` · booking ${patch.booking_reference}` : ""}`,
     meta: { outcome, sell: patch.won_sell_usd ?? null, margin: patch.won_margin_usd ?? null },
   })
-  return NextResponse.json({ ok: true, saved: patch })
+  const undo = await saveUndo(admin, s.session, outcome === "won" ? "Marked as won" : outcome === "lost" ? "Marked as lost" : "Outcome updated", restoreRows("freight_requests", beforeOut))
+  return NextResponse.json({ ok: true, saved: patch }, { headers: undo })
 }

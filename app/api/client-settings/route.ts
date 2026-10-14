@@ -7,6 +7,7 @@
  * Only authenticated sessions can access their own client's settings.
  * Writes are restricted to admin role only.
  */
+import { restoreRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
@@ -81,6 +82,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Missing key or value" }, { status: 400 })
   }
 
+  const beforeRows = await snapshot(adminClient(), "client_settings", { client_code: session.clientCode, key: body.key })
   const { error } = await adminClient()
     .from("client_settings")
     .upsert(
@@ -89,5 +91,8 @@ export async function PUT(req: NextRequest) {
     )
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(adminClient(), session, /theme|color|colour/i.test(String(body.key)) ? "Theme updated" : "Settings saved",
+    beforeRows.length ? restoreRows("client_settings", beforeRows, ["client_code", "key"])
+      : [{ k: "remove", table: "client_settings", where: { client_code: session.clientCode, key: body.key } }])
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

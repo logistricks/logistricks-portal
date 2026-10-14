@@ -13,6 +13,7 @@
  *   auto_reply_missing_enabled   boolean
  *   auto_reply_complete_enabled   boolean
  */
+import { restoreRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { createHmac } from "crypto"
@@ -94,11 +95,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
   }
 
+  const beforeRows = await snapshot(adminClient(), "clients", { client_code: session.clientCode }, ["client_code", ...Object.keys(update)].join(","))
   const { error } = await adminClient()
     .from("clients")
     .update(update)
     .eq("client_code", session.clientCode)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(adminClient(), session, "Settings updated", restoreRows("clients", beforeRows, ["client_code"]))
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
