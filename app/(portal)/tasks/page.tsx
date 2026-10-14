@@ -162,14 +162,14 @@ export default function TasksPage() {
       <PageHero
         eyebrow={<>Tasks<RefreshCw className="h-3 w-3" /></>}
         title="Your focus for today"
-        chips={data ? (
-          <>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white" style={{ background: groups.overdue.length ? "rgba(239,68,68,0.28)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>{groups.overdue.length} overdue</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white" style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>{groups.today.length} due today</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white" style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>{groups.waiting.length} waiting on others</span>
-          </>
+        left={data ? (
+          <div className="flex flex-col items-center gap-2 md:items-start">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white" style={{ background: groups.overdue.length ? "rgba(239,68,68,0.28)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>{`${groups.overdue.length} overdue`}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white" style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>{`${groups.today.length} due today`}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white" style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>{`${groups.waiting.length} waiting on others`}</span>
+          </div>
         ) : null}
-        aside={data ? <Ring done={data.doneToday} goal={data.goal} /> : null}
+        right={data ? <Ring done={data.doneToday} goal={data.goal} /> : null}
       />
 
       <div className="flex justify-center">
