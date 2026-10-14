@@ -1,0 +1,50 @@
+/**
+ * GET /api/tasks?tz=<minutes>[&count=1]
+ * The company's to-do list, worked out from its requests (see lib/task-rules.ts), minus anything snoozed or marked
+ * "not needed", plus how many task-type actions were done today (for the progress ring).
+ */
+import { NextResponse, type NextRequest } from "next/server"
+import { adminClient, getSession } from "@/lib/api-session"
+import { computeTasks, loadLimits } from "@/lib/task-rules"
+
+export const dynamic = "force-dynamic"
+export const maxDuration = 30
+
+// Things people do that clear a task
+const DONE_EVENTS = ["request_fields_confirmed", "rfq_sent", "quotation_created", "quotation_sent", "request_outcome", "approval_step_approved", "approval_step_rejected", "quotation_forwarded"]
+
+export async function GET(req: NextRequest) {
+  const cookie = req.cookies.get("portal_session")?.value
+  const session = cookie ? getSession(cookie) : null
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const sp = req.nextUrl.searchParams
+  const tz = Number(sp.get("tz") ?? 0) || 0
+  const admin = adminClient()
+  const cc = session.clientCode
+  const now = Date.now()
+
+  try {
+    const limits = await loadLimits(admin, cc)
+    const dayStart = (() => { const d = new Date(now - tz * 60_000); d.setUTCHours(0, 0, 0, 0); return d.getTime() + tz * 60_000 })()
+    const [all, stateRes, doneRes] = await Promise.all([
+      computeTasks(admin, cc, limits, now),
+      admin.from("task_state").select("task_key, snoozed_until, dismissed").eq("client_code", cc).or(`dismissed.eq.true,snoozed_until.gt.${new Date(now).toISOString()}`).limit(5000),
+      admin.from("activity_log").select("id", { count: "exact", head: true }).eq("client_code", cc).in("event_type", DONE_EVENTS).gte("created_at", new Date(dayStart).toISOString()),
+    ])
+    const state = new Map<string, { until: number; dismissed: boolean }>()
+    for (const s of stateRes.data ?? []) state.set((s as any).task_key, { until: (s as any).snoozed_until ? Date.parse((s as any).snoozed_until) : 0, dismissed: !!(s as any).dismissed })
+
+    const tasks = all.filter((x) => !state.get(x.key)?.dismissed && (state.get(x.key)?.until ?? 0) <= now)
+    const snoozed = all.filter((x) => (state.get(x.key)?.until ?? 0) > now && !state.get(x.key)?.dismissed).map((x) => ({ ...x, snoozedUntil: state.get(x.key)!.until }))
+    const actionable = tasks.filter((x) => !x.waiting)
+    const counts = { overdue: actionable.filter((x) => x.dueAt < now).length, actionable: actionable.length, waiting: tasks.length - actionable.length, snoozed: snoozed.length }
+    if (sp.get("count")) return NextResponse.json({ counts })
+
+    // yours first (overdue before not-yet-due, then by priority), things waiting on others last
+    tasks.sort((a, b) => Number(a.waiting) - Number(b.waiting) || Number(a.dueAt >= now) - Number(b.dueAt >= now) || b.score - a.score || a.dueAt - b.dueAt)
+    return NextResponse.json({ now, tasks, snoozed, counts, doneToday: doneRes.count ?? 0, goal: limits.daily_goal, limits })
+  } catch (e: any) {
+    console.error("[api/tasks]", e?.message ?? e)
+    return NextResponse.json({ error: e?.message ?? "Failed" }, { status: 500 })
+  }
+}

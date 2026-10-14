@@ -22,6 +22,7 @@ export function PortalTopbar() {
   const [pendingCount, setPendingCount]   = useState<number>(0)
   const [approvalCount, setApprovalCount] = useState<number>(0)
   const [unlinkedCount, setUnlinkedCount] = useState<number>(0)
+  const [taskCount, setTaskCount]         = useState<{ overdue: number; actionable: number }>({ overdue: 0, actionable: 0 })
   const [displayName, setDisplayName]     = useState<string>("")
   const [pinned, setPinned]               = useState(false)
   const branding = useBranding()
@@ -50,7 +51,13 @@ export function PortalTopbar() {
     }
     fetchCounts()
     pollRef.current = setInterval(fetchCounts, 30_000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+    const fetchTasks = () => {
+      if (document.hidden) return
+      fetch("/api/tasks?count=1").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.counts) setTaskCount(d.counts) }).catch(() => {})
+    }
+    fetchTasks()
+    const taskTimer = setInterval(fetchTasks, 60_000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current); clearInterval(taskTimer) }
   }, [])
 
   async function handleLogout() {
@@ -102,6 +109,18 @@ export function PortalTopbar() {
 
         {/* Right actions */}
         <div className="flex shrink-0 items-center gap-2 justify-self-end">
+          <Link href="/tasks" className="flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-bold transition-colors"
+            style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.16)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}>
+            Tasks
+            {taskCount.actionable > 0 && (
+              <span className="min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11.5px] font-extrabold"
+                style={taskCount.overdue > 0 ? { background: "#ef4444", color: "#fff" } : { background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
+                {taskCount.overdue > 0 ? taskCount.overdue : taskCount.actionable}
+              </span>
+            )}
+          </Link>
           <ThemeToggle />
           <NotificationBell />
           <div className="flex items-center gap-1.5 pl-1">

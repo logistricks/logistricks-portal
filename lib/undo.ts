@@ -13,7 +13,7 @@ export type UndoOp =
 /** Tables an undo may touch (all carry client_code, which the undo route enforces). */
 export const UNDO_TABLES = new Set([
   "freight_requests", "templates", "quotation_templates", "notification_templates", "client_settings", "clients",
-  "carriers", "smtp_settings", "carrier_quotes", "client_whatsapp_numbers", "client_receiver_emails", "email_sources",
+  "carriers", "task_state", "smtp_settings", "carrier_quotes", "client_whatsapp_numbers", "client_receiver_emails", "email_sources",
 ])
 
 export const UNDO_WINDOW_MS = 120_000
