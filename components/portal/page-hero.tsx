@@ -8,11 +8,13 @@ import type { ReactNode } from "react"
  * Colours come from the brand variables, so each client's theme still applies.
  * Every portal page starts with one.
  */
-export function PageHero({ eyebrow, title, chips, aside, actions, left, right, onDown }: {
+export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, left, right, onDown }: {
   eyebrow?: ReactNode
   title: ReactNode
   chips?: ReactNode
   aside?: ReactNode
+  /** keep the title exactly centred: the aside floats at the right edge instead of taking room beside it (wide screens) */
+  floatAside?: boolean
   actions?: ReactNode
   /** compact layout: `left` and `right` sit either side of the title; `onDown` shows a jump arrow under it */
   left?: ReactNode
@@ -65,7 +67,7 @@ export function PageHero({ eyebrow, title, chips, aside, actions, left, right, o
           {chips && <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{chips}</div>}
           {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">{actions}</div>}
         </div>
-        {aside}
+        {floatAside ? <div className="md:absolute md:right-9 md:top-1/2 md:-translate-y-1/2">{aside}</div> : aside}
       </div>
     </section>
   )
