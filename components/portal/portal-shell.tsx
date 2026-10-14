@@ -6,6 +6,7 @@ import { PortalThemeContext } from "@/components/portal/portal-theme-provider"
 import { ToastProvider } from "@/components/ui/toast"
 import { UndoBridge } from "@/components/portal/undo-bridge"
 import { TaskReturnPill } from "@/components/portal/task-return"
+import { TaskReminders } from "@/components/portal/task-reminders"
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<"dark" | "light">("light")
@@ -61,6 +62,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
       <ToastProvider>
         <UndoBridge />
         <TaskReturnPill />
+        <TaskReminders />
         <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f2f5fa]"} ${theme}`}>
           <PortalTopbar />
           <main className="mx-auto w-full max-w-[1440px] px-4 pb-10 pt-6 md:px-8">{children}</main>

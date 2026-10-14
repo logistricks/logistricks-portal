@@ -156,3 +156,29 @@ function confirmState(r: any, lastRfq: number, lastQuote: number): { state: "unc
   const edited = t(r.fields_edited_at)
   return { state: !at ? "unconfirmed" : edited > at ? "changed" : "confirmed", at }
 }
+
+export const DEFAULT_REMINDERS = {
+  popups: true,          // popup when tasks go overdue, and a nudge while they stay overdue
+  interval_min: 60,      // minutes between nudges
+  daily_window: true,    // "Here's your day" summary the first time you open the portal each day
+  browser: true,         // also use browser notifications when this tab is in the background (if allowed)
+  quiet_from: "20:00",   // no popups between these times (each person's own clock)
+  quiet_to: "07:00",
+}
+export type TaskReminders = typeof DEFAULT_REMINDERS
+
+export async function loadReminders(admin: any, clientCode: string): Promise<TaskReminders> {
+  try {
+    const { data } = await admin.from("client_settings").select("value").eq("client_code", clientCode).eq("key", "task_reminders").maybeSingle()
+    return cleanReminders(data?.value)
+  } catch { return { ...DEFAULT_REMINDERS } }
+}
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+export function cleanReminders(v: any): TaskReminders {
+  const o: any = { ...DEFAULT_REMINDERS }
+  if (!v || typeof v !== "object") return o
+  for (const k of ["popups", "daily_window", "browser"] as const) if (typeof v[k] === "boolean") o[k] = v[k]
+  const n = Number(v.interval_min); if (Number.isFinite(n) && n >= 5 && n <= 1440) o.interval_min = Math.round(n)
+  for (const k of ["quiet_from", "quiet_to"] as const) if (typeof v[k] === "string" && HHMM.test(v[k])) o[k] = v[k]
+  return o
+}

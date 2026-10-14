@@ -5,7 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
-import { computeTasks, loadLimits } from "@/lib/task-rules"
+import { computeTasks, loadLimits, loadReminders } from "@/lib/task-rules"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 30
@@ -39,6 +39,17 @@ export async function GET(req: NextRequest) {
     const actionable = tasks.filter((x) => !x.waiting)
     const counts = { overdue: actionable.filter((x) => x.dueAt < now).length, actionable: actionable.length, waiting: tasks.length - actionable.length, snoozed: snoozed.length }
     if (sp.get("count")) return NextResponse.json({ counts })
+    if (sp.get("summary")) {
+      // for the reminders: counts, the three most pressing tasks, which ones are overdue (to spot new ones), and the reminder settings
+      const ranked = [...actionable].sort((a, b) => Number(a.dueAt >= now) - Number(b.dueAt >= now) || b.score - a.score || a.dueAt - b.dueAt)
+      const dueToday = (() => { const e = new Date(now - tz * 60_000); e.setUTCHours(23, 59, 59, 999); const end = e.getTime() + tz * 60_000; return actionable.filter((x) => x.dueAt >= now && x.dueAt <= end).length })()
+      return NextResponse.json({
+        counts: { ...counts, dueToday }, doneToday: doneRes.count ?? 0, goal: limits.daily_goal,
+        top: ranked.slice(0, 3).map((x) => ({ key: x.key, ref: x.ref, title: x.title, sender: x.sender, overdue: x.dueAt < now, urgent: x.urgent })),
+        overdueKeys: actionable.filter((x) => x.dueAt < now).map((x) => x.key).slice(0, 300),
+        reminders: await loadReminders(admin, cc),
+      })
+    }
 
     // yours first (overdue before not-yet-due, then by priority), things waiting on others last
     tasks.sort((a, b) => Number(a.waiting) - Number(b.waiting) || Number(a.dueAt >= now) - Number(b.dueAt >= now) || b.score - a.score || a.dueAt - b.dueAt)

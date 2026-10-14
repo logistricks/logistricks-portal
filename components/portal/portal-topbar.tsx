@@ -51,13 +51,11 @@ export function PortalTopbar() {
     }
     fetchCounts()
     pollRef.current = setInterval(fetchCounts, 30_000)
-    const fetchTasks = () => {
-      if (document.hidden) return
-      fetch("/api/tasks?count=1").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.counts) setTaskCount(d.counts) }).catch(() => {})
-    }
-    fetchTasks()
-    const taskTimer = setInterval(fetchTasks, 60_000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current); clearInterval(taskTimer) }
+    // the Tasks count is kept fresh by <TaskReminders/>, which announces it here
+    const onCounts = (e: Event) => { const d = (e as CustomEvent).detail; if (d) setTaskCount({ overdue: d.overdue ?? 0, actionable: d.actionable ?? 0 }) }
+    window.addEventListener("lt-task-counts", onCounts)
+    const cached = (window as any).__ltTaskCounts; if (cached) setTaskCount({ overdue: cached.overdue ?? 0, actionable: cached.actionable ?? 0 })
+    return () => { if (pollRef.current) clearInterval(pollRef.current); window.removeEventListener("lt-task-counts", onCounts) }
   }, [])
 
   async function handleLogout() {
