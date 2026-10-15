@@ -309,7 +309,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
             <label className="space-y-1"><span style={{ color: "var(--text-muted)" }}>Sent to (client mailbox)</span>
               {staged.file && staged.mailbox
                 ? <input value={staged.mailbox} readOnly className={field} style={fstyle} />
-                : <select value={staged.mailbox} onChange={(e) => upd({ mailbox: e.target.value })} className={field} style={fstyle}>
+                : <select value={staged.mailbox} onChange={(e) => upd({ mailbox: e.target.value })} className={`${field} ds-select`} style={{ ...fstyle, height: 38, padding: "0 38px 0 12px", fontSize: 13, fontWeight: 400, borderRadius: 12 }}>
                     <option value="">Choose the mailbox…</option>
                     {mailboxes.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>}</label>
