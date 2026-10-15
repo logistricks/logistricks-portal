@@ -16,6 +16,7 @@
  *    Hands the mail to the n8n webhook workflow for its kind — the same extraction + portal steps as
  *    the automatic mailbox flows, only the trigger differs. Everything is stamped intake_source = "manual".
  */
+import { flatDefaults, loadDefaults } from "@/lib/default-locations"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
@@ -149,6 +150,7 @@ export async function POST(req: NextRequest) {
     message_id: merged.message_id, in_reply_to: mail.in_reply_to, references: mail.references, to: mail.to, cc: mail.cc, attachments: atts,
     intake_source: "manual", intake_filename: file instanceof File ? file.name : "pasted text",
     added_by: s.session.username, freight_request_id: freightRequestId ?? undefined,
+    ...flatDefaults(await loadDefaults(admin, clientCode).catch(() => ({ port: { name: "", country: "" }, airport: { name: "", country: "" } }))),
   }
 
   // ── log the run, hand over to n8n and wait for the outcome ──

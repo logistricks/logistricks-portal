@@ -68,6 +68,7 @@ export const NAV: NavSection[] = [
       { label: "Rules",           href: "/settings?tab=rules",     match: (p, t) => p === "/settings" && (t === "rules" || t === "") },
       { label: "Approval Setup",  href: "/settings/approval-cycles", match: startsWith("/settings/approval-cycles") },
       { label: "Task Setup",      href: "/settings/tasks",         match: startsWith("/settings/tasks") },
+      { label: "Default Locations", href: "/settings/defaults",    match: startsWith("/settings/defaults") },
       { label: "Activity",        href: "/users?tab=activity",     match: (p, t) => p === "/users" && t === "activity" },
       { label: "Auto-Reply Log",  href: "/auto-reply-logs",        match: startsWith("/auto-reply-logs") },
       { label: "Users",           href: "/users",                  match: (p, t) => p === "/users" && t !== "activity" },
