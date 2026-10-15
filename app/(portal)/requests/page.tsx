@@ -105,6 +105,8 @@ export default function RequestsPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [sources, setSources]   = useState<SourceKey[]>([])
   const [onlyFlagged, setOnlyFlagged] = useState(false)
+  const [onlyOverdue, setOnlyOverdue] = useState(false)
+  const [lateMap, setLateMap] = useState<Record<string, { lateH: number; title: string; stuck: boolean }>>({})
   const [results, setResults] = useState<("won" | "lost")[]>([])
   const searchRef = useRef<HTMLInputElement>(null)
   const [search, setSearch]             = useState("")
@@ -174,6 +176,13 @@ export default function RequestsPage() {
   }, [])
 
   useEffect(() => {
+    const loadLate = () => fetch("/api/tasks?map=1", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.map) setLateMap(j.map) }).catch(() => { /* tags are optional */ })
+    loadLate()
+    const lateTimer = setInterval(loadLate, 120_000)
+    return () => clearInterval(lateTimer)
+  }, [])
+
+  useEffect(() => {
     load()
     pollRef.current = setInterval(() => load(true), POLL_INTERVAL)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -189,6 +198,15 @@ export default function RequestsPage() {
     const f = flagsOf(r)
     return r.aog || r.dgr || f.exw || f.missing > 0 || f.low || f.urgent
   }, [flagsOf])
+
+  const lateChip = (r: FreightRequest) => {
+    const l = lateMap[String(r.id)]
+    if (!l) return null
+    const txt = l.lateH < 48 ? `${Math.max(1, Math.floor(l.lateH))}h` : `${Math.floor(l.lateH / 24)}d`
+    return l.stuck
+      ? <Chip tone="red" icon={<Clock className="h-3 w-3" />} title={`${l.title} — stuck for ${txt}`}>Stuck {txt}</Chip>
+      : <Chip tone="amber" icon={<Clock className="h-3 w-3" />} title={`${l.title} — ${txt} past its time limit`}>Overdue {txt}</Chip>
+  }
 
   const stageCounts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -208,6 +226,7 @@ export default function RequestsPage() {
       if (results.length && !(r.outcome && (results as string[]).includes(r.outcome))) return false
       if (sources.length && !sources.includes(r.source as SourceKey)) return false
       if (onlyFlagged && !isFlagged(r)) return false
+      if (onlyOverdue && !lateMap[String(r.id)]) return false
       if (q) {
         const hay = `${r.requestRef ?? ""} ${r.senderName} ${r.senderEmail} ${r.cargoType} ${r.originCity} ${r.destinationCity} ${r.incoterm}`.toLowerCase()
         if (!hay.includes(q)) return false
@@ -226,10 +245,10 @@ export default function RequestsPage() {
       if (nb !== na) return nb - na
       return String(a.id).localeCompare(String(b.id))
     })
-  }, [requests, stages, targets, deliveries, sources, onlyFlagged, results, search, isFlagged, sortBy])
+  }, [requests, stages, targets, deliveries, sources, onlyFlagged, onlyOverdue, lateMap, results, search, isFlagged, sortBy])
 
   const flip = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, v: NoInfer<T>) => set((a) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]))
-  function clearFilters() { setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
+  function clearFilters() { setOnlyOverdue(false); setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
   function showAll() { setStages([]); setTargets([]); setDeliveries([]); setResults([]) }
   // Picking a status leaves the Won/Lost result filter, and dropping Approved drops its sub-filters, so no filter stays on out of sight.
   function flipStage(st: Stage) {
@@ -306,6 +325,7 @@ export default function RequestsPage() {
           <>
             <HeroChip>{requests.length} total</HeroChip>
             <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
+            {Object.keys(lateMap).length > 0 && <HeroChip>{Object.keys(lateMap).length} overdue</HeroChip>}
           </>
         }
         left={
@@ -360,6 +380,7 @@ export default function RequestsPage() {
             <Toggle on={sources.includes("WhatsApp")} onClick={() => flip(setSources, "WhatsApp")} tone="#22c55e"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</Toggle>
             <span className="mx-1 h-4 w-px" style={{ background: "var(--divider)" }} />
             <Toggle on={onlyFlagged} onClick={() => setOnlyFlagged((v) => !v)} tone="#ef4444"><TriangleAlert className="h-3.5 w-3.5" />Needs attention</Toggle>
+            <Toggle on={onlyOverdue} onClick={() => setOnlyOverdue((v) => !v)} count={Object.keys(lateMap).length} tone="#d97706"><Clock className="h-3.5 w-3.5" />Overdue</Toggle>
             <div className="relative ml-auto min-w-[220px] flex-1 sm:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
               <input
@@ -467,6 +488,7 @@ export default function RequestsPage() {
                   </p>
                   <p className="max-w-full truncate text-[13.5px]" style={{ color: "var(--text-secondary)" }}>{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</p>
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {lateChip(r)}
                     {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
                     {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
                     {f.exw && <Chip tone="red" icon={<MapPinOff className="h-3 w-3" />} title="EXW — pickup address missing">EXW address</Chip>}
@@ -565,6 +587,7 @@ export default function RequestsPage() {
                     </td>
                     <td className="px-3 py-4">
                       <div className="flex flex-wrap items-center justify-center gap-1">
+                        {lateChip(r)}
                         {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
                         {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
                         {f.exw && <Chip tone="red" icon={<MapPinOff className="h-3 w-3" />} title="EXW — pickup address missing">EXW address</Chip>}
@@ -576,7 +599,7 @@ export default function RequestsPage() {
                         )}
                         {f.urgent && <Chip tone="blue" icon={<Clock className="h-3 w-3" />}>Urgent</Chip>}
                         {f.low && <Chip tone="slate" title="The AI was not confident reading this request">Low conf.</Chip>}
-                        {!isFlagged(r) && !(r.specialRequirements?.length) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
+                        {!isFlagged(r) && !lateMap[String(r.id)] && !(r.specialRequirements?.length) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
                       </div>
                     </td>
                     <td className="px-3 py-4">

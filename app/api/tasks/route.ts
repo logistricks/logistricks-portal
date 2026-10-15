@@ -6,6 +6,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { computeTasks, loadLimits, loadReminders } from "@/lib/task-rules"
+import { loadEmails } from "@/lib/task-emails"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 30
@@ -25,6 +26,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const limits = await loadLimits(admin, cc)
+    // lightweight: which requests are overdue / stuck (tags on the Requests list)
+    if (sp.get("map")) {
+      const [all, em] = await Promise.all([computeTasks(admin, cc, limits, now), loadEmails(admin, cc)])
+      const map: Record<string, { lateH: number; title: string; stuck: boolean }> = {}
+      for (const t of all) {
+        if (t.waiting || t.dueAt >= now) continue
+        const lateH = (now - t.dueAt) / 3600_000
+        map[t.requestId] = { lateH: Math.round(lateH * 10) / 10, title: t.title, stuck: lateH >= em.escalate_after_h }
+      }
+      return NextResponse.json({ map, stuckAfterH: em.escalate_after_h })
+    }
     const dayStart = (() => { const d = new Date(now - tz * 60_000); d.setUTCHours(0, 0, 0, 0); return d.getTime() + tz * 60_000 })()
     const [all, stateRes, doneRes] = await Promise.all([
       computeTasks(admin, cc, limits, now),

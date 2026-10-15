@@ -6,6 +6,7 @@ import { PageHero } from "@/components/portal/page-hero"
 import { useToast } from "@/components/ui/toast"
 
 type Limits = Record<string, number>
+type Emails = { tz: string; digest: boolean; digest_time: string; days: number[]; digest_roles: string[]; urgent: boolean; urgent_after_h: number; escalate: boolean; escalate_after_h: number; weekly: boolean; weekly_day: number; weekly_time: string }
 type Reminders = { popups: boolean; interval_min: number; daily_window: boolean; browser: boolean; quiet_from: string; quiet_to: string }
 
 const LIMIT_ROWS: { key: string; label: string; hint: string; unit: string }[] = [
@@ -36,13 +37,14 @@ export default function TaskSetupPage() {
   const [canEdit, setCanEdit] = useState(false)
   const [limits, setLimits] = useState<Limits>({})
   const [rem, setRem] = useState<Reminders | null>(null)
-  const [defaults, setDefaults] = useState<{ limits: Limits; reminders: Reminders } | null>(null)
+  const [em, setEm] = useState<Emails | null>(null)
+  const [defaults, setDefaults] = useState<{ limits: Limits; reminders: Reminders; emails: Emails } | null>(null)
   const [perm, setPerm] = useState<string>("")
 
   useEffect(() => {
     fetch("/api/task-settings", { cache: "no-store" }).then((r) => r.json()).then((j) => {
       if (j.error) throw new Error(j.error)
-      setLimits(j.limits); setRem(j.reminders); setDefaults(j.defaults); setCanEdit(!!j.canEdit)
+      setLimits(j.limits); setRem(j.reminders); setEm(j.emails); setDefaults(j.defaults); setCanEdit(!!j.canEdit)
     }).catch((e) => toastError("Could not load the settings", e.message)).finally(() => setLoading(false))
     try { setPerm("Notification" in window ? Notification.permission : "unsupported") } catch { /* */ }
   }, [toastError])
@@ -50,10 +52,10 @@ export default function TaskSetupPage() {
   async function save() {
     setSaving(true)
     try {
-      const r = await fetch("/api/task-settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ limits, reminders: rem }) })
+      const r = await fetch("/api/task-settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ limits, reminders: rem, emails: em }) })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) { toastError("Could not save", j.error); return }
-      setLimits(j.limits); setRem(j.reminders)
+      setLimits(j.limits); setRem(j.reminders); if (j.emails) setEm(j.emails)
     } finally { setSaving(false) }
   }
   async function allowBrowser() {
@@ -68,7 +70,7 @@ export default function TaskSetupPage() {
   return (
     <div className="portal-page space-y-5 p-6">
       <PageHero eyebrow="Admin" title="Task Setup" chips={<span className="text-[14px] text-white/80">How long each step should take, and how people are reminded</span>} />
-      {loading || !rem ? (
+      {loading || !rem || !em ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--text-muted)" }} /></div>
       ) : (
         <>
@@ -156,13 +158,88 @@ export default function TaskSetupPage() {
             </div>
           </div>
 
+          <div className={card}>
+            <h2 className="text-center font-display text-[22px] font-extrabold" style={{ color: "var(--text-primary)" }}>Email reminders</h2>
+            <p className="mt-1 text-center text-[13.5px]" style={{ color: "var(--text-secondary)" }}>Sent from your email server (Settings → Email). Nothing is sent twice.</p>
+            <div className="mt-3 divide-y" style={{ borderColor: "var(--divider)" }}>
+              <div className={row} style={{ borderColor: "var(--divider)" }}>
+                <div className="min-w-[220px] flex-1 text-left">
+                  <div className="text-[14.5px] font-semibold" style={{ color: "var(--text-primary)" }}>Morning digest</div>
+                  <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>What is overdue and due today, to admins and operators, at this time on working days</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="time" disabled={!canEdit || !em.digest} value={em.digest_time} className={inp} style={istyle} onChange={(e) => setEm({ ...em, digest_time: e.target.value })} />
+                  <Switch on={em.digest} disabled={!canEdit} onChange={(v) => setEm({ ...em, digest: v })} />
+                </div>
+              </div>
+              <div className={row} style={{ borderColor: "var(--divider)" }}>
+                <div className="min-w-[220px] flex-1 text-left">
+                  <div className="text-[14.5px] font-semibold" style={{ color: "var(--text-primary)" }}>Working days</div>
+                  <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>The digest is only sent on these days</div>
+                </div>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => {
+                    const on = em.days.includes(i)
+                    return (
+                      <button key={d} type="button" disabled={!canEdit} onClick={() => setEm({ ...em, days: on ? em.days.filter((x) => x !== i) : [...em.days, i].sort() })}
+                        className="rounded-full border-[1.5px] px-3 py-1.5 text-[13px] font-bold disabled:opacity-60"
+                        style={on ? { background: "var(--brand-accent)", borderColor: "var(--brand-accent)", color: "var(--brand-navy)" } : { borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>{d}</button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className={row} style={{ borderColor: "var(--divider)" }}>
+                <div className="min-w-[220px] flex-1 text-left">
+                  <div className="text-[14.5px] font-semibold" style={{ color: "var(--text-primary)" }}>Urgent email</div>
+                  <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>When an urgent, AOG or dangerous-goods task is overdue by this long</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={0} max={168} step={0.5} disabled={!canEdit || !em.urgent} value={em.urgent_after_h} className={inp} style={istyle} onChange={(e) => setEm({ ...em, urgent_after_h: Number(e.target.value) })} />
+                  <span className="w-[44px] text-left text-[12.5px]" style={{ color: "var(--text-muted)" }}>hours</span>
+                  <Switch on={em.urgent} disabled={!canEdit} onChange={(v) => setEm({ ...em, urgent: v })} />
+                </div>
+              </div>
+              <div className={row} style={{ borderColor: "var(--divider)" }}>
+                <div className="min-w-[220px] flex-1 text-left">
+                  <div className="text-[14.5px] font-semibold" style={{ color: "var(--text-primary)" }}>Escalate to managers</div>
+                  <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>Email the admins when any task is overdue by this long</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={1} max={720} step={1} disabled={!canEdit || !em.escalate} value={em.escalate_after_h} className={inp} style={istyle} onChange={(e) => setEm({ ...em, escalate_after_h: Number(e.target.value) })} />
+                  <span className="w-[44px] text-left text-[12.5px]" style={{ color: "var(--text-muted)" }}>hours</span>
+                  <Switch on={em.escalate} disabled={!canEdit} onChange={(v) => setEm({ ...em, escalate: v })} />
+                </div>
+              </div>
+              <div className={row} style={{ borderColor: "var(--divider)" }}>
+                <div className="min-w-[220px] flex-1 text-left">
+                  <div className="text-[14.5px] font-semibold" style={{ color: "var(--text-primary)" }}>Weekly manager summary</div>
+                  <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>Pipeline Health for the past 7 days, to the admins</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select disabled={!canEdit || !em.weekly} value={em.weekly_day} onChange={(e) => setEm({ ...em, weekly_day: Number(e.target.value) })} className="rounded-xl border px-3 py-2 text-[14px] font-semibold disabled:opacity-60" style={istyle}>
+                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => <option key={d} value={i}>{d}</option>)}
+                  </select>
+                  <input type="time" disabled={!canEdit || !em.weekly} value={em.weekly_time} className={inp} style={istyle} onChange={(e) => setEm({ ...em, weekly_time: e.target.value })} />
+                  <Switch on={em.weekly} disabled={!canEdit} onChange={(v) => setEm({ ...em, weekly: v })} />
+                </div>
+              </div>
+              <div className={row} style={{ borderColor: "var(--divider)" }}>
+                <div className="min-w-[220px] flex-1 text-left">
+                  <div className="text-[14.5px] font-semibold" style={{ color: "var(--text-primary)" }}>Company time zone</div>
+                  <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>Used for the times and working days above, e.g. Asia/Kuwait, Asia/Amman, Asia/Riyadh</div>
+                </div>
+                <input type="text" disabled={!canEdit} value={em.tz} className={`${inp} !w-[190px]`} style={istyle} onChange={(e) => setEm({ ...em, tz: e.target.value })} />
+              </div>
+            </div>
+          </div>
+
           {canEdit && (
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button type="button" onClick={() => void save()} disabled={saving} className="inline-flex items-center gap-2 rounded-xl px-8 py-3 text-[15px] font-extrabold disabled:opacity-60"
                 style={{ background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save settings
               </button>
-              <button type="button" onClick={() => { if (defaults) { setLimits(defaults.limits); setRem(defaults.reminders) } }}
+              <button type="button" onClick={() => { if (defaults) { setLimits(defaults.limits); setRem(defaults.reminders); setEm(defaults.emails) } }}
                 className="inline-flex items-center gap-2 rounded-xl border-[1.5px] px-5 py-3 text-[14px] font-bold" style={{ borderColor: "var(--text-secondary)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
                 <RotateCcw className="h-4 w-4" /> Reset to defaults
               </button>
