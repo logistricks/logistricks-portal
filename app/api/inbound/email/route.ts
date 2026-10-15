@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
   // n8n can answer "started" straight away (webhook set to respond immediately) — then the portal waits for the
   // outcome itself by watching for the records the workflow writes.
   const answeredEarly = /workflow (was )?started/i.test(text) || !text.trim()
-  const outcome = await waitForOutcome(admin, { clientCode, kind, messageId: merged.message_id ? normId(merged.message_id) : null, filename, since: started - 2000, patient: answeredEarly, deadline: started + 112_000 })
+  const outcome = await waitForOutcome(admin, { clientCode, kind, messageId: merged.message_id ? normId(merged.message_id) : null, filename, fromEmail: merged.from_email ?? null, since: started - 2000, patient: answeredEarly, deadline: started + 112_000 })
   // A carrier quote dropped inside a request belongs to that request: if the workflow could not link it (no RFQ reference
   // in the email, or it never passed the request on), link it here, the same way the "Link to request" action does.
   if (outcome.found && kind === "carrier_reply" && freightRequestId && outcome.result.linked === false && outcome.result.quote_id) {
@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
 /** Looks for what the workflow wrote for this email; polls for it when n8n answered before finishing. */
 async function waitForOutcome(
   admin: any,
-  a: { clientCode: string; kind: string; messageId: string | null; filename: string; since: number; patient: boolean; deadline: number },
+  a: { clientCode: string; kind: string; messageId: string | null; filename: string; fromEmail?: string | null; since: number; patient: boolean; deadline: number },
 ): Promise<{ found: boolean; result: Record<string, any> }> {
   const sinceIso = new Date(a.since).toISOString()
   const look = async (): Promise<Record<string, any> | null> => {
@@ -235,13 +235,24 @@ async function waitForOutcome(
     // requests: the inbound_emails row says how it was matched; freight_requests says what was created.
     let rec: any = null
     if (a.messageId) {
-      const { data } = await admin.from("inbound_emails").select("kind, match_method, match_confidence, match_reason, review_status, freight_request_id").eq("client_code", a.clientCode).eq("message_id", a.messageId).limit(1)
+      const { data } = await admin.from("inbound_emails").select("kind, match_method, match_confidence, match_reason, review_status, freight_request_id").eq("client_code", a.clientCode).in("message_id", [a.messageId, `<${a.messageId}>`]).limit(1)
       rec = data?.[0] ?? null
     }
-    let fq = admin.from("freight_requests").select("id, request_ref, related_request_id, created_at").eq("client_code", a.clientCode).gte("created_at", sinceIso)
-    fq = a.messageId ? fq.eq("message_id", a.messageId) : fq.eq("intake_filename", a.filename).eq("intake_source", "manual")
-    const { data: fr } = await fq.order("created_at", { ascending: false }).limit(1)
-    const req = fr?.[0] ?? null
+    const base = () => admin.from("freight_requests").select("id, request_ref, related_request_id, created_at").eq("client_code", a.clientCode).gte("created_at", sinceIso)
+    // the workflow may store the Message-ID with or without the angle brackets; fall back to the file name, then to the sender
+    let req: any = null
+    if (a.messageId) {
+      const { data } = await base().in("message_id", [a.messageId, `<${a.messageId}>`]).order("created_at", { ascending: false }).limit(1)
+      req = data?.[0] ?? null
+    }
+    if (!req) {
+      const { data } = await base().eq("intake_filename", a.filename).eq("intake_source", "manual").order("created_at", { ascending: false }).limit(1)
+      req = data?.[0] ?? null
+    }
+    if (!req && a.fromEmail) {
+      const { data } = await base().ilike("sender_email", a.fromEmail).order("created_at", { ascending: false }).limit(1)
+      req = data?.[0] ?? null
+    }
     if (!req && !rec?.freight_request_id) return null
     let ref: string | null = req?.request_ref ?? null
     const reqId = req?.id ?? rec?.freight_request_id ?? null

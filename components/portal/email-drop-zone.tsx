@@ -215,14 +215,20 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
     if (staged.file) fd.set("file", staged.file)
     for (const f of staged.extra) fd.append("extra", f)
     fd.set("overrides", JSON.stringify({ from_email: staged.from_email, subject: staged.subject, body_text: staged.body_text, mailbox: staged.mailbox, message_id: staged.message_id }))
+    // never wait forever: after 2 minutes stop and say so (the request may still have been added)
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), 125_000)
     try {
-      const r = await fetch("/api/inbound/email", { method: "POST", body: fd })
+      const r = await fetch("/api/inbound/email", { method: "POST", body: fd, signal: ctl.signal })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok || j.ok === false) { setMsg({ ok: false, text: j.error || `Failed (${r.status})` }); return }
+      if (!r.ok || j.ok === false) { setMsg({ ok: false, text: j.error || (r.status === 504 ? "Processing took too long and was stopped. The request may still have been added. Check Requests and the Intake log." : `Failed (${r.status})`) }); return }
       setMsg({ ok: true, text: describe(kind, j.result) })
       setStaged(null); onDone?.()
-    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "Network error" }) }
-    finally { setBusy("") }
+    } catch (e) {
+      const aborted = e instanceof Error && e.name === "AbortError"
+      setMsg({ ok: false, text: aborted ? "Processing is taking longer than expected. The request may still have been added. Check Requests and the Intake log in a minute." : e instanceof Error ? e.message : "Network error" })
+    }
+    finally { clearTimeout(timer); setBusy("") }
   }
 
   const upd = (p: Partial<Staged>) => setStaged((s) => (s ? { ...s, ...p } : s))
