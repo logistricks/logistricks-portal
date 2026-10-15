@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
 import { BigDashboard, KpiTile, MainCharts, RangeFilter, SalesResults, useDashboard } from "@/components/portal/dashboard-parts"
 import { makeRange, money, hours, type DashRange } from "@/lib/dashboard-range"
+import { PipelineHealth } from "@/components/portal/pipeline-health"
 import { CHART_COLORS } from "@/components/portal/charts"
 import { HeroChecklist, HeroChip, PageHero } from "@/components/portal/page-hero"
 
@@ -167,6 +168,9 @@ export default function DashboardPage() {
         <KpiTile loading={dashLoading && !dash} label="Quoted value" kpi={dash?.kpis.quotedValue} format={money} spark={col("value")} color={CHART_COLORS[3]} hint="Sum of final prices on quotations sent" href="/reports" />
         <KpiTile loading={dashLoading && !dash} label="Median time to quote" kpi={dash?.kpis.hoursToQuote} format={hours} lowerIsBetter color={CHART_COLORS[2]} hint="Request received → first quotation prepared" href="/reports" />
       </div>
+
+      {/* How well requests are being handled */}
+      <PipelineHealth range={range} />
 
       {/* The 3 main charts */}
       <MainCharts data={dash} loading={dashLoading} />

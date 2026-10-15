@@ -17,6 +17,7 @@ export const DEFAULT_LIMITS = {
   followup_h: 72,      // quotation sent, no outcome → follow up with the client
   approval_h: 8,       // waiting for approval
   daily_goal: 10,
+  health_target: 85,   // Pipeline Health score to aim for (%)
 }
 export type TaskLimits = typeof DEFAULT_LIMITS
 

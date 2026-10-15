@@ -38,9 +38,11 @@ export async function PUT(req: NextRequest) {
     if (b.limits && typeof b.limits === "object") {
       const out: Record<string, number> = {}
       for (const k of Object.keys(DEFAULT_LIMITS)) {
+        const whole = k === "daily_goal" || k === "health_target"
+        const cap = k === "daily_goal" ? 500 : k === "health_target" ? 100 : 24 * 60
         const n = Number(b.limits[k])
-        if (!Number.isFinite(n) || n <= 0 || n > (k === "daily_goal" ? 500 : 24 * 60)) return NextResponse.json({ error: `"${k}" must be a positive number${k === "daily_goal" ? " up to 500" : " of hours (max 1440)"}.` }, { status: 400 })
-        out[k] = k === "daily_goal" ? Math.round(n) : Math.round(n * 100) / 100
+        if (!Number.isFinite(n) || n <= 0 || n > cap) return NextResponse.json({ error: `"${k}" must be a positive number${whole ? ` up to ${cap}` : " of hours (max 1440)"}.` }, { status: 400 })
+        out[k] = whole ? Math.round(n) : Math.round(n * 100) / 100
       }
       await save("task_limits", out)
     }

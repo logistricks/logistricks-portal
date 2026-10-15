@@ -17,6 +17,7 @@ const LIMIT_ROWS: { key: string; label: string; hint: string; unit: string }[] =
   { key: "followup_h", label: "Follow up with the requester", hint: "From the quotation being sent", unit: "hours" },
   { key: "approval_h", label: "Decide an approval", hint: "From the approval being requested", unit: "hours" },
   { key: "daily_goal", label: "Daily goal", hint: "Tasks to clear each day (the progress ring)", unit: "tasks" },
+  { key: "health_target", label: "Pipeline Health target", hint: "The score to aim for on the dashboard", unit: "%" },
 ]
 
 function Switch({ on, onChange, disabled }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -84,7 +85,7 @@ export default function TaskSetupPage() {
                     <div className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>{l.hint}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input type="number" min={l.key === "daily_goal" ? 1 : 0.25} step={l.key === "daily_goal" ? 1 : 0.25} disabled={!canEdit} value={limits[l.key] ?? ""} className={inp} style={istyle}
+                    <input type="number" min={l.key === "daily_goal" || l.key === "health_target" ? 1 : 0.25} max={l.key === "health_target" ? 100 : undefined} step={l.key === "daily_goal" || l.key === "health_target" ? 1 : 0.25} disabled={!canEdit} value={limits[l.key] ?? ""} className={inp} style={istyle}
                       onChange={(e) => setLimits({ ...limits, [l.key]: e.target.value === "" ? NaN : Number(e.target.value) })} />
                     <span className="w-[44px] text-left text-[12.5px]" style={{ color: "var(--text-muted)" }}>{l.unit}</span>
                   </div>
