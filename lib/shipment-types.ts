@@ -68,7 +68,7 @@ export const TYPE_FIELDS: Record<ShipmentType, FieldSpec[]> = {
     { key: "equipment", label: "Equipment", group: "Cargo", required: true },
     { key: "weight", label: "Gross weight", group: "Measurements", required: false },
     { key: "cbm", label: "CBM", group: "Measurements", required: false },
-    readyDate,
+    temperature, readyDate,
   ],
   sea_lcl: [
     incoterm, pickup,
@@ -80,7 +80,7 @@ export const TYPE_FIELDS: Record<ShipmentType, FieldSpec[]> = {
     { key: "quantity", label: "Quantity", group: "Cargo", required: false },
     { key: "package_type", label: "Package type", group: "Cargo", required: false },
     { key: "dimensions", label: "Dimensions", group: "Measurements", required: false },
-    readyDate,
+    temperature, readyDate,
   ],
   land: [
     incoterm, pickup,
