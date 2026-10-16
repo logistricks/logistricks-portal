@@ -7,7 +7,7 @@ import { allLegs, legsSummary, TYPE_LABEL, type ShipmentType } from "@/lib/shipm
 import { randomBytes } from "crypto"
 import { applyTemplate } from "@/lib/template-render"
 import { htmlToPlainText } from "@/lib/quotation-render"
-import { carrierFacingSpecial, forCarrier, joinList, toStringList } from "@/lib/special"
+import { carrierFacingSpecial, forCarrier, forLegType, joinList, toStringList } from "@/lib/special"
 import { isExw, hasText } from "@/lib/shipment-labels"
 
 export interface CarrierContact { id: number; carrier_id: number; carrier_name: string; person_name: string; email: string; cc: string[] }
@@ -30,7 +30,7 @@ const when = (v: unknown) => { try { return v ? new Date(String(v)).toLocaleStri
 
 export function rfqVars(row: Record<string, any>, carrier: { carrier_name: string; person_name: string; email: string }): Record<string, string> {
   const s = (v: unknown) => (v == null ? "" : String(v))
-  const list = (v: unknown) => toStringList(v).join("\n")
+  const list = (v: unknown) => forLegType(toStringList(v), s(row.shipment_type)).join("\n")
   const pickup = s(row.pickup_address).trim()
   const exw = isExw(row.incoterm)
   return {
@@ -46,7 +46,7 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),
     dgr: row.dgr ? "Yes" : "", aog: row.aog ? "Yes" : "",
-    request_ref: s(row.request_ref), special_requirements: carrierFacingSpecial(forCarrier(toStringList(row.special_requirements), [row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, joinList(row.equipment), row.weight, row.quantity, row.dimensions, row.preferred_carrier])).join("\n"), availability_questions: list(row.availability_questions), missing_fields: list(row.missing_fields),
+    request_ref: s(row.request_ref), special_requirements: carrierFacingSpecial(forLegType(forCarrier(toStringList(row.special_requirements), [row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, joinList(row.equipment), row.weight, row.quantity, row.dimensions, row.preferred_carrier, row.temperature_control, row.cargo_ready_date, row.truck_type, row.cbm, row.package_type]), s(row.shipment_type))).join("\n"), availability_questions: list(row.availability_questions), missing_fields: list(row.missing_fields),
     carrier_name: carrier.carrier_name, contact_name: carrier.person_name || "there", carrier_email: carrier.email, carrier_phone: "",
   }
 }

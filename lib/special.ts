@@ -88,7 +88,8 @@ export function joinList(v: unknown, sep = ", "): string {
 const COMMERCIAL = /\b(target|budget|competitor|competing|benchmark|beat|match)\b.*\b(rate|price|quote|offer|usd|eur|\$|€)|\b(rate|price)\s+to\s+beat\b|\b(target|budget)\s+(rate|price)\b/i
 
 export function forCarrier(items: string[], fields: unknown[]): string[] {
-  items = items.filter((it) => !COMMERCIAL.test(it))
+  // commercial intel and "Booked leg" notes (what another forwarder handles) are the client's own business, not for a carrier
+  items = items.filter((it) => !COMMERCIAL.test(it) && !/^\s*booked leg\b/i.test(it))
   const internal = /^(carrier|preferred carrier|shipping line|line|airline)\s+(preference|preferences|to avoid|avoid)\b/i
   return dropRepeats(items, fields).filter((it) => {
     const p = parseSpecial(it)
@@ -127,4 +128,16 @@ export function carrierFacingSpecial(items: string[]): string[] {
     out.push(hit ? hit[1](v) : `${label}: ${v}`)
   }
   return Array.from(new Set(out))
+}
+
+/**
+ * Items that only make sense for another kind of leg are dropped for this one: a trucker does not need the free time at the
+ * destination port or an on-carriage address, an airline does not need container free time. Sea legs keep everything.
+ * `type` is the shipment type of the leg the email is about (air | sea_fcl | sea_lcl | land); unknown keeps everything.
+ */
+export function forLegType(items: string[], type: string | null | undefined): string[] {
+  const seaOnly = /free time|detention|demurrage|\bBL\b|bill of lading|telex|\bPOD\b|\bPOL\b|container|pre-carriage|on-carriage|inland (pickup|delivery)/i
+  if (type === "land") return items.filter((it) => !seaOnly.test(it.replace(/reefer container/gi, "")))
+  if (type === "air") return items.filter((it) => !/free time|detention|demurrage|\bBL\b|bill of lading|telex|\bPOD\b|\bPOL\b|container/i.test(it))
+  return items
 }
