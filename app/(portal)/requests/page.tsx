@@ -1,6 +1,7 @@
 "use client"
 
 import { HeroChip, PageHero } from "@/components/portal/page-hero"
+import { TYPE_LABEL } from "@/lib/shipment-types"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
@@ -488,6 +489,7 @@ export default function RequestsPage() {
                   </p>
                   <p className="max-w-full truncate text-[13.5px]" style={{ color: "var(--text-secondary)" }}>{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</p>
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {r.shipmentType && <Chip tone="blue">{TYPE_LABEL[r.shipmentType]}</Chip>}
                     {lateChip(r)}
                     {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
                     {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
@@ -565,6 +567,7 @@ export default function RequestsPage() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 font-mono text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                       {r.requestRef ?? (r.id ? `LT-${r.id}` : "")}
+                      {r.shipmentType && <span className="mt-0.5 block text-[10.5px] font-bold uppercase tracking-wide" style={{ color: "var(--brand-accent)" }}>{TYPE_LABEL[r.shipmentType]}</span>}
                     </td>
                     <td className="px-3 py-4">
                       <p className="flex items-center justify-center gap-1.5 font-medium" style={{ color: "var(--text-primary)" }}>

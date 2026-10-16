@@ -39,6 +39,7 @@ import {
   UrgencyBadge,
 } from "@/components/portal/badges"
 import { IntakeBadge } from "@/components/portal/intake-badge"
+import { ShipmentTypeChip, TypedCargoDetails } from "@/components/portal/cargo-details"
 import { RequestAttachments } from "@/components/portal/request-attachments"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
@@ -558,10 +559,36 @@ export default function RequestDetailPage() {
                   { label: "Preferred Carrier",     camel: "preferredCarrier" },
                 ]
 
+                const lockBadge = fieldLockReason ? (
+                  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
+                    <Lock className="h-3 w-3" />
+                    {carrierRfqSent ? "Locked" : "Awaiting reply"}
+                  </span>
+                ) : null
+                const exwBanner = exwMissing ? (
+                  <div className="mx-5 mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}>
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>Needs attention: incoterm is EXW but there is no pickup address from the requester or a carrier quote. Add one below or ask the requester.</span>
+                  </div>
+                ) : null
+
+                // Typed request (Air / Sea FCL / Sea LCL / Land): grouped, type-specific fields
+                if (request.shipmentType) {
+                  return (
+                    <TypedCargoDetails request={request} type={request.shipmentType} lockReason={fieldLockReason} lockBadge={lockBadge}
+                      banner={<><div className="px-5 pt-3"><FieldConfirmation requestId={request.id} refreshKey={fcKey} /></div>{exwBanner}</>}
+                      onChanged={load} onFieldSaved={() => setFcKey((n) => n + 1)} />
+                  )
+                }
+
                 return (
                   <div className="ds-card">
                     <div className="ds-card-header">
-                      <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
+                        <ShipmentTypeChip requestId={request.id} type={null} locked={carrierRfqSent} onChanged={load} />
+                      </div>
                       <div className="flex items-center gap-2">
                         {missingCount > 0 && (
                           <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
