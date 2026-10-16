@@ -436,7 +436,8 @@ export default function RequestDetailPage() {
   const missingCount = (request.missingFields ?? []).filter((f) => !notNeeded(String(f))).length
   const seaOnly = isSeaOnly(request.modes)
   const curIncoterm = fieldValues.incoterm ?? request.incoterm
-  const exwMissing = exwNeedsAddress(curIncoterm, fieldValues.pickupAddress ?? request.pickupAddress)
+  // with several legs each leg has its own incoterm: the missing items are listed under the leg tabs instead
+  const exwMissing = !(request.legs?.length) && exwNeedsAddress(curIncoterm, fieldValues.pickupAddress ?? request.pickupAddress)
   const replyThread: ConversationMessage[] = Array.isArray(request.conversation) ? (request.conversation as ConversationMessage[]) : []
   const emailTemplates  = templates.filter((t) => t.type === "Email"    && t.active)
   const whatsappTemplates = templates.filter((t) => t.type === "WhatsApp" && t.active)

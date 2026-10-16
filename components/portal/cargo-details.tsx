@@ -298,6 +298,11 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
           </div>
         )}
       </div>
+      {legs.length > 0 && missing.length > 0 && (
+        <p className="mx-5 mt-2 rounded-lg px-3 py-2 text-center text-xs font-semibold" style={{ background: "rgba(245,158,11,0.1)", color: "#b45309" }}>
+          Needed to quote: {missing.join(", ")}
+        </p>
+      )}
       {legs.length > 0 && (
         <p className="px-5 pt-2 text-center text-[11px]" style={{ color: "var(--text-muted)" }}>
           Multi-leg request: each leg has its own incoterm and pickup; urgency, preferred carrier and special requirements are shared by all legs. A leg the requester has already booked is not a leg, it belongs in the special requirements.
