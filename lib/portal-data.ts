@@ -187,6 +187,8 @@ export type FreightRequest = {
   /** Active (not disregarded) carrier quotes; shown next to the Quoted status. */
   activeQuoteCount?: number
   specialRequirements: string[]
+  /** Internal notes: only the team sees them, never sent to carriers (freight_requests.internal_notes). */
+  notes?: string[]
   availabilityQuestions: string[]
   missingFields: string[]
   suggestedReply: string | null

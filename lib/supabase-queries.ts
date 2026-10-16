@@ -50,6 +50,7 @@ export interface DbFreightRequest {
   status: string
   is_done: boolean
   special_requirements: string[]
+  internal_notes?: unknown
   availability_questions: string[]
   missing_fields: string[]
   suggested_reply: string | null
@@ -334,6 +335,7 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     specialRequirements:  dropRepeats(toStringList(row.special_requirements), [
       row.incoterm, row.pickup_address, row.bl_type, row.cargo_type, joinList(row.equipment), row.weight, row.quantity, row.dimensions, row.preferred_carrier,
     ]),
+    notes:             toStringList(row.internal_notes),
     availabilityQuestions:toStringList(row.availability_questions),
     missingFields:     Array.isArray(row.missing_fields)           ? row.missing_fields           as string[] : [],
     suggestedReply:    row.suggested_reply ?? null,

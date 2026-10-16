@@ -2,6 +2,7 @@
 
 import { FieldConfirmation } from "@/components/portal/field-confirmation"
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
+import { RequestNotesCard } from "@/components/portal/request-notes"
 import { SendRfqDialog } from "@/components/portal/send-rfq-dialog"
 import { RequestOutcomePanel } from "@/components/portal/request-outcome-panel"
 import { RequestTimeline } from "@/components/portal/request-timeline"
@@ -638,6 +639,9 @@ export default function RequestDetailPage() {
                 reference={request.requestRef}
                 openState={[specialOpen, setSpecialOpen]}
               />
+
+              {/* Notes: only the team sees these */}
+              <RequestNotesCard requestId={request.id} notes={request.notes ?? []} onChanged={load} />
 
               {/* Files that came with the email */}
               <RequestAttachments requestId={request.id} files={request.attachments ?? []} />

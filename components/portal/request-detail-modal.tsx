@@ -9,6 +9,7 @@ import { defaultTemplateFor } from "@/lib/template-defaults"
 import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 import { carrierFacingSpecial, forCarrier } from "@/lib/special"
 import { SpecialRequestsCard } from "@/components/portal/special-requests"
+import { RequestNotesCard } from "@/components/portal/request-notes"
 import { RequestTimeline } from "@/components/portal/request-timeline"
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
 import { applyTemplate, templateHasRef } from "@/lib/template-render"
@@ -785,6 +786,8 @@ export function RequestDetailModal({
                   reference={request.requestRef}
                   openState={[specialOpen, setSpecialOpen]}
                 />
+
+                <RequestNotesCard requestId={request.id} notes={live.notes ?? request.notes ?? []} onChanged={reloadLive} />
 
                 <RequestAttachments requestId={request.id} files={request.attachments ?? []} />
 

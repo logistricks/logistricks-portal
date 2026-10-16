@@ -72,8 +72,10 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { id, aog, dgr, status, fields } = body as {
+  const { id, aog, dgr, status, fields, notes } = body as {
     id?: string
+    // internal notes (replaces the whole list)
+    notes?: string[]
     aog?: boolean
     dgr?: boolean
     status?: string
@@ -107,6 +109,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
   }
+  if (Array.isArray(notes)) patch.internal_notes = notes.filter((n) => typeof n === "string").map((n) => n.trim().slice(0, 1000)).filter(Boolean).slice(0, 50)
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No valid fields provided" }, { status: 400 })
   }
@@ -172,6 +175,8 @@ export async function PATCH(req: NextRequest) {
       requestId:   id,
       meta:        fields,
     })
+  } else if (patch.internal_notes && Object.keys(patch).length === 1) {
+    void logActivity({ clientCode: session.clientCode, eventType: "request_field_edited", actor: session.username, description: "Request notes updated", requestId: id })
   } else {
     const flags = Object.entries(patch)
       .map(([k, v]) => `${k.toUpperCase()} ${v ? "on" : "off"}`)
@@ -186,6 +191,6 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
-  const undo = await saveUndo(admin, session, patch.status ? "Request status changed" : fields && Object.keys(fields).length ? "Request fields updated" : "Request flags updated", restoreRows("freight_requests", before))
+  const undo = await saveUndo(admin, session, patch.status ? "Request status changed" : patch.internal_notes && Object.keys(patch).length === 1 ? "Notes updated" : fields && Object.keys(fields).length ? "Request fields updated" : "Request flags updated", restoreRows("freight_requests", before))
   return NextResponse.json({ ok: true }, { headers: undo })
 }
