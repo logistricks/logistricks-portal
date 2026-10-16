@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { TemplatesPanel } from "@/components/portal/templates-panel"
 import { CarriersPanel } from "@/components/portal/carriers-panel"
+import { SHIPMENT_TYPES, TYPE_LABEL, criticalFor, criticalOptions, defaultCritical, type CriticalConfig, type ShipmentType } from "@/lib/shipment-types"
 import { SmtpPanel } from "@/components/portal/smtp-panel"
 import { EmailSourcesPanel } from "@/components/portal/email-sources-panel"
 import { NotificationTemplatesPanel } from "@/components/portal/notification-templates-panel"
@@ -20,16 +21,6 @@ import { NotificationTemplatesPanel } from "@/components/portal/notification-tem
 type ReceiverEmail  = { id: string; r_mail: string; active: boolean; label: string | null }
 type WhatsappNumber = { id: string; number: string; active: boolean; label: string | null }
 type UserRole       = "admin" | "operator" | "viewer"
-
-const CRITICAL_FIELD_OPTIONS = [
-  { key: "cargo_type", label: "Cargo Type" },
-  { key: "weight",     label: "Weight / Tonnage" },
-  { key: "dimensions", label: "Dimensions" },
-  { key: "equipment",  label: "Equipment / Container" },
-  { key: "incoterm",   label: "Incoterm" },
-  { key: "bl_type",    label: "BL Type" },
-  { key: "pickup_address", label: "Pickup address (only when EXW)" },
-]
 
 type SectionKey = "emails" | "smtp" | "whatsapp" | "automation" | "approval" | "theme"
 
@@ -262,31 +253,42 @@ function ChannelRow({ primary, secondary, active, busy, onToggle, onDelete }: {
   )
 }
 
-// ── Critical fields picker ─────────────────────────────────────────────────────
+// ── Critical fields picker (per shipment type) ─────────────────────────────────
 function CriticalFieldsPicker({ initial, onSave, onCancel }: {
-  initial: string[]; onSave: (f: string[]) => void; onCancel: () => void
+  initial: CriticalConfig | null; onSave: (c: CriticalConfig) => void; onCancel: () => void
 }) {
-  const [selected, setSelected] = useState<string[]>(initial)
+  const [type, setType] = useState<ShipmentType>("air")
+  const [cfg, setCfg] = useState<CriticalConfig>(() => Object.fromEntries(SHIPMENT_TYPES.map((t) => [t, criticalFor(t, initial).filter((k) => !["origin", "destination"].includes(k))])) as CriticalConfig)
+  const selected = cfg[type] ?? []
   function toggle(key: string) {
-    setSelected((s) => s.includes(key) ? s.filter((k) => k !== key) : [...s, key])
+    setCfg((c) => { const cur = c[type] ?? []; return { ...c, [type]: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] } })
   }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl shadow-2xl" style={{ background: "var(--card-bg)" }}>
+      <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: "var(--card-bg)" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--divider)" }}>
           <div>
-            <h3 className="font-bold" style={{ color: "var(--text-primary)" }}>Select Critical Fields</h3>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>Sending is blocked when these are missing</p>
+            <h3 className="font-bold" style={{ color: "var(--text-primary)" }}>Critical fields by type</h3>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>What must be known before a request of that type can be quoted</p>
           </div>
-          <button onClick={onCancel} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "" }}
-          >
+          <button onClick={onCancel} className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors" style={{ color: "var(--text-muted)" }}>
             <X className="h-4 w-4" />
           </button>
         </div>
+        <div className="flex flex-wrap justify-center gap-1.5 px-4 pt-4">
+          {SHIPMENT_TYPES.map((t) => (
+            <button key={t} type="button" onClick={() => setType(t)} className="rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors"
+              style={{ borderColor: type === t ? "var(--brand-accent)" : "var(--card-border)", background: type === t ? "var(--brand-accent)" : "transparent", color: type === t ? "#fff" : "var(--text-primary)" }}>
+              {TYPE_LABEL[t]}
+            </button>
+          ))}
+        </div>
         <div className="p-4 space-y-1.5">
-          {CRITICAL_FIELD_OPTIONS.map((opt) => (
+          <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm opacity-70" style={{ color: "var(--text-primary)" }}>
+            <CheckSquare className="h-4 w-4 shrink-0" style={{ color: "var(--text-muted)" }} />
+            <span>{type === "land" ? "From and To" : type === "air" ? "Airport of loading and destination" : "Port of loading and discharge"} <span className="text-xs" style={{ color: "var(--text-muted)" }}>— always required</span></span>
+          </div>
+          {criticalOptions(type).map((opt) => (
             <button key={opt.key} type="button" onClick={() => toggle(opt.key)}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
               style={{ color: "var(--text-primary)" }}
@@ -297,18 +299,19 @@ function CriticalFieldsPicker({ initial, onSave, onCancel }: {
                 ? <CheckSquare className="h-4 w-4 shrink-0" style={{ color: "var(--brand-accent)" }} />
                 : <Square className="h-4 w-4 shrink-0" style={{ color: "var(--text-muted)" }} />
               }
-              <span className={selected.includes(opt.key) ? "font-semibold" : ""}>{opt.label}</span>
+              <span className={selected.includes(opt.key) ? "font-semibold" : ""}>{opt.label}{opt.hint && <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}> — {opt.hint}</span>}</span>
             </button>
           ))}
+          <button type="button" onClick={() => setCfg((c) => ({ ...c, [type]: defaultCritical(type).filter((k) => !["origin", "destination"].includes(k)) }))} className="pt-1 text-xs font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>Reset {TYPE_LABEL[type]} to the standard fields</button>
         </div>
         <div className="flex gap-3 px-5 py-4" style={{ borderTop: "1px solid var(--divider)" }}>
           <button onClick={onCancel} className="flex-1 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
             style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "transparent" }}
           >Cancel</button>
-          <button onClick={() => onSave(selected)} disabled={selected.length === 0}
-            className="flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-40"
+          <button onClick={() => onSave(cfg)}
+            className="flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors"
             style={{ background: "var(--brand-accent)" }}
-          >Save ({selected.length})</button>
+          >Save</button>
         </div>
       </div>
     </div>
@@ -350,7 +353,7 @@ function SettingsInner() {
   // Automation state
   const [autoSend, setAutoSend]                           = useState(false)
   const [requireCritical, setRequireCritical]             = useState(false)
-  const [criticalFields, setCriticalFields]               = useState<string[]>([])
+  const [criticalByType, setCriticalByType]               = useState<CriticalConfig | null>(null)
   const [autoReply, setAutoReply]                         = useState(false)
   const [flagsLoading, setFlagsLoading]                   = useState(true)
   const [autoSendBusy, setAutoSendBusy]                   = useState(false)
@@ -394,7 +397,7 @@ function SettingsInner() {
       if (data && !data.error) {
         setAutoSend(data.allow_auto_send_to_carrier ?? false)
         setRequireCritical(data.require_critical_data ?? false)
-        setCriticalFields(data.critical_fields ?? [])
+        setCriticalByType((data.critical_fields_by_type as CriticalConfig | null) ?? null)
         setAutoReply(data.auto_reply_enabled ?? false)
         setAutoReplyMissing(data.auto_reply_missing_enabled ?? false)
         setAutoReplyComplete(data.auto_reply_complete_enabled ?? false)
@@ -558,7 +561,6 @@ function SettingsInner() {
   }
   async function toggleRequireCritical() {
     const next = !requireCritical
-    if (next && criticalFields.length === 0) { setShowPicker(true); return }
     setRequireCritBusy(true)
     const patch: Record<string, unknown> = { require_critical_data: next }
     if (!next) { patch.auto_reply_missing_enabled = false; patch.auto_reply_complete_enabled = false }
@@ -569,11 +571,11 @@ function SettingsInner() {
     }
     setRequireCritBusy(false)
   }
-  async function saveCriticalFields(fields: string[]) {
+  async function saveCriticalFields(cfg: CriticalConfig) {
     setRequireCritBusy(true)
-    const err = await patchSettings({ require_critical_data: true, critical_fields: fields })
-    if (err) setError(err)
-    else { setCriticalFields(fields); setRequireCritical(true) }
+    const err = await patchSettings({ critical_fields_by_type: cfg })
+    if (err) setError(/critical_fields_by_type/.test(err) ? "Run migration 077 in Supabase first." : err)
+    else setCriticalByType(cfg)
     setShowPicker(false); setRequireCritBusy(false)
   }
 
@@ -771,25 +773,24 @@ function SettingsInner() {
                 {requireCritical && (
                   <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "var(--divider)", background: "var(--table-header-bg)" }}>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-                        Critical fields <span className="normal-case font-normal">({criticalFields.length} selected)</span>
-                      </p>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>Critical fields by type</p>
                       <button onClick={() => setShowPicker(true)} className="text-xs font-semibold hover:underline" style={{ color: "var(--brand-accent)" }}>Edit</button>
                     </div>
-                    {criticalFields.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {criticalFields.map((key) => {
-                          const opt = CRITICAL_FIELD_OPTIONS.find((o) => o.key === key)
-                          return opt ? (
-                            <span key={key} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)", border: "1px solid rgb(var(--brand-accent-rgb) / 0.25)" }}>
-                              <AlertTriangle className="h-3 w-3" />{opt.label}
-                            </span>
-                          ) : null
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>No fields selected. Click Edit to choose.</p>
-                    )}
+                    <div className="space-y-2">
+                      {SHIPMENT_TYPES.map((t) => (
+                        <div key={t}>
+                          <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{TYPE_LABEL[t]}</p>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {criticalOptions(t).filter((o) => criticalFor(t, criticalByType).includes(o.key)).map((o) => (
+                              <span key={o.key} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)", color: "var(--brand-accent)", border: "1px solid rgb(var(--brand-accent-rgb) / 0.25)" }}>
+                                <AlertTriangle className="h-3 w-3" />{o.label}
+                              </span>
+                            ))}
+                            {criticalOptions(t).every((o) => !criticalFor(t, criticalByType).includes(o.key)) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Only the route</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                     <div className="mt-3 flex items-start justify-between gap-4 pt-3" style={{ borderTop: "1px solid var(--divider)" }}>
                       <div>
                         <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Auto-reply when critical data is missing</p>
@@ -968,7 +969,7 @@ function SettingsInner() {
 
       {showPicker && (
         <CriticalFieldsPicker
-          initial={criticalFields}
+          initial={criticalByType}
           onSave={saveCriticalFields}
           onCancel={() => setShowPicker(false)}
         />

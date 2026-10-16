@@ -17,6 +17,7 @@ import { sessionWithRole } from "@/lib/api-admin"
 import { loadSmtp } from "@/lib/notify"
 import { logActivity } from "@/lib/log-activity"
 import { defaultTemplateFor } from "@/lib/template-defaults"
+import { loadCriticalConfig } from "@/lib/critical-config"
 import { allLegs, rowForLeg, typedMissing, TYPE_LABEL } from "@/lib/shipment-types"
 import { loadCarrierContacts, registerRfqRows, renderRfqDraft } from "@/lib/rfq-send"
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const row = await loadRequest(admin, s.session.clientCode, id)
   if (!row) return NextResponse.json({ error: "Request not found" }, { status: 404 })
 
-  const [cfg, tpls] = await Promise.all([loadSmtp(admin, s.session.clientCode), emailTemplates(admin, s.session.clientCode)])
+  const [cfg, tpls, crit] = await Promise.all([loadSmtp(admin, s.session.clientCode), emailTemplates(admin, s.session.clientCode), loadCriticalConfig(admin, s.session.clientCode)])
   const legList = allLegs(row)
   const sel = legParam(req.nextUrl.searchParams.get("leg"), legList.length)
   const legRow = sel.all ? row : rowForLeg(row, sel.index)
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     legs: legList.length > 1 ? legList.map((l, i) => { const r = rowForLeg(row, i); return { index: i, type: l.type, label: `Leg ${i + 1} · ${l.type ? TYPE_LABEL[l.type] : "No type"}`, modes: modesOf(r), origin_country: r.origin_country ?? "", destination_country: r.destination_country ?? "" } }) : [],
     smtp: { configured: !!cfg, enabled: !!cfg?.enabled },
     // typed requests only: the required fields still missing for the request's type (null = older, untyped request)
-    missing_required: typedMissing(row),
+    missing_required: typedMissing(row, crit),
     n8n: !!(process.env.N8N_RFQ_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_RFQ_WEBHOOK_URL),
     templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default, default_sea: !!t.default_sea, default_air: !!t.default_air, default_land: !!t.default_land, default_multi: !!t.default_multi })),
     default_template_id: defaultTemplateFor(tpls, tplModes)?.template_id ?? null,

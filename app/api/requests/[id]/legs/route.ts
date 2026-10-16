@@ -11,6 +11,7 @@ import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { logActivity } from "@/lib/log-activity"
 import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
+import { loadCriticalConfig } from "@/lib/critical-config"
 import { extraLegs, isShipmentType, LEG_COLUMNS, typedMissing, TYPE_LABEL, type LegData } from "@/lib/shipment-types"
 import { chargeableWeight } from "@/lib/shipment-calc"
 
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } else return NextResponse.json({ error: "Unknown action" }, { status: 400 })
 
   const before = await snapshot(admin, "freight_requests", { id, client_code: row.client_code }, "id,client_code,legs,missing_fields")
-  const missing = typedMissing({ ...row, legs })
+  const missing = typedMissing({ ...row, legs }, await loadCriticalConfig(admin, s.session.clientCode))
   const patch = { legs: legs.length ? legs : null, ...(missing ? { missing_fields: missing } : {}) }
   const { error } = await admin.from("freight_requests").update(patch).eq("id", id).eq("client_code", row.client_code)
   if (error) {

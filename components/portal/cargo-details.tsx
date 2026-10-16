@@ -1,13 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Check, ChevronDown, CheckCircle2, Loader2, Lock, Pencil, Plus, Tag } from "lucide-react"
 import type { FreightRequest } from "@/lib/portal-data"
 import { isExw } from "@/lib/shipment-labels"
 import { calculatedCbm, chargeableWeight } from "@/lib/shipment-calc"
 import {
-  FIELD_COLUMNS, PACKAGE_TYPES, SHIPMENT_TYPES, TRUCK_TYPES, TYPE_FIELDS, TYPE_LABEL, quotableCheck,
-  type FieldGroup, type FieldKey, type ShipmentType,
+  FIELD_COLUMNS, PACKAGE_TYPES, SHIPMENT_TYPES, TRUCK_TYPES, TYPE_FIELDS, TYPE_LABEL, criticalFor, quotableCheck,
+  type CriticalConfig, type FieldGroup, type FieldKey, type ShipmentType,
 } from "@/lib/shipment-types"
 
 // request column -> where the value lives on the FreightRequest the page loaded
@@ -17,6 +17,16 @@ const COL_TO_CAMEL: Record<string, keyof FreightRequest> = {
   incoterm: "incoterm", pickup_address: "pickupAddress", bl_type: "blType", preferred_carrier: "preferredCarrier",
   cbm: "cbm", chargeable_weight: "chargeableWeight", chargeable_weight_stated: "chargeableWeightStated",
   package_type: "packageType", truck_type: "truckType", temperature_control: "temperatureControl", cargo_ready_date: "cargoReadyDate",
+}
+// the client's per-type critical fields (Settings), loaded once; null = built-in rules
+let critCache: CriticalConfig | null | undefined
+function useCriticalConfig(): CriticalConfig | null {
+  const [cfg, setCfg] = useState<CriticalConfig | null>(critCache ?? null)
+  useEffect(() => {
+    if (critCache !== undefined) return
+    fetch("/api/settings").then((r) => (r.ok ? r.json() : null)).then((d) => { critCache = (d?.critical_fields_by_type as CriticalConfig | null) ?? null; setCfg(critCache) }).catch(() => {})
+  }, [])
+  return cfg
 }
 const clean = (v: unknown) => { const s = String(v ?? "").trim(); return s === "—" || s === "-" ? "" : s }
 const COLUMN_HINT: Record<string, string> = { origin_city: "City / airport / port", origin_country: "Country", destination_city: "City / airport / port", destination_country: "Country" }
@@ -166,17 +176,19 @@ function Row({ spec, vals, lockReason, persist, onSaved }: { spec: RowSpec; vals
   )
 }
 
-function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { first: boolean }): Record<FieldGroup, RowSpec[]> {
+function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { first: boolean }, cfg: CriticalConfig | null): Record<FieldGroup, RowSpec[]> {
   const exw = isExw(vals.incoterm)
-  const check = quotableCheck(type, vals)
+  const rules = criticalFor(type, cfg)
+  const combined = rules.includes("dims_or_cbm")
+  const check = quotableCheck(type, vals, cfg)
   const rows: Record<FieldGroup, RowSpec[]> = { Route: [], Cargo: [], Measurements: [], Conditions: [] }
   for (const f of TYPE_FIELDS[type]) {
-    const isReq = f.required === true || (f.required === "exw" && exw) || (f.required === "dims_or_cbm" && check.missingKeys.includes("dimensions"))
+    const isReq = f.key === "pickup_address" ? exw && rules.includes(f.key) : combined && (f.key === "dimensions" || f.key === "cbm") ? check.missingKeys.includes("dimensions") : rules.includes(f.key)
     rows[f.group].push({
       key: f.key, fieldKey: f.key, label: f.label, columns: FIELD_COLUMNS[f.key], required: isReq,
       list: PICKLISTS[f.key], calculated: f.calculated,
       suggest: f.key === "cbm" ? calculatedCbm(vals) : f.key === "chargeable_weight" ? chargeableWeight(vals) : null,
-      hint: f.key === "pickup_address" ? "— only needed for EXW" : f.key === "chargeable_weight" ? "— calculated from dimensions" : f.key === "dimensions" || f.key === "cbm" ? (f.required === "dims_or_cbm" ? "— or give the other" : "—") : "—",
+      hint: f.key === "pickup_address" ? "— only needed for EXW" : f.key === "chargeable_weight" ? "— calculated from dimensions" : f.key === "dimensions" || f.key === "cbm" ? (combined ? "— or give the other" : "—") : "—",
     })
   }
   if (opts.first) {
@@ -211,6 +223,7 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
     return out
   }, [request])
   const legs = request.legs ?? []
+  const crit = useCriticalConfig()
   const [edits, setEdits] = useState<Record<string, string>>({})
   const [legEdits, setLegEdits] = useState<Record<number, Record<string, string>>>({})
   const [active, setActive] = useState(0)
@@ -222,12 +235,12 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
   const legVals = (i: number): Record<string, string> => ({ ...Object.fromEntries(Object.entries(legs[i - 1] ?? {}).map(([k, v]) => [k, clean(v)])), ...(legEdits[i] ?? {}) })
   const legType = (i: number) => (i === 0 ? type : (legs[i - 1]?.shipment_type as ShipmentType))
   // readiness over ALL legs
-  const checks = [quotableCheck(type, first), ...legs.map((l, i) => quotableCheck(legType(i + 1), { ...legVals(i + 1) }))]
+  const checks = [quotableCheck(type, first, crit), ...legs.map((l, i) => quotableCheck(legType(i + 1), { ...legVals(i + 1) }, crit))]
   const missing = checks.flatMap((c, i) => c.missing.map((m) => (legs.length ? `Leg ${i + 1}: ${m}` : m)))
 
   const vals = tab === 0 ? first : legVals(tab)
   const curType = legType(tab)
-  const rows = buildRows(curType, vals, { first: tab === 0 })
+  const rows = buildRows(curType, vals, { first: tab === 0 }, crit)
   const saveFirst = async (fields: Record<string, string>) => {
     try { return (await fetch("/api/requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: request.id, fields }) })).ok } catch { return false }
   }

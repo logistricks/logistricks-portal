@@ -16,6 +16,7 @@
 import { restoreRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
+import { sanitizeCriticalConfig } from "@/lib/critical-config"
 import { createHmac } from "crypto"
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ const ALLOWED_FIELDS = new Set([
   "allow_auto_send_to_carrier",
   "require_critical_data",
   "critical_fields",
+  "critical_fields_by_type",
   "auto_reply_enabled",
   "auto_reply_missing_enabled",
   "auto_reply_complete_enabled",
@@ -62,11 +64,12 @@ export async function GET(req: NextRequest) {
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { data, error } = await adminClient()
-    .from("clients")
-    .select("allow_auto_send_to_carrier, require_critical_data, critical_fields, auto_reply_enabled, auto_reply_missing_enabled, auto_reply_complete_enabled")
-    .eq("client_code", session.clientCode)
-    .single()
+  const cols = "allow_auto_send_to_carrier, require_critical_data, critical_fields, auto_reply_enabled, auto_reply_missing_enabled, auto_reply_complete_enabled"
+  let { data, error } = await adminClient().from("clients").select(`${cols}, critical_fields_by_type`).eq("client_code", session.clientCode).single()
+  // migration 077 not run yet: fall back to the older columns
+  if (error && /critical_fields_by_type/.test(error.message)) {
+    ;({ data, error } = await adminClient().from("clients").select(cols).eq("client_code", session.clientCode).single() as any)
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
@@ -88,7 +91,8 @@ export async function PATCH(req: NextRequest) {
   // Only allow whitelisted fields
   const update: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(body)) {
-    if (ALLOWED_FIELDS.has(key)) update[key] = value
+    if (key === "critical_fields_by_type") update[key] = sanitizeCriticalConfig(value)
+    else if (ALLOWED_FIELDS.has(key)) update[key] = value
   }
 
   if (Object.keys(update).length === 0) {

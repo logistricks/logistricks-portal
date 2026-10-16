@@ -25,6 +25,7 @@
  *   500  { error }
  */
 import { typedMissing } from "@/lib/shipment-types"
+import { loadCriticalConfig } from "@/lib/critical-config"
 import { toStringList } from "@/lib/special"
 import { isExw } from "@/lib/shipment-labels"
 import { applyTemplate } from "@/lib/template-render"
@@ -160,7 +161,7 @@ export async function POST(req: NextRequest) {
     if (blank(body[f]) && !blank(saved[f])) body[f] = saved[f]
   }
   // A typed request (Air / Sea FCL / Sea LCL / Land) is checked against its own required fields; older requests use the client's critical-fields setting.
-  const typed = typedMissing(Object.fromEntries(Object.keys({ ...saved, ...body }).map((k) => [k, blank(body[k]) ? saved[k] : body[k]])))
+  const typed = typedMissing(Object.fromEntries(Object.keys({ ...saved, ...body }).map((k) => [k, blank(body[k]) ? saved[k] : body[k]])), await loadCriticalConfig(admin, client_code))
   const computedMissingLabels = typed ?? criticalFields
     .filter((field) => {
       // Pickup address is only mandatory when the shipment is EXW.

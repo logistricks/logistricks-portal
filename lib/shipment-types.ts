@@ -154,23 +154,76 @@ export interface QuotableResult {
 }
 
 /**
- * The quotable check: which required fields of this type are missing?
- * Rules: required = always; "exw" = only when the incoterm is EXW; "dims_or_cbm" = dimensions OR CBM
- * (reported once, under the Dimensions label).
+ * Critical (required) fields per shipment type, as chosen in Settings. A list of rule keys per type:
+ * a field key = always required, "pickup_address" = required when the incoterm is EXW,
+ * "dims_or_cbm" = dimensions OR CBM (either one). A type that is not in the config uses the built-in rules (TYPE_FIELDS).
+ * Origin and destination are always required.
  */
-export function quotableCheck(t: ShipmentType, data: Record<string, unknown>): QuotableResult {
+export type CriticalConfig = Partial<Record<ShipmentType, string[]>>
+export const ALWAYS_CRITICAL: FieldKey[] = ["origin", "destination"]
+
+/** The built-in rule keys of a type (what TYPE_FIELDS marks as required). */
+export function defaultCritical(t: ShipmentType): string[] {
+  const out: string[] = []
+  for (const f of TYPE_FIELDS[t]) {
+    if (f.required === true) out.push(f.key)
+    else if (f.required === "exw") out.push(f.key)
+    else if (f.required === "dims_or_cbm" && !out.includes("dims_or_cbm")) out.push("dims_or_cbm")
+  }
+  return out
+}
+
+/** The rule keys in force for a type: the client's choice, else the built-in rules; origin and destination are always in. */
+export function criticalFor(t: ShipmentType, cfg?: CriticalConfig | null): string[] {
+  const chosen = cfg?.[t]
+  const base = Array.isArray(chosen) ? chosen.filter((x): x is string => typeof x === "string") : defaultCritical(t)
+  return Array.from(new Set([...ALWAYS_CRITICAL, ...base]))
+}
+
+/** Fields the Settings page offers for a type (origin / destination are fixed, chargeable weight is calculated). */
+export function criticalOptions(t: ShipmentType): { key: string; label: string; hint?: string }[] {
+  const fields = TYPE_FIELDS[t].filter((f) => !ALWAYS_CRITICAL.includes(f.key) && f.key !== "chargeable_weight")
+  const combined = TYPE_FIELDS[t].some((f) => f.required === "dims_or_cbm")
+  const out: { key: string; label: string; hint?: string }[] = []
+  for (const f of fields) {
+    if (combined && (f.key === "dimensions" || f.key === "cbm")) {
+      if (!out.some((o) => o.key === "dims_or_cbm")) out.push({ key: "dims_or_cbm", label: "Dimensions or CBM", hint: "either one is enough" })
+      continue
+    }
+    out.push({ key: f.key, label: f.label, hint: f.key === "pickup_address" ? "only when the incoterm is EXW" : undefined })
+  }
+  return out
+}
+
+/** One readable sentence per type for the AI instructions: "Air: origin airport, ...". */
+export function criticalText(cfg?: CriticalConfig | null): string {
+  const lab = (t: ShipmentType, k: string) => {
+    if (k === "dims_or_cbm") return "dimensions or cbm"
+    if (k === "pickup_address") return "pickup_address (only when the incoterm is EXW)"
+    return fieldLabel(t, k as FieldKey).toLowerCase()
+  }
+  return SHIPMENT_TYPES.map((t) => `${t}: ${criticalFor(t, cfg).map((k) => lab(t, k)).join(", ")}`).join(". ")
+}
+
+/**
+ * The quotable check: which critical fields of this type are missing?
+ * Rules come from the client's Settings (cfg) or, without it, the built-in rules of the type.
+ */
+export function quotableCheck(t: ShipmentType, data: Record<string, unknown>, cfg?: CriticalConfig | null): QuotableResult {
+  const rules = criticalFor(t, cfg)
   const missingKeys: FieldKey[] = []
   const missing: string[] = []
   const exw = isExw(String(data.incoterm ?? ""))
   const hasDimsOrCbm = !!fieldValue(data, "dimensions") || !!fieldValue(data, "cbm")
+  const combined = rules.includes("dims_or_cbm")
   for (const f of TYPE_FIELDS[t]) {
     let isMissing = false
-    if (f.required === true) isMissing = !fieldValue(data, f.key)
-    else if (f.required === "exw") isMissing = exw && !fieldValue(data, f.key)
-    else if (f.required === "dims_or_cbm") isMissing = !hasDimsOrCbm && f.key === "dimensions"
+    if (f.key === "pickup_address") isMissing = exw && rules.includes("pickup_address") && !fieldValue(data, f.key)
+    else if (combined && (f.key === "dimensions" || f.key === "cbm")) isMissing = f.key === "dimensions" && !hasDimsOrCbm
+    else if (rules.includes(f.key)) isMissing = !fieldValue(data, f.key)
     if (isMissing) {
       missingKeys.push(f.key)
-      missing.push(f.key === "dimensions" && f.required === "dims_or_cbm" ? "Dimensions or CBM" : f.label)
+      missing.push(f.key === "dimensions" && combined ? "Dimensions or CBM" : f.label)
     }
   }
   return { ready: missing.length === 0, missing, missingKeys }
@@ -217,11 +270,11 @@ export function rowForLeg(row: Record<string, any>, index: number): Record<strin
  * (older request: callers keep using the client's "critical fields" setting).
  * With extra legs every item is prefixed with its leg ("Leg 2: Truck type").
  */
-export function typedMissing(row: Record<string, unknown> | null | undefined): string[] | null {
+export function typedMissing(row: Record<string, unknown> | null | undefined, cfg?: CriticalConfig | null): string[] | null {
   if (!row || !isShipmentType(row.shipment_type)) return null
   const legs = allLegs(row)
-  if (legs.length === 1) return quotableCheck(row.shipment_type, row).missing
-  return legs.flatMap((l, i) => (l.type ? quotableCheck(l.type, l.data).missing : ["Type"]).map((m) => `Leg ${i + 1}: ${m}`))
+  if (legs.length === 1) return quotableCheck(row.shipment_type, row, cfg).missing
+  return legs.flatMap((l, i) => (l.type ? quotableCheck(l.type, l.data, cfg).missing : ["Type"]).map((m) => `Leg ${i + 1}: ${m}`))
 }
 
 /** One line per leg for emails: "Leg 2 (Land): Aqaba, Jordan to Abu Dhabi, UAE. Commodity: ... Truck type: ...". */

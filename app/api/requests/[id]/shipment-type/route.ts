@@ -11,6 +11,7 @@ import { sessionWithRole } from "@/lib/api-admin"
 import { logActivity } from "@/lib/log-activity"
 import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { chargeableWeight } from "@/lib/shipment-calc"
+import { loadCriticalConfig } from "@/lib/critical-config"
 import { flagsForType, isShipmentType, quotableCheck, TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
 
 export const dynamic = "force-dynamic"
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!row) return NextResponse.json({ error: "Request not found" }, { status: 404 })
 
   const before = await snapshot(admin, "freight_requests", { id, client_code: row.client_code }, "id,client_code,shipment_type,type_source,is_sea,is_air,is_land,missing_fields,chargeable_weight")
-  const patch: Record<string, unknown> = { shipment_type: type, type_source: "manual", ...flagsForType(type), missing_fields: quotableCheck(type, row as Record<string, unknown>).missing }
+  const patch: Record<string, unknown> = { shipment_type: type, type_source: "manual", ...flagsForType(type), missing_fields: quotableCheck(type, row as Record<string, unknown>, await loadCriticalConfig(admin, code)).missing }
   if (type === "air" && !row.chargeable_weight) { const cw = chargeableWeight(row); if (cw) patch.chargeable_weight = cw }
   const { error } = await admin.from("freight_requests").update(patch).eq("id", id).eq("client_code", row.client_code)
   if (error) {

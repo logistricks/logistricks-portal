@@ -13,6 +13,7 @@ import { activeQuoteCounts } from "@/lib/request-status"
 import { logActivity } from "@/lib/log-activity"
 import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { typedMissing } from "@/lib/shipment-types"
+import { loadCriticalConfig } from "@/lib/critical-config"
 import { chargeableWeight } from "@/lib/shipment-calc"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
@@ -146,7 +147,7 @@ export async function PATCH(req: NextRequest) {
         if (next !== stored) extra.chargeable_weight = next
       }
     }
-    const missing = typedMissing(cur as Record<string, unknown> | null)
+    const missing = typedMissing(cur as Record<string, unknown> | null, await loadCriticalConfig(admin, session.clientCode))
     if (missing) extra.missing_fields = missing
     if (Object.keys(extra).length) await admin.from("freight_requests").update(extra).eq("id", id).eq("client_code", session.clientCode)
   }
