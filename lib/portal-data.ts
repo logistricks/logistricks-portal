@@ -206,6 +206,18 @@ export type FreightRequest = {
   paidAt?: string | null
   bookedAt?: string | null
   invoicedAt?: string | null
+  // Shipment types (migration 074). null type = an older request, shown with today's layout.
+  shipmentType?: import("@/lib/shipment-types").ShipmentType | null
+  typeSource?: "ai" | "manual" | null
+  cbm?: string
+  chargeableWeight?: string
+  chargeableWeightStated?: string
+  packageType?: string
+  cargoReadyDate?: string
+  temperatureControl?: string
+  truckType?: string
+  /** Extra quoted legs of a mixed-mode request (leg 1 is the request itself). Empty = single leg. */
+  legs?: import("@/lib/shipment-types").LegData[]
 }
 
 export type ConversationMessage = {

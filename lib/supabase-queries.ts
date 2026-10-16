@@ -8,6 +8,7 @@ import { parseAttachments } from "@/lib/attachments"
 
 import { dropRepeats, joinList, toStringList } from "@/lib/special"
 import { createClient } from "@/lib/supabase"
+import { isShipmentType } from "@/lib/shipment-types"
 import type { FreightRequest, RequestStatus, Source, Confidence } from "@/lib/portal-data"
 
 // ─── DB row shape (after migration 007) ────────────────────────────────────
@@ -70,6 +71,18 @@ export interface DbFreightRequest {
   paid_at?: string | null
   booked_at?: string | null
   invoiced_at?: string | null
+  // Shipment types (migration 074). All optional so the app works before the migration is run.
+  shipment_type?: string | null
+  type_source?: string | null
+  cbm?: string | null
+  chargeable_weight?: string | null
+  chargeable_weight_stated?: string | null
+  package_type?: string | null
+  cargo_ready_date?: string | null
+  temperature_control?: string | null
+  truck_type?: string | null
+  cargo_lines?: unknown
+  legs?: unknown
 }
 
 export interface DashboardStats {
@@ -343,6 +356,16 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     wonMarginUsd:      row.won_margin_usd != null ? Number(row.won_margin_usd) : null,
     paidAt:            row.paid_at ?? null,
     bookedAt:          row.booked_at ?? null,
+    shipmentType:      isShipmentType(row.shipment_type) ? row.shipment_type : null,
+    typeSource:        row.type_source === "manual" ? "manual" : row.type_source === "ai" ? "ai" : null,
+    cbm:               row.cbm ?? "",
+    chargeableWeight:  row.chargeable_weight ?? "",
+    chargeableWeightStated: row.chargeable_weight_stated ?? "",
+    packageType:       row.package_type ?? "",
+    cargoReadyDate:    row.cargo_ready_date ?? "",
+    temperatureControl:row.temperature_control ?? "",
+    truckType:         row.truck_type ?? "",
+    legs:              Array.isArray(row.legs) ? row.legs as FreightRequest["legs"] : [],
     invoicedAt:        row.invoiced_at ?? null,
   }
 }
