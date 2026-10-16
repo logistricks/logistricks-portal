@@ -204,8 +204,7 @@ export function rowForLeg(row: Record<string, any>, index: number): Record<strin
   const out: Record<string, any> = { ...row }
   for (const c of LEG_COLUMNS) out[c] = null
   for (const c of LEG_COLUMNS) if (leg[c] != null) out[c] = leg[c]
-  // a leg without its own incoterm / pickup uses the request's incoterm
-  if (!out.incoterm) out.incoterm = row.incoterm
+  // incoterm and pickup are per leg: a leg never inherits another leg's (EXW air + FOB sea in one email is normal)
   out.shipment_type = leg.shipment_type
   Object.assign(out, flagsForType(leg.shipment_type))
   out.legs = row.legs

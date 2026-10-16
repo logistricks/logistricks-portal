@@ -171,8 +171,6 @@ function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { fir
   const check = quotableCheck(type, vals)
   const rows: Record<FieldGroup, RowSpec[]> = { Route: [], Cargo: [], Measurements: [], Conditions: [] }
   for (const f of TYPE_FIELDS[type]) {
-    // later legs have no incoterm / pickup of their own (those belong to the request)
-    if (!opts.first && (f.key === "incoterm" || f.key === "pickup_address")) continue
     const isReq = f.required === true || (f.required === "exw" && exw) || (f.required === "dims_or_cbm" && check.missingKeys.includes("dimensions"))
     rows[f.group].push({
       key: f.key, fieldKey: f.key, label: f.label, columns: FIELD_COLUMNS[f.key], required: isReq,
@@ -302,7 +300,7 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
       </div>
       {legs.length > 0 && (
         <p className="px-5 pt-2 text-center text-[11px]" style={{ color: "var(--text-muted)" }}>
-          Multi-leg request: incoterm, pickup, urgency, preferred carrier and special requirements are shared by all legs. A leg the requester has already booked is not a leg, it belongs in the special requirements.
+          Multi-leg request: each leg has its own incoterm and pickup; urgency, preferred carrier and special requirements are shared by all legs. A leg the requester has already booked is not a leg, it belongs in the special requirements.
         </p>
       )}
 
