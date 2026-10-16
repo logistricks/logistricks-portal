@@ -2,6 +2,7 @@
 
 import { FieldConfirmation } from "@/components/portal/field-confirmation"
 import { TYPE_LABEL } from "@/lib/shipment-types"
+import { ShipmentTypeChip, TypedCargoDetails } from "@/components/portal/cargo-details"
 import { RequestAttachments } from "@/components/portal/request-attachments"
 import { rankCarriers } from "@/lib/carrier-match"
 import { defaultTemplateFor } from "@/lib/template-defaults"
@@ -11,7 +12,7 @@ import { SpecialRequestsCard } from "@/components/portal/special-requests"
 import { RequestTimeline } from "@/components/portal/request-timeline"
 import { isSeaOnly, exwNeedsAddress, isExw, EXW_ALERT } from "@/lib/shipment-labels"
 import { applyTemplate, templateHasRef } from "@/lib/template-render"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useToast } from "@/components/ui/toast"
 import {
   AlertTriangle, ArrowRight, Check, CheckSquare, ChevronDown, ChevronUp,
@@ -293,6 +294,12 @@ export function RequestDetailModal({
   const [rawExpanded, setRawExpanded]     = useState(false)
   const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
   const sendPanelRef = useRef<HTMLDivElement>(null)
+  // fresh copy of the request for the cargo card (type, legs and calculated fields change inside the pop-up)
+  const [live, setLive] = useState<FreightRequest>(request)
+  useEffect(() => { setLive(request) }, [request])
+  const reloadLive = useCallback(async () => {
+    try { const r = await fetch(`/api/requests/${request.id}`); if (r.ok) setLive(await r.json()) } catch { /* keep what we have */ }
+  }, [request.id])
 
   useEffect(() => {
     fetch("/api/carriers")
@@ -726,9 +733,26 @@ export function RequestDetailModal({
               <div className="space-y-4 lg:col-span-3">
 
                 {/* Cargo details */}
+                {live.shipmentType ? (
+                  <TypedCargoDetails
+                    request={live} type={live.shipmentType} lockReason={fieldLockReason}
+                    lockBadge={fieldLockReason ? (
+                      <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
+                        <Lock className="h-3 w-3" />
+                        {carrierRfqSent ? "Locked" : "Awaiting reply"}
+                      </span>
+                    ) : null}
+                    banner={<div className="px-5 pt-3"><FieldConfirmation requestId={request.id} refreshKey={fcKey} /></div>}
+                    onChanged={reloadLive} onFieldSaved={() => setFcKey((n) => n + 1)}
+                  />
+                ) : (
                 <div className="ds-card">
                   <div className="ds-card-header">
-                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h4>
+                    <div className="flex items-center gap-3">
+                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Cargo Details</h4>
+                      <ShipmentTypeChip requestId={request.id} type={null} locked={carrierRfqSent} onChanged={reloadLive} />
+                    </div>
                     {fieldLockReason && (
                       <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
                         style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
@@ -752,6 +776,7 @@ export function RequestDetailModal({
                     ))}
                   </div>
                 </div>
+                )}
 
                 {/* Special requests (preview + pop-up) */}
                 <SpecialRequestsCard
