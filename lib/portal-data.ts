@@ -84,9 +84,11 @@ export type TemplateRow = {
   mode_sea?: boolean
   mode_air?: boolean
   mode_land?: boolean
+  mode_multi?: boolean
   default_sea?: boolean
   default_air?: boolean
   default_land?: boolean
+  default_multi?: boolean
   is_reply_template: boolean
   is_missing_reply_template: boolean
   is_complete_reply_template: boolean
@@ -107,9 +109,11 @@ export type Template = {
   mode_sea?: boolean
   mode_air?: boolean
   mode_land?: boolean
+  mode_multi?: boolean
   default_sea?: boolean
   default_air?: boolean
   default_land?: boolean
+  default_multi?: boolean
   is_reply_template: boolean
   is_missing_reply_template: boolean
   is_complete_reply_template: boolean
@@ -451,6 +455,9 @@ export const templateVariables = [
       ["temperature", "Temperature"],
       ["cargo_ready_date", "Cargo Ready Date"],
       ["chargeable_weight", "Chargeable Weight (air)"],
+      ["legs_summary", "All legs, one line each (multi-leg requests)"],
+      ["leg_number", "This leg's number (multi-leg)"],
+      ["leg_count", "Number of legs (multi-leg)"],
     ],
   },
   {

@@ -28,6 +28,8 @@ function rowToTemplate(row: TemplateRow): Template {
     default_sea:        row.default_sea,
     default_air:        row.default_air,
     default_land:       row.default_land,
+    mode_multi:         row.mode_multi,
+    default_multi:      row.default_multi,
     is_reply_template:  row.is_reply_template,
     is_missing_reply_template: row.is_missing_reply_template,
     is_complete_reply_template: row.is_complete_reply_template,

@@ -4,12 +4,12 @@ import { useEffect, useState } from "react"
 import { Loader2, Star, X } from "lucide-react"
 import type { Template } from "@/lib/portal-data"
 
-export type ModeSet = { sea: boolean; air: boolean; land: boolean }
-type Flags = Pick<Template, "mode_sea" | "mode_air" | "mode_land" | "default_sea" | "default_air" | "default_land">
-export const modesOf = (t: Flags): ModeSet => ({ sea: !!t.mode_sea, air: !!t.mode_air, land: !!t.mode_land })
-export const defaultsOf = (t: Flags): ModeSet => ({ sea: !!t.default_sea, air: !!t.default_air, land: !!t.default_land })
-const NAMES = { sea: "Sea", air: "Air", land: "Land" } as const
-export const modeNames = (t: Flags) => (["sea", "air", "land"] as const).filter((k) => t[`mode_${k}` as const]).map((k) => ({ key: k, name: NAMES[k], isDefault: !!t[`default_${k}` as const] }))
+export type ModeSet = { sea: boolean; air: boolean; land: boolean; multi: boolean }
+type Flags = Pick<Template, "mode_sea" | "mode_air" | "mode_land" | "mode_multi" | "default_sea" | "default_air" | "default_land" | "default_multi">
+export const modesOf = (t: Flags): ModeSet => ({ sea: !!t.mode_sea, air: !!t.mode_air, land: !!t.mode_land, multi: !!t.mode_multi })
+export const defaultsOf = (t: Flags): ModeSet => ({ sea: !!t.default_sea, air: !!t.default_air, land: !!t.default_land, multi: !!t.default_multi })
+const NAMES = { sea: "Sea", air: "Air", land: "Land", multi: "Multi-leg" } as const
+export const modeNames = (t: Flags) => (["sea", "air", "land", "multi"] as const).filter((k) => t[`mode_${k}` as const]).map((k) => ({ key: k, name: NAMES[k], isDefault: !!t[`default_${k}` as const] }))
 
 /**
  * Pick the modes a template is for, and beside each mode whether it is the default for it.
@@ -24,7 +24,7 @@ export function ModeDefaultsEditor({ modes, defaults, onChange, holders }: {
 }) {
   return (
     <div className="space-y-2">
-      {(["sea", "air", "land"] as const).map((k) => {
+      {(["sea", "air", "land", "multi"] as const).map((k) => {
         const on = modes[k], def = defaults[k] && on, held = holders[k]
         return (
           <div key={k} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ border: `1px solid ${on ? "var(--brand-accent)" : "var(--card-border)"}`, background: on ? "rgb(var(--brand-accent-rgb) / 0.05)" : "transparent" }}>
@@ -55,7 +55,7 @@ export function ModeDefaultsEditor({ modes, defaults, onChange, holders }: {
 
 export function holdersFor(others: Template[], self: Template): Partial<Record<keyof ModeSet, string>> {
   const out: Partial<Record<keyof ModeSet, string>> = {}
-  for (const k of ["sea", "air", "land"] as const) {
+  for (const k of ["sea", "air", "land", "multi"] as const) {
     const h = others.find((o) => o.template_id !== self.template_id && o.type === self.type && o[`default_${k}` as const])
     if (h) out[k] = h.template_name
   }

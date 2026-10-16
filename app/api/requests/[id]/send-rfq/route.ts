@@ -17,7 +17,7 @@ import { sessionWithRole } from "@/lib/api-admin"
 import { loadSmtp } from "@/lib/notify"
 import { logActivity } from "@/lib/log-activity"
 import { defaultTemplateFor } from "@/lib/template-defaults"
-import { typedMissing } from "@/lib/shipment-types"
+import { allLegs, rowForLeg, typedMissing, TYPE_LABEL } from "@/lib/shipment-types"
 import { loadCarrierContacts, registerRfqRows, renderRfqDraft } from "@/lib/rfq-send"
 
 export const dynamic = "force-dynamic"
@@ -25,6 +25,14 @@ export const maxDuration = 60
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const ids = (v: unknown): number[] => Array.from(new Set((Array.isArray(v) ? v : String(v ?? "").split(",")).map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)))
+
+/** Which leg an RFQ is about: "all" = one email covering every leg, otherwise a leg number - 1 (default 0 = leg 1). */
+function legParam(v: unknown, count: number): { all: boolean; index: number } {
+  if (v === "all" && count > 1) return { all: true, index: 0 }
+  const n = Number(v)
+  return { all: false, index: Number.isInteger(n) && n >= 0 && n < count ? n : 0 }
+}
+const modesOf = (r: Record<string, any>) => [r.is_sea ? "Sea" : "", r.is_air ? "Air" : "", r.is_land ? "Land" : ""].filter(Boolean)
 
 async function loadRequest(admin: any, clientCode: string, id: string) {
   const { data } = await admin.from("freight_requests").select("*").eq("id", id).ilike("client_code", clientCode).maybeSingle()
@@ -45,21 +53,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!row) return NextResponse.json({ error: "Request not found" }, { status: 404 })
 
   const [cfg, tpls] = await Promise.all([loadSmtp(admin, s.session.clientCode), emailTemplates(admin, s.session.clientCode)])
+  const legList = allLegs(row)
+  const sel = legParam(req.nextUrl.searchParams.get("leg"), legList.length)
+  const legRow = sel.all ? row : rowForLeg(row, sel.index)
+  const tplModes = sel.all ? ["Multi", ...modesOf(row)] : modesOf(legRow)
   const out: Record<string, unknown> = {
+    // one entry per leg, so the dialog can offer "Leg 2 · Land" and rank carriers by that leg's mode and countries
+    legs: legList.length > 1 ? legList.map((l, i) => { const r = rowForLeg(row, i); return { index: i, type: l.type, label: `Leg ${i + 1} · ${l.type ? TYPE_LABEL[l.type] : "No type"}`, modes: modesOf(r), origin_country: r.origin_country ?? "", destination_country: r.destination_country ?? "" } }) : [],
     smtp: { configured: !!cfg, enabled: !!cfg?.enabled },
     // typed requests only: the required fields still missing for the request's type (null = older, untyped request)
     missing_required: typedMissing(row),
     n8n: !!(process.env.N8N_RFQ_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_RFQ_WEBHOOK_URL),
-    templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default, default_sea: !!t.default_sea, default_air: !!t.default_air, default_land: !!t.default_land })),
-    default_template_id: defaultTemplateFor(tpls, [row.is_sea ? "Sea" : "", row.is_air ? "Air" : "", row.is_land ? "Land" : ""].filter(Boolean))?.template_id ?? null,
+    templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default, default_sea: !!t.default_sea, default_air: !!t.default_air, default_land: !!t.default_land, default_multi: !!t.default_multi })),
+    default_template_id: defaultTemplateFor(tpls, tplModes)?.template_id ?? null,
   }
   const carrierIds = ids(req.nextUrl.searchParams.get("carrier_ids"))
   if (carrierIds.length) {
     const wanted = Number(req.nextUrl.searchParams.get("template_id"))
-    const tpl = tpls.find((t) => t.template_id === wanted) ?? defaultTemplateFor(tpls, [row.is_sea ? "Sea" : "", row.is_air ? "Air" : "", row.is_land ? "Land" : ""].filter(Boolean)) ?? tpls[0]
+    const tpl = tpls.find((t) => t.template_id === wanted) ?? defaultTemplateFor(tpls, tplModes) ?? tpls[0]
     const contacts = await loadCarrierContacts(admin, s.session.clientCode, carrierIds)
     out.template_id = tpl?.template_id ?? null
-    out.drafts = tpl ? contacts.map((c) => ({ carrier_id: c.carrier_id, carrier_name: c.carrier_name, to: c.email, cc: c.cc, ...renderRfqDraft(tpl, row, c) })) : []
+    out.drafts = tpl ? contacts.map((c) => ({ carrier_id: c.carrier_id, carrier_name: c.carrier_name, to: c.email, cc: c.cc, ...renderRfqDraft(tpl, legRow, c) })) : []
   }
   return NextResponse.json(out)
 }
@@ -80,6 +94,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const admin = adminClient()
   const row = await loadRequest(admin, code, id)
   if (!row) return NextResponse.json({ error: "Request not found" }, { status: 404 })
+  const legCount = allLegs(row).length
+  const sel = legParam(body.leg, legCount)
+  // automatic sending (the n8n workflow) does not know about legs yet: multi-leg requests are sent manually, one email per leg or one for all
+  if (method === "automatic" && legCount > 1) return NextResponse.json({ error: "multi_leg_manual", message: "Multi-leg requests are sent manually for now. Choose Send manually (one email per leg, or one email for all legs)." }, { status: 409 })
   const contacts = (await loadCarrierContacts(admin, code, carrierIds)).filter((c) => c.email)
   if (!contacts.length) return NextResponse.json({ error: "None of the selected carriers has an email address." }, { status: 400 })
 
@@ -128,7 +146,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } else {
     const drafts: Record<string, any> = {}
     for (const d of Array.isArray(body.drafts) ? body.drafts : []) if (d && Number.isFinite(Number(d.carrier_id))) drafts[Number(d.carrier_id)] = d
-    const refs = await registerRfqRows(admin, id, contacts)
+    const refs = await registerRfqRows(admin, id, contacts, legCount > 1 && !sel.all ? sel.index : null)
     const now = new Date().toISOString()
     for (const c of contacts) {
       const d = drafts[c.carrier_id] ?? {}
@@ -145,14 +163,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     await admin.from("auto_reply_logs").insert(results.map((r) => ({
       client_code: code, log_type: "carrier", sender_email: r.email, sender_name: r.carrier_name, subject: r.subject ?? null, request_id: id,
-      meta: { method, status: r.status, error: r.error ?? null, rfq_reference: r.rfq_reference ?? null, request_ref: row.request_ref ?? null, sent_by: actor, n8n_status: n8nInfo?.status ?? null },
+      meta: { method, leg: legCount > 1 ? (sel.all ? "all" : sel.index + 1) : undefined, status: r.status, error: r.error ?? null, rfq_reference: r.rfq_reference ?? null, request_ref: row.request_ref ?? null, sent_by: actor, n8n_status: n8nInfo?.status ?? null },
     })))
   } catch { /* logging is best effort */ }
 
   const sent = results.filter((r) => r.status === "sent").length
   await logActivity({
     clientCode: code, eventType: "rfq_sent", actor, requestId: id,
-    description: `Request ${row.request_ref ?? ""} sent to ${sent} of ${results.length} carrier(s) (${method})`.replace("  ", " "),
+    description: `Request ${row.request_ref ?? ""} sent to ${sent} of ${results.length} carrier(s) (${method}${legCount > 1 ? (sel.all ? ", all legs" : `, leg ${sel.index + 1}`) : ""})`.replace("  ", " "),
     meta: { method, results: results.map((r) => ({ carrier: r.carrier_name, status: r.status, error: r.error ?? null })) },
   })
   if (sent > 0) await admin.from("freight_requests").update({ status: "Sent to Carrier" }).eq("id", id).ilike("client_code", code)

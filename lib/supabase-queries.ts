@@ -8,7 +8,7 @@ import { parseAttachments } from "@/lib/attachments"
 
 import { dropRepeats, joinList, toStringList } from "@/lib/special"
 import { createClient } from "@/lib/supabase"
-import { isShipmentType } from "@/lib/shipment-types"
+import { extraLegs, isShipmentType } from "@/lib/shipment-types"
 import type { FreightRequest, RequestStatus, Source, Confidence } from "@/lib/portal-data"
 
 // ─── DB row shape (after migration 007) ────────────────────────────────────
@@ -365,7 +365,7 @@ export function mapDbToRequest(row: DbFreightRequest): FreightRequest {
     cargoReadyDate:    row.cargo_ready_date ?? "",
     temperatureControl:row.temperature_control ?? "",
     truckType:         row.truck_type ?? "",
-    legs:              Array.isArray(row.legs) ? row.legs as FreightRequest["legs"] : [],
+    legs:              extraLegs(row as unknown as Record<string, unknown>),
     invoicedAt:        row.invoiced_at ?? null,
   }
 }

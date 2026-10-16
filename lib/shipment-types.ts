@@ -176,11 +176,67 @@ export function quotableCheck(t: ShipmentType, data: Record<string, unknown>): Q
   return { ready: missing.length === 0, missing, missingKeys }
 }
 
+/** Every request column that belongs to one leg (the rest of the row is the common block shared by all legs). */
+export const LEG_COLUMNS: string[] = [...new Set([...Object.values(FIELD_COLUMNS).flat(), "bl_type"])]
+
+/** Legs stored on a row (leg 2, 3 ...). Accepts an array or a JSON string; anything else = none. */
+export function extraLegs(row: Record<string, unknown> | null | undefined): LegData[] {
+  let v: unknown = row?.legs
+  if (typeof v === "string") { try { v = JSON.parse(v) } catch { v = null } }
+  return Array.isArray(v) ? (v as unknown[]).filter((x): x is LegData => !!x && typeof x === "object" && isShipmentType((x as LegData).shipment_type)) : []
+}
+
+/** All legs of a request in order: leg 1 is the request's own columns, then the stored extra legs. */
+export function allLegs(row: Record<string, unknown>): { type: ShipmentType | null; data: Record<string, unknown> }[] {
+  const first = { type: isShipmentType(row.shipment_type) ? row.shipment_type : null, data: row }
+  return [first, ...extraLegs(row).map((l) => ({ type: l.shipment_type as ShipmentType | null, data: l as Record<string, unknown> }))]
+}
+
+/**
+ * The row as seen by ONE leg: common fields (sender, reference, urgency, special requirements ...) from the request,
+ * leg fields only from that leg (a leg never inherits another leg's equipment, weight and so on), flags derived from the leg type.
+ * Leg 0 is the request itself.
+ */
+export function rowForLeg(row: Record<string, any>, index: number): Record<string, any> {
+  if (index <= 0) return row
+  const leg = extraLegs(row)[index - 1]
+  if (!leg) return row
+  const out: Record<string, any> = { ...row }
+  for (const c of LEG_COLUMNS) out[c] = null
+  for (const c of LEG_COLUMNS) if (leg[c] != null) out[c] = leg[c]
+  // a leg without its own incoterm / pickup uses the request's incoterm
+  if (!out.incoterm) out.incoterm = row.incoterm
+  out.shipment_type = leg.shipment_type
+  Object.assign(out, flagsForType(leg.shipment_type))
+  out.legs = row.legs
+  out.leg_index = index
+  return out
+}
+
 /**
  * For a saved request row: the missing required fields according to its type, or null when the request has no type
  * (older request: callers keep using the client's "critical fields" setting).
+ * With extra legs every item is prefixed with its leg ("Leg 2: Truck type").
  */
 export function typedMissing(row: Record<string, unknown> | null | undefined): string[] | null {
   if (!row || !isShipmentType(row.shipment_type)) return null
-  return quotableCheck(row.shipment_type, row).missing
+  const legs = allLegs(row)
+  if (legs.length === 1) return quotableCheck(row.shipment_type, row).missing
+  return legs.flatMap((l, i) => (l.type ? quotableCheck(l.type, l.data).missing : ["Type"]).map((m) => `Leg ${i + 1}: ${m}`))
+}
+
+/** One line per leg for emails: "Leg 2 (Land): Aqaba, Jordan to Abu Dhabi, UAE. Commodity: ... Truck type: ...". */
+export function legsSummary(row: Record<string, any>): string {
+  const legs = allLegs(row)
+  if (legs.length < 2) return ""
+  return legs.map((l, i) => {
+    const d = rowForLeg(row, i)
+    const place = (c: string, k: string) => [d[c], d[k]].filter(hasText).join(", ")
+    const parts = [
+      `${place("origin_city", "origin_country") || "?"} to ${place("destination_city", "destination_country") || "?"}`,
+      ...(["cargo_type", "equipment", "truck_type", "quantity", "package_type", "weight", "cbm", "dimensions", "temperature_control", "cargo_ready_date"] as const)
+        .filter((k) => hasText(d[k])).map((k) => `${k === "cargo_type" ? "Commodity" : k === "temperature_control" ? "Temperature" : k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())}: ${d[k]}`),
+    ]
+    return `Leg ${i + 1}${l.type ? ` (${TYPE_LABEL[l.type]})` : ""}: ${parts.join(". ")}`
+  }).join("\n")
 }

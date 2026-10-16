@@ -3,7 +3,7 @@
  *  - renderRfqDraft: fills the client's RFQ template for one carrier (same rules as the n8n "Render RFQ email" node)
  *  - registerRfqRows: creates the carrier_quote_requests rows that make later carrier replies link back
  */
-import { TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
+import { allLegs, legsSummary, TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
 import { randomBytes } from "crypto"
 import { applyTemplate } from "@/lib/template-render"
 import { htmlToPlainText } from "@/lib/quotation-render"
@@ -40,6 +40,9 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
     cbm: s(row.cbm), package_type: s(row.package_type), truck_type: s(row.truck_type), temperature: s(row.temperature_control),
     cargo_ready_date: s(row.cargo_ready_date), chargeable_weight: s(row.chargeable_weight || row.chargeable_weight_stated),
     shipment_type: TYPE_LABEL[s(row.shipment_type) as ShipmentType] ?? "",
+    // multi-leg requests: which leg this email is about, and one line per leg for an email that covers all of them
+    leg_number: row.leg_index != null ? String(Number(row.leg_index) + 1) : "", leg_count: allLegs(row).length > 1 ? String(allLegs(row).length) : "",
+    legs_summary: legsSummary(row),
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),
     dgr: row.dgr ? "Yes" : "", aog: row.aog ? "Yes" : "",
@@ -58,13 +61,15 @@ export function renderRfqDraft(tpl: { subject?: string | null; body?: string | n
   return { subject, body }
 }
 
-export async function registerRfqRows(admin: any, requestId: string, contacts: CarrierContact[]): Promise<Record<number, string>> {
+/** `leg` = leg number - 1 for an RFQ about one leg of a multi-leg request (null = the whole request). */
+export async function registerRfqRows(admin: any, requestId: string, contacts: CarrierContact[], leg: number | null = null): Promise<Record<number, string>> {
   const refs: Record<number, string> = {}
   for (const c of contacts) {
     const reference = `RFQ-${requestId.replace(/-/g, "").slice(0, 8)}-${c.carrier_id}-${randomBytes(3).toString("hex")}`
-    const { error } = await admin.from("carrier_quote_requests").insert({
-      freight_request_id: requestId, carrier_id: c.id, email_thread_id: reference, rfq_reference: reference, status: "sent",
-    })
+    const base = { freight_request_id: requestId, carrier_id: c.id, email_thread_id: reference, rfq_reference: reference, status: "sent" }
+    let { error } = await admin.from("carrier_quote_requests").insert(leg != null ? { ...base, leg_index: leg } : base)
+    // before migration 075 there is no leg_index column: store the RFQ without it
+    if (error && leg != null && /leg_index/.test(error.message)) ({ error } = await admin.from("carrier_quote_requests").insert(base))
     if (!error) refs[c.carrier_id] = reference
   }
   return refs
