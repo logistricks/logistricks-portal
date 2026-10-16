@@ -17,6 +17,7 @@ import { sessionWithRole } from "@/lib/api-admin"
 import { loadSmtp } from "@/lib/notify"
 import { logActivity } from "@/lib/log-activity"
 import { defaultTemplateFor } from "@/lib/template-defaults"
+import { typedMissing } from "@/lib/shipment-types"
 import { loadCarrierContacts, registerRfqRows, renderRfqDraft } from "@/lib/rfq-send"
 
 export const dynamic = "force-dynamic"
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const [cfg, tpls] = await Promise.all([loadSmtp(admin, s.session.clientCode), emailTemplates(admin, s.session.clientCode)])
   const out: Record<string, unknown> = {
     smtp: { configured: !!cfg, enabled: !!cfg?.enabled },
+    // typed requests only: the required fields still missing for the request's type (null = older, untyped request)
+    missing_required: typedMissing(row),
     n8n: !!(process.env.N8N_RFQ_WEBHOOK_URL || process.env.NEXT_PUBLIC_N8N_RFQ_WEBHOOK_URL),
     templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default, default_sea: !!t.default_sea, default_air: !!t.default_air, default_land: !!t.default_land })),
     default_template_id: defaultTemplateFor(tpls, [row.is_sea ? "Sea" : "", row.is_air ? "Air" : "", row.is_land ? "Land" : ""].filter(Boolean))?.template_id ?? null,

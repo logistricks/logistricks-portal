@@ -11,6 +11,7 @@
  *   Wait(auto_reply_delay_min) → POST here → Gmail Send
  */
 
+import { typedMissing } from "@/lib/shipment-types"
 import { toStringList } from "@/lib/special"
 import { isExw } from "@/lib/shipment-labels"
 import { applyTemplate } from "@/lib/template-render"
@@ -132,7 +133,10 @@ export async function POST(
 
   const criticalFields: string[] = clientSettings?.critical_fields ?? Object.keys(FIELD_LABELS)
   const missingParts: string[]   = []
-  if (parsedFields && clientSettings?.require_critical_data) {
+  const typedList = typedMissing(parsedFields as Record<string, unknown> | null)
+  if (typedList) {
+    missingParts.push(...typedList)
+  } else if (parsedFields && clientSettings?.require_critical_data) {
     for (const field of criticalFields) {
       if (field === "pickup_address" && !isExw((parsedFields as Record<string, unknown>).incoterm as string | undefined)) continue
       const val = (parsedFields as Record<string, unknown>)[field]

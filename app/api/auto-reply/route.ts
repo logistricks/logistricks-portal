@@ -24,6 +24,7 @@
  *   401  { error: "Unauthorized" }
  *   500  { error }
  */
+import { typedMissing } from "@/lib/shipment-types"
 import { toStringList } from "@/lib/special"
 import { isExw } from "@/lib/shipment-labels"
 import { applyTemplate } from "@/lib/template-render"
@@ -158,7 +159,9 @@ export async function POST(req: NextRequest) {
   for (const f of ["cargo_type", "weight", "dimensions", "equipment", "incoterm", "bl_type", "pickup_address", "quantity", "mode", "urgency", "origin_city", "origin_country", "destination_city", "destination_country"]) {
     if (blank(body[f]) && !blank(saved[f])) body[f] = saved[f]
   }
-  const computedMissingLabels = criticalFields
+  // A typed request (Air / Sea FCL / Sea LCL / Land) is checked against its own required fields; older requests use the client's critical-fields setting.
+  const typed = typedMissing(Object.fromEntries(Object.keys({ ...saved, ...body }).map((k) => [k, blank(body[k]) ? saved[k] : body[k]])))
+  const computedMissingLabels = typed ?? criticalFields
     .filter((field) => {
       // Pickup address is only mandatory when the shipment is EXW.
       if (field === "pickup_address" && !isExw(val("incoterm") as string | undefined)) return false

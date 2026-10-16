@@ -9,7 +9,7 @@ import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
-type Info = { smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean }[] }
+type Info = { missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -23,6 +23,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const [step, setStep] = useState<"select" | "manual" | "result">("select")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sendAnyway, setSendAnyway] = useState(false)
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [result, setResult] = useState<{ method: string; sent: number; total: number; results: Result[]; n8n?: { ok: boolean; error?: string } | null } | null>(null)
 
@@ -41,6 +42,8 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const ids = useMemo(() => Array.from(selected), [selected])
   const suggestedIds = useMemo(() => carriers.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id), [carriers])
   const toggle = (id: number) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const missingRequired = info?.missing_required ?? []
+  const blockedByMissing = missingRequired.length > 0 && !sendAnyway // warn first; the user can override
   const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n
 
   async function prepareManual() {
@@ -124,6 +127,14 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
                   </select>
                 </div>
               )}
+              {missingRequired.length > 0 && (
+                <div className="rounded-md px-3 py-2 text-[11px]" style={{ background: "rgb(245 158 11 / 0.12)", color: "var(--text-secondary)" }}>
+                  <p className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "#d97706" }} /><span><b>Not ready to quote.</b> Still missing: {missingRequired.join(", ")}. Carriers may not be able to price this.</span></p>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 font-semibold" style={{ color: "var(--text-primary)" }}>
+                    <input type="checkbox" checked={sendAnyway} onChange={(e) => setSendAnyway(e.target.checked)} className="h-3.5 w-3.5 accent-[var(--brand-accent)]" /> Send anyway
+                  </label>
+                </div>
+              )}
               {info && !autoReady && (
                 <p className="flex items-start gap-2 rounded-md px-3 py-2 text-[11px]" style={{ background: "rgb(245 158 11 / 0.12)", color: "var(--text-secondary)" }}>
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "#d97706" }} />
@@ -182,10 +193,10 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
           {step === "select" && (<>
             <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{selected.size ? `${selected.size} selected` : "No carriers selected"}</span>
             <div className="flex gap-2">
-              <button className={btn} style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }} onClick={prepareManual} disabled={!selected.size || busy}>
+              <button className={btn} style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }} onClick={prepareManual} disabled={!selected.size || busy || blockedByMissing}>
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />} Send manually
               </button>
-              <button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={() => send("automatic")} disabled={!selected.size || busy || !autoReady} title={autoReady ? "" : "Needs your email server and the sending workflow"}>
+              <button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={() => send("automatic")} disabled={!selected.size || busy || !autoReady || blockedByMissing} title={autoReady ? "" : "Needs your email server and the sending workflow"}>
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Send automatically
               </button>
             </div>

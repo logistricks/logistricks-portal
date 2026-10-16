@@ -175,3 +175,12 @@ export function quotableCheck(t: ShipmentType, data: Record<string, unknown>): Q
   }
   return { ready: missing.length === 0, missing, missingKeys }
 }
+
+/**
+ * For a saved request row: the missing required fields according to its type, or null when the request has no type
+ * (older request: callers keep using the client's "critical fields" setting).
+ */
+export function typedMissing(row: Record<string, unknown> | null | undefined): string[] | null {
+  if (!row || !isShipmentType(row.shipment_type)) return null
+  return quotableCheck(row.shipment_type, row).missing
+}
