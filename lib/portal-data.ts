@@ -444,6 +444,13 @@ export const templateVariables = [
       ["pickup_address", "Pickup Address (EXW only)"],
       ["bl_type", "BL Type"],
       ["urgency", "Urgency Level"],
+      ["shipment_type", "Shipment Type (Air / Sea FCL / Sea LCL / Land)"],
+      ["cbm", "CBM (volume)"],
+      ["package_type", "Package Type"],
+      ["truck_type", "Truck Type"],
+      ["temperature", "Temperature"],
+      ["cargo_ready_date", "Cargo Ready Date"],
+      ["chargeable_weight", "Chargeable Weight (air)"],
     ],
   },
   {

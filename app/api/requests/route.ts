@@ -13,6 +13,7 @@ import { activeQuoteCounts } from "@/lib/request-status"
 import { logActivity } from "@/lib/log-activity"
 import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { typedMissing } from "@/lib/shipment-types"
+import { chargeableWeight } from "@/lib/shipment-calc"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
@@ -116,7 +117,7 @@ export async function PATCH(req: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
 
-  const before = await snapshot(admin, "freight_requests", { id, client_code: session.clientCode }, ["id", "client_code", ...Object.keys(patch), "fields_edited_at", "missing_fields", "shipment_type"].join(","))
+  const before = await snapshot(admin, "freight_requests", { id, client_code: session.clientCode }, ["id", "client_code", ...Object.keys(patch), "fields_edited_at", "missing_fields", "shipment_type", "chargeable_weight"].join(","))
   // a field edit after confirmation marks the fields "changed" (needs migration 071; skipped if not run yet)
   const editedPatch = fields && Object.keys(patch).some((k) => EDITABLE_FIELDS.has(k)) ? { ...patch, fields_edited_at: new Date().toISOString() } : patch
   let { error } = await admin
@@ -131,8 +132,20 @@ export async function PATCH(req: NextRequest) {
   // typed request: keep its missing-fields list in step with the edit (needs migration 074; skipped for older requests)
   if (!error && fields) {
     const { data: cur } = await admin.from("freight_requests").select("*").eq("id", id).eq("client_code", session.clientCode).maybeSingle()
+    const extra: Record<string, unknown> = {}
+    // air: keep the calculated chargeable weight in step with weight / dimensions / quantity / CBM edits, unless it was typed in by hand
+    // (a stored figure that differs from what the old values calculated = a manual override, left alone; clearing it returns to calculated)
+    if (cur?.shipment_type === "air" && !(typeof patch.chargeable_weight === "string" && patch.chargeable_weight)) {
+      const prev = { ...cur, ...((before?.[0] as Record<string, unknown> | undefined) ?? {}) }
+      const stored = cur.chargeable_weight ?? null
+      if (!stored || stored === chargeableWeight(prev)) {
+        const next = chargeableWeight(cur)
+        if (next !== stored) extra.chargeable_weight = next
+      }
+    }
     const missing = typedMissing(cur as Record<string, unknown> | null)
-    if (missing) await admin.from("freight_requests").update({ missing_fields: missing }).eq("id", id).eq("client_code", session.clientCode)
+    if (missing) extra.missing_fields = missing
+    if (Object.keys(extra).length) await admin.from("freight_requests").update(extra).eq("id", id).eq("client_code", session.clientCode)
   }
 
   if (error) {

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { AlertTriangle, Check, ChevronDown, CheckCircle2, Loader2, Lock, Pencil, Tag } from "lucide-react"
 import type { FreightRequest } from "@/lib/portal-data"
 import { isExw } from "@/lib/shipment-labels"
+import { calculatedCbm, chargeableWeight } from "@/lib/shipment-calc"
 import {
   FIELD_COLUMNS, PACKAGE_TYPES, SHIPMENT_TYPES, TRUCK_TYPES, TYPE_FIELDS, TYPE_LABEL, quotableCheck,
   type FieldGroup, type FieldKey, type ShipmentType,
@@ -75,7 +76,7 @@ export function ShipmentTypeChip({ requestId, type, source, locked, onChanged }:
   )
 }
 
-type RowSpec = { key: string; label: string; columns: string[]; required: boolean; hint?: string; list?: string[]; calculated?: boolean; fieldKey?: FieldKey }
+type RowSpec = { suggest?: string | null; key: string; label: string; columns: string[]; required: boolean; hint?: string; list?: string[]; calculated?: boolean; fieldKey?: FieldKey }
 
 function Row({ requestId, spec, vals, lockReason, onSaved }: { requestId: string; spec: RowSpec; vals: Record<string, string>; lockReason: string | null; onSaved: (v: Record<string, string>) => void }) {
   const [editing, setEditing] = useState(false)
@@ -84,6 +85,16 @@ function Row({ requestId, spec, vals, lockReason, onSaved }: { requestId: string
   const shown = spec.columns.map((c) => vals[c]).filter(Boolean).join(", ")
   const stated = spec.key === "chargeable_weight" ? vals.chargeable_weight_stated : ""
   const differs = !!stated && !!shown && clean(stated).replace(/\D+/g, "") !== clean(shown).replace(/\D+/g, "")
+
+  async function useSuggestion() {
+    if (!spec.suggest) return
+    setSaving(true)
+    try {
+      const r = await fetch("/api/requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: requestId, fields: { [spec.columns[0]]: spec.suggest } }) })
+      if (r.ok) onSaved({ [spec.columns[0]]: spec.suggest })
+    } catch { /* ignore */ } finally { setSaving(false) }
+  }
+  const overrides = !!spec.suggest && !!shown && spec.calculated && clean(spec.suggest) !== clean(shown)
 
   function start() { setDraft(Object.fromEntries(spec.columns.map((c) => [c, vals[c] ?? ""]))); setEditing(true) }
   async function save() {
@@ -127,6 +138,13 @@ function Row({ requestId, spec, vals, lockReason, onSaved }: { requestId: string
             <span className="whitespace-pre-line text-[15.5px] font-semibold" style={{ color: shown ? "var(--text-primary)" : spec.required ? "#ef4444" : "var(--text-muted)" }}>
               {shown || (spec.required ? "— Missing" : spec.hint ?? "—")}
             </span>
+            {!shown && spec.suggest && (
+              <p className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+                ≈ {spec.suggest} · calculated{" "}
+                {!lockReason && <button type="button" onClick={useSuggestion} disabled={saving} className="font-bold underline disabled:opacity-50" style={{ color: "var(--brand-accent)" }}>Use this</button>}
+              </p>
+            )}
+            {overrides && <p className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>Manual — calculated would be {spec.suggest}</p>}
             {stated && (
               <p className="text-[11px] font-medium" style={{ color: differs ? "#d97706" : "var(--text-muted)" }}>
                 Requester mentioned: {stated}{differs ? " — differs, please check" : ""}
@@ -166,6 +184,7 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
     rows[f.group].push({
       key: f.key, fieldKey: f.key, label: f.label, columns: FIELD_COLUMNS[f.key], required: isReq,
       list: PICKLISTS[f.key], calculated: f.calculated,
+      suggest: f.key === "cbm" ? calculatedCbm(vals) : f.key === "chargeable_weight" ? chargeableWeight(vals) : null,
       hint: f.key === "pickup_address" ? "— only needed for EXW" : f.key === "chargeable_weight" ? "— calculated from dimensions" : f.key === "dimensions" || f.key === "cbm" ? (f.required === "dims_or_cbm" ? "— or give the other" : "—") : "—",
     })
   }

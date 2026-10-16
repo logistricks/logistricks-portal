@@ -7,6 +7,7 @@
  *
  * Template syntax: see lib/quotation-variables.ts.
  */
+import { TYPE_LABEL } from "@/lib/shipment-types"
 import { parseSpecial } from "@/lib/special"
 import { usdPer, type FxOverrides } from "@/lib/fx"
 import { isSeaOnly, isExw } from "@/lib/shipment-labels"
@@ -189,6 +190,8 @@ export interface RequestIn {
   incoterm: string; blType: string; modes: string[]; pickupAddress?: string
   senderName: string; senderEmail: string; senderPhone: string
   specialRequirements: string[]
+  shipmentType?: import("@/lib/shipment-types").ShipmentType | null
+  cbm?: string; packageType?: string; truckType?: string; temperatureControl?: string; cargoReadyDate?: string
 }
 export type QuoteIn = Record<string, any>
 
@@ -386,7 +389,10 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     origin_city: dash(r.originCity), origin_country: dash(r.originCountry), origin,
     destination_city: dash(r.destinationCity), destination_country: dash(r.destinationCountry), destination,
     cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip, weight: dash(r.weight), quantity: dash(r.quantity),
-    dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType), mode: quotedMode || r.modes.join(", "),
+    dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType),
+    cbm: dash(r.cbm), package_type: dash(r.packageType), truck_type: dash(r.truckType), temperature: dash(r.temperatureControl),
+    cargo_ready_date: dash(r.cargoReadyDate),
+    shipment_type: r.shipmentType ? TYPE_LABEL[r.shipmentType] : "", mode: quotedMode || r.modes.join(", "),
     special_requirements: (r.specialRequirements ?? []).join("; "),
     carrier_name: input.carrierName, carrier_quote_ref: q.carrier_quote_ref ?? "",
     quote_mode: q.mode ? String(q.mode).replace(/^./, (c: string) => c.toUpperCase()) : "",

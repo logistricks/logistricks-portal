@@ -1,6 +1,7 @@
 "use client"
 
 import { FieldConfirmation } from "@/components/portal/field-confirmation"
+import { TYPE_LABEL } from "@/lib/shipment-types"
 import { RequestAttachments } from "@/components/portal/request-attachments"
 import { rankCarriers } from "@/lib/carrier-match"
 import { defaultTemplateFor } from "@/lib/template-defaults"
@@ -1178,6 +1179,8 @@ function templateVars(req: FreightRequest, carrier: Carrier | undefined): Record
     bl_type: req.blType, mode: req.modes.join(", "), urgency: req.urgency, pickup_address: req.pickupAddress ?? "",
     sender_name: req.senderName, sender_email: req.senderEmail,
     received_date: req.receivedExact, preferred_carrier: req.preferredCarrier,
+    shipment_type: req.shipmentType ? TYPE_LABEL[req.shipmentType] : "", cbm: req.cbm ?? "", package_type: req.packageType ?? "", truck_type: req.truckType ?? "",
+    temperature: req.temperatureControl ?? "", cargo_ready_date: req.cargoReadyDate ?? "", chargeable_weight: req.chargeableWeight || req.chargeableWeightStated || "",
     contact_name: carrier?.person_name ?? "there", carrier_name: carrier?.carrier_name ?? "",
     carrier_email: carrier?.email ?? "", carrier_phone: carrier?.number ?? "",
     special_requirements: carrierFacingSpecial(forCarrier(req.specialRequirements ?? [], [])).join("\n"),

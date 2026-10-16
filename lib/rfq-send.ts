@@ -3,6 +3,7 @@
  *  - renderRfqDraft: fills the client's RFQ template for one carrier (same rules as the n8n "Render RFQ email" node)
  *  - registerRfqRows: creates the carrier_quote_requests rows that make later carrier replies link back
  */
+import { TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
 import { randomBytes } from "crypto"
 import { applyTemplate } from "@/lib/template-render"
 import { htmlToPlainText } from "@/lib/quotation-render"
@@ -36,6 +37,9 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
     origin_city: s(row.origin_city), origin_country: s(row.origin_country), destination_city: s(row.destination_city), destination_country: s(row.destination_country),
     cargo_type: s(row.cargo_type), quantity: s(row.quantity), weight: s(row.weight), dimensions: s(row.dimensions), equipment: joinList(row.equipment) || s(row.equipment),
     incoterm: s(row.incoterm), pickup_address: exw && hasText(pickup) ? pickup : "", bl_type: s(row.bl_type), urgency: s(row.urgency),
+    cbm: s(row.cbm), package_type: s(row.package_type), truck_type: s(row.truck_type), temperature: s(row.temperature_control),
+    cargo_ready_date: s(row.cargo_ready_date), chargeable_weight: s(row.chargeable_weight || row.chargeable_weight_stated),
+    shipment_type: TYPE_LABEL[s(row.shipment_type) as ShipmentType] ?? "",
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),
     dgr: row.dgr ? "Yes" : "", aog: row.aog ? "Yes" : "",

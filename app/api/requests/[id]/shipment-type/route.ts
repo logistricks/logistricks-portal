@@ -10,6 +10,7 @@ import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { logActivity } from "@/lib/log-activity"
 import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
+import { chargeableWeight } from "@/lib/shipment-calc"
 import { flagsForType, isShipmentType, quotableCheck, TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
 
 export const dynamic = "force-dynamic"
@@ -28,8 +29,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: row } = await admin.from("freight_requests").select("*").eq("id", id).ilike("client_code", code).maybeSingle()
   if (!row) return NextResponse.json({ error: "Request not found" }, { status: 404 })
 
-  const before = await snapshot(admin, "freight_requests", { id, client_code: row.client_code }, "id,client_code,shipment_type,type_source,is_sea,is_air,is_land,missing_fields")
-  const patch = { shipment_type: type, type_source: "manual", ...flagsForType(type), missing_fields: quotableCheck(type, row as Record<string, unknown>).missing }
+  const before = await snapshot(admin, "freight_requests", { id, client_code: row.client_code }, "id,client_code,shipment_type,type_source,is_sea,is_air,is_land,missing_fields,chargeable_weight")
+  const patch: Record<string, unknown> = { shipment_type: type, type_source: "manual", ...flagsForType(type), missing_fields: quotableCheck(type, row as Record<string, unknown>).missing }
+  if (type === "air" && !row.chargeable_weight) { const cw = chargeableWeight(row); if (cw) patch.chargeable_weight = cw }
   const { error } = await admin.from("freight_requests").update(patch).eq("id", id).eq("client_code", row.client_code)
   if (error) {
     const noColumn = /shipment_type|type_source/.test(error.message) && /column|schema/i.test(error.message)
