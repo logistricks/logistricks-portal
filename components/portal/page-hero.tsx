@@ -8,7 +8,7 @@ import type { ReactNode } from "react"
  * Colours come from the brand variables, so each client's theme still applies.
  * Every portal page starts with one.
  */
-export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, left, right, onDown, below, belowOpen }: {
+export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, left, right, onDown, titleExtra, below, belowOpen }: {
   eyebrow?: ReactNode
   title: ReactNode
   chips?: ReactNode
@@ -20,6 +20,8 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
   left?: ReactNode
   right?: ReactNode
   onDown?: () => void
+  /** shown under the title in the compact layout (instead of the jump arrow) */
+  titleExtra?: ReactNode
   /** content that slides out from the bottom of the compact band (kept mounted while closed) */
   below?: ReactNode
   belowOpen?: boolean
@@ -38,6 +40,7 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
           <div className="text-center">
             {eyebrow && <div className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--brand-accent)" }}>{eyebrow}</div>}
             <h1 className="text-[32px] font-extrabold leading-[1.05] text-white sm:text-[40px]">{title}</h1>
+            {titleExtra && <div className="mt-2 flex justify-center">{titleExtra}</div>}
             {onDown && (
               <button type="button" onClick={onDown} aria-label="Jump to the list"
                 className="mx-auto mt-1 flex h-9 w-9 items-center justify-center rounded-full transition"

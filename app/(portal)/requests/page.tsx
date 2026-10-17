@@ -379,7 +379,17 @@ export default function RequestsPage() {
       <PageHero
         eyebrow="Inbox"
         title="Requests"
-        onDown={() => document.getElementById("requests-table")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        titleExtra={
+          <button
+            onClick={() => load()}
+            title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
+            className="inline-flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-white/10"
+            style={{ border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.08)" }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </button>
+        }
         left={
           <>
             <button type="button" onClick={() => { setDropOpen(true); setManualSignal((n) => n + 1) }}
@@ -396,15 +406,6 @@ export default function RequestsPage() {
             <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
             {Object.keys(lateMap).length > 0 && <HeroChip>{Object.keys(lateMap).length} overdue</HeroChip>}
             <IntakeLogButton />
-            <button
-              onClick={() => load()}
-              title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-white/10"
-              style={{ border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.08)" }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </button>
           </>
         }
         belowOpen={dropOpen}
