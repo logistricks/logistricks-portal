@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
+  Trophy,
   ChevronUp,
   Copy,
   Loader2,
@@ -297,6 +298,7 @@ export default function RequestDetailPage() {
   const [replyTo, setReplyTo]       = useState("")
   const [messageBody, setMessageBody] = useState("")
   const [activeTab, setActiveTab]   = useState<"details" | "quotes">("details")
+  const [outcomeOpen, setOutcomeOpen] = useState(false)
   /** From the missing-fields pop-up: close the carrier dialog and open the reply to the sender. */
   const replyToSender = () => {
     if (!request) return
@@ -455,49 +457,84 @@ export default function RequestDetailPage() {
 
       {/* ── Back bar + header ────────────────────────────────────────────── */}
       <div className="relative mx-6 mt-4 w-[calc(100%-3rem)] overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
-        {/* breadcrumb */}
-        <div className="flex items-center justify-center gap-2 px-6 pt-3">
-          <Link href="/requests" className="flex items-center gap-1 text-[11.5px] font-medium text-white/55 transition-colors hover:text-white/85">
-            <ArrowLeft className="h-3 w-3" /> Requests
-          </Link>
-          <span className="text-[11px] text-white/30">/</span>
-          <span className="max-w-xs truncate text-[11.5px] text-white/70">{request.senderName}</span>
-        </div>
+        {/* back: arrow only, top left */}
+        <Link href="/requests" aria-label="Back to requests" title="Back to requests"
+          className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:brightness-90"
+          style={{ background: "var(--brand-accent)", boxShadow: "0 6px 14px -6px rgb(var(--brand-accent-rgb) / 0.7)" }}>
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
 
-        {/* title line */}
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-6 pt-1.5">
-          <span className="font-mono text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
-          <h1 className="font-display text-[26px] font-extrabold leading-tight text-white">{request.senderName}</h1>
-          {aog && <AogBadge />}
-          {dgr && <DgrBadge />}
-          <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
-        </div>
+        <div className="grid grid-cols-1 items-center gap-x-6 gap-y-4 px-6 pb-5 pt-14 lg:grid-cols-[1fr_auto_1fr] lg:pt-6">
+          {/* left: route */}
+          <div className="flex flex-col items-center gap-1.5 lg:items-start lg:pl-14">
+            <div className="flex flex-col items-center gap-1 lg:items-start">
+              <div className="flex items-center gap-3">
+                <div>
+                  {seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Origin · POL</p>}
+                  {!seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Origin</p>}
+                  <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</p>
+                </div>
+                <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-white/40" />
+                <div>
+                  {seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Destination · POD</p>}
+                  {!seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Destination</p>}
+                  <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</p>
+                </div>
+              </div>
+            </div>
+            {exwMissing && (
+              <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>
+                <AlertTriangle className="h-3 w-3" /> {EXW_ALERT}
+              </span>
+            )}
+          </div>
 
-        {/* one line: route, mode, urgency, confidence, source */}
-        <div className="mx-auto mt-2.5 flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-2xl px-4 py-2" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
-          {seaOnly && <span className="text-[9.5px] font-bold uppercase tracking-wide text-white/50">POL</span>}
-          <span className="font-display text-[16px] font-bold text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</span>
-          <ArrowRight className="h-3.5 w-3.5 text-white/40" />
-          {seaOnly && <span className="text-[9.5px] font-bold uppercase tracking-wide text-white/50">POD</span>}
-          <span className="font-display text-[16px] font-bold text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</span>
-          {exwMissing && (
-            <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>
-              <AlertTriangle className="h-3 w-3" /> {EXW_ALERT}
-            </span>
-          )}
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
-            <UrgencyBadge urgency={request.urgency} />
-            <ConfidenceBadge confidence={request.confidence} />
-            <SourceBadge source={request.source} />
-            <IntakeBadge source={request.intakeSource} light />
-            {request.intakeFilename && <span className="text-[10px] text-white/40">{request.intakeFilename}</span>}
+          {/* centre: reference above the name */}
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="font-mono text-[12px] font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
+            <h1 className="font-display max-w-[34ch] truncate text-[26px] font-extrabold leading-tight text-white">{request.senderName}</h1>
+            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+              {aog && <AogBadge />}
+              {dgr && <DgrBadge />}
+              <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
+            </div>
+          </div>
+
+          {/* right: details table, one calm colour */}
+          <div className="flex justify-center lg:justify-end">
+            <dl className="w-full max-w-[250px] overflow-hidden rounded-xl text-[12px]" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)" }}>
+              {([
+                ["Mode", request.modes.join(" · ") || "—"],
+                ["Urgency", request.urgency],
+                ["Confidence", request.confidence],
+                ["Source", request.source],
+                ["Intake", request.intakeSource === "manual" ? "Manual" : "Automatic"],
+              ] as [string, string][]).map(([k, v], i) => (
+                <div key={k} className="flex items-center justify-between gap-4 px-3 py-1.5" style={{ borderTop: i ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                  <dt className="font-semibold uppercase tracking-wide text-white/50" style={{ fontSize: 10 }}>{k}</dt>
+                  <dd className="font-semibold text-white">{v}</dd>
+                </div>
+              ))}
+              {request.intakeFilename && (
+                <div className="px-3 py-1.5 text-right text-[10px] text-white/40" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>{request.intakeFilename}</div>
+              )}
+            </dl>
           </div>
         </div>
 
-        {/* outcome & booking: the decision on this request, always at the top */}
-        <div className="on-navy mt-3 px-4 pb-4 sm:px-5">
-          <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
+        {/* outcome & booking: slides out from the bottom of the bar */}
+        <button type="button" onClick={() => setOutcomeOpen((o) => !o)} aria-expanded={outcomeOpen}
+          className="flex w-full items-center justify-center gap-2 py-2.5 text-[12.5px] font-bold text-white/80 transition-colors hover:bg-white/5"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}>
+          <Trophy className="h-3.5 w-3.5" style={{ color: "var(--brand-accent)" }} /> Outcome &amp; Booking
+          <ChevronDown className="h-4 w-4 transition-transform duration-300" style={{ transform: outcomeOpen ? "rotate(180deg)" : "none" }} />
+        </button>
+        <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: outcomeOpen ? "1fr" : "0fr" }}>
+          <div className="overflow-hidden">
+            <div className="on-navy px-4 pb-4 pt-3 sm:px-5">
+              <RequestOutcomePanel requestId={request.id} refreshSignal={rfqRefreshSignal} status={request.status} />
+            </div>
+          </div>
         </div>
       </div>
 
