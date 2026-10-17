@@ -26,6 +26,19 @@ interface UnlinkedQuote {
   reason: string | null
   receivedAt: string
   intakeSource?: string
+  suggestions?: Suggestion[]
+}
+
+interface Suggestion {
+  id: string
+  ref: string
+  senderName: string
+  route: string
+  cargoType: string
+  score: number
+  reasons: string[]
+  carrierId: number | null
+  rfqSentToCarrier: boolean
 }
 
 interface CarrierOption { id: number; name: string; email: string }
@@ -99,13 +112,15 @@ function LinkDialog({
   onClose: () => void
   onLinked: (quoteId: number, ref: string) => void
 }) {
-  const [carrierId, setCarrierId]   = useState<number | "">(quote.carrierId ?? "")
+  const top = quote.suggestions?.[0] ?? null
+  const [carrierId, setCarrierId]   = useState<number | "">(quote.carrierId ?? top?.carrierId ?? "")
   const [targets, setTargets]       = useState<LinkTarget[]>([])
   const [loadingT, setLoadingT]     = useState(true)
   const [search, setSearch]         = useState("")
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(top?.id ?? null)
   const [busy, setBusy]             = useState(false)
   const [error, setError]           = useState<string | null>(null)
+  const suggestedById = useMemo(() => new Map((quote.suggestions ?? []).map((s) => [s.id, s])), [quote.suggestions])
 
   // Reload the candidate requests when the carrier changes, so requests that
   // already have an RFQ out to that carrier are listed first.
@@ -115,11 +130,11 @@ function LinkDialog({
     const qs = carrierId ? `?carrier_id=${carrierId}` : ""
     fetch(`/api/carrier-quotes/link-targets${qs}`)
       .then(async (r) => { if (!r.ok) throw new Error(await readError(r)); return r.json() })
-      .then((d: { targets: LinkTarget[] }) => { if (!cancelled) setTargets(d.targets ?? []) })
+      .then((d: { targets: LinkTarget[] }) => { if (!cancelled) setTargets([...(d.targets ?? [])].sort((a, b) => Number(suggestedById.has(b.id)) - Number(suggestedById.has(a.id)))) })
       .catch((e: Error) => { if (!cancelled) setError(e.message) })
       .finally(() => { if (!cancelled) setLoadingT(false) })
     return () => { cancelled = true }
-  }, [carrierId])
+  }, [carrierId, suggestedById])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -222,6 +237,9 @@ function LinkDialog({
                       </span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">
+                      {suggestedById.has(t.id) && (
+                        <span title={suggestedById.get(t.id)!.reasons.join(" · ")} className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "rgb(var(--brand-accent-rgb) / 0.14)", color: "var(--brand-accent)" }}>Suggested</span>
+                      )}
                       <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t.status}</span>
                       {t.rfqSentToCarrier && (
                         <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: "#16a34a" }}>RFQ sent to this carrier</span>
@@ -490,6 +508,12 @@ export default function UnlinkedQuotesPage() {
                       <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{dateText(q.validityDate)}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex rounded px-2 py-0.5 text-[11px] font-semibold" style={{ background: "rgba(245,158,11,0.12)", color: "#d97706" }}>{reasonLabel(q.reason)}</span>
+                        {q.suggestions?.[0] && (
+                          <div className="mt-1.5 text-[11px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+                            <span className="font-semibold" style={{ color: "var(--brand-accent)" }}>Likely {q.suggestions[0].ref}</span>
+                            <span> · {q.suggestions[0].reasons.slice(0, 2).join(" · ")}</span>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">

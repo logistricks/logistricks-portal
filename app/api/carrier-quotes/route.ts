@@ -69,6 +69,7 @@ import { adminClient } from "@/lib/api-session"
 import { buildExtendedFields } from "@/lib/quote-extended"
 import { syncRequestStatus } from "@/lib/request-status"
 import { normId } from "@/lib/inbound-match"
+import { resolveCarrierPk } from "@/lib/quote-suggest"
 
 /** Insert with the extended columns; if migration 040 has not run yet, store the base fields only. */
 async function insertQuote(admin: any, base: Record<string, unknown>, ext: Record<string, unknown>) {
@@ -145,6 +146,9 @@ export async function POST(req: NextRequest) {
     carrierPk = hit?.id ?? null
   }
 
+  // Not an exact contact address: a carrier on the same company domain counts too
+  if (!carrierPk) carrierPk = await resolveCarrierPk(admin, client_code, (body.carrier_email as string | undefined) ?? (body.from_email as string | undefined) ?? null, null)
+
   // ── Try to match the reply to an RFQ we sent ──────────────────────────────
   let match: Match | null = null
   let method: LinkMethod | null = null
@@ -172,6 +176,9 @@ export async function POST(req: NextRequest) {
     if (fr) { freightRequestId = fr.id; requestFound = true }
   }
 
+  // The request is known (chosen by hand or named in the email) but the sender is not: take the one carrier still owing a quote on it
+  if (!carrierPk && freightRequestId) carrierPk = await resolveCarrierPk(admin, client_code, (body.carrier_email as string | undefined) ?? (body.from_email as string | undefined) ?? null, freightRequestId)
+
   if (!match && freightRequestId && carrierPk) {
     const { data } = await admin
       .from("carrier_quote_requests")
@@ -195,7 +202,8 @@ export async function POST(req: NextRequest) {
 
   // Dropped by hand inside a request: the person chose the request, so link it there even when no RFQ was sent from the
   // portal for this carrier (the RFQ row is created, as the manual "link" action does).
-  if (!match && body.intake_source === "manual" && freightRequestId && carrierPk) {
+  // The same goes for an explicit request number (LT-0087) in the email with a recognised carrier: the sender named the request.
+  if (!match && (body.intake_source === "manual" || requestFound) && freightRequestId && carrierPk) {
     const { data: own } = await admin.from("freight_requests").select("id").eq("id", freightRequestId).eq("client_code", client_code).maybeSingle()
     if (own) {
       const { data: created } = await admin
@@ -209,7 +217,7 @@ export async function POST(req: NextRequest) {
         })
         .select(cols)
         .single()
-      if (created) { match = created; method = "manual" }
+      if (created) { match = created; method = body.intake_source === "manual" ? "manual" : "request_and_carrier" }
     }
   }
 

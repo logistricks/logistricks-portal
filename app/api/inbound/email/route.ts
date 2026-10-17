@@ -22,6 +22,7 @@ import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { parseEmailFile, type ParsedEmail } from "@/lib/email-parse"
 import { normId } from "@/lib/inbound-match"
+import { resolveCarrierPk } from "@/lib/quote-suggest"
 
 export const runtime = "nodejs"
 export const maxDuration = 120
@@ -196,6 +197,12 @@ export async function POST(req: NextRequest) {
   // in the email, or it never passed the request on), link it here, the same way the "Link to request" action does.
   if (outcome.found && kind === "carrier_reply" && freightRequestId && outcome.result.linked === false && outcome.result.quote_id) {
     try {
+      // the sender may not be a saved carrier contact: find which carrier it is (same address, same company domain,
+      // or the only carrier still owing a quote on this request) so the quote can hang off that request
+      const { data: qrow } = await admin.from("carrier_quotes").select("carrier_id, from_email").eq("id", outcome.result.quote_id).maybeSingle()
+      let carrierPk: number | null = qrow?.carrier_id ?? null
+      if (!carrierPk) carrierPk = await resolveCarrierPk(admin, clientCode, qrow?.from_email ?? merged.from_email, freightRequestId)
+      if (carrierPk && !qrow?.carrier_id) await admin.from("carrier_quotes").update({ carrier_id: carrierPk }).eq("id", outcome.result.quote_id)
       const lr = await fetch(new URL("/api/carrier-quotes/link", req.url), {
         method: "POST", headers: { "Content-Type": "application/json", cookie: req.headers.get("cookie") ?? "" },
         body: JSON.stringify({ quote_id: outcome.result.quote_id, freight_request_id: freightRequestId }),
@@ -229,7 +236,12 @@ async function waitForOutcome(
       // the workflow may store the Message-ID with or without the angle brackets
       q = a.messageId ? q.in("email_message_id", [a.messageId, `<${a.messageId}>`]) : q.eq("intake_filename", a.filename)
       const { data } = await q.order("created_at", { ascending: false }).limit(1)
-      const r = data?.[0]
+      let r = data?.[0]
+      // Pasted text has no Message-ID, and the workflow may store it differently: fall back to the sender, newest first
+      if (!r && a.fromEmail) {
+        const { data: byFrom } = await admin.from("carrier_quotes").select("*").eq("client_code", a.clientCode).gte("created_at", sinceIso).ilike("from_email", a.fromEmail).order("created_at", { ascending: false }).limit(1)
+        r = byFrom?.[0]
+      }
       return r ? { outcome: "carrier_quote", quote_id: r.id, request_id: r.freight_request_id ?? null, review_status: r.review_status ?? null, linked: !!r.freight_request_id } : null
     }
     // requests: the inbound_emails row says how it was matched; freight_requests says what was created.

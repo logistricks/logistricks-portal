@@ -376,6 +376,7 @@ function describe(kind: string, r: any): string {
     const miss = Array.isArray(r.missing_fields) && r.missing_fields.length ? ` — missing: ${r.missing_fields.join(", ")}` : ""
     return `Request ${r.request_ref ?? ""} created${miss}${r.exw_pickup_address_missing ? " — EXW pickup address missing" : ""}`
   }
+  if (r.linked === false && r.link_error) return `Stored as a non-linked quote: ${r.link_error}. Open Non-linked quotes and pick the carrier; this request is already suggested.`
   if (r.linked === false) return `Stored as a non-linked quote (${String(r.reason ?? "").replace(/_/g, " ")})`
   return r.review_status === "needs_review" ? "Quote linked to the request — needs review" : "Quote linked to the request"
 }

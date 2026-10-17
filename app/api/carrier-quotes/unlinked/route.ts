@@ -8,6 +8,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
+import { suggestForQuotes } from "@/lib/quote-suggest"
 
 export async function GET(req: NextRequest) {
   const cookie  = req.cookies.get("portal_session")?.value
@@ -45,8 +46,12 @@ export async function GET(req: NextRequest) {
 
   if (quotesRes.error) return NextResponse.json({ error: quotesRes.error.message }, { status: 500 })
 
+  // the open requests each quote most likely belongs to (never blocks the page if it fails)
+  const suggestions = await suggestForQuotes(admin, session.clientCode, quotesRes.data ?? []).catch(() => ({} as Awaited<ReturnType<typeof suggestForQuotes>>))
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const quotes = (quotesRes.data ?? []).map((q: any) => ({
+    suggestions:     suggestions[q.id] ?? [],
     id:              q.id,
     carrierId:       q.carrier_id ?? null,
     carrierName:     q.carriers?.carrier_name ?? null,
