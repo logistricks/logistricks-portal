@@ -8,7 +8,7 @@ import type { ReactNode } from "react"
  * Colours come from the brand variables, so each client's theme still applies.
  * Every portal page starts with one.
  */
-export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, left, right, onDown }: {
+export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, left, right, onDown, below, belowOpen }: {
   eyebrow?: ReactNode
   title: ReactNode
   chips?: ReactNode
@@ -20,6 +20,9 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
   left?: ReactNode
   right?: ReactNode
   onDown?: () => void
+  /** content that slides out from the bottom of the compact band (kept mounted while closed) */
+  below?: ReactNode
+  belowOpen?: boolean
 }) {
   if (left || right) {
     return (
@@ -45,6 +48,11 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">{right}</div>
         </div>
+        {below && (
+          <div className="relative grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: belowOpen ? "1fr" : "0fr" }}>
+            <div className="overflow-hidden"><div className="pt-4">{below}</div></div>
+          </div>
+        )}
       </section>
     )
   }

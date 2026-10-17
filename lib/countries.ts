@@ -87,3 +87,11 @@ export function cleanCodes(v: unknown): string[] {
   const ok = new Set(ALL_CODES)
   return Array.from(new Set((Array.isArray(v) ? v : []).map((x) => String(x).toUpperCase()).filter((c) => ok.has(c))))
 }
+
+/** Trade regions used by the Requests filter: the continent, with the Middle East split out of Asia (and Egypt, Türkiye counted in it). */
+const MIDDLE_EAST = new Set(["AE", "BH", "EG", "IQ", "IR", "IL", "JO", "KW", "LB", "OM", "PS", "QA", "SA", "SY", "TR", "YE"])
+export const regionOf = (code: string | null | undefined): string | null => {
+  if (!code) return null
+  if (MIDDLE_EAST.has(code)) return "Middle East"
+  return continentOf(code)
+}

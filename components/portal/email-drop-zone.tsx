@@ -10,6 +10,8 @@ type Props = {
   onDone?: () => void
   /** Called when the person chooses to reply to the sender about missing information. */
   onReplyToSender?: () => void
+  /** true while something is staged / being processed / reported, so a host can slide the box open */
+  onActive?: (active: boolean) => void
   compact?: boolean
   /** One thin line: for pages where the box should stay out of the way. */
   slim?: boolean
@@ -38,7 +40,7 @@ const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${M
  * Two steps: (1) drop an .eml / .msg — or paste the email text and drop its PDFs — and check what was read;
  * (2) press Process to run the normal workflow. Works without any mailbox connection.
  */
-export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender, compact, slim }: Props) {
+export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender, onActive, compact, slim }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<"" | "reading" | "processing">("")
@@ -47,6 +49,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
   const mbRef = useRef<string[]>([])
   useEffect(() => { mbRef.current = mailboxes }, [mailboxes])
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  useEffect(() => { onActive?.(!!staged || !!msg || busy !== "") }, [staged, msg, busy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Anything dropped anywhere on the page is taken by the portal — never by the browser, which would otherwise
   // open the file / link (e.g. Apple Mail's message:// link) and leave the page. A full-page overlay shows while dragging.

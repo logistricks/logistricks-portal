@@ -5,8 +5,9 @@ import { TYPE_LABEL } from "@/lib/shipment-types"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
+import { regionOf, toCountryCode } from "@/lib/countries"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Clock, ExternalLink, Eye, FileText, LayoutGrid, List as ListIcon, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, TriangleAlert, X, Zap } from "lucide-react"
+import { ChevronDown, Clock, ExternalLink, Eye, FileText, LayoutGrid, List as ListIcon, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/toast"
 import { SpecialRequestsDialog } from "@/components/portal/special-requests"
@@ -67,6 +68,31 @@ function Toggle({ on, onClick, children, count, tone }: { on: boolean; onClick: 
   )
 }
 
+/** A group of options joined into one row (single border, thin dividers). */
+function Seg({ items, label }: { items: { key: string; label: React.ReactNode; on: boolean; onClick: () => void; count?: number }[]; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-xl" style={{ border: "1.5px solid var(--card-border)", background: "var(--card-bg)" }}>
+      {items.map((it, i) => (
+        <button key={it.key} type="button" aria-pressed={it.on} onClick={it.onClick}
+          className="rq-chip-btn inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3.5 py-2 text-[13px] font-bold transition-colors"
+          style={{ borderLeft: i ? "1px solid var(--card-border)" : "none", background: it.on ? "var(--brand-accent)" : "transparent", color: it.on ? "var(--brand-navy)" : "var(--text-secondary)" }}>
+          {it.label}
+          {it.count !== undefined && <span className="text-[11px] font-bold tabular-nums" style={{ opacity: it.on ? 0.75 : 0.55 }}>{it.count}</span>}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 sm:justify-start">
+      <span className="w-[74px] shrink-0 text-center text-[10.5px] font-bold uppercase tracking-wider sm:text-left" style={{ color: "var(--text-secondary)" }}>{label}</span>
+      {children}
+    </div>
+  )
+}
+
 function Chip({ tone, icon, children, title }: { tone: "red" | "amber" | "blue" | "slate"; icon?: React.ReactNode; children: React.ReactNode; title?: string }) {
   const t = { red: "#ef4444", amber: "#d97706", blue: "#3b82f6", slate: "#64748b" }[tone]
   return (
@@ -106,6 +132,11 @@ export default function RequestsPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [sources, setSources]   = useState<SourceKey[]>([])
   const [onlyFlagged, setOnlyFlagged] = useState(false)
+  const [directions, setDirections] = useState<("Export" | "Import" | "Cross-trade")[]>([])
+  const [regions, setRegions] = useState<string[]>([])
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [dropOpen, setDropOpen] = useState(false)
+  const [homeCodes, setHomeCodes] = useState<string[]>([])
   const [onlyOverdue, setOnlyOverdue] = useState(false)
   const [lateMap, setLateMap] = useState<Record<string, { lateH: number; title: string; stuck: boolean }>>({})
   const [results, setResults] = useState<("won" | "lost")[]>([])
@@ -142,14 +173,14 @@ export default function RequestsPage() {
   // Remember the filters between visits; "/" jumps to search.
   const [prefsReady, setPrefsReady] = useState(false)
   const [view, setView] = useState<"cards" | "table">("cards")
-  const [sortBy, setSortBy] = useState<"priority" | "newest">("priority")
+  const [sortBy, setSortBy] = useState<"priority" | "newest" | "oldest">("priority")
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem(PREFS_KEY) || "null")
-      if (v) { setStages(v.stages ?? ["Pending"]); setTargets(v.targets ?? []); setDeliveries(v.deliveries ?? []); setSources(v.sources ?? []); setOnlyFlagged(!!v.onlyFlagged) }
+      if (v) { setStages(v.stages ?? ["Pending"]); setTargets(v.targets ?? []); setDeliveries(v.deliveries ?? []); setSources(v.sources ?? []); setOnlyFlagged(!!v.onlyFlagged); setDirections(v.directions ?? []); setRegions(v.regions ?? []); setFiltersOpen(!!v.filtersOpen) }
     } catch { /* ignore */ }
     try { const v = localStorage.getItem("lt_requests_view"); if (v === "table" || v === "cards") setView(v) } catch { /* ignore */ }
-    try { const v = localStorage.getItem("lt_requests_sort"); if (v === "priority" || v === "newest") setSortBy(v) } catch { /* ignore */ }
+    try { const v = localStorage.getItem("lt_requests_sort"); if (v === "priority" || v === "newest" || v === "oldest") setSortBy(v) } catch { /* ignore */ }
     // Links from the dashboard: ?stage=Quoted&q=Amman&attention=1
     try {
       const p = new URLSearchParams(window.location.search)
@@ -165,15 +196,22 @@ export default function RequestsPage() {
   useEffect(() => { try { localStorage.setItem("lt_requests_sort", sortBy) } catch { /* ignore */ } }, [sortBy])
   useEffect(() => {
     if (!prefsReady) return
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ stages, targets, deliveries, sources, onlyFlagged })) } catch { /* ignore */ }
-  }, [prefsReady, stages, targets, deliveries, sources, onlyFlagged])
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ stages, targets, deliveries, sources, onlyFlagged, directions, regions, filtersOpen })) } catch { /* ignore */ }
+  }, [prefsReady, stages, targets, deliveries, sources, onlyFlagged, directions, regions, filtersOpen])
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
-      if (e.key === "/" && !(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) { e.preventDefault(); searchRef.current?.focus() }
+      if (e.key === "/" && !(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) { e.preventDefault(); setFiltersOpen(true); setTimeout(() => searchRef.current?.focus(), 60) }
     }
     window.addEventListener("keydown", k)
     return () => window.removeEventListener("keydown", k)
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/default-locations", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      const c = [j?.value?.port?.country, j?.value?.airport?.country].map((x: string) => toCountryCode(x)).filter(Boolean) as string[]
+      setHomeCodes(Array.from(new Set(c)))
+    }).catch(() => { /* filters just won't offer export / import */ })
   }, [])
 
   useEffect(() => {
@@ -209,6 +247,18 @@ export default function RequestsPage() {
       : <Chip tone="amber" icon={<Clock className="h-3 w-3" />} title={`${l.title} — ${txt} past its time limit`}>Overdue {txt}</Chip>
   }
 
+  /** Export = leaves the home country, import = arrives in it, cross-trade = neither. Region = where the other end is. */
+  const geoOf = useCallback((r: FreightRequest) => {
+    const o = toCountryCode(r.originCountry), d = toCountryCode(r.destinationCountry)
+    const home = (c: string | null) => !!c && homeCodes.includes(c)
+    const direction = homeCodes.length ? (home(o) && !home(d) ? "Export" : home(d) && !home(o) ? "Import" : "Cross-trade") : null
+    const far = direction === "Export" ? d : direction === "Import" ? o : null
+    const set = new Set<string>()
+    for (const c of far ? [far] : [o, d]) { const g = regionOf(c); if (g && !(home(c))) set.add(g) }
+    return { direction, regions: Array.from(set) }
+  }, [homeCodes])
+  const regionOptions = useMemo(() => Array.from(new Set(requests.flatMap((r) => geoOf(r).regions))).sort((a, b) => a.localeCompare(b)), [requests, geoOf])
+
   const stageCounts = useMemo(() => {
     const c: Record<string, number> = {}
     for (const r of requests) { const k = parseStatus(r.status).stage; c[k] = (c[k] ?? 0) + 1 }
@@ -227,6 +277,11 @@ export default function RequestsPage() {
       if (results.length && !(r.outcome && (results as string[]).includes(r.outcome))) return false
       if (sources.length && !sources.includes(r.source as SourceKey)) return false
       if (onlyFlagged && !isFlagged(r)) return false
+      if (directions.length || regions.length) {
+        const g = geoOf(r)
+        if (directions.length && !(g.direction && (directions as string[]).includes(g.direction))) return false
+        if (regions.length && !g.regions.some((x) => regions.includes(x))) return false
+      }
       if (onlyOverdue && !lateMap[String(r.id)]) return false
       if (q) {
         const hay = `${r.requestRef ?? ""} ${r.senderName} ${r.senderEmail} ${r.cargoType} ${r.originCity} ${r.destinationCity} ${r.incoterm}`.toLowerCase()
@@ -243,13 +298,13 @@ export default function RequestsPage() {
       // Newest first. Compare real times (not text), and fall back to the id so equal times never shuffle between refreshes.
       const ta = Date.parse(a.receivedIso ?? ""), tb = Date.parse(b.receivedIso ?? "")
       const na = Number.isNaN(ta) ? 0 : ta, nb = Number.isNaN(tb) ? 0 : tb
-      if (nb !== na) return nb - na
+      if (nb !== na) return sortBy === "oldest" ? na - nb : nb - na
       return String(a.id).localeCompare(String(b.id))
     })
-  }, [requests, stages, targets, deliveries, sources, onlyFlagged, onlyOverdue, lateMap, results, search, isFlagged, sortBy])
+  }, [requests, stages, targets, deliveries, sources, onlyFlagged, onlyOverdue, lateMap, results, search, isFlagged, sortBy, directions, regions, geoOf])
 
   const flip = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, v: NoInfer<T>) => set((a) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]))
-  function clearFilters() { setOnlyOverdue(false); setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setSearch("") }
+  function clearFilters() { setOnlyOverdue(false); setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setDirections([]); setRegions([]); setSearch("") }
   function showAll() { setStages([]); setTargets([]); setDeliveries([]); setResults([]) }
   // Picking a status leaves the Won/Lost result filter, and dropping Approved drops its sub-filters, so no filter stays on out of sight.
   function flipStage(st: Stage) {
@@ -271,7 +326,7 @@ export default function RequestsPage() {
     setSelected((s) => (s.length === filtered.length ? [] : filtered.map((r) => r.id)))
   }
 
-  const hasActiveFilters = !(stages.length === 1 && stages[0] === "Pending") || results.length > 0 || targets.length > 0 || deliveries.length > 0 || sources.length > 0 || onlyFlagged || search !== ""
+  const hasActiveFilters = !(stages.length === 1 && stages[0] === "Pending") || results.length > 0 || targets.length > 0 || deliveries.length > 0 || sources.length > 0 || onlyFlagged || onlyOverdue || directions.length > 0 || regions.length > 0 || search !== ""
 
   async function bulkUpdateStatus(newStatus: string) {
     if (bulkBusy || selected.length === 0) return
@@ -322,15 +377,22 @@ export default function RequestsPage() {
         eyebrow="Inbox"
         title="Requests"
         onDown={() => document.getElementById("requests-table")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        left={
+          <>
+            <button type="button" onClick={() => setDropOpen((o) => !o)} aria-expanded={dropOpen}
+              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-bold transition-all hover:brightness-90"
+              style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 22px -12px rgb(var(--brand-accent-rgb) / 0.9)" }}>
+              <Mail className="h-4 w-4" /> Add request
+              <ChevronDown className="h-4 w-4 transition-transform duration-300" style={{ transform: dropOpen ? "rotate(180deg)" : "none" }} />
+            </button>
+            <span className="hidden text-[12px] text-white/55 lg:inline">Drop an email anywhere, or enter it manually</span>
+          </>
+        }
         right={
           <>
             <HeroChip>{requests.length} total</HeroChip>
             <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
             {Object.keys(lateMap).length > 0 && <HeroChip>{Object.keys(lateMap).length} overdue</HeroChip>}
-          </>
-        }
-        left={
-          <>
             <IntakeLogButton />
             <button
               onClick={() => load()}
@@ -343,81 +405,88 @@ export default function RequestsPage() {
             </button>
           </>
         }
+        belowOpen={dropOpen}
+        below={
+          <div className="rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.94)" }}>
+            <EmailDropZone kind="request" slim onActive={(a) => { if (a) setDropOpen(true) }} onDone={() => load(true)} />
+          </div>
+        }
       />
 
-      <EmailDropZone kind="request" slim onDone={() => load(true)} />
-
-      {/* Filter bar */}
+      {/* Filter bar: status always, the rest slides out */}
       <div className="ds-card">
-        <div className="space-y-2.5 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-14 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Status</span>
-            <Toggle on={stages.length === 0} onClick={showAll} count={requests.length} tone="#64748b">All</Toggle>
-            {STAGES.map((st) => (
-              <Toggle key={st} on={stages.includes(st)} onClick={() => flipStage(st)} count={stageCounts[st] ?? 0} tone={STATUS_TONE[st]}>
-                {st === "Waiting" ? "Waiting for approval" : st}
-              </Toggle>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-14 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Result</span>
-            <Toggle on={results.includes("won")} onClick={() => { flip(setResults, "won"); setStages([]) }} count={requests.filter((r) => r.outcome === "won").length} tone="#16a34a">Won</Toggle>
-            <Toggle on={results.includes("lost")} onClick={() => { flip(setResults, "lost"); setStages([]) }} count={requests.filter((r) => r.outcome === "lost").length} tone="#ef4444">Lost</Toggle>
-            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Closed means dismissed — it is not a result.</span>
-          </div>
-          {stages.includes("Approved") && (
-            <div className="flex flex-wrap items-center gap-2 pl-0" style={{ animation: "lt-drop-in .18s ease-out" }}>
-              <span className="w-14 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Approved</span>
-              <Toggle on={targets.includes("Carrier")} onClick={() => flip(setTargets, "Carrier")} tone="#10b981">Carrier</Toggle>
-              <Toggle on={targets.includes("Reply")} onClick={() => flip(setTargets, "Reply")} tone="#10b981">Reply</Toggle>
-              <span className="mx-1 h-4 w-px" style={{ background: "var(--divider)" }} />
-              <Toggle on={deliveries.includes("Pending send")} onClick={() => flip(setDeliveries, "Pending send")} tone="#d97706">Pending send</Toggle>
-              <Toggle on={deliveries.includes("Sent")} onClick={() => flip(setDeliveries, "Sent")} tone="#10b981">Sent</Toggle>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-14 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Source</span>
-            <Toggle on={sources.includes("Email")} onClick={() => flip(setSources, "Email")} tone="#3b82f6"><Mail className="h-3.5 w-3.5" />Email</Toggle>
-            <Toggle on={sources.includes("WhatsApp")} onClick={() => flip(setSources, "WhatsApp")} tone="#22c55e"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</Toggle>
-            <span className="mx-1 h-4 w-px" style={{ background: "var(--divider)" }} />
-            <Toggle on={onlyFlagged} onClick={() => setOnlyFlagged((v) => !v)} tone="#ef4444"><TriangleAlert className="h-3.5 w-3.5" />Needs attention</Toggle>
-            <Toggle on={onlyOverdue} onClick={() => setOnlyOverdue((v) => !v)} count={Object.keys(lateMap).length} tone="#d97706"><Clock className="h-3.5 w-3.5" />Overdue</Toggle>
-            <div className="relative ml-auto min-w-[220px] flex-1 sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-              <input
-                ref={searchRef}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search ref, sender, cargo, route…  ( / )"
-                className="h-11 w-full rounded-xl pl-10 pr-8 text-[14px] outline-none"
-                style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
-              />
-              {search && (
-                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} aria-label="Clear search">
-                  <X className="h-3.5 w-3.5" />
-                </button>
+        <div className="flex flex-wrap items-center justify-center gap-3 p-3">
+          <Seg label="Status" items={[
+            { key: "all", label: "All", on: stages.length === 0 && results.length === 0, onClick: showAll, count: requests.length },
+            ...STAGES.map((st) => ({ key: st, label: st === "Waiting" ? "Waiting for approval" : st, on: stages.includes(st), onClick: () => flipStage(st), count: stageCounts[st] ?? 0 })),
+          ]} />
+          <button type="button" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}
+            className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-bold transition-colors hover:brightness-95"
+            style={{ border: "1.5px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
+            <SlidersHorizontal className="h-4 w-4" /> Filters
+            {hasActiveFilters && <span className="h-2 w-2 rounded-full" style={{ background: "var(--brand-accent)" }} />}
+            <ChevronDown className="h-4 w-4 transition-transform duration-300" style={{ transform: filtersOpen ? "rotate(180deg)" : "none" }} />
+          </button>
+        </div>
+        <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: filtersOpen ? "1fr" : "0fr" }}>
+          <div className="overflow-hidden">
+            <div className="space-y-2.5 px-4 pb-4 pt-3" style={{ borderTop: "1px solid var(--divider)" }}>
+              {stages.includes("Approved") && (
+                <FilterRow label="Approved">
+                  <Seg label="Approved target" items={[
+                    { key: "Carrier", label: "To carrier", on: targets.includes("Carrier"), onClick: () => flip(setTargets, "Carrier") },
+                    { key: "Reply", label: "Reply", on: targets.includes("Reply"), onClick: () => flip(setTargets, "Reply") },
+                  ]} />
+                  <Seg label="Approved delivery" items={[
+                    { key: "Pending send", label: "Pending send", on: deliveries.includes("Pending send"), onClick: () => flip(setDeliveries, "Pending send") },
+                    { key: "Sent", label: "Sent", on: deliveries.includes("Sent"), onClick: () => flip(setDeliveries, "Sent") },
+                  ]} />
+                </FilterRow>
               )}
-            </div>
-            {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-xs font-medium" style={{ color: "var(--brand-accent)" }}>Reset</button>
-            )}
-            <div className="inline-flex rounded-xl p-1" style={{ background: "var(--page-bg)", border: "1.5px solid var(--card-border)" }} role="group" aria-label="Sort order">
-              {([["priority", "AOG / DGR first"], ["newest", "Newest first"]] as const).map(([k, label]) => (
-                <button key={k} type="button" aria-pressed={sortBy === k} onClick={() => setSortBy(k)} title={k === "priority" ? "AOG and dangerous goods first, then newest" : "Strictly by date received, newest first"}
-                  className="inline-flex items-center rounded-lg px-3 py-1.5 text-[13px] font-bold transition"
-                  style={sortBy === k ? { background: "var(--brand-accent)", color: "var(--brand-navy)" } : { background: "transparent", color: "var(--text-secondary)" }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="inline-flex rounded-xl p-1" style={{ background: "var(--page-bg)", border: "1.5px solid var(--card-border)" }} role="group" aria-label="View">
-              {([["cards", LayoutGrid, "Cards"], ["table", ListIcon, "List"]] as const).map(([k, Ic, label]) => (
-                <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)} title={`${label} view`}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-bold transition"
-                  style={view === k ? { background: "var(--brand-accent)", color: "var(--brand-navy)" } : { background: "transparent", color: "var(--text-secondary)" }}>
-                  <Ic className="h-4 w-4" />{label}
-                </button>
-              ))}
+              <FilterRow label="Result">
+                <Seg label="Result" items={[
+                  { key: "won", label: "Won", on: results.includes("won"), onClick: () => { flip(setResults, "won"); setStages([]) }, count: requests.filter((r) => r.outcome === "won").length },
+                  { key: "lost", label: "Lost", on: results.includes("lost"), onClick: () => { flip(setResults, "lost"); setStages([]) }, count: requests.filter((r) => r.outcome === "lost").length },
+                ]} />
+              </FilterRow>
+              <FilterRow label="Source">
+                <Seg label="Source" items={[
+                  { key: "Email", label: <><Mail className="h-3.5 w-3.5" />Email</>, on: sources.includes("Email"), onClick: () => flip(setSources, "Email") },
+                  { key: "WhatsApp", label: <><MessageCircle className="h-3.5 w-3.5" />WhatsApp</>, on: sources.includes("WhatsApp"), onClick: () => flip(setSources, "WhatsApp") },
+                ]} />
+              </FilterRow>
+              <FilterRow label="Flags">
+                <Seg label="Flags" items={[
+                  { key: "attn", label: <><TriangleAlert className="h-3.5 w-3.5" />Needs attention</>, on: onlyFlagged, onClick: () => setOnlyFlagged((v) => !v) },
+                  { key: "late", label: <><Clock className="h-3.5 w-3.5" />Overdue</>, on: onlyOverdue, onClick: () => setOnlyOverdue((v) => !v), count: Object.keys(lateMap).length },
+                ]} />
+              </FilterRow>
+              {homeCodes.length > 0 && (
+                <FilterRow label="Direction">
+                  <Seg label="Direction" items={(["Export", "Import", "Cross-trade"] as const).map((d) => ({ key: d, label: d, on: directions.includes(d), onClick: () => flip(setDirections, d), count: requests.filter((r) => geoOf(r).direction === d).length }))} />
+                </FilterRow>
+              )}
+              {regionOptions.length > 0 && (
+                <FilterRow label="Region">
+                  <Seg label="Region" items={regionOptions.map((g) => ({ key: g, label: g, on: regions.includes(g), onClick: () => flip(setRegions, g), count: requests.filter((r) => geoOf(r).regions.includes(g)).length }))} />
+                </FilterRow>
+              )}
+              <FilterRow label="Search">
+                <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+                  <input ref={searchRef} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ref, sender, cargo, route…  ( / )"
+                    className="h-10 w-full rounded-xl pl-10 pr-8 text-[14px] outline-none"
+                    style={{ border: "1.5px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
+                  {search && (
+                    <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} aria-label="Clear search"><X className="h-3.5 w-3.5" /></button>
+                  )}
+                </div>
+              </FilterRow>
+              <FilterRow label="Sort">
+                <Seg label="Sort order" items={([["priority", "AOG / DGR first"], ["newest", "Newest first"], ["oldest", "Oldest first"]] as const).map(([k, l]) => ({ key: k, label: l, on: sortBy === k, onClick: () => setSortBy(k) }))} />
+                <Seg label="View" items={([["cards", LayoutGrid, "Cards"], ["table", ListIcon, "List"]] as const).map(([k, Ic, l]) => ({ key: k, label: <><Ic className="h-4 w-4" />{l}</>, on: view === k, onClick: () => setView(k) }))} />
+                {hasActiveFilters && <button onClick={clearFilters} className="text-xs font-bold" style={{ color: "var(--brand-accent)" }}>Reset filters</button>}
+              </FilterRow>
             </div>
           </div>
         </div>
