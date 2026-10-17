@@ -59,12 +59,12 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const missingRequired = info?.missing_required ?? []
   /** Runs the action straight away, or after a confirmation pop-up when mandatory fields are still missing. */
   async function guarded(run: () => void) {
-    if (!missingRequired.length) { run(); return }
     setBusy(true)
-    const r = await fetchReadiness(requestId)
+    const r = await fetchReadiness(requestId) // also covers older untyped requests (their saved missing list)
     setBusy(false)
-    const info2: Readiness = r && r.missing.length ? r : { missing: missingRequired, sender_name: r?.sender_name ?? "", sender_email: r?.sender_email ?? "", source: r?.source ?? "Email", asked: r?.asked ?? null }
-    setConfirm({ info: info2, run })
+    if (r && r.missing.length) { setConfirm({ info: r, run }); return }
+    if (!r && missingRequired.length) { setConfirm({ info: { missing: missingRequired, sender_name: "", sender_email: "", source: "Email", asked: null }, run }); return }
+    run()
   }
   const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n && !multi // multi-leg requests are sent manually for now
 
