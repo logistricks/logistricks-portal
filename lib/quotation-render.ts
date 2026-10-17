@@ -406,7 +406,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     request_ref: r.requestRef ?? "", received_date: r.receivedExact, urgency: r.urgency,
     origin_city: dash(r.originCity), origin_country: dash(r.originCountry), origin,
     destination_city: dash(r.destinationCity), destination_country: dash(r.destinationCountry), destination,
-    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip || (r.shipmentType === "sea_lcl" ? "LCL" : ""), weight: dash(r.weight), quantity: dash(r.quantity),
+    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip || (r.shipmentType === "sea_lcl" ? ["LCL", dash(r.cbm), dash(r.weight)].filter(Boolean).join(" · ") : ""), weight: dash(r.weight), quantity: dash(r.quantity),
     dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType),
     cbm: dash(r.cbm), package_type: dash(r.packageType), truck_type: dash(r.truckType), temperature: dash(r.temperatureControl),
     cargo_ready_date: dash(r.cargoReadyDate),
