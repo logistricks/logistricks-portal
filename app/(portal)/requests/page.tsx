@@ -612,7 +612,7 @@ export default function RequestsPage() {
                     style={{ accentColor: "var(--brand-accent)" }}
                   />
                 </th>
-                {["Ref", "Sender", "Route", "Cargo", "Details", ""].map((h, i) => (
+                {["Ref", "Sender", "Route", "Cargo", "Type", "Status", "Flags", "Received", ""].map((h, i) => (
                   <th key={i} className={`${h === "Cargo" ? "hidden 2xl:table-cell " : ""}px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide`} style={{ color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
@@ -667,6 +667,13 @@ export default function RequestsPage() {
                       <p className="truncate" style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
                       {r.equipment && <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>}
                     </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-[12.5px] font-semibold" style={{ color: "var(--text-primary)" }}>{r.shipmentType ? TYPE_LABEL[r.shipmentType] : <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
+                    <td className="px-3 py-3">
+                      <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                        <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
+                        {r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#dc2626" : "var(--text-secondary)" }}>{outcomeLabel(r)}</span>}
+                      </span>
+                    </td>
                     <td className="px-3 py-3">
                       {(() => {
                         const late = lateMap[String(r.id)]
@@ -681,29 +688,19 @@ export default function RequestsPage() {
                         if (f.urgent) flags.push({ k: "urg", text: "Urgent" })
                         if ((r.specialRequirements?.length ?? 0) > 0) flags.push({ k: "sp", text: `Special ${r.specialRequirements.length}`, title: "Show the special requests", onClick: () => setSpecialFor(r) })
                         if (f.low) flags.push({ k: "low", text: "Low conf.", title: "The AI was not confident reading this request" })
-                        const row = (label: string, value: React.ReactNode, i: number) => (
-                          <div key={label} className="flex items-baseline gap-3 px-3 py-1" style={{ borderTop: i ? "1px solid var(--divider)" : "none" }}>
-                            <span className="w-[58px] shrink-0 text-left text-[9.5px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
-                            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>{value}</span>
+                        return flags.length ? (
+                          <div className="mx-auto flex max-w-[220px] flex-wrap items-center justify-center gap-x-2.5 gap-y-0.5 text-[12px] font-semibold">
+                            {flags.map((fl) => {
+                              const st = fl.critical ? { color: "#dc2626" } : { color: "var(--text-secondary)" }
+                              return fl.onClick
+                                ? <button key={fl.k} type="button" title={fl.title} onClick={(e) => { e.stopPropagation(); fl.onClick!() }} className="underline decoration-dotted underline-offset-2" style={st}>{fl.text}</button>
+                                : <span key={fl.k} title={fl.title} style={st}>{fl.text}</span>
+                            })}
                           </div>
-                        )
-                        return (
-                          <div className="mx-auto w-full min-w-[250px] max-w-[330px] overflow-hidden rounded-xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
-                            {[
-                              ["Type", r.shipmentType ? TYPE_LABEL[r.shipmentType] : "—"],
-                              ["Status", <span key="s" className="inline-flex flex-wrap items-center gap-1"><StatusPill status={r.status} quoteCount={r.activeQuoteCount} />{r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#dc2626" : "var(--text-secondary)" }}>{outcomeLabel(r)}</span>}</span>],
-                              ["Flags", flags.length ? flags.map((fl) => {
-                                const st = fl.critical ? { color: "#dc2626" } : { color: "var(--text-secondary)" }
-                                return fl.onClick
-                                  ? <button key={fl.k} type="button" title={fl.title} onClick={(e) => { e.stopPropagation(); fl.onClick!() }} className="underline decoration-dotted underline-offset-2" style={st}>{fl.text}</button>
-                                  : <span key={fl.k} title={fl.title} style={st}>{fl.text}</span>
-                              }) : <span style={{ color: "var(--text-muted)" }}>None</span>],
-                              ["Received", <span key="r" title={r.receivedExact} style={{ color: "var(--text-secondary)" }}>{r.receivedRelative}</span>],
-                            ].map(([l, v], i) => row(l as string, v as React.ReactNode, i))}
-                          </div>
-                        )
+                        ) : <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>
                       })()}
                     </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-[12.5px] tabular-nums" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>{r.receivedRelative}</td>
                     <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-col items-center justify-center gap-1.5">
                         <button
