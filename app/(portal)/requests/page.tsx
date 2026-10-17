@@ -612,8 +612,8 @@ export default function RequestsPage() {
                     style={{ accentColor: "var(--brand-accent)" }}
                   />
                 </th>
-                {["Ref", "Sender", "Route", "Cargo", "Flags", "Status", "Received", ""].map((h, i) => (
-                  <th key={i} className={`${h === "Cargo" ? "hidden 2xl:table-cell " : ""}${h === "Received" ? "hidden xl:table-cell " : ""}px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide`} style={{ color: "var(--text-muted)" }}>{h}</th>
+                {["Ref", "Sender", "Route", "Cargo", "Details", ""].map((h, i) => (
+                  <th key={i} className={`${h === "Cargo" ? "hidden 2xl:table-cell " : ""}px-3 py-3.5 text-[11px] font-semibold uppercase tracking-wide`} style={{ color: "var(--text-muted)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -642,7 +642,6 @@ export default function RequestsPage() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 font-mono text-[13px] font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                       {r.requestRef ?? (r.id ? `LT-${r.id}` : "")}
-                      {r.shipmentType && <span className="mt-0.5 block text-[10.5px] font-bold uppercase tracking-wide" style={{ color: "var(--brand-accent)" }}>{TYPE_LABEL[r.shipmentType]}</span>}
                     </td>
                     <td className="px-3 py-4">
                       <p className="flex items-center justify-center gap-1.5 font-medium" style={{ color: "var(--text-primary)" }}>
@@ -653,55 +652,68 @@ export default function RequestsPage() {
                         {r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}
                       </p>
                     </td>
-                    <td className="px-3 py-4">
-                      <span className="whitespace-nowrap font-medium" style={{ color: "var(--text-primary)" }}>
-                        {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
-                      </span>
-                      {r.incoterm && <span className="ml-3 inline-block rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide align-middle" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)", marginLeft: 12 }}>{r.incoterm}</span>}
+                    <td className="px-3 py-3">
+                      <div className="mx-auto flex w-fit flex-col items-start gap-0.5 text-left font-medium" style={{ color: "var(--text-primary)" }}>
+                        <span className="flex items-center gap-1.5 whitespace-nowrap">
+                          {sea && <span className="w-7 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity}
+                        </span>
+                        <span className="flex items-center gap-1.5 whitespace-nowrap">
+                          {sea && <span className="w-7 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
+                          {r.incoterm && <span className="ml-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)" }}>{r.incoterm}</span>}
+                        </span>
+                      </div>
                     </td>
                     <td className="mx-auto hidden max-w-[200px] px-3 py-4 2xl:table-cell">
                       <p className="truncate" style={{ color: "var(--text-primary)" }}>{r.cargoType}</p>
                       {r.equipment && <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{parseArrayField(r.equipment)}</p>}
                     </td>
-                    <td className="px-3 py-4">
-                      <div className="flex flex-wrap items-center justify-center gap-1">
-                        {lateChip(r)}
-                        {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
-                        {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
-                        {f.exw && <Chip tone="red" icon={<MapPinOff className="h-3 w-3" />} title="EXW — pickup address missing">EXW address</Chip>}
-                        {f.missing > 0 && <Chip tone="amber" title={`Missing: ${r.missingFields.join(", ")}`}>Missing {f.missing}</Chip>}
-                        {(r.specialRequirements?.length ?? 0) > 0 && (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); setSpecialFor(r) }} title="Show the special requests" className="rounded-md">
-                            <Chip tone="blue">Special {r.specialRequirements.length}</Chip>
-                          </button>
-                        )}
-                        {f.urgent && <Chip tone="blue" icon={<Clock className="h-3 w-3" />}>Urgent</Chip>}
-                        {f.low && <Chip tone="slate" title="The AI was not confident reading this request">Low conf.</Chip>}
-                        {!isFlagged(r) && !lateMap[String(r.id)] && !(r.specialRequirements?.length) && <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4">
-                      <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
-                      {r.outcome && (
-                        <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
-                          style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
-                          {outcomeLabel(r)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="hidden whitespace-nowrap px-3 py-4 font-mono text-[12.5px] tabular-nums xl:table-cell" style={{ color: "var(--text-secondary)" }} title={r.receivedExact}>
-                      {r.receivedRelative}
+                    <td className="px-3 py-3">
+                      {(() => {
+                        const late = lateMap[String(r.id)]
+                        const lateTxt = late ? (late.lateH < 48 ? `${Math.max(1, Math.floor(late.lateH))}h` : `${Math.floor(late.lateH / 24)}d`) : ""
+                        const flags: { k: string; text: string; critical?: boolean; title?: string; onClick?: () => void }[] = []
+                        if (r.aog) flags.push({ k: "aog", text: "AOG", critical: true })
+                        if (late?.stuck) flags.push({ k: "late", text: `Stuck ${lateTxt}`, critical: true, title: late.title })
+                        if (f.exw) flags.push({ k: "exw", text: "EXW address", critical: true, title: "EXW: pickup address missing" })
+                        if (f.missing > 0) flags.push({ k: "miss", text: `Missing ${f.missing}`, critical: true, title: `Missing: ${r.missingFields.join(", ")}` })
+                        if (late && !late.stuck) flags.push({ k: "late", text: `Overdue ${lateTxt}`, title: late.title })
+                        if (r.dgr) flags.push({ k: "dgr", text: "DGR" })
+                        if (f.urgent) flags.push({ k: "urg", text: "Urgent" })
+                        if ((r.specialRequirements?.length ?? 0) > 0) flags.push({ k: "sp", text: `Special ${r.specialRequirements.length}`, title: "Show the special requests", onClick: () => setSpecialFor(r) })
+                        if (f.low) flags.push({ k: "low", text: "Low conf.", title: "The AI was not confident reading this request" })
+                        const row = (label: string, value: React.ReactNode, i: number) => (
+                          <div key={label} className="flex items-baseline gap-3 px-3 py-1" style={{ borderTop: i ? "1px solid var(--divider)" : "none" }}>
+                            <span className="w-[58px] shrink-0 text-left text-[9.5px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
+                            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>{value}</span>
+                          </div>
+                        )
+                        return (
+                          <div className="mx-auto w-full min-w-[250px] max-w-[330px] overflow-hidden rounded-xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
+                            {[
+                              ["Type", r.shipmentType ? TYPE_LABEL[r.shipmentType] : "—"],
+                              ["Status", <span key="s" className="inline-flex flex-wrap items-center gap-1"><StatusPill status={r.status} quoteCount={r.activeQuoteCount} />{r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#dc2626" : "var(--text-secondary)" }}>{outcomeLabel(r)}</span>}</span>],
+                              ["Flags", flags.length ? flags.map((fl) => {
+                                const st = fl.critical ? { color: "#dc2626" } : { color: "var(--text-secondary)" }
+                                return fl.onClick
+                                  ? <button key={fl.k} type="button" title={fl.title} onClick={(e) => { e.stopPropagation(); fl.onClick!() }} className="underline decoration-dotted underline-offset-2" style={st}>{fl.text}</button>
+                                  : <span key={fl.k} title={fl.title} style={st}>{fl.text}</span>
+                              }) : <span style={{ color: "var(--text-muted)" }}>None</span>],
+                              ["Received", <span key="r" title={r.receivedExact} style={{ color: "var(--text-secondary)" }}>{r.receivedRelative}</span>],
+                            ].map(([l, v], i) => row(l as string, v as React.ReactNode, i))}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex flex-col items-center justify-center gap-1.5">
                         <button
                           onClick={() => setActive(r)}
                           title="Quick preview"
                           aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
-                          className="rq-preview inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold text-white shadow-sm"
+                          className="rq-preview inline-flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-sm"
                           style={{ background: "var(--brand-accent)" }}
                         >
-                          <Eye className="h-4 w-4" /> Preview
+                          <Eye className="h-4 w-4" />
                         </button>
                         <a
                           href={`/requests/${r.id}`}
@@ -709,7 +721,7 @@ export default function RequestsPage() {
                           rel="noopener"
                           title="Open full page in a new tab"
                           aria-label="Open full page in a new tab"
-                          className="inline-flex items-center rounded-md p-1.5"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg"
                           style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}
                         >
                           <ExternalLink className="h-4 w-4" />
