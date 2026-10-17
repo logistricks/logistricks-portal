@@ -59,12 +59,12 @@ export function ShipmentTypeChip({ requestId, type, source, locked, onChanged, o
       <button
         type="button" disabled={busy || locked} onClick={() => setOpen((v) => !v)}
         title={locked ? "Locked — carrier RFQ already sent" : type ? "Switch the type" : "Choose the type of this request"}
-        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1 rounded-full px-1 py-0 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         style={type
-          ? { background: "rgb(var(--brand-accent-rgb, 59 130 246) / 0.12)", color: "var(--brand-accent)", border: "1px solid transparent" }
+          ? { background: "transparent", color: "var(--text-primary)", border: "1px solid transparent" }
           : { background: "transparent", color: "var(--text-muted)", border: "1px dashed var(--card-border)" }}
       >
-        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Tag className="h-3 w-3" />}
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
         {type ? TYPE_LABEL[type] : "Set type"}
         {type && source && <span className="font-medium opacity-70">· {source === "manual" ? "set by you" : "AI"}</span>}
         {!locked && <ChevronDown className="h-3 w-3" />}
@@ -202,11 +202,11 @@ function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { fir
 export function TagTable({ rows }: { rows: [string, React.ReactNode][] }) {
   const shown = rows.filter(([, v]) => v)
   return (
-    <div className="mx-auto mt-4 w-full max-w-[460px] overflow-hidden rounded-xl px-1" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
+    <div className="mx-auto mt-3 flex w-full flex-wrap items-stretch justify-center overflow-hidden rounded-xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
       {shown.map(([k, v], i) => (
-        <div key={k} className="flex items-center justify-between gap-4 px-3 py-2" style={{ borderTop: i ? "1px solid var(--divider)" : "none" }}>
-          <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>{k}</span>
-          <span className="flex flex-wrap items-center justify-end gap-1.5 text-right">{v}</span>
+        <div key={k} className="flex min-w-[130px] flex-1 flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-center" style={{ borderLeft: i ? "1px solid var(--card-border)" : "none" }}>
+          <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{k}</span>
+          <span className="flex flex-wrap items-center justify-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>{v}</span>
         </div>
       ))}
     </div>
@@ -290,9 +290,9 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
               onSelect={async (t) => { if (!(await post(`/api/requests/${request.id}/legs`, { action: "type", index: tab, shipment_type: t }))) throw new Error("Could not change the type") }} />
           )],
           ["Quote status", missing.length === 0 ? (
-            <span className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#059669" }}><CheckCircle2 className="h-3.5 w-3.5" /> Ready to quote</span>
+            <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Ready to quote</span>
           ) : (
-            <span title={missing.join(", ")} className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#dc2626" }}><AlertTriangle className="h-3.5 w-3.5" /> {missing.length} missing</span>
+            <span title={missing.join(", ")} className="inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {missing.length} missing</span>
           )],
           ["Access", lockBadge],
           ["Fields", confirmation],

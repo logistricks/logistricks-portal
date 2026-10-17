@@ -607,8 +607,7 @@ export default function RequestDetailPage() {
                 ]
 
                 const lockBadge = fieldLockReason ? (
-                  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                    style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
+                  <span className="flex items-center gap-1">
                     <Lock className="h-3 w-3" />
                     {carrierRfqSent ? "Locked" : "Awaiting reply"}
                   </span>
@@ -638,9 +637,9 @@ export default function RequestDetailPage() {
                       <TagTable rows={[
                         ["Type", <ShipmentTypeChip key="t" requestId={request.id} type={null} locked={carrierRfqSent} onChanged={load} />],
                         ["Quote status", missingCount > 0
-                          ? <span key="q" className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#dc2626" }}><AlertTriangle className="h-3.5 w-3.5" /> {missingCount} missing</span>
-                          : <span key="q" className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#059669" }}><CheckCircle2 className="h-3.5 w-3.5" /> Ready to quote</span>],
-                        ["Access", fieldLockReason ? <span key="a" className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: carrierRfqSent ? "#dc2626" : "#b45309" }}><Lock className="h-3.5 w-3.5" /> {carrierRfqSent ? "Locked" : "Awaiting reply"}</span> : null],
+                          ? <span key="q" className="inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {missingCount} missing</span>
+                          : <span key="q" className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Ready to quote</span>],
+                        ["Access", fieldLockReason ? <span key="a" className="inline-flex items-center gap-1"><Lock className="h-3.5 w-3.5" /> {carrierRfqSent ? "Locked" : "Awaiting reply"}</span> : null],
                         ["Fields", <FieldConfirmation key="f" requestId={request.id} refreshKey={fcKey} />],
                       ]} />
                     </div>

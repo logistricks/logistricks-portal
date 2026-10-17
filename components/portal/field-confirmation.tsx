@@ -33,16 +33,15 @@ export function FieldConfirmation({ requestId, refreshKey = 0, disabled }: { req
 
   if (!fc) return null
   const ok = fc.state === "confirmed"
-  const tone = ok ? { bg: "rgba(16,185,129,0.12)", fg: "#059669" } : { bg: "rgba(245,158,11,0.14)", fg: "#b45309" }
   const label = ok ? "Fields confirmed" : fc.state === "changed" ? "Changed since confirmed" : "Fields not confirmed"
   const detail = ok ? `${VIA[fc.via ?? ""] ?? ""}${fc.by ? ` · ${fc.by}` : ""} · ${when(fc.at)}` : fc.state === "changed" ? `edited ${when(fc.editedAt)}` : ""
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <span title={detail} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+      <span title={detail} className="inline-flex items-center gap-1 text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>
         {ok ? <CheckCircle2 className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}{label}
       </span>
-      {ok && <span className="hidden text-[11px] sm:inline" style={{ color: "var(--text-muted)" }}>{detail}</span>}
+      
       {!ok && (
         <button type="button" onClick={() => void confirm()} disabled={busy || disabled}
           className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11.5px] font-bold disabled:opacity-60"
