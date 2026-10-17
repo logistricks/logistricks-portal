@@ -383,11 +383,11 @@ export default function RequestsPage() {
           <button
             onClick={() => load()}
             title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
-            className="inline-flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-white/10"
+            aria-label="Refresh"
+            className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
             style={{ border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.08)" }}
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            <RefreshCw className="h-4 w-4" />
           </button>
         }
         left={
