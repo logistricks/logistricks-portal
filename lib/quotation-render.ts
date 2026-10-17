@@ -520,7 +520,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   }).join(" ").trim()
   const terms: [string, string][] = ([
     ["Quotation valid until", v.quotation_valid_until], ["Space / equipment", spaceRow], ["Free time", free],
-    ["Payment terms", v.payment_terms], ["Subject to", v.subject_to_conditions], ["Not included", excl],
+    ["Payment terms", v.payment_terms], ["Subject to", v.subject_to_conditions.replace(/^\s*subject to\s+/i, "")], ["Not included", excl],
     ["Documents required", v.required_documents], ["Liability", v.liability_limit], ["Cancellation", v.cancellation_terms],
     ["Insurance", insuranceRow], ["Tax", v.tax_note], ["Notes", notesRow],
   ] as [string, string][]).filter(([, val]) => val)
