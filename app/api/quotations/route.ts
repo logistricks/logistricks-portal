@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options, showMarkupPercent, lineOverrides: lineOverrides ?? undefined,
     preparedBy: (userRow as { display_name?: string } | null)?.display_name || session.username,
     company: company ? { name: company.company_name, email: company.contact_email, phone: company.contact_phone } : undefined,
-    quotationNumber,
+    quotationNumber, fx: fxRates,
   })
   const rendered = renderQuotation(template, ctx, options)
 

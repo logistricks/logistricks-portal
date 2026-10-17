@@ -123,13 +123,27 @@ export interface ChargeIn {
 }
 export interface Line { label: string; basis: string; qty: number | null; rate: number | null; amount: number; currency?: string }
 
-function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number, markupLabel = "Service fee") {
+function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"], final: number, markupLabel = "Service fee", fx?: FxOverrides | null) {
   const included = charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) !== null)
   const optional = charges.filter((c) => c.inclusion && c.inclusion !== "included")
   if (style === "total_only" || included.length === 0) return { lines: [] as Line[], optional, mixed: false }
   // Lines in different currencies are never added together or scaled to the total: each is listed in its own
   // currency as the carrier stated it, and the all-in price follows as the total.
-  if (mixedCurrency(included)) {
+  // When every currency has a known rate, the lines are converted to USD (the same rates the total uses) and then handled
+  // like any single-currency quotation: the markup is spread across them, so the lines add up to the total and the
+  // customer sees sell prices only.
+  const asUsd = (): ChargeIn[] | null => {
+    const out: ChargeIn[] = []
+    for (const c of included) {
+      const cur = String(c.currency || "USD").toUpperCase()
+      const rate = usdPer(cur, fx)
+      if (rate === null) return null
+      out.push({ ...c, currency: "USD", amount: round2((num(c.amount) as number) * rate), unit_rate: num(c.unit_rate) !== null ? round2((num(c.unit_rate) as number) * rate) : null })
+    }
+    return out
+  }
+  const converted = mixedCurrency(included) ? asUsd() : null
+  if (mixedCurrency(included) && !converted) {
     const lines: Line[] = included.map((c) => ({
       label: c.carrier_label ?? "Charge", basis: BASIS_LABEL[c.basis ?? ""] ?? (c.basis ?? ""),
       qty: num(c.quantity), rate: num(c.unit_rate), amount: num(c.amount) as number, currency: String(c.currency || "USD").toUpperCase(),
@@ -141,7 +155,7 @@ function sellLines(charges: ChargeIn[], style: TemplateOptions["charges_style"],
     label: c.carrier_label ?? "Charge", basis: BASIS_LABEL[c.basis ?? ""] ?? (c.basis ?? ""),
     qty: num(c.quantity), rate: num(c.unit_rate), amount: num(c.amount) as number,
   })
-  const cost = included.map(base)
+  const cost = (converted ?? included).map(base)
   const sum = round2(cost.reduce((s, l) => s + l.amount, 0))
 
   if (style === "detailed") {
@@ -271,12 +285,16 @@ export interface BuildInput {
   preparedBy?: string
   company?: { name?: string | null; email?: string | null; phone?: string | null }
   quotationNumber?: string
+  /** Exchange-rate overrides (USD per unit) the total was built with, so the lines convert at the same rates. */
+  fx?: FxOverrides | null
   /** Manually edited sell lines — replace the computed ones; the caller sets finalPrice to their sum. */
   lineOverrides?: { label: string; basis: string; qty: number | null; rate: number | null; amount: number }[]
   now?: Date
 }
 
 const dash = (s: string | null | undefined) => (s && s !== "—" ? s : "")
+/** A person's name; an email address in the name slot is not a name (the greeting then falls back to Sir/Madam). */
+const person = (s: string | null | undefined) => { const t = dash(s).trim(); return /@/.test(t) ? "" : t }
 
 export interface FxLine { currency: string; amount: number; rate: number | null; usd: number | null }
 export interface BaseDetail { base: number; mixed: boolean; converted: FxLine[]; missingRate: string[] }
@@ -330,7 +348,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const charges: ChargeIn[] = Array.isArray(q.charges) ? q.charges : []
   const pctOn = input.markupType === "percent" && input.showMarkupPercent === true && input.markupAmount > 0
   const markupRowLabel = pctOn ? `${o.markup_label} (${plain(input.markupAmount)}%)` : o.markup_label
-  const computed = sellLines(charges, o.charges_style, finalPrice, markupRowLabel)
+  const computed = sellLines(charges, o.charges_style, finalPrice, markupRowLabel, input.fx)
   const optional = computed.optional
   const lines: Line[] = input.lineOverrides && input.lineOverrides.length && o.charges_style !== "total_only" ? input.lineOverrides : computed.lines
 
@@ -383,12 +401,12 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     quotation_valid_until: fmtDate(validUntilIso),
     prepared_by: input.preparedBy ?? "",
     company_name: input.company?.name ?? "", company_contact_email: input.company?.email ?? "", company_contact_phone: input.company?.phone ?? "",
-    sender_name: dash(r.senderName), sender_first_name: dash(r.senderName).split(/\s+/)[0] ?? "",
+    sender_name: person(r.senderName), sender_first_name: person(r.senderName).split(/\s+/)[0] ?? "",
     sender_email: r.senderEmail ?? "", sender_phone: r.senderPhone ?? "",
     request_ref: r.requestRef ?? "", received_date: r.receivedExact, urgency: r.urgency,
     origin_city: dash(r.originCity), origin_country: dash(r.originCountry), origin,
     destination_city: dash(r.destinationCity), destination_country: dash(r.destinationCountry), destination,
-    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip, weight: dash(r.weight), quantity: dash(r.quantity),
+    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip || (r.shipmentType === "sea_lcl" ? "LCL" : ""), weight: dash(r.weight), quantity: dash(r.quantity),
     dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType),
     cbm: dash(r.cbm), package_type: dash(r.packageType), truck_type: dash(r.truckType), temperature: dash(r.temperatureControl),
     cargo_ready_date: dash(r.cargoReadyDate),
@@ -444,7 +462,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     const heads = rates ? ["Description", "Basis", "Qty", "Rate", head] : ["Description", "Basis", head]
     const rows = lines.map((l) => rates
       ? [l.label, l.basis, l.qty !== null ? plain(l.qty) : "", l.rate !== null ? money(l.rate) : "", amt(l)]
-      : [l.label, l.basis, amt(l)])
+      : [l.label, /^per (?!shipment|bl|document)/i.test(l.basis) && l.qty !== null && l.qty !== 1 ? `${l.basis} × ${plain(l.qty)}` : l.basis, amt(l)])
     const finalStr = mixed ? `${currency} ${money(finalPrice)}` : money(finalPrice)
     const tl = mixed ? `Total all-in (${currency})` : totalLabel
     const total = rates ? [tl, "", "", "", finalStr] : [tl, "", finalStr]
@@ -468,7 +486,15 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const sr = r.specialRequirements ?? []
   blocks.special_requirements_list = { html: sr.length ? `<ul>${sr.map((s) => { const p = parseSpecial(s); return `<li>${p.label ? `<strong>${esc(p.label)}:</strong> ${esc(p.value)}` : esc(s)}</li>` }).join("")}</ul>` : "", text: sr.map((s) => `- ${s}`).join("\n") }
 
-  const free = [freeDays && `${freeDays} free days`, v.free_days_demurrage && `${v.free_days_demurrage} days demurrage`, v.free_days_detention && `${v.free_days_detention} days detention`, v.per_diem_note].filter(Boolean).join(", ")
+  const askedFree = (() => {
+    for (const s of r.specialRequirements ?? []) {
+      const m = String(s).match(/free (?:time|days)[^:]*:\s*(?:at least|min(?:imum)?(?: of)?|up to)?\s*(\d+)\s*days?/i)
+      if (m) return Number(m[1])
+    }
+    return null
+  })()
+  const freeAsked = askedFree !== null && freeDays && Number(freeDays) < askedFree ? ` (you asked for ${askedFree} days; an extension can be requested)` : ""
+  const free = [freeDays && `${freeDays} free days${freeAsked}`, v.free_days_demurrage && `${v.free_days_demurrage} days demurrage`, v.free_days_detention && `${v.free_days_detention} days detention`, v.per_diem_note].filter(Boolean).join(", ")
   const tnorm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim()
   const sameAs = (a: string, b: string) => !!a && !!b && (tnorm(a).includes(tnorm(b)) || tnorm(b).includes(tnorm(a)) || (/space/.test(tnorm(a)) && /space/.test(tnorm(b)) && /equipment/.test(tnorm(a)) === /equipment/.test(tnorm(b))))
   const spaceRow = sameAs(v.space_status, v.subject_to_conditions) || (/^subject to\b/i.test(v.space_status) && /\b(space|equipment)\b/i.test(v.subject_to_conditions)) ? "" : v.space_status
@@ -488,7 +514,8 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     const n = tnorm(sent)
     if (!n) return false
     if (stated.some((x) => x.includes(n))) return false                         // already said in another row
-    if (free && /\bfree (time|days)\b/i.test(sent) && !/\b(request|possible|approval|extend|additional)\b/i.test(sent)) return false
+    if (freeAsked && /\bfree (time|days)\b/i.test(sent)) return false        // the Free time row already covers it (and the carrier's own price for it is never shown)
+    if (free && /\bfree (time|days)\b/i.test(sent) && !/\b(request|possible|approval|extend|extension|additional|extra|arranged?)\b/i.test(sent)) return false
     return true
   }).join(" ").trim()
   const terms: [string, string][] = ([

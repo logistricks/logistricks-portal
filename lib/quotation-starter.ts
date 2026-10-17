@@ -18,7 +18,7 @@ export const STARTER_HTML = `<h2 style="color:#0D1B2A;margin:0 0 4px">Quotation<
 {{#if route}}<tr><td style="width:34%;padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Route</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{route}}</td></tr>{{/if}}
 {{#if routing}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Routing</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{routing}}</td></tr>{{/if}}
 <tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Commodity</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{cargo_type}}</td></tr>
-<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Equipment / quantity</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{equipment}}{{#if quantity}} — {{quantity}}{{/if}}</td></tr>
+<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Equipment / quantity</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{equipment}}{{#if equipment}}{{#if quantity}} — {{/if}}{{/if}}{{quantity}}</td></tr>
 <tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Weight</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{weight}}</td></tr>
 <tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Incoterm</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{incoterm}}</td></tr>
 {{#if pickup_address}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Pickup address</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pickup_address}}</td></tr>{{/if}}
