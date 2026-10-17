@@ -12,6 +12,8 @@ type Props = {
   onReplyToSender?: () => void
   /** true while something is staged / being processed / reported, so a host can slide the box open */
   onActive?: (active: boolean) => void
+  /** bump this number to open the manual entry form (one click from the host) */
+  manualSignal?: number
   compact?: boolean
   /** One thin line: for pages where the box should stay out of the way. */
   slim?: boolean
@@ -40,7 +42,7 @@ const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${M
  * Two steps: (1) drop an .eml / .msg — or paste the email text and drop its PDFs — and check what was read;
  * (2) press Process to run the normal workflow. Works without any mailbox connection.
  */
-export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender, onActive, compact, slim }: Props) {
+export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender, onActive, manualSignal, compact, slim }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<"" | "reading" | "processing">("")
@@ -113,6 +115,8 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
     await go()
   }
   async function enterManually() { await gate(enterManually2) }
+  const manualRef = useRef(manualSignal ?? 0)
+  useEffect(() => { if ((manualSignal ?? 0) !== manualRef.current) { manualRef.current = manualSignal ?? 0; void enterManually() } }, [manualSignal]) // eslint-disable-line react-hooks/exhaustive-deps
   async function enterManually2() {
     setMsg(null)
     const m = await loadMailboxes()

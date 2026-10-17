@@ -7,7 +7,7 @@ import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
 import { regionOf, toCountryCode } from "@/lib/countries"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, Clock, ExternalLink, Eye, FileText, LayoutGrid, List as ListIcon, Loader2, Mail, MapPinOff, MessageCircle, RefreshCw, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react"
+import { ChevronDown, Clock, ExternalLink, Eye, FileText, LayoutGrid, List as ListIcon, Loader2, Mail, MapPinOff, MessageCircle, PenLine, RefreshCw, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/toast"
 import { SpecialRequestsDialog } from "@/components/portal/special-requests"
@@ -71,13 +71,15 @@ function Toggle({ on, onClick, children, count, tone }: { on: boolean; onClick: 
 /** A group of options joined into one row (single border, thin dividers). */
 function Seg({ items, label }: { items: { key: string; label: React.ReactNode; on: boolean; onClick: () => void; count?: number }[]; label: string }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-xl" style={{ border: "1.5px solid var(--card-border)", background: "var(--card-bg)" }}>
-      {items.map((it, i) => (
+    <div role="group" aria-label={label} className="inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl p-1" style={{ border: "1px solid var(--card-border)", background: "var(--table-header-bg, var(--page-bg))" }}>
+      {items.map((it) => (
         <button key={it.key} type="button" aria-pressed={it.on} onClick={it.onClick}
-          className="rq-chip-btn inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3.5 py-2 text-[13px] font-bold transition-colors"
-          style={{ borderLeft: i ? "1px solid var(--card-border)" : "none", background: it.on ? "var(--brand-accent)" : "transparent", color: it.on ? "var(--brand-navy)" : "var(--text-secondary)" }}>
+          className="rq-chip-btn inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-[13px] font-bold transition-all duration-200"
+          style={it.on
+            ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 6px 14px -8px rgb(var(--brand-accent-rgb) / 0.9)" }
+            : { background: "transparent", color: "var(--text-secondary)" }}>
           {it.label}
-          {it.count !== undefined && <span className="text-[11px] font-bold tabular-nums" style={{ opacity: it.on ? 0.75 : 0.55 }}>{it.count}</span>}
+          {it.count !== undefined && <span className="text-[11px] font-bold tabular-nums" style={{ opacity: it.on ? 0.75 : 0.5 }}>{it.count}</span>}
         </button>
       ))}
     </div>
@@ -136,6 +138,7 @@ export default function RequestsPage() {
   const [regions, setRegions] = useState<string[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [dropOpen, setDropOpen] = useState(false)
+  const [manualSignal, setManualSignal] = useState(0)
   const [homeCodes, setHomeCodes] = useState<string[]>([])
   const [onlyOverdue, setOnlyOverdue] = useState(false)
   const [lateMap, setLateMap] = useState<Record<string, { lateH: number; title: string; stuck: boolean }>>({})
@@ -379,13 +382,12 @@ export default function RequestsPage() {
         onDown={() => document.getElementById("requests-table")?.scrollIntoView({ behavior: "smooth", block: "start" })}
         left={
           <>
-            <button type="button" onClick={() => setDropOpen((o) => !o)} aria-expanded={dropOpen}
-              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-bold transition-all hover:brightness-90"
+            <button type="button" onClick={() => { setDropOpen(true); setManualSignal((n) => n + 1) }}
+              className="inline-flex h-[34px] items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all hover:brightness-90"
               style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 22px -12px rgb(var(--brand-accent-rgb) / 0.9)" }}>
-              <Mail className="h-4 w-4" /> Add request
-              <ChevronDown className="h-4 w-4 transition-transform duration-300" style={{ transform: dropOpen ? "rotate(180deg)" : "none" }} />
+              <PenLine className="h-4 w-4" /> Enter manually
             </button>
-            <span className="hidden text-[12px] text-white/55 lg:inline">Drop an email anywhere, or enter it manually</span>
+            <span className="hidden text-[12px] text-white/55 lg:inline">or drop an email anywhere on the page</span>
           </>
         }
         right={
@@ -397,18 +399,21 @@ export default function RequestsPage() {
             <button
               onClick={() => load()}
               title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
-              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-white/10"
-              style={{ border: "1px solid rgba(255,255,255,0.32)" }}
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-white/10"
+              style={{ border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.08)" }}
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </button>
           </>
         }
         belowOpen={dropOpen}
         below={
-          <div className="rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.94)" }}>
-            <EmailDropZone kind="request" slim onActive={(a) => { if (a) setDropOpen(true) }} onDone={() => load(true)} />
+          <div className="relative rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.94)" }}>
+            <button type="button" onClick={() => setDropOpen(false)} aria-label="Hide" title="Hide" className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:brightness-90" style={{ background: "var(--table-header-bg)", color: "var(--text-secondary)" }}>
+              <ChevronDown className="h-4 w-4 rotate-180" />
+            </button>
+            <EmailDropZone kind="request" slim manualSignal={manualSignal} onActive={(a) => { if (a) setDropOpen(true) }} onDone={() => load(true)} />
           </div>
         }
       />
