@@ -86,7 +86,9 @@ export function renderTemplate(tpl: string, ctx: RenderCtx, mode: "text" | "html
     const fb = fallback?.trim() ?? ""
     return mode === "html" ? esc(fb) : fb
   })
-  return mode === "html" ? pruneEmptyRows(rendered) : rendered
+  // A condition tag the template left unpaired (a lost {{/if}}, a hand-edit) must never reach the customer
+  const clean = rendered.replace(/\{\{\s*[#/](?:if|unless)\b[^}]*\}\}/g, "")
+  return mode === "html" ? pruneEmptyRows(clean) : clean
 }
 
 /** Drops detail-table rows whose value cells came out empty (or only a unit like "days"), so blanks never show. */
