@@ -100,7 +100,17 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
   useEffect(() => { void loadMailboxes() }, [])
   const [safari, setSafari] = useState(false)
   useEffect(() => { setSafari(/^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent)) }, [])
-  async function enterManually() {
+  const [confirm, setConfirm] = useState<{ info: Readiness; go: () => void } | null>(null)
+  /** Adding a carrier quote to a request that is still missing mandatory fields asks for confirmation before anything is typed or read. */
+  async function gate(go: () => void | Promise<void>) {
+    if (kind === "carrier_reply" && freightRequestId) {
+      const r = await fetchReadiness(freightRequestId)
+      if (r && r.missing.length) { setConfirm({ info: r, go: () => void go() }); return }
+    }
+    await go()
+  }
+  async function enterManually() { await gate(enterManually2) }
+  async function enterManually2() {
     setMsg(null)
     const m = await loadMailboxes()
     setStaged({ file: null, extra: [], from_email: "", subject: "", body_text: "", mailbox: m.length === 1 ? m[0] : "", fileAttachments: [] })
@@ -132,7 +142,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
 
   /** Step 1: take whatever was dropped / pasted. */
   async function take(files: File[], text = "", types: string[] = [], uri = "") {
-    try { await take2(files, text, types, uri) } finally { try { localStorage.removeItem("lt_drop_dbg") } catch { /* ignore */ } }
+    try { await gate(() => take2(files, text, types, uri)) } finally { try { localStorage.removeItem("lt_drop_dbg") } catch { /* ignore */ } }
   }
   async function take2(files: File[], text = "", types: string[] = [], uri = "") {
     crumb("take2 start")
@@ -208,18 +218,6 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
   }
   takeRef.current = (f, t, ty, u) => { void take(f, t, ty, u) }
 
-  const [confirm, setConfirm] = useState<Readiness | null>(null)
-  /** Adding a carrier quote to a request that is still missing mandatory fields asks for confirmation first. */
-  async function requestProcess() {
-    if (kind === "carrier_reply" && freightRequestId) {
-      setBusy("processing")
-      const r = await fetchReadiness(freightRequestId)
-      setBusy("")
-      if (r && r.missing.length) { setConfirm(r); return }
-    }
-    void process()
-  }
-
   /** Step 2: run the workflow. */
   async function process() {
     if (!staged) return
@@ -253,9 +251,9 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
   return (
     <div>
       {confirm && (
-        <MissingFieldsConfirm info={confirm} action="add this carrier quote"
+        <MissingFieldsConfirm info={confirm.info} action="add a carrier quote"
           onCancel={() => setConfirm(null)}
-          onContinue={() => { setConfirm(null); void process() }}
+          onContinue={() => { const go = confirm.go; setConfirm(null); go() }}
           onReply={onReplyToSender ? () => { setConfirm(null); setStaged(null); setMsg(null); onReplyToSender() } : undefined} />
       )}
       {dragging && (
@@ -365,7 +363,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => { setStaged(null); setMsg(null) }} className="rounded px-3 py-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-            <button onClick={() => void requestProcess()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
+            <button onClick={() => void process()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
               className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
               {busy === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {busy === "processing" ? "Processing…" : kind === "request" ? "Process request" : "Process quote"}
