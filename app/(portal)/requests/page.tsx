@@ -425,6 +425,7 @@ export default function RequestsPage() {
             { key: "all", label: "All", on: stages.length === 0 && results.length === 0, onClick: showAll, count: requests.length },
             ...STAGES.map((st) => ({ key: st, label: st === "Waiting" ? "Waiting for approval" : st, on: stages.includes(st), onClick: () => flipStage(st), count: stageCounts[st] ?? 0 })),
           ]} />
+          <Seg label="View" items={([["cards", LayoutGrid, "Cards"], ["table", ListIcon, "List"]] as const).map(([k, Ic, l]) => ({ key: k, label: <><Ic className="h-4 w-4" />{l}</>, on: view === k, onClick: () => setView(k) }))} />
           <button type="button" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}
             className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-bold transition-colors hover:brightness-95"
             style={{ border: "1.5px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
@@ -489,7 +490,6 @@ export default function RequestsPage() {
               </FilterRow>
               <FilterRow label="Sort">
                 <Seg label="Sort order" items={([["priority", "AOG / DGR first"], ["newest", "Newest first"], ["oldest", "Oldest first"]] as const).map(([k, l]) => ({ key: k, label: l, on: sortBy === k, onClick: () => setSortBy(k) }))} />
-                <Seg label="View" items={([["cards", LayoutGrid, "Cards"], ["table", ListIcon, "List"]] as const).map(([k, Ic, l]) => ({ key: k, label: <><Ic className="h-4 w-4" />{l}</>, on: view === k, onClick: () => setView(k) }))} />
                 {hasActiveFilters && <button onClick={clearFilters} className="text-xs font-bold" style={{ color: "var(--brand-accent)" }}>Reset filters</button>}
               </FilterRow>
             </div>
