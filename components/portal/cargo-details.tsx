@@ -198,12 +198,27 @@ function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { fir
   return rows
 }
 
+/** Small table under the Cargo Details title: one row per tag (type, readiness, lock, confirmation). */
+export function TagTable({ rows }: { rows: [string, React.ReactNode][] }) {
+  const shown = rows.filter(([, v]) => v)
+  return (
+    <div className="mx-auto mt-4 w-full max-w-[460px] overflow-hidden rounded-xl px-1" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
+      {shown.map(([k, v], i) => (
+        <div key={k} className="flex items-center justify-between gap-4 px-3 py-2" style={{ borderTop: i ? "1px solid var(--divider)" : "none" }}>
+          <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>{k}</span>
+          <span className="flex flex-wrap items-center justify-end gap-1.5 text-right">{v}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function GroupedRows({ rows, vals, lockReason, save, onSaved }: { rows: Record<FieldGroup, RowSpec[]>; vals: Record<string, string>; lockReason: string | null; save: (f: Record<string, string>) => Promise<boolean>; onSaved: (v: Record<string, string>) => void }) {
   return (
     <div className="group px-5 pb-4">
       {GROUPS.map((g) => rows[g].length > 0 && (
         <div key={g} className="pt-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{g}</p>
+          <p className="pb-0.5 text-[12px] font-extrabold uppercase tracking-[0.12em]" style={{ color: "var(--text-primary)" }}>{g}</p>
           {rows[g].map((spec) => <Row key={spec.key} spec={spec} vals={vals} lockReason={lockReason} persist={save} onSaved={onSaved} />)}
         </div>
       ))}
@@ -216,7 +231,7 @@ async function post(url: string, body: unknown): Promise<boolean> {
 }
 
 /** Cargo Details for a typed request: one tab per quoted leg; fields grouped Route / Cargo / Measurements / Conditions, labelled for the type. */
-export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner, onChanged, onFieldSaved }: { request: FreightRequest; type: ShipmentType; lockReason: string | null; lockBadge?: React.ReactNode; banner?: React.ReactNode; onChanged: () => void; onFieldSaved?: () => void }) {
+export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner, confirmation, onChanged, onFieldSaved }: { request: FreightRequest; type: ShipmentType; lockReason: string | null; lockBadge?: React.ReactNode; banner?: React.ReactNode; confirmation?: React.ReactNode; onChanged: () => void; onFieldSaved?: () => void }) {
   const initial = useMemo(() => {
     const out: Record<string, string> = {}
     for (const [col, camel] of Object.entries(COL_TO_CAMEL)) out[col] = clean(request[camel])
@@ -263,24 +278,25 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
 
   return (
     <div className="ds-card">
-      <div className="ds-card-header">
-        <div className="flex items-center gap-3">
-          <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
-          {tab === 0 ? (
+      <div className="ds-card-header" style={{ flexDirection: "column", alignItems: "center", borderBottom: "none", paddingBottom: 4 }}>
+        <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
+      </div>
+      <div className="px-5">
+        <TagTable rows={[
+          ["Type", tab === 0 ? (
             <ShipmentTypeChip requestId={request.id} type={type} source={request.typeSource} locked={locked} onChanged={onChanged} />
           ) : (
             <ShipmentTypeChip requestId={request.id} type={curType} locked={locked} onChanged={() => { setLegEdits({}); onChanged() }}
               onSelect={async (t) => { if (!(await post(`/api/requests/${request.id}/legs`, { action: "type", index: tab, shipment_type: t }))) throw new Error("Could not change the type") }} />
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {missing.length === 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(16,185,129,0.12)", color: "#059669" }}><CheckCircle2 className="h-3 w-3" /> Ready to quote</span>
+          )],
+          ["Quote status", missing.length === 0 ? (
+            <span className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#059669" }}><CheckCircle2 className="h-3.5 w-3.5" /> Ready to quote</span>
           ) : (
-            <span title={missing.join(", ")} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}><AlertTriangle className="h-3 w-3" /> {missing.length} missing</span>
-          )}
-          {lockBadge}
-        </div>
+            <span title={missing.join(", ")} className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#dc2626" }}><AlertTriangle className="h-3.5 w-3.5" /> {missing.length} missing</span>
+          )],
+          ["Access", lockBadge],
+          ["Fields", confirmation],
+        ]} />
       </div>
       {banner}
 

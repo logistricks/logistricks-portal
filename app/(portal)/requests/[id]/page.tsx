@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
+  CheckCircle2,
   Trophy,
   ChevronUp,
   Copy,
@@ -41,7 +42,7 @@ import {
   UrgencyBadge,
 } from "@/components/portal/badges"
 import { IntakeBadge } from "@/components/portal/intake-badge"
-import { ShipmentTypeChip, TypedCargoDetails } from "@/components/portal/cargo-details"
+import { ShipmentTypeChip, TypedCargoDetails, TagTable } from "@/components/portal/cargo-details"
 import { RequestAttachments } from "@/components/portal/request-attachments"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
@@ -623,34 +624,26 @@ export default function RequestDetailPage() {
                 if (request.shipmentType) {
                   return (
                     <TypedCargoDetails request={request} type={request.shipmentType} lockReason={fieldLockReason} lockBadge={lockBadge}
-                      banner={<><div className="px-5 pt-3"><FieldConfirmation requestId={request.id} refreshKey={fcKey} /></div>{exwBanner}</>}
+                      confirmation={<FieldConfirmation requestId={request.id} refreshKey={fcKey} />} banner={exwBanner}
                       onChanged={load} onFieldSaved={() => setFcKey((n) => n + 1)} />
                   )
                 }
 
                 return (
                   <div className="ds-card">
-                    <div className="ds-card-header">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
-                        <ShipmentTypeChip requestId={request.id} type={null} locked={carrierRfqSent} onChanged={load} />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {missingCount > 0 && (
-                          <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
-                            {missingCount} missing
-                          </span>
-                        )}
-                        {fieldLockReason && (
-                          <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                            style={{ background: carrierRfqSent ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)", color: carrierRfqSent ? "#ef4444" : "#b45309" }}>
-                            <Lock className="h-3 w-3" />
-                            {carrierRfqSent ? "Locked" : "Awaiting reply"}
-                          </span>
-                        )}
-                      </div>
+                    <div className="ds-card-header" style={{ flexDirection: "column", alignItems: "center", borderBottom: "none", paddingBottom: 4 }}>
+                      <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
                     </div>
-                    <div className="px-5 pt-3"><FieldConfirmation requestId={request.id} refreshKey={fcKey} /></div>
+                    <div className="px-5">
+                      <TagTable rows={[
+                        ["Type", <ShipmentTypeChip key="t" requestId={request.id} type={null} locked={carrierRfqSent} onChanged={load} />],
+                        ["Quote status", missingCount > 0
+                          ? <span key="q" className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#dc2626" }}><AlertTriangle className="h-3.5 w-3.5" /> {missingCount} missing</span>
+                          : <span key="q" className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: "#059669" }}><CheckCircle2 className="h-3.5 w-3.5" /> Ready to quote</span>],
+                        ["Access", fieldLockReason ? <span key="a" className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: carrierRfqSent ? "#dc2626" : "#b45309" }}><Lock className="h-3.5 w-3.5" /> {carrierRfqSent ? "Locked" : "Awaiting reply"}</span> : null],
+                        ["Fields", <FieldConfirmation key="f" requestId={request.id} refreshKey={fcKey} />],
+                      ]} />
+                    </div>
                     {exwMissing && (
                       <div className="mx-5 mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" }}>
                         <AlertTriangle className="h-4 w-4 shrink-0" />
