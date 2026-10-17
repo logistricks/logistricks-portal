@@ -1,12 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/components/portal/missing-fields-confirm"
 import { Loader2, MailPlus, CheckCircle2, AlertTriangle, Paperclip, X, ClipboardPaste, PenLine } from "lucide-react"
 
 type Props = {
   kind: "request" | "carrier_reply"
   freightRequestId?: string
   onDone?: () => void
+  /** Called when the person chooses to reply to the sender about missing information. */
+  onReplyToSender?: () => void
   compact?: boolean
   /** One thin line: for pages where the box should stay out of the way. */
   slim?: boolean
@@ -35,7 +38,7 @@ const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${M
  * Two steps: (1) drop an .eml / .msg — or paste the email text and drop its PDFs — and check what was read;
  * (2) press Process to run the normal workflow. Works without any mailbox connection.
  */
-export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }: Props) {
+export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender, compact, slim }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<"" | "reading" | "processing">("")
@@ -205,6 +208,18 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
   }
   takeRef.current = (f, t, ty, u) => { void take(f, t, ty, u) }
 
+  const [confirm, setConfirm] = useState<Readiness | null>(null)
+  /** Adding a carrier quote to a request that is still missing mandatory fields asks for confirmation first. */
+  async function requestProcess() {
+    if (kind === "carrier_reply" && freightRequestId) {
+      setBusy("processing")
+      const r = await fetchReadiness(freightRequestId)
+      setBusy("")
+      if (r && r.missing.length) { setConfirm(r); return }
+    }
+    void process()
+  }
+
   /** Step 2: run the workflow. */
   async function process() {
     if (!staged) return
@@ -237,6 +252,12 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
 
   return (
     <div>
+      {confirm && (
+        <MissingFieldsConfirm info={confirm} action="add this carrier quote"
+          onCancel={() => setConfirm(null)}
+          onContinue={() => { setConfirm(null); void process() }}
+          onReply={onReplyToSender ? () => { setConfirm(null); setStaged(null); setMsg(null); onReplyToSender() } : undefined} />
+      )}
       {dragging && (
         <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="rounded-2xl border-2 border-dashed px-10 py-8 text-center text-white" style={{ borderColor: "var(--brand-accent)", background: "rgba(15,23,42,0.85)" }}>
@@ -344,7 +365,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, compact, slim }:
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => { setStaged(null); setMsg(null) }} className="rounded px-3 py-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-            <button onClick={() => void process()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
+            <button onClick={() => void requestProcess()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
               className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
               {busy === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {busy === "processing" ? "Processing…" : kind === "request" ? "Process request" : "Process quote"}

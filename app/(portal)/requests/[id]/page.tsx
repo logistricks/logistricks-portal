@@ -297,6 +297,13 @@ export default function RequestDetailPage() {
   const [replyTo, setReplyTo]       = useState("")
   const [messageBody, setMessageBody] = useState("")
   const [activeTab, setActiveTab]   = useState<"details" | "quotes">("details")
+  /** From the missing-fields pop-up: close the carrier dialog and open the reply to the sender. */
+  const replyToSender = () => {
+    if (!request) return
+    setRfqOpen(false)
+    if (request.source === "WhatsApp") { window.open(`https://wa.me/${request.senderPhone}`, "_blank"); return }
+    setTemplateId(""); setMessageBody(request.suggestedReply ?? ""); setSendMethod("Reply"); setActiveTab("details")
+  }
   const [rawOpen, setRawOpen]       = useState(false)
   const [specialOpen, setSpecialOpen] = useState(false)
   const [rfqRefreshSignal, setRfqRefreshSignal] = useState(0)
@@ -516,7 +523,7 @@ export default function RequestDetailPage() {
         {activeTab === "quotes" ? (
           <div>
             <div className="mb-3 -mt-2">
-              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} slim onDone={() => setRfqRefreshSignal((n) => n + 1)} />
+              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} slim onReplyToSender={replyToSender} onDone={() => setRfqRefreshSignal((n) => n + 1)} />
             </div>
             <QuoteComparisonPanel
               key={rfqRefreshSignal}
@@ -875,7 +882,7 @@ export default function RequestDetailPage() {
       )}
 
       {rfqOpen && (
-        <SendRfqDialog requestId={request.id} modes={request.modes} originCountry={request.originCountry} destinationCountry={request.destinationCountry} onClose={() => setRfqOpen(false)} onDone={() => { load(); setRfqRefreshSignal((n) => n + 1) }} />
+        <SendRfqDialog requestId={request.id} modes={request.modes} originCountry={request.originCountry} destinationCountry={request.destinationCountry} onClose={() => setRfqOpen(false)} onReplyToSender={replyToSender} onDone={() => { load(); setRfqRefreshSignal((n) => n + 1) }} />
       )}
     </div>
   )

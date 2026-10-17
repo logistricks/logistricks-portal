@@ -6,6 +6,7 @@ import type { Carrier, CarrierRow } from "@/lib/portal-data"
 import { groupCarrierRows } from "@/components/portal/send-to-carriers-modal"
 import { rankCarriers, type Match } from "@/lib/carrier-match"
 import { FitTag, fitHint } from "@/components/portal/suggested-badge"
+import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/components/portal/missing-fields-confirm"
 
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
@@ -15,7 +16,7 @@ type Info = { legs?: LegInfo[]; missing_required?: string[] | null; smtp: { conf
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
 
-export function SendRfqDialog({ requestId, modes, originCountry, destinationCountry, onClose, onDone }: { requestId: string; modes: string[]; originCountry?: string; destinationCountry?: string; onClose: () => void; onDone: () => void }) {
+export function SendRfqDialog({ requestId, modes, originCountry, destinationCountry, onClose, onDone, onReplyToSender }: { requestId: string; modes: string[]; originCountry?: string; destinationCountry?: string; onClose: () => void; onDone: () => void; onReplyToSender?: () => void }) {
   const [rows, setRows] = useState<CarrierRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -25,7 +26,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const [step, setStep] = useState<"select" | "manual" | "result">("select")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sendAnyway, setSendAnyway] = useState(false)
+  const [confirm, setConfirm] = useState<{ info: Readiness; run: () => void } | null>(null)
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [result, setResult] = useState<{ method: string; sent: number; total: number; results: Result[]; n8n?: { ok: boolean; error?: string } | null } | null>(null)
 
@@ -56,7 +57,15 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const suggestedIds = useMemo(() => carriers.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id), [carriers])
   const toggle = (id: number) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const missingRequired = info?.missing_required ?? []
-  const blockedByMissing = missingRequired.length > 0 && !sendAnyway // warn first; the user can override
+  /** Runs the action straight away, or after a confirmation pop-up when mandatory fields are still missing. */
+  async function guarded(run: () => void) {
+    if (!missingRequired.length) { run(); return }
+    setBusy(true)
+    const r = await fetchReadiness(requestId)
+    setBusy(false)
+    const info2: Readiness = r && r.missing.length ? r : { missing: missingRequired, sender_name: r?.sender_name ?? "", sender_email: r?.sender_email ?? "", source: r?.source ?? "Email", asked: r?.asked ?? null }
+    setConfirm({ info: info2, run })
+  }
   const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n && !multi // multi-leg requests are sent manually for now
 
   async function prepareManual() {
@@ -153,10 +162,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
               )}
               {missingRequired.length > 0 && (
                 <div className="rounded-md px-3 py-2 text-[11px]" style={{ background: "rgb(245 158 11 / 0.12)", color: "var(--text-secondary)" }}>
-                  <p className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "#d97706" }} /><span><b>Not ready to quote.</b> Still missing: {missingRequired.join(", ")}. Carriers may not be able to price this.</span></p>
-                  <label className="mt-2 flex cursor-pointer items-center gap-2 font-semibold" style={{ color: "var(--text-primary)" }}>
-                    <input type="checkbox" checked={sendAnyway} onChange={(e) => setSendAnyway(e.target.checked)} className="h-3.5 w-3.5 accent-[var(--brand-accent)]" /> Send anyway
-                  </label>
+                  <p className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "#d97706" }} /><span><b>Not ready to quote.</b> Still missing: {missingRequired.join(", ")}. You will be asked to confirm before sending.</span></p>
                 </div>
               )}
               {info && !autoReady && (
@@ -217,10 +223,10 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
           {step === "select" && (<>
             <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{selected.size ? `${selected.size} selected` : "No carriers selected"}</span>
             <div className="flex gap-2">
-              <button className={btn} style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }} onClick={prepareManual} disabled={!selected.size || busy || blockedByMissing}>
+              <button className={btn} style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }} onClick={() => void guarded(() => void prepareManual())} disabled={!selected.size || busy}>
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />} Send manually
               </button>
-              <button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={() => send("automatic")} disabled={!selected.size || busy || !autoReady || blockedByMissing} title={autoReady ? "" : "Needs your email server and the sending workflow"}>
+              <button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={() => void guarded(() => void send("automatic"))} disabled={!selected.size || busy || !autoReady} title={autoReady ? "" : "Needs your email server and the sending workflow"}>
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Send automatically
               </button>
             </div>
@@ -234,6 +240,12 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
           {step === "result" && (<><span /><button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={onClose}>Close</button></>)}
         </div>
       </div>
+      {confirm && (
+        <MissingFieldsConfirm info={confirm.info} action="ask carriers for a quotation"
+          onCancel={() => setConfirm(null)}
+          onContinue={() => { const run = confirm.run; setConfirm(null); run() }}
+          onReply={onReplyToSender ? () => { setConfirm(null); onReplyToSender() } : undefined} />
+      )}
     </div>
   )
 }
