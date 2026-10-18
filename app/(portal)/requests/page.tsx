@@ -404,7 +404,7 @@ export default function RequestsPage() {
         }
         right={
           <>
-            <div className="flex flex-col items-center gap-1.5 md:items-end">
+            <div className="grid grid-cols-2 gap-1.5">
               <HeroChip>{requests.length} total</HeroChip>
               <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
               {Object.keys(lateMap).length > 0 && <HeroChip>{Object.keys(lateMap).length} overdue</HeroChip>}

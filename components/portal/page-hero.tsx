@@ -86,7 +86,7 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
 
 export function HeroChip({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white"
+    <span className="inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white"
       style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>
       {children}
     </span>
