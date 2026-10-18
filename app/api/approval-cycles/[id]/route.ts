@@ -6,6 +6,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
+import { saveUndo, snapshotCycle, snapshotInitiators } from "@/lib/undo"
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 function badInput(msg: string) { return NextResponse.json({ error: msg }, { status: 400 }) }
@@ -53,6 +54,9 @@ export async function PUT(
   const applies_to_automated_emails = Boolean(body.applies_to_automated_emails)
   const automated_trigger = (body.automated_trigger as string | null | undefined) ?? null
   const initiator_usernames = (body.initiator_usernames as string[] | undefined) ?? []
+
+  const before = await snapshotCycle(admin, session.clientCode, id)
+  const initBefore = await snapshotInitiators(admin, session.clientCode)
 
   // Update cycle header
   await admin.from("approval_cycles").update({
@@ -105,7 +109,8 @@ export async function PUT(
     await admin.from("approval_cycle_initiators").upsert(initRows, { onConflict: "client_code,username" })
   }
 
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin, session, "Approval cycle saved", before ? [{ k: "cycle", id, before, initiators: initBefore }] : [])
+  return NextResponse.json({ ok: true }, { headers: undo })
 }
 
 export async function DELETE(
@@ -122,8 +127,11 @@ export async function DELETE(
 
   if (!await ownsCycle(admin, id, session.clientCode)) return notFound()
 
+  const before = await snapshotCycle(admin, session.clientCode, id)
+  const initBefore = await snapshotInitiators(admin, session.clientCode)
   const { error } = await admin.from("approval_cycles").delete().eq("id", id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ ok: true })
+  const undo = await saveUndo(admin, session, "Approval cycle deleted", before ? [{ k: "cycle", id, before, initiators: initBefore }] : [])
+  return NextResponse.json({ ok: true }, { headers: undo })
 }

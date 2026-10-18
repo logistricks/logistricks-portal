@@ -1,7 +1,7 @@
 /** POST /api/undo { id } — reverts a change saved with saveUndo(). Own changes only, within 2 minutes, once. */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
-import { UNDO_TABLES, UNDO_WINDOW_MS, type UndoOp } from "@/lib/undo"
+import { UNDO_TABLES, UNDO_WINDOW_MS, restoreCycle, type UndoOp } from "@/lib/undo"
 
 export const dynamic = "force-dynamic"
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   const cc = session.clientCode
   try {
     for (const op of row.ops as UndoOp[]) {
+      if (op.k === "cycle") { await restoreCycle(admin, cc, op); continue }
       if (!UNDO_TABLES.has(op.table)) throw new Error(`Cannot undo changes to ${op.table}`)
       if (op.k === "insert") {
         const rows = op.rows.map((r) => ({ ...r, client_code: cc }))

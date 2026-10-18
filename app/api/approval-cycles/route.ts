@@ -18,6 +18,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
+import { saveUndo, snapshotInitiators } from "@/lib/undo"
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 function badInput(msg: string) { return NextResponse.json({ error: msg }, { status: 400 }) }
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
   const initiator_usernames = (body.initiator_usernames as string[] | undefined) ?? []
 
   const admin = adminClient()
+  const initBefore = await snapshotInitiators(admin, session.clientCode)
 
   // Create the cycle
   const { data: cycle, error: cycleErr } = await admin
@@ -143,5 +145,6 @@ export async function POST(req: NextRequest) {
       .upsert(initRows, { onConflict: "client_code,username" })
   }
 
-  return NextResponse.json({ ...(cycle as any), approval_cycle_steps: insertedSteps ?? [], initiator_usernames }, { status: 201 })
+  const undo = await saveUndo(admin, session, "Approval cycle created", [{ k: "cycle", id: cycleId, before: null, initiators: initBefore }])
+  return NextResponse.json({ ...(cycle as any), approval_cycle_steps: insertedSteps ?? [], initiator_usernames }, { status: 201, headers: undo })
 }
