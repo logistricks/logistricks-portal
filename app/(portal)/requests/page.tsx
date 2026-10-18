@@ -392,7 +392,7 @@ export default function RequestsPage() {
         }
         left={
           <>
-            <div className="flex flex-col items-center gap-1.5 md:items-start">
+            <div className="flex flex-col items-center gap-1.5 text-center">
             <button type="button" onClick={() => { setDropOpen(true); setManualSignal((n) => n + 1) }}
               className="inline-flex h-[34px] items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all hover:brightness-90"
               style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 22px -12px rgb(var(--brand-accent-rgb) / 0.9)" }}>
