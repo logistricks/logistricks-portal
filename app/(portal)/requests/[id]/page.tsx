@@ -531,6 +531,7 @@ export default function RequestDetailPage() {
               {dgr && <DgrBadge />}
               <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
             </div>
+            {request.receivedRelative && <span className="text-[12px] tabular-nums text-white/55" title={request.receivedExact}>Received {request.receivedRelative}</span>}
           </div>
 
           {/* right: details table, one calm colour */}
