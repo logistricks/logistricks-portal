@@ -173,7 +173,8 @@ export default function RequestsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [dropOpen, setDropOpen] = useState(false)
   const [manualSignal, setManualSignal] = useState(0)
-  const [homeCodes, setHomeCodes] = useState<string[]>([])
+  const [home, setHome] = useState<{ port: string | null; airport: string | null }>({ port: null, airport: null })
+  const homeCodes = useMemo(() => Array.from(new Set([home.port, home.airport].filter(Boolean) as string[])), [home])
   const [onlyOverdue, setOnlyOverdue] = useState(false)
   const [lateMap, setLateMap] = useState<Record<string, { lateH: number; title: string; stuck: boolean }>>({})
   const [results, setResults] = useState<("won" | "lost")[]>([])
@@ -245,10 +246,14 @@ export default function RequestsPage() {
   }, [])
 
   useEffect(() => {
-    fetch("/api/default-locations", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
-      const c = [j?.value?.port?.country, j?.value?.airport?.country].map((x: string) => toCountryCode(x)).filter(Boolean) as string[]
-      setHomeCodes(Array.from(new Set(c)))
+    const loadHome = () => fetch("/api/default-locations", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (j?.value) setHome({ port: toCountryCode(j.value.port?.country), airport: toCountryCode(j.value.airport?.country) })
     }).catch(() => { /* filters just won't offer export / import */ })
+    loadHome()
+    const onShow = () => { if (document.visibilityState === "visible") void loadHome() }
+    document.addEventListener("visibilitychange", onShow)
+    window.addEventListener("focus", onShow)
+    return () => { document.removeEventListener("visibilitychange", onShow); window.removeEventListener("focus", onShow) }
   }, [])
 
   useEffect(() => {
@@ -287,13 +292,16 @@ export default function RequestsPage() {
   /** Export = leaves the home country, import = arrives in it, cross-trade = neither. Region = where the other end is. */
   const geoOf = useCallback((r: FreightRequest) => {
     const o = toCountryCode(r.originCountry), d = toCountryCode(r.destinationCountry)
-    const home = (c: string | null) => !!c && homeCodes.includes(c)
-    const direction = homeCodes.length ? (home(o) && !home(d) ? "Export" : home(d) && !home(o) ? "Import" : "Cross-trade") : null
+    // sea shipments follow the default port's country, air the default airport's, anything else either one
+    const modes = (r.modes ?? []).map((m) => String(m).toLowerCase())
+    const homes = modes.includes("sea") && home.port ? [home.port] : modes.includes("air") && home.airport ? [home.airport] : homeCodes
+    const isHome = (c: string | null) => !!c && homes.includes(c)
+    const direction = homes.length ? (isHome(o) && !isHome(d) ? "Export" : isHome(d) && !isHome(o) ? "Import" : "Cross-trade") : null
     const far = direction === "Export" ? d : direction === "Import" ? o : null
     const set = new Set<string>()
-    for (const c of far ? [far] : [o, d]) { const g = regionOf(c); if (g && !(home(c))) set.add(g) }
+    for (const c of far ? [far] : [o, d]) { const g = regionOf(c); if (g && !isHome(c)) set.add(g) }
     return { direction, regions: Array.from(set) }
-  }, [homeCodes])
+  }, [home, homeCodes])
   const regionOptions = useMemo(() => Array.from(new Set(requests.flatMap((r) => geoOf(r).regions))).sort((a, b) => a.localeCompare(b)), [requests, geoOf])
 
   const stageCounts = useMemo(() => {
