@@ -77,8 +77,20 @@ function Seg({ items, label }: { items: { key: string; label: React.ReactNode; o
   const [hover, setHover] = useState<string | null>(null)
   const sig = items.map((i) => `${i.key}:${i.on ? 1 : 0}:${i.count ?? ""}`).join("|")
   useLayoutEffect(() => {
-    const measure = () => setRects(items.filter((i) => i.on).map((i) => { const el = btns.current[i.key]; return { key: i.key, left: el?.offsetLeft ?? 0, width: el?.offsetWidth ?? 0 } }))
-    measure()
+    // neighbouring selected options share one pill
+    const measure = () => {
+      const runs: { key: string; left: number; width: number }[] = []
+      let run: { key: string; left: number; right: number } | null = null
+      for (const i of items) {
+        const el = btns.current[i.key]
+        if (i.on && el) {
+          if (run) run.right = el.offsetLeft + el.offsetWidth
+          else run = { key: i.key, left: el.offsetLeft, right: el.offsetLeft + el.offsetWidth }
+        } else if (run) { runs.push({ key: run.key, left: run.left, width: run.right - run.left }); run = null }
+      }
+      if (run) runs.push({ key: (run as any).key, left: (run as any).left, width: (run as any).right - (run as any).left })
+      setRects(runs)
+    }
     const id = requestAnimationFrame(() => setReady(true)) // no slide on the first paint
     window.addEventListener("resize", measure)
     return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure) }
@@ -90,7 +102,7 @@ function Seg({ items, label }: { items: { key: string; label: React.ReactNode; o
           style={{
             left: r.left, width: r.width, background: "var(--brand-accent)",
             boxShadow: "0 6px 14px -8px rgb(var(--brand-accent-rgb) / 0.9)",
-            filter: hover === r.key ? "brightness(0.9)" : "none",
+            filter: hover && items.some((x) => x.key === hover && x.on) ? "brightness(0.92)" : "none",
             transition: ready ? "left .38s cubic-bezier(.34,1.45,.5,1), width .38s cubic-bezier(.34,1.45,.5,1), filter .15s" : "none",
           }} />
       ))}
