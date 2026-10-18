@@ -6,7 +6,7 @@ import { EmailDropZone } from "@/components/portal/email-drop-zone"
 import { IntakeLogButton } from "@/components/portal/intake-log-button"
 import { isSeaOnly, exwNeedsAddress } from "@/lib/shipment-labels"
 import { regionOf, toCountryCode } from "@/lib/countries"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown, Clock, ExternalLink, Eye, FileText, LayoutGrid, List as ListIcon, Loader2, Mail, MapPinOff, MessageCircle, PenLine, RefreshCw, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/toast"
@@ -70,14 +70,35 @@ function Toggle({ on, onClick, children, count, tone }: { on: boolean; onClick: 
 
 /** A group of options joined into one row (single border, thin dividers). */
 function Seg({ items, label }: { items: { key: string; label: React.ReactNode; on: boolean; onClick: () => void; count?: number }[]; label: string }) {
+  const box = useRef<HTMLDivElement>(null)
+  const btns = useRef<Record<string, HTMLButtonElement | null>>({})
+  const [rects, setRects] = useState<{ key: string; left: number; width: number }[]>([])
+  const [ready, setReady] = useState(false)
+  const [hover, setHover] = useState<string | null>(null)
+  const sig = items.map((i) => `${i.key}:${i.on ? 1 : 0}:${i.count ?? ""}`).join("|")
+  useLayoutEffect(() => {
+    const measure = () => setRects(items.filter((i) => i.on).map((i) => { const el = btns.current[i.key]; return { key: i.key, left: el?.offsetLeft ?? 0, width: el?.offsetWidth ?? 0 } }))
+    measure()
+    const id = requestAnimationFrame(() => setReady(true)) // no slide on the first paint
+    window.addEventListener("resize", measure)
+    return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure) }
+  }, [sig]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div role="group" aria-label={label} className="inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl p-1" style={{ border: "1px solid var(--card-border)", background: "var(--table-header-bg, var(--page-bg))" }}>
+    <div ref={box} role="group" aria-label={label} className="relative inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl p-1" style={{ border: "1px solid var(--card-border)", background: "var(--table-header-bg, var(--page-bg))" }}>
+      {rects.map((r, i) => (
+        <span key={i} aria-hidden className="pointer-events-none absolute bottom-1 top-1 rounded-xl"
+          style={{
+            left: r.left, width: r.width, background: "var(--brand-accent)",
+            boxShadow: "0 6px 14px -8px rgb(var(--brand-accent-rgb) / 0.9)",
+            filter: hover === r.key ? "brightness(0.9)" : "none",
+            transition: ready ? "left .38s cubic-bezier(.34,1.45,.5,1), width .38s cubic-bezier(.34,1.45,.5,1), filter .15s" : "none",
+          }} />
+      ))}
       {items.map((it) => (
-        <button key={it.key} type="button" aria-pressed={it.on} onClick={it.onClick}
-          className="rq-chip-btn inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-[13px] font-bold transition-all duration-200"
-          style={it.on
-            ? { background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 6px 14px -8px rgb(var(--brand-accent-rgb) / 0.9)" }
-            : { background: "transparent", color: "var(--text-secondary)" }}>
+        <button key={it.key} ref={(el) => { btns.current[it.key] = el }} type="button" aria-pressed={it.on} onClick={it.onClick}
+          onMouseEnter={() => setHover(it.key)} onMouseLeave={() => setHover(null)}
+          className="relative z-10 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-[13px] font-bold transition-colors duration-200"
+          style={{ background: !it.on && hover === it.key ? "color-mix(in srgb, var(--brand-accent) 16%, transparent)" : "transparent", color: it.on ? "var(--brand-navy)" : hover === it.key ? "var(--text-primary)" : "var(--text-secondary)" }}>
           {it.label}
           {it.count !== undefined && <span className="text-[11px] font-bold tabular-nums" style={{ opacity: it.on ? 0.75 : 0.5 }}>{it.count}</span>}
         </button>
