@@ -280,6 +280,25 @@ function CopyRow({ icon: Icon, value }: { icon: typeof Mail; value: string }) {
   )
 }
 
+/** Contact detail on the dark header: click to copy. */
+function CopyInline({ value, plain }: { value: string; plain?: boolean }) {
+  const [copied, setCopied] = useState(false)
+  if (!value) return null
+  function doCopy() {
+    navigator.clipboard.writeText(value).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button type="button" onClick={doCopy} title={copied ? "Copied" : `Copy ${value}`} aria-label={`Copy ${value}`}
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12.5px] font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white">
+      {!plain && <span className="truncate">{value}</span>}
+      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5 opacity-70" />}
+      {copied && <span className="text-[11px] text-green-300">Copied</span>}
+    </button>
+  )
+}
+
 // ── page ─────────────────────────────────────────────────────────────────────
 
 export default function RequestDetailPage() {
@@ -490,7 +509,23 @@ export default function RequestDetailPage() {
           {/* centre: reference above the name */}
           <div className="flex flex-col items-center gap-1 text-center">
             <span className="font-mono text-[12px] font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? (request.id ? `LT-${request.id}` : "")}</span>
-            <h1 className="font-display max-w-[34ch] truncate text-[26px] font-extrabold leading-tight text-white">{request.senderName}</h1>
+            {(() => {
+              const contacts = [request.senderEmail, request.senderPhone].filter((c): c is string => !!c)
+              const same = contacts.includes(request.senderName)
+              return (
+                <>
+                  <div className="flex items-center justify-center gap-1">
+                    <h1 className="font-display max-w-[34ch] truncate text-[26px] font-extrabold leading-tight text-white">{request.senderName}</h1>
+                    {same && <CopyInline value={request.senderName} plain />}
+                  </div>
+                  {contacts.filter((c) => c !== request.senderName).length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5">
+                      {contacts.filter((c) => c !== request.senderName).map((c) => <CopyInline key={c} value={c} />)}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
             <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
               {aog && <AogBadge />}
               {dgr && <DgrBadge />}
@@ -762,18 +797,6 @@ export default function RequestDetailPage() {
 
             {/* Right — sidebar */}
             <div className="space-y-4 lg:col-span-2">
-
-              {/* Sender */}
-              <div className="ds-card p-6">
-                <h4 className="mb-3 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Sender</h4>
-                <p className="font-semibold text-sm mb-2" style={{ color: "var(--text-primary)" }}>{request.senderName}</p>
-                <CopyRow icon={Mail} value={request.senderEmail ?? ""} />
-                <CopyRow icon={Phone} value={request.senderPhone ?? ""} />
-                <div className="mt-2 flex items-center justify-between">
-                  <SourceBadge source={request.source} />
-                  <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{request.receivedRelative}</span>
-                </div>
-              </div>
 
               {/* Timeline */}
               <div className="ds-card p-6">
