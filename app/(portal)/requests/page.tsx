@@ -91,6 +91,7 @@ function Seg({ items, label }: { items: { key: string; label: React.ReactNode; o
       if (run) runs.push({ key: (run as any).key, left: (run as any).left, width: (run as any).right - (run as any).left })
       setRects(runs)
     }
+    measure()
     const id = requestAnimationFrame(() => setReady(true)) // no slide on the first paint
     window.addEventListener("resize", measure)
     return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure) }
