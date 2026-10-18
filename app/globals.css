@@ -756,3 +756,25 @@ a.hero-chip-link:hover { filter: brightness(.9); }
 /* icon turns once while hovered */
 @keyframes lt-spin-once { to { transform: rotate(360deg); } }
 .spin-once:hover svg { animation: lt-spin-once .6s ease-in-out 1; }
+
+/* ── Themed checkbox (filled square, no tick) and select ── */
+input[type="checkbox"].lt-check {
+  appearance: none; -webkit-appearance: none; flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 6px; cursor: pointer;
+  border: 1.5px solid var(--input-border); background: var(--input-bg);
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+input[type="checkbox"].lt-check:hover { border-color: var(--brand-accent); }
+input[type="checkbox"].lt-check:checked { background: var(--brand-accent); border-color: var(--brand-accent); }
+input[type="checkbox"].lt-check:active { transform: scale(.92); }
+input[type="checkbox"].lt-check:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--brand-accent-ring); }
+select.lt-select {
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-color: var(--input-bg); color: var(--text-primary);
+  border: 1px solid var(--input-border); border-radius: 12px;
+  padding: 9px 38px 9px 14px; font-size: 13.5px; font-weight: 600;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+select.lt-select:hover { border-color: var(--brand-accent); }
+select.lt-select:focus { outline: none; border-color: var(--brand-accent); box-shadow: 0 0 0 4px var(--brand-accent-ring); }

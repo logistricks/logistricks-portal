@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Bell, CheckSquare } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Bell } from "lucide-react";
 
 type StepMember = { username: string };
 
@@ -100,7 +100,7 @@ function UserMultiSelect({
       </div>
       {available.length > 0 && (
         <select
-          className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0] w-full"
+          className="lt-select w-full"
           value=""
           onChange={(e) => {
             if (e.target.value) onChange([...selected, e.target.value]);
@@ -203,24 +203,22 @@ function StepCard({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
+      <label className="flex items-center gap-2.5 cursor-pointer text-sm text-[var(--text-primary)]">
         <input
           type="checkbox"
           checked={step.can_edit_template}
           onChange={(e) => onChange({ ...step, can_edit_template: e.target.checked })}
-          className="rounded border-[#E2E8F0]"
+          className="lt-check"
         />
-        <CheckSquare size={14} className="text-[var(--text-secondary)]" />
         Can edit template
       </label>
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
+      <label className="flex items-center gap-2.5 cursor-pointer text-sm text-[var(--text-primary)]">
         <input
           type="checkbox"
           checked={step.can_edit_cc}
           onChange={(e) => onChange({ ...step, can_edit_cc: e.target.checked })}
-          className="rounded border-[#E2E8F0]"
+          className="lt-check"
         />
-        <CheckSquare size={14} className="text-[var(--text-secondary)]" />
         Can edit CC
       </label>
     </div>
@@ -502,7 +500,7 @@ export default function ApprovalCyclesPage() {
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Standard Approval"
-                  className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm dark:border-[#1E3A5F] dark:bg-[#0D1B2A] dark:text-[#E2E8F0] w-full"
+                  className="lt-select w-full"
                 />
               </div>
 
@@ -517,24 +515,24 @@ export default function ApprovalCyclesPage() {
               </div>
 
               <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.applies_to_automated_emails}
                     onChange={(e) => setForm((f) => ({ ...f, applies_to_automated_emails: e.target.checked }))}
-                    className="rounded border-[#E2E8F0]"
+                    className="lt-check"
                   />
                   <span className="text-sm font-medium text-[var(--text-primary)]">Applies to automated emails</span>
                 </label>
                 {form.applies_to_automated_emails && (
                   <div className="ml-6 space-y-2 border-l-2 border-[var(--brand-accent)] pl-4">
                     <p className="text-xs font-medium text-[var(--text-secondary)]">Trigger on</p>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
-                      <input type="checkbox" checked={form.trigger_carrier} onChange={(e) => setForm((f) => ({ ...f, trigger_carrier: e.target.checked }))} />
+                    <label className="flex items-center gap-2.5 cursor-pointer text-sm text-[var(--text-primary)]">
+                      <input type="checkbox" className="lt-check" checked={form.trigger_carrier} onChange={(e) => setForm((f) => ({ ...f, trigger_carrier: e.target.checked }))} />
                       Carrier email
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--text-primary)]">
-                      <input type="checkbox" checked={form.trigger_reply} onChange={(e) => setForm((f) => ({ ...f, trigger_reply: e.target.checked }))} />
+                    <label className="flex items-center gap-2.5 cursor-pointer text-sm text-[var(--text-primary)]">
+                      <input type="checkbox" className="lt-check" checked={form.trigger_reply} onChange={(e) => setForm((f) => ({ ...f, trigger_reply: e.target.checked }))} />
                       Reply email
                     </label>
                   </div>
