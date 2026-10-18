@@ -31,7 +31,7 @@ export function Seg({ items, label }: { items: { key: string; label: React.React
     return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure) }
   }, [sig]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div ref={box} role="group" aria-label={label} className="relative inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl p-1" style={{ border: "1px solid var(--card-border)", background: "var(--table-header-bg, var(--page-bg))" }}>
+    <div ref={box} role="group" aria-label={label} className="relative inline-flex max-w-full gap-1 overflow-x-auto overflow-y-hidden rounded-2xl p-1 [&::-webkit-scrollbar]:hidden" style={{ border: "1px solid var(--card-border)", background: "var(--table-header-bg, var(--page-bg))", scrollbarWidth: "none" }}>
       {rects.map((r, i) => (
         <span key={i} aria-hidden className="pointer-events-none absolute bottom-1 top-1 rounded-xl"
           style={{
