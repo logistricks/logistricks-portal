@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { HOME_HREF, NAV, sectionFor, type BadgeKey, type SectionKey } from "@/lib/portal-nav"
 
 const PIN_KEY = "portal_nav_pin"
@@ -58,10 +58,31 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
   const sectionTotal = (k: SectionKey) =>
     NAV.find((s) => s.key === k)!.items.reduce((n, i) => n + (i.badge ? counts[i.badge] ?? 0 : 0), 0)
 
+  // one pill that glides between sections
+  const navRef = useRef<HTMLElement>(null)
+  const secRefs = useRef<Record<string, HTMLAnchorElement | null>>({})
+  const [pill, setPill] = useState<{ left: number; width: number; show: boolean; anim: boolean }>({ left: 0, width: 0, show: false, anim: false })
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = shownKey ? secRefs.current[shownKey] : null
+      setPill((p) => el
+        ? { left: el.offsetLeft, width: el.offsetWidth, show: true, anim: p.show }
+        : { ...p, show: false, anim: false })
+    }
+    measure()
+    window.addEventListener("resize", measure)
+    return () => window.removeEventListener("resize", measure)
+  }, [shownKey, counts])
+
   return (
     <div onMouseLeave={leave} className="contents">
       {/* ── Section buttons ── */}
-      <nav aria-label="Main" className="flex min-w-0 items-center justify-center gap-0.5 sm:gap-1.5">
+      <nav ref={navRef} aria-label="Main" className="relative flex min-w-0 items-center justify-center gap-0.5 sm:gap-1.5">
+        <span aria-hidden className="pointer-events-none absolute bottom-0 top-0 rounded-full"
+          style={{
+            left: pill.left, width: pill.width, background: "rgba(255,255,255,0.14)", opacity: pill.show ? 1 : 0,
+            transition: pill.anim ? "left .38s cubic-bezier(.34,1.45,.5,1), width .38s cubic-bezier(.34,1.45,.5,1), opacity .2s" : "opacity .2s",
+          }} />
         <Link
           href={HOME_HREF}
           onClick={() => setPin(false)}
@@ -85,6 +106,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
           return (
             <Link
               key={s.key}
+              ref={(el) => { secRefs.current[s.key] = el }}
               href={s.main}
               onClick={() => setPin(true)}
               onMouseEnter={() => enter(s.key)}
@@ -92,7 +114,6 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
               aria-current={isCurrent ? "page" : undefined}
               className="relative flex items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
               style={{
-                background: isShown ? "rgba(255,255,255,0.14)" : "transparent",
                 color: isCurrent || isShown ? "#ffffff" : "rgba(255,255,255,0.72)",
                 fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif",
                 letterSpacing: "0.01em",
@@ -143,6 +164,21 @@ function SubBar({
   onEnter: () => void
   onPick: () => void
 }) {
+  const row = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({})
+  const [pill, setPill] = useState<{ left: number; width: number; show: boolean } | null>(null)
+  const [ready, setReady] = useState(false)
+  const activeHref = shown?.items.find((i) => i.match(pathname, tab))?.href ?? null
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = activeHref ? itemRefs.current[activeHref] : null
+      setPill(el ? { left: el.offsetLeft, width: el.offsetWidth, show: true } : (p) => (p ? { ...p, show: false } : p))
+    }
+    measure()
+    const id = requestAnimationFrame(() => setReady(true)) // no slide on first paint
+    window.addEventListener("resize", measure)
+    return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure) }
+  }, [activeHref, counts, shown?.key])
   if (!shown) return null
   return (
     <div
@@ -155,23 +191,28 @@ function SubBar({
         boxShadow: "0 14px 28px -18px rgba(15,30,54,0.35)",
       }}
     >
-      <div className="mx-auto flex h-[54px] items-center gap-1 overflow-x-auto px-3 sm:justify-center sm:gap-1.5 md:px-6" role="menu" aria-label={`${shown.label} pages`}>
+      <div ref={row} className="relative mx-auto flex h-[54px] items-center gap-1 overflow-x-auto overflow-y-hidden px-3 [&::-webkit-scrollbar]:hidden sm:justify-center sm:gap-1.5 md:px-6" role="menu" aria-label={`${shown.label} pages`} style={{ scrollbarWidth: "none" }}>
+        {pill && (
+          <span aria-hidden className="pointer-events-none absolute top-1/2 h-[38px] -translate-y-1/2 rounded-full"
+            style={{
+              left: pill.left, width: pill.width, opacity: pill.show ? 1 : 0,
+              background: "rgb(var(--brand-accent-rgb) / 0.12)", boxShadow: "inset 0 0 0 1px rgb(var(--brand-accent-rgb) / 0.28)",
+              transition: ready ? "left .38s cubic-bezier(.34,1.45,.5,1), width .38s cubic-bezier(.34,1.45,.5,1), opacity .2s" : "none",
+            }} />
+        )}
         {shown.items.map((i) => {
           const active = i.match(pathname, tab)
           const n = i.badge ? counts[i.badge] ?? 0 : 0
           return (
             <Link
               key={i.href}
+              ref={(el) => { itemRefs.current[i.href] = el }}
               href={i.href}
               onClick={onPick}
               role="menuitem"
               aria-current={active ? "page" : undefined}
-              className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[14px] font-semibold"
-              style={{
-                background: active ? "rgb(var(--brand-accent-rgb) / 0.12)" : "transparent",
-                color: active ? "var(--brand-accent)" : "var(--text-secondary)",
-                boxShadow: active ? "inset 0 0 0 1px rgb(var(--brand-accent-rgb) / 0.28)" : "none",
-              }}
+              className="relative z-10 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[14px] font-semibold transition-colors duration-200"
+              style={{ color: active ? "var(--brand-accent)" : "var(--text-secondary)" }}
               onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
               onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}
             >
