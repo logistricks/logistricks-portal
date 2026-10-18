@@ -798,19 +798,6 @@ export default function RequestDetailPage() {
             {/* Right — sidebar */}
             <div className="space-y-4 lg:col-span-2">
 
-              {/* Timeline */}
-              <div className="ds-card p-6">
-                <button type="button" onClick={() => setShowTimeline((v) => !v)} aria-expanded={showTimeline}
-                  className="flex w-full items-center justify-between gap-3 text-left">
-                  <h4 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
-                  <span className="flex items-center gap-3">
-                    <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
-                    <ChevronDown className="h-5 w-5 transition-transform" style={{ color: "var(--text-muted)", transform: !showTimeline ? "rotate(180deg)" : "none" }} />
-                  </span>
-                </button>
-                {showTimeline && <div className="mt-3"><RequestTimeline requestId={request.id} refreshKey={request.status} /></div>}
-              </div>
-
               {/* Special flags */}
               <div className="ds-card p-6">
                 <h4 className="mb-4 font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Special Flags</h4>
@@ -829,6 +816,19 @@ export default function RequestDetailPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="ds-card p-6">
+                <button type="button" onClick={() => setShowTimeline((v) => !v)} aria-expanded={showTimeline}
+                  className="flex w-full items-center justify-between gap-3 text-left">
+                  <h4 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
+                  <span className="flex items-center gap-3">
+                    <StatusBadge status={request.status} quoteCount={request.activeQuoteCount} />
+                    <ChevronDown className="h-5 w-5 transition-transform" style={{ color: "var(--text-muted)", transform: !showTimeline ? "rotate(180deg)" : "none" }} />
+                  </span>
+                </button>
+                {showTimeline && <div className="mt-3"><RequestTimeline requestId={request.id} refreshKey={request.status} /></div>}
               </div>
 
               {/* Reply thread */}
