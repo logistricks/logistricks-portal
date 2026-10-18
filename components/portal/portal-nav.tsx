@@ -215,10 +215,8 @@ function SubBar({
               onClick={onPick}
               role="menuitem"
               aria-current={active ? "page" : undefined}
-              className="relative z-10 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[14px] font-semibold transition-colors duration-200"
+              className="relative z-10 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[14px] font-semibold transition-colors duration-200 hover:[background:color-mix(in_srgb,var(--brand-accent)_14%,transparent)] aria-[current=page]:!bg-transparent"
               style={{ color: active ? "var(--brand-accent)" : "var(--text-secondary)" }}
-              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--hover-bg)" }}
-              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}
             >
               {i.label}
               {n > 0 && (
