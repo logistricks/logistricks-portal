@@ -203,7 +203,7 @@ function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { fir
 export function TagTable({ rows, title }: { rows: [string, React.ReactNode][]; title?: string }) {
   const shown = rows.filter(([, v]) => v)
   return (
-    <div className="mx-auto mt-4 w-full overflow-hidden rounded-2xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
+    <div className="relative z-20 mx-auto mt-4 w-full rounded-2xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
       {title && <h3 className="font-display px-4 py-3 text-center text-[20px] font-extrabold" style={{ color: "var(--text-primary)", borderBottom: "1px solid var(--card-border)" }}>{title}</h3>}
       <div className="flex flex-wrap items-stretch justify-center">
         {shown.map(([k, v], i) => (
