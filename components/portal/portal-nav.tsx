@@ -70,8 +70,10 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
         : { ...p, show: false, anim: false })
     }
     measure()
-    window.addEventListener("resize", measure)
-    return () => window.removeEventListener("resize", measure)
+    const ro = new ResizeObserver(measure)
+    if (navRef.current) { ro.observe(navRef.current); Array.from(navRef.current.children).forEach((c) => ro.observe(c)) }
+    document.fonts?.ready.then(measure)
+    return () => ro.disconnect()
   }, [shownKey, counts])
 
   return (
@@ -176,8 +178,10 @@ function SubBar({
     }
     measure()
     const id = requestAnimationFrame(() => setReady(true)) // no slide on first paint
-    window.addEventListener("resize", measure)
-    return () => { cancelAnimationFrame(id); window.removeEventListener("resize", measure) }
+    const ro = new ResizeObserver(measure)
+    if (row.current) { ro.observe(row.current); Array.from(row.current.children).forEach((c) => ro.observe(c)) }
+    document.fonts?.ready.then(measure)
+    return () => { cancelAnimationFrame(id); ro.disconnect() }
   }, [activeHref, counts, shown?.key])
   if (!shown) return null
   return (
