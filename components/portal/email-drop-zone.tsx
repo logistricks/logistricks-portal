@@ -74,9 +74,6 @@ function ProcessingProgress({ kind }: { kind: "request" | "carrier_reply" }) {
           </li>
         ))}
       </ol>
-      <p className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-        {sec < 45 ? "Usually takes 20 to 60 seconds. The steps above are estimates." : sec < 90 ? "Taking a little longer than usual, large attachments need more time. Please keep this page open." : "Still working. If it stops here, check the Intake log: the request may already have been created."}
-      </p>
     </div>
   )
 }
