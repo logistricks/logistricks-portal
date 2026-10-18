@@ -31,6 +31,56 @@ type Staged = {
   hint?: string
 }
 
+const STEPS: Record<"request" | "carrier_reply", { at: number; text: string }[]> = {
+  request: [
+    { at: 0, text: "Email sent for processing" },
+    { at: 4, text: "Reading the email and its attachments" },
+    { at: 12, text: "Extracting route, cargo, dates and requirements" },
+    { at: 28, text: "Checking for missing information and matching earlier requests" },
+    { at: 42, text: "Saving the request" },
+  ],
+  carrier_reply: [
+    { at: 0, text: "Quote email sent for processing" },
+    { at: 4, text: "Reading the email and the attached quote" },
+    { at: 12, text: "Extracting rates, charges, validity and terms" },
+    { at: 28, text: "Matching it to the request and carrier" },
+    { at: 42, text: "Saving the quote" },
+  ],
+}
+
+/** What is happening while the email is processed: elapsed time, the stage it is probably at, and what to do if it takes long. */
+function ProcessingProgress({ kind }: { kind: "request" | "carrier_reply" }) {
+  const [sec, setSec] = useState(0)
+  useEffect(() => { const t0 = Date.now(); const id = setInterval(() => setSec(Math.floor((Date.now() - t0) / 1000)), 500); return () => clearInterval(id) }, [])
+  const steps = STEPS[kind]
+  let cur = 0
+  steps.forEach((st, i) => { if (sec >= st.at) cur = i })
+  const pct = Math.min(95, Math.round((1 - Math.exp(-sec / 28)) * 100))
+  return (
+    <div role="status" aria-live="polite" className="space-y-3 rounded-xl p-4 text-center" style={{ background: "var(--table-header-bg)", border: "1px solid var(--card-border)" }}>
+      <div className="flex items-center justify-center gap-2 text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
+        <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--brand-accent)" }} /> Processing · {sec}s
+      </div>
+      <div className="mx-auto h-1.5 w-full max-w-[360px] overflow-hidden rounded-full" style={{ background: "var(--card-border)" }}>
+        <div className="h-full rounded-full transition-[width] duration-500 ease-out" style={{ width: `${pct}%`, background: "var(--brand-accent)" }} />
+      </div>
+      <ol className="mx-auto max-w-[360px] space-y-1.5 text-left text-[12.5px]">
+        {steps.map((st, i) => (
+          <li key={st.text} className="flex items-center gap-2" style={{ color: i <= cur ? "var(--text-primary)" : "var(--text-muted)", fontWeight: i === cur ? 700 : 500 }}>
+            {i < cur ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: "#16a34a" }} />
+              : i === cur ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" style={{ color: "var(--brand-accent)" }} />
+              : <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ border: "1.5px solid var(--card-border)" }} />}
+            {st.text}
+          </li>
+        ))}
+      </ol>
+      <p className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
+        {sec < 45 ? "Usually takes 20 to 60 seconds. The steps above are estimates." : sec < 90 ? "Taking a little longer than usual, large attachments need more time. Please keep this page open." : "Still working. If it stops here, check the Intake log: the request may already have been created."}
+      </p>
+    </div>
+  )
+}
+
 /** Appends a step to the drop breadcrumb (read back on the next load if the page died mid-drop). */
 function crumb(step: string) {
   try { const v = JSON.parse(localStorage.getItem("lt_drop_dbg") || "null"); if (v) { v.steps = [...(v.steps || []), step]; localStorage.setItem("lt_drop_dbg", JSON.stringify(v)) } } catch { /* ignore */ }
@@ -368,8 +418,9 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
             <button onClick={() => input.current?.click()} className="rounded border border-dashed px-2 py-0.5" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>+ add PDF / image</button>
             <input ref={input} type="file" accept=".pdf,image/*" multiple hidden onChange={(e) => { if (e.target.files) upd({ extra: [...staged.extra, ...Array.from(e.target.files)] }); e.target.value = "" }} />
           </div>
+          {busy === "processing" && <ProcessingProgress kind={kind} />}
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={() => { setStaged(null); setMsg(null) }} className="rounded px-3 py-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+            <button disabled={busy === "processing"} onClick={() => { setStaged(null); setMsg(null) }} className="rounded px-3 py-1.5 font-medium disabled:opacity-40" style={{ color: "var(--text-secondary)" }}>Cancel</button>
             <button onClick={() => void process()} disabled={busy === "processing" || !staged.mailbox || !staged.from_email || (!staged.body_text.trim() && !staged.extra.length && !staged.fileAttachments.length)}
               className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
               {busy === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
