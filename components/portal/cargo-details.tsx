@@ -330,11 +330,6 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
           Needed to quote: {missing.join(", ")}
         </p>
       )}
-      {legs.length > 0 && (
-        <p className="px-5 pt-2 text-center text-[11px]" style={{ color: "var(--text-muted)" }}>
-          Multi-leg request: each leg has its own incoterm and pickup; urgency, preferred carrier and special requirements are shared by all legs. A leg the requester has already booked is not a leg, it belongs in the special requirements.
-        </p>
-      )}
 
       <GroupedRows
         key={tab} rows={rows} vals={vals} lockReason={lockReason} save={tab === 0 ? saveFirst : saveLeg}
