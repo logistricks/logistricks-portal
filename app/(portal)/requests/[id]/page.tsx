@@ -469,16 +469,13 @@ export default function RequestDetailPage() {
           {/* left: route */}
           <div className="flex flex-col items-center gap-1.5 lg:items-start lg:pl-14">
             <div className="flex flex-col items-center gap-1 lg:items-start">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2.5">
                 <div>
-                  {seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Origin · POL</p>}
-                  {!seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Origin</p>}
+                  <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{seaOnly ? "Origin · POL" : "Origin"}</p>
                   <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</p>
                 </div>
-                <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-white/40" />
                 <div>
-                  {seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Destination · POD</p>}
-                  {!seaOnly && <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">Destination</p>}
+                  <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{seaOnly ? "Destination · POD" : "Destination"}</p>
                   <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</p>
                 </div>
               </div>
@@ -503,22 +500,20 @@ export default function RequestDetailPage() {
 
           {/* right: details table, one calm colour */}
           <div className="flex justify-center lg:justify-end">
-            <dl className="w-full max-w-[250px] overflow-hidden rounded-xl text-[12px]" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)" }}>
+            <dl className="grid w-full max-w-[420px] grid-cols-3 overflow-hidden rounded-xl text-center" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)" }}>
               {([
                 ["Mode", request.modes.join(" · ") || "—"],
                 ["Urgency", request.urgency],
                 ["Confidence", request.confidence],
                 ["Source", request.source],
                 ["Intake", request.intakeSource === "manual" ? "Manual" : "Automatic"],
+                ["File", request.intakeFilename || "—"],
               ] as [string, string][]).map(([k, v], i) => (
-                <div key={k} className="flex items-center justify-between gap-4 px-3 py-1.5" style={{ borderTop: i ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
-                  <dt className="font-semibold uppercase tracking-wide text-white/50" style={{ fontSize: 10 }}>{k}</dt>
-                  <dd className="font-semibold text-white">{v}</dd>
+                <div key={k} className="min-w-0 px-3 py-2.5" style={{ borderLeft: i % 3 ? "1px solid rgba(255,255,255,0.1)" : "none", borderTop: i >= 3 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                  <dt className="font-semibold uppercase tracking-wider text-white/50" style={{ fontSize: 9.5 }}>{k}</dt>
+                  <dd className="mt-0.5 truncate text-[12.5px] font-semibold text-white" title={v}>{v}</dd>
                 </div>
               ))}
-              {request.intakeFilename && (
-                <div className="px-3 py-1.5 text-right text-[10px] text-white/40" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>{request.intakeFilename}</div>
-              )}
             </dl>
           </div>
         </div>
