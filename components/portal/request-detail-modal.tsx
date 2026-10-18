@@ -637,58 +637,77 @@ export function RequestDetailModal({
 
         {/* ── Gradient header ──────────────────────────────────── */}
         <div
-          className="shrink-0 px-7 py-6"
+          className="relative shrink-0 px-7 py-6"
           style={{ background: "radial-gradient(700px 260px at 95% -40%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)" }}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <SourceBadge source={request.source} />
-              <div className="min-w-0">
-                {request.requestRef && (
-                  <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--brand-accent)" }}>{request.requestRef}</p>
-                )}
-                <p className="font-display text-[24px] font-extrabold leading-tight text-white truncate">{request.senderName}</p>
-                <p className="text-xs text-white/60 mt-0.5">{request.receivedExact}</p>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+          <div className="grid grid-cols-1 items-center gap-x-6 gap-y-4 pt-6 lg:grid-cols-[1fr_auto_1fr] lg:pt-2">
+            {/* left: route, stacked */}
+            <div className="flex flex-col items-center gap-1.5 lg:items-start">
+              <div className="flex flex-col gap-2.5">
+                <div>
+                  <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{isSeaOnly(request.modes) ? "Origin · POL" : "Origin"}</p>
+                  <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.originFlag} {request.originCity}</p>
+                </div>
+                <div>
+                  <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{isSeaOnly(request.modes) ? "Destination · POD" : "Destination"}</p>
+                  <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.destinationFlag} {request.destinationCity}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {aogLocal && <AogBadge />}
-              {dgrLocal && <DgrBadge />}
-              <StatusBadge status={request.status} />
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="rounded-lg p-1.5 ml-1 transition-colors"
-                style={{ color: "rgba(255,255,255,0.6)" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "white"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.6)"; (e.currentTarget as HTMLElement).style.background = "transparent" }}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Route summary row */}
-          <div className="mt-4 flex items-center gap-3 flex-wrap rounded-2xl px-4 py-3" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
-            <div className="flex items-center gap-2">
-              {isSeaOnly(request.modes) && <span className="text-[10px] font-bold uppercase text-white/50">POL</span>}
-              <span className="font-display text-[17px] font-bold text-white">
-                {request.originFlag} {request.originCity}
-              </span>
-              <ArrowRight className="h-4 w-4 text-white/40" />
-              {isSeaOnly(request.modes) && <span className="text-[10px] font-bold uppercase text-white/50">POD</span>}
-              <span className="font-display text-[17px] font-bold text-white">
-                {request.destinationFlag} {request.destinationCity}
-              </span>
               {exwNeedsAddress(request.incoterm, request.pickupAddress) && (
                 <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "rgba(239,68,68,0.9)", color: "#fff" }}>⚠ {EXW_ALERT}</span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 ml-auto flex-wrap justify-end">
-              {request.modes.map((m) => <ModeBadge key={m} mode={m} />)}
-              <UrgencyBadge urgency={request.urgency} />
-              <ConfidenceBadge confidence={request.confidence} />
+
+            {/* centre: reference above the name */}
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="font-mono text-[12px] font-medium tracking-wide" style={{ color: "rgba(255,255,255,0.55)" }}>{request.requestRef ?? ""}</span>
+              {(() => {
+                const contacts = [request.senderEmail, request.senderPhone].filter((c): c is string => !!c)
+                const same = contacts.includes(request.senderName)
+                const others = contacts.filter((c) => c !== request.senderName)
+                return (
+                  <>
+                    <div className="flex items-center justify-center gap-1">
+                      <h1 className="font-display max-w-[28ch] truncate text-[24px] font-extrabold leading-tight text-white">{request.senderName}</h1>
+                      {same && <CopyInline value={request.senderName} plain />}
+                    </div>
+                    {others.length > 0 && (
+                      <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5">
+                        {others.map((c) => <CopyInline key={c} value={c} />)}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+              <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+                {aogLocal && <AogBadge />}
+                {dgrLocal && <DgrBadge />}
+                <StatusBadge status={request.status} />
+              </div>
+              {request.receivedRelative && <span className="text-[12px] tabular-nums text-white/55" title={request.receivedExact}>Received {request.receivedRelative}</span>}
+            </div>
+
+            {/* right: details table */}
+            <div className="flex justify-center lg:justify-end">
+              <dl className="grid w-full max-w-[360px] grid-cols-3 overflow-hidden rounded-xl text-center" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)" }}>
+                {([
+                  ["Mode", request.modes.join(" · ") || "—"],
+                  ["Urgency", request.urgency],
+                  ["Confidence", request.confidence],
+                  ["Source", request.source],
+                  ["Intake", request.intakeSource === "manual" ? "Manual" : "Automatic"],
+                  ["File", request.intakeFilename || "—"],
+                ] as [string, string][]).map(([k, v], i) => (
+                  <div key={k} className="min-w-0 px-3 py-2.5" style={{ borderLeft: i % 3 ? "1px solid rgba(255,255,255,0.1)" : "none", borderTop: i >= 3 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                    <dt className="font-semibold uppercase tracking-wider text-white/50" style={{ fontSize: 9.5 }}>{k}</dt>
+                    <dd className="mt-0.5 truncate text-[12.5px] font-semibold text-white" title={v}>{v}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
         </div>
@@ -964,31 +983,6 @@ export function RequestDetailModal({
               {/* ── Right sidebar ───────────────────────────────── */}
               <div className="space-y-4 lg:col-span-2">
 
-                {/* Sender card */}
-                <div className="ds-card">
-                  <div className="ds-card-header">
-                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Sender</h4>
-                  </div>
-                  <div className="space-y-2.5 px-5 pb-4">
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{request.senderName}</p>
-                    <CopyRow icon={Mail} value={request.senderEmail} />
-                    <CopyRow icon={Phone} value={request.senderPhone} />
-                    <div className="flex items-center gap-2 pt-1">
-                      <SourceBadge source={request.source} />
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{request.receivedExact}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Timeline */}
-                <div className="ds-card">
-                  <div className="ds-card-header">
-                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
-                    <StatusBadge status={request.status} />
-                  </div>
-                  <RequestTimeline requestId={request.id} refreshKey={request.status} />
-                </div>
-
                 {/* Special flags */}
                 <div className="ds-card">
                   <div className="ds-card-header">
@@ -1041,6 +1035,15 @@ export function RequestDetailModal({
                     </div>
                     {canEditFlags && <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Auto-detected from keywords. Toggle to override.</p>}
                   </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="ds-card">
+                  <div className="ds-card-header">
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Timeline</h4>
+                    <StatusBadge status={request.status} />
+                  </div>
+                  <RequestTimeline requestId={request.id} refreshKey={request.status} />
                 </div>
 
                 {/* Reply thread */}
@@ -1245,4 +1248,24 @@ function stripHtml(html: string): string {
     .replace(/\u200b/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
+}
+
+
+/** Contact detail on the dark header: click to copy. */
+function CopyInline({ value, plain }: { value: string; plain?: boolean }) {
+  const [copied, setCopied] = useState(false)
+  if (!value) return null
+  function doCopy() {
+    navigator.clipboard.writeText(value).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button type="button" onClick={doCopy} title={copied ? "Copied" : `Copy ${value}`} aria-label={`Copy ${value}`}
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12.5px] font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white">
+      {!plain && <span className="truncate">{value}</span>}
+      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5 opacity-70" />}
+      {copied && <span className="text-[11px] text-green-300">Copied</span>}
+    </button>
+  )
 }
