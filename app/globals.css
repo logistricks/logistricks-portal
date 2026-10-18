@@ -752,3 +752,7 @@ a.hero-chip-link:hover { filter: brightness(.9); }
 .dp-foot { display:flex; justify-content:center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider); }
 .dp-foot button { border:0; background: transparent; cursor:pointer; font: 700 13px var(--font-sans), system-ui, sans-serif; color: var(--brand-accent); padding: 4px 14px; border-radius: 999px; }
 .dp-foot button:hover { background: rgb(var(--brand-accent-rgb) / .12); }
+
+/* icon turns once while hovered */
+@keyframes lt-spin-once { to { transform: rotate(360deg); } }
+.spin-once:hover svg { animation: lt-spin-once .6s ease-in-out 1; }

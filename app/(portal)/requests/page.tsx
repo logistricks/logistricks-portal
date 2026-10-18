@@ -384,7 +384,7 @@ export default function RequestsPage() {
             onClick={() => load()}
             title={lastUpdated ? `Last synced ${lastUpdated.toLocaleTimeString()}` : "Refresh"}
             aria-label="Refresh"
-            className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+            className="spin-once inline-flex h-[34px] w-[34px] items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
             style={{ border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.08)" }}
           >
             <RefreshCw className="h-4 w-4" />
@@ -392,20 +392,24 @@ export default function RequestsPage() {
         }
         left={
           <>
+            <div className="flex flex-col items-center gap-1.5 md:items-start">
             <button type="button" onClick={() => { setDropOpen(true); setManualSignal((n) => n + 1) }}
               className="inline-flex h-[34px] items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all hover:brightness-90"
               style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 10px 22px -12px rgb(var(--brand-accent-rgb) / 0.9)" }}>
               <PenLine className="h-4 w-4" /> Enter manually
             </button>
-            <span className="hidden text-[12px] text-white/55 lg:inline">or drop an email anywhere on the page</span>
+            <span className="text-[12px] text-white/55">or drop an email anywhere on the page</span>
+            </div>
           </>
         }
         right={
           <>
-            <HeroChip>{requests.length} total</HeroChip>
-            <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
-            {Object.keys(lateMap).length > 0 && <HeroChip>{Object.keys(lateMap).length} overdue</HeroChip>}
-            <IntakeLogButton />
+            <div className="flex flex-col items-center gap-1.5 md:items-end">
+              <HeroChip>{requests.length} total</HeroChip>
+              <HeroChip>{requests.filter((r) => isFlagged(r)).length} need attention</HeroChip>
+              {Object.keys(lateMap).length > 0 && <HeroChip>{Object.keys(lateMap).length} overdue</HeroChip>}
+              <IntakeLogButton />
+            </div>
           </>
         }
         belowOpen={dropOpen}
