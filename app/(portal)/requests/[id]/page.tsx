@@ -630,11 +630,8 @@ export default function RequestDetailPage() {
 
                 return (
                   <div className="ds-card">
-                    <div className="ds-card-header" style={{ flexDirection: "column", alignItems: "center", borderBottom: "none", paddingBottom: 4 }}>
-                      <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
-                    </div>
-                    <div className="px-5">
-                      <TagTable rows={[
+                    <div className="px-5 pt-1">
+                      <TagTable title="Cargo Details" rows={[
                         ["Type", <ShipmentTypeChip key="t" requestId={request.id} type={null} locked={carrierRfqSent} onChanged={load} />],
                         ["Quote status", missingCount > 0
                           ? <span key="q" className="inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {missingCount} missing</span>

@@ -1,5 +1,6 @@
 "use client"
 
+import { Seg } from "@/components/portal/seg"
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Check, ChevronDown, CheckCircle2, Loader2, Lock, Pencil, Plus, Tag } from "lucide-react"
 import type { FreightRequest } from "@/lib/portal-data"
@@ -199,16 +200,19 @@ function buildRows(type: ShipmentType, vals: Record<string, string>, opts: { fir
 }
 
 /** Small table under the Cargo Details title: one row per tag (type, readiness, lock, confirmation). */
-export function TagTable({ rows }: { rows: [string, React.ReactNode][] }) {
+export function TagTable({ rows, title }: { rows: [string, React.ReactNode][]; title?: string }) {
   const shown = rows.filter(([, v]) => v)
   return (
-    <div className="mx-auto mt-3 flex w-full flex-wrap items-stretch justify-center overflow-hidden rounded-xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
-      {shown.map(([k, v], i) => (
-        <div key={k} className="flex min-w-[130px] flex-1 flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-center" style={{ borderLeft: i ? "1px solid var(--card-border)" : "none" }}>
-          <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{k}</span>
-          <span className="flex flex-wrap items-center justify-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>{v}</span>
-        </div>
-      ))}
+    <div className="mx-auto mt-4 w-full overflow-hidden rounded-2xl" style={{ background: "var(--table-header-bg, var(--divider))", border: "1px solid var(--card-border)" }}>
+      {title && <h3 className="font-display px-4 py-3 text-center text-[20px] font-extrabold" style={{ color: "var(--text-primary)", borderBottom: "1px solid var(--card-border)" }}>{title}</h3>}
+      <div className="flex flex-wrap items-stretch justify-center">
+        {shown.map(([k, v], i) => (
+          <div key={k} className="flex min-w-[130px] flex-1 flex-col items-center justify-center gap-0.5 px-3 py-2 text-center" style={{ borderLeft: i ? "1px solid var(--card-border)" : "none" }}>
+            <span className="text-[9.5px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{k}</span>
+            <span className="flex flex-wrap items-center justify-center gap-1.5 text-[12px] font-semibold" style={{ color: "var(--text-primary)" }}>{v}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -278,11 +282,8 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
 
   return (
     <div className="ds-card">
-      <div className="ds-card-header" style={{ flexDirection: "column", alignItems: "center", borderBottom: "none", paddingBottom: 4 }}>
-        <h3 className="font-display text-[20px] font-extrabold" style={{ color: "var(--text-primary)" }}>Cargo Details</h3>
-      </div>
-      <div className="px-5">
-        <TagTable rows={[
+      <div className="px-5 pt-1">
+        <TagTable title="Cargo Details" rows={[
           ["Type", tab === 0 ? (
             <ShipmentTypeChip requestId={request.id} type={type} source={request.typeSource} locked={locked} onChanged={onChanged} />
           ) : (
@@ -300,17 +301,14 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
       </div>
       {banner}
 
-      <div className="flex flex-wrap items-center justify-center gap-1.5 px-5 pt-3">
-        {[type, ...legs.map((l) => l.shipment_type as ShipmentType)].map((t, i) => (
-          <button key={i} type="button" onClick={() => setActive(i)} className="rounded-full px-3 py-1 text-[11.5px] font-bold transition-colors"
-            style={i === tab ? { background: "var(--brand-accent)", color: "#fff" } : { border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}>
-            {legs.length ? `Leg ${i + 1} · ` : ""}{TYPE_LABEL[t]}
-            {checks[i] && !checks[i].ready && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: i === tab ? "#fff" : "#ef4444" }} title="Missing required fields" />}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-center gap-2 px-5 pt-3">
+        <Seg label="Legs" items={[type, ...legs.map((l) => l.shipment_type as ShipmentType)].map((t, i) => ({
+          key: String(i), on: i === tab, onClick: () => setActive(i),
+          label: <>{legs.length ? `Leg ${i + 1} · ` : ""}{TYPE_LABEL[t]}{checks[i] && !checks[i].ready && <span className="inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: i === tab ? "#fff" : "#ef4444" }} title="Missing required fields" />}</>,
+        }))} />
         {!locked && (
           <div className="relative">
-            <button type="button" disabled={busy} onClick={() => setAdding((v) => !v)} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11.5px] font-bold disabled:opacity-50" style={{ border: "1px dashed var(--card-border)", color: "var(--text-muted)" }}>
+            <button type="button" disabled={busy} onClick={() => setAdding((v) => !v)} className="inline-flex items-center gap-1 rounded-2xl px-3.5 py-2 text-[13px] font-bold transition-colors hover:bg-[rgb(var(--brand-accent-rgb)/0.12)] disabled:opacity-50" style={{ border: "1px dashed var(--card-border)", color: "var(--text-secondary)" }}>
               {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} {legs.length ? "Add leg" : "Quote another leg"}
             </button>
             {adding && (
