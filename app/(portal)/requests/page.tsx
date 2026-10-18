@@ -671,15 +671,15 @@ export default function RequestsPage() {
                       {(() => {
                         const late = lateMap[String(r.id)]
                         const lateTxt = late ? (late.lateH < 48 ? `${Math.max(1, Math.floor(late.lateH))}h` : `${Math.floor(late.lateH / 24)}d`) : ""
-                        const flags: { k: string; text: string; critical?: boolean; title?: string; onClick?: () => void }[] = []
+                        const flags: { k: string; text: string; critical?: boolean; tone?: string; title?: string; onClick?: () => void }[] = []
                         if (r.aog) flags.push({ k: "aog", text: "AOG", critical: true })
                         if (late?.stuck) flags.push({ k: "late", text: `Stuck ${lateTxt}`, critical: true, title: late.title })
                         if (f.exw) flags.push({ k: "exw", text: "EXW address", critical: true, title: "EXW: pickup address missing" })
                         if (f.missing > 0) flags.push({ k: "miss", text: `Missing ${f.missing}`, critical: true, title: `Missing: ${r.missingFields.join(", ")}` })
-                        if (late && !late.stuck) flags.push({ k: "late", text: `Overdue ${lateTxt}`, title: late.title })
-                        if (r.dgr) flags.push({ k: "dgr", text: "DGR" })
-                        if (f.urgent) flags.push({ k: "urg", text: "Urgent" })
-                        if ((r.specialRequirements?.length ?? 0) > 0) flags.push({ k: "sp", text: `Special ${r.specialRequirements.length}`, title: "Show the special requests", onClick: () => setSpecialFor(r) })
+                        if (late && !late.stuck) flags.push({ k: "late", text: `Overdue ${lateTxt}`, tone: "#d97706", title: late.title })
+                        if (r.dgr) flags.push({ k: "dgr", text: "DGR", tone: "#d97706" })
+                        if (f.urgent) flags.push({ k: "urg", text: "Urgent", tone: "#d97706" })
+                        if ((r.specialRequirements?.length ?? 0) > 0) flags.push({ k: "sp", text: `Special · ${r.specialRequirements.length}`, tone: "#2563eb", title: "Show the special requests", onClick: () => setSpecialFor(r) })
                         if (f.low) flags.push({ k: "low", text: "Low conf.", title: "The AI was not confident reading this request" })
                         const cell = (label: string, value: React.ReactNode, pos: string) => (
                           <div key={label} className={`flex items-center justify-between gap-4 px-3.5 py-2 ${pos}`}>
@@ -692,11 +692,17 @@ export default function RequestsPage() {
                             {cell("Type", r.shipmentType ? TYPE_LABEL[r.shipmentType] : "—", "")}
                             {cell("Status", <span className="inline-flex flex-wrap items-center justify-end gap-1"><StatusPill status={r.status} quoteCount={r.activeQuoteCount} />{r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#dc2626" : "var(--text-secondary)" }}>{outcomeLabel(r)}</span>}</span>, "border-l [border-color:var(--card-border)]")}
                             {cell("Received", <span title={r.receivedExact} style={{ color: "var(--text-secondary)" }}>{r.receivedRelative}</span>, "border-t [border-color:var(--card-border)]")}
-                            {cell("Flags", flags.length ? flags.map((fl) => {
-                              const st = fl.critical ? { color: "#dc2626" } : { color: "var(--text-secondary)" }
-                              return fl.onClick
-                                ? <button key={fl.k} type="button" title={fl.title} onClick={(e) => { e.stopPropagation(); fl.onClick!() }} className="underline decoration-dotted underline-offset-2" style={st}>{fl.text}</button>
-                                : <span key={fl.k} title={fl.title} style={st}>{fl.text}</span>
+                            {cell("Flags", flags.length ? flags.map((fl, i) => {
+                              const st = { color: fl.critical ? "#dc2626" : fl.tone ?? "var(--text-secondary)" }
+                              const sep = i > 0 ? <span key={`${fl.k}-sep`} aria-hidden className="mx-0.5 inline-block h-3 w-px self-center" style={{ background: "var(--card-border)" }} /> : null
+                              return (
+                                <span key={fl.k} className="inline-flex items-center gap-2">
+                                  {sep}
+                                  {fl.onClick
+                                    ? <button type="button" title={fl.title} onClick={(e) => { e.stopPropagation(); fl.onClick!() }} className="underline decoration-dotted underline-offset-2" style={st}>{fl.text}</button>
+                                    : <span title={fl.title} style={st}>{fl.text}</span>}
+                                </span>
+                              )
                             }) : <span style={{ color: "var(--text-muted)" }}>None</span>, "border-l border-t [border-color:var(--card-border)]")}
                           </div>
                         )
