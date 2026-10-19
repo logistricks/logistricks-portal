@@ -82,7 +82,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
     run()
   }
   const separateAll = options && leg === "all" && info?.options_mode !== "one" // every option goes out as its own email
-  const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n && (!multi || options) // alternatives go out as one email per carrier, also automatically; real multi-leg requests are sent manually for now
+  const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n // options and multi-leg requests both go out automatically: one email per leg / option, or one email for all
 
   async function prepareManual() {
     setBusy(true); setError(null)
@@ -205,7 +205,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
               {info && !autoReady && (
                 <p className="flex items-start gap-2 rounded-md px-3 py-2 text-[11px]" style={{ background: "rgb(245 158 11 / 0.12)", color: "var(--text-secondary)" }}>
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "#d97706" }} />
-                  {multi ? "This request has more than one leg, so it is sent manually: one email per leg, or one email for all legs." : !info.smtp.configured || !info.smtp.enabled ? "Automatic sending needs your email server. Set it up in Settings → Email server." : "The automatic sending workflow is not connected yet (N8N_RFQ_WEBHOOK_URL)."} You can still send manually.
+                  {!info.smtp.configured || !info.smtp.enabled ? "Automatic sending needs your email server. Set it up in Settings → Email server." : "The automatic sending workflow is not connected yet (N8N_RFQ_WEBHOOK_URL)."} You can still send manually.
                 </p>
               )}
             </div>

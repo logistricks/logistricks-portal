@@ -114,7 +114,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // alternatives sent automatically always go out as ONE email per carrier that covers every destination
   const sel = legParam(body.leg ?? (method === "automatic" && opts ? "all" : undefined), legCount)
   // automatic sending (the n8n workflow) does not know about legs yet: multi-leg requests are sent manually, one email per leg or one for all
-  if (method === "automatic" && legCount > 1 && !opts) return NextResponse.json({ error: "multi_leg_manual", message: "Multi-leg requests are sent manually for now. Choose Send manually (one email per leg, or one email for all legs)." }, { status: 409 })
   const contacts = (await loadCarrierContacts(admin, code, carrierIds)).filter((c) => c.email)
   if (!contacts.length) return NextResponse.json({ error: "None of the selected carriers has an email address." }, { status: 400 })
 
