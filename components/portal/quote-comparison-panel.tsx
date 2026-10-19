@@ -462,7 +462,8 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
   const optionRows = (i: number): CarrierQuoteRequest[] => rows.map((r) => {
     const all = r.quotes?.length ? r.quotes : r.quote ? [r.quote] : []
     const q = all.find((x) => x.legIndex === i) ?? all.find((x) => x.legIndex == null) ?? null
-    return { ...r, quote: q, status: q ? "responded" : r.status === "responded" ? "sent" : r.status }
+    // an option without its own quote is still waiting: no response time, even if the RFQ row was answered for another option
+    return { ...r, quote: q, respondedAt: q ? (q.receivedAt ?? r.respondedAt) : r.status === "responded" ? null : r.respondedAt, status: q ? "responded" : r.status === "responded" ? "sent" : r.status }
   })
 
   return (
