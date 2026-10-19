@@ -551,26 +551,54 @@ export default function RequestsPage() {
               const sea = isSeaOnly(r.modes)
               return (
                 <div key={r.id} onClick={() => router.push(`/requests/${r.id}`)} title="Click to open the request"
-                  className={`rq-card ds-card relative flex cursor-pointer flex-col items-center gap-3 p-6 text-center ${r.aog ? "rq-card-aog" : ""}`}>
+                  className={`rq-card ds-card relative flex cursor-pointer flex-col items-center gap-3 px-5 pb-5 pt-12 text-center ${r.aog ? "rq-card-aog" : ""}`}>
                   <input type="checkbox" aria-label={`Select ${r.senderName}`} checked={selected.includes(r.id)} onChange={() => {}} onClick={(e) => toggle(r.id, e)}
                     className="absolute left-4 top-4 h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
                   <a href={`/requests/${r.id}`} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} title="Open full page in a new tab" aria-label="Open full page in a new tab"
                     className="absolute right-4 top-4 inline-flex items-center rounded-lg p-1.5" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
                     <ExternalLink className="h-4 w-4" />
                   </a>
-                  <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</span>
+                  <table className="w-full table-fixed border-collapse text-center">
+                    <tbody>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Request</th>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className="font-mono text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</span>
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Sender</th>
+                      <td className="px-3 py-2.5 text-center">
                   <div className="min-w-0 max-w-full">
-                    <p className="flex items-center justify-center gap-1.5 font-display text-[19px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
+                    <p className="flex items-center justify-center gap-1.5 font-display text-[15px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
                       {r.source === "WhatsApp" ? <MessageCircle className="h-4 w-4 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-4 w-4 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
                       <span className="truncate">{r.senderName}</span>
                     </p>
                     <p className="mt-0.5 truncate text-[13px]" style={{ color: "var(--text-secondary)" }}>{r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}</p>
                   </div>
-                  <p className="font-display text-[17px] font-bold" style={{ color: "var(--text-primary)" }}>
+
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Route</th>
+                      <td className="px-3 py-2.5 text-center">
+                  <p className="font-display text-[15px] font-bold" style={{ color: "var(--text-primary)" }}>
                     {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
                     {r.incoterm && <span className="ml-3 inline-block rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide align-middle" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)", marginLeft: 12 }}>{r.incoterm}</span>}
                   </p>
+
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Cargo</th>
+                      <td className="px-3 py-2.5 text-center">
                   <p className="max-w-full truncate text-[13.5px]" style={{ color: "var(--text-secondary)" }}>{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</p>
+
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Flags</th>
+                      <td className="px-3 py-2.5 text-center">
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
                     {r.shipmentType && <Chip tone="blue">{TYPE_LABEL[r.shipmentType]}</Chip>}
                     {lateChip(r)}
@@ -586,6 +614,12 @@ export default function RequestsPage() {
                     {f.urgent && <Chip tone="blue" icon={<Clock className="h-3 w-3" />}>Urgent</Chip>}
                     {f.low && <Chip tone="slate" title="The AI was not confident reading this request">Low conf.</Chip>}
                   </div>
+
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Status</th>
+                      <td className="px-3 py-2.5 text-center">
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
                     <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
                     {r.outcome && (
@@ -595,7 +629,18 @@ export default function RequestsPage() {
                       </span>
                     )}
                   </div>
+
+                      </td>
+                    </tr>
+                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Received</th>
+                      <td className="px-3 py-2.5 text-center">
                   <p className="font-mono text-[12px]" style={{ color: "var(--text-muted)" }} title={r.receivedExact}>{r.receivedRelative}</p>
+
+                      </td>
+                    </tr>
+                    </tbody>
+                  </table>
                   <button onClick={(e) => { e.stopPropagation(); setActive(r) }} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
                     className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-bold" style={{ background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
                     <Eye className="h-4 w-4" /> Preview
