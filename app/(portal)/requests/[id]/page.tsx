@@ -595,7 +595,7 @@ export default function RequestDetailPage() {
         {activeTab === "quotes" ? (
           <div>
             <div className="mb-3 -mt-2">
-              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} slim onReplyToSender={replyToSender} onDone={() => setRfqRefreshSignal((n) => n + 1)} />
+              <EmailDropZone kind="carrier_reply" freightRequestId={request.id} options={optionLabels(request as any)} slim onReplyToSender={replyToSender} onDone={() => setRfqRefreshSignal((n) => n + 1)} />
             </div>
             <QuoteComparisonPanel
                 options={optionLabels(request as any)}

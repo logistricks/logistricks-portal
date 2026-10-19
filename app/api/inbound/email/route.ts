@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
   const kind = String(form?.get("kind") ?? "")
   const mode = String(form?.get("mode") ?? "process") === "preview" ? "preview" : "process"
   const freightRequestId = String(form?.get("freight_request_id") ?? "").trim() || null
+  const optionRaw = String(form?.get("option_index") ?? "").trim()
+  const optionIndex = /^\d+$/.test(optionRaw) ? Number(optionRaw) : null   // which destination option the person says this quote is for
   let ov: Record<string, any> = {}
   try { ov = JSON.parse(String(form?.get("overrides") ?? "{}")) || {} } catch { /* ignore */ }
   const extraFiles = (form?.getAll("extra") ?? []).filter((x): x is File => x instanceof File).slice(0, MAX_EXTRA)
@@ -210,6 +212,10 @@ export async function POST(req: NextRequest) {
       if (lr.ok) outcome.result = { ...outcome.result, linked: true, request_id: freightRequestId, linked_by: "dropped_in_request" }
       else { const e = await lr.json().catch(() => null); outcome.result = { ...outcome.result, link_error: e?.error ?? `HTTP ${lr.status}` } }
     } catch { /* leave it as a non-linked quote */ }
+  }
+  // The person said which destination option this quote is for: store it on the quote (the email itself may not say).
+  if (outcome.found && kind === "carrier_reply" && optionIndex != null && outcome.result.quote_id) {
+    try { await admin.from("carrier_quotes").update({ leg_index: optionIndex }).eq("id", outcome.result.quote_id).eq("client_code", clientCode) } catch { /* the quote stays for the whole request */ }
   }
   const resultObj = { ...(out && typeof out === "object" ? { response: out } : {}), ...outcome.result }
   if (outcome.found) {

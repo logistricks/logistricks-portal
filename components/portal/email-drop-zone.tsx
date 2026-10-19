@@ -7,6 +7,8 @@ import { Loader2, MailPlus, CheckCircle2, AlertTriangle, Paperclip, X, Clipboard
 type Props = {
   kind: "request" | "carrier_reply"
   freightRequestId?: string
+  /** Destination options of this request (labels), when it has any: the person says which one a carrier quote is for. */
+  options?: string[]
   onDone?: () => void
   /** Called when the person chooses to reply to the sender about missing information. */
   onReplyToSender?: () => void
@@ -89,11 +91,13 @@ const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${M
  * Two steps: (1) drop an .eml / .msg — or paste the email text and drop its PDFs — and check what was read;
  * (2) press Process to run the normal workflow. Works without any mailbox connection.
  */
-export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender, onActive, manualSignal, compact, slim }: Props) {
+export function EmailDropZone({ kind, freightRequestId, options, onDone, onReplyToSender, onActive, manualSignal, compact, slim }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState<"" | "reading" | "processing">("")
   const [staged, setStaged] = useState<Staged | null>(null)
+  const [optionPick, setOptionPick] = useState("")   // "" = read it from the email
+  useEffect(() => { if (!staged) setOptionPick("") }, [staged])
   const [mailboxes, setMailboxes] = useState<string[]>([])
   const mbRef = useRef<string[]>([])
   useEffect(() => { mbRef.current = mailboxes }, [mailboxes])
@@ -279,6 +283,7 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
     const fd = new FormData()
     fd.set("kind", kind); fd.set("mode", "process")
     if (freightRequestId) fd.set("freight_request_id", freightRequestId)
+    if (kind === "carrier_reply" && options && optionPick !== "") fd.set("option_index", optionPick)
     if (staged.file) fd.set("file", staged.file)
     for (const f of staged.extra) fd.append("extra", f)
     fd.set("overrides", JSON.stringify({ from_email: staged.from_email, subject: staged.subject, body_text: staged.body_text, mailbox: staged.mailbox, message_id: staged.message_id }))
@@ -375,10 +380,20 @@ export function EmailDropZone({ kind, freightRequestId, onDone, onReplyToSender,
         <div className="space-y-3 rounded-[18px] border p-5 text-[13px]" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", boxShadow: "var(--card-shadow)" }}>
           <div className="flex items-center justify-between">
             <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-              Step 2 of 2 — check, then process {staged.file ? `(${staged.file.name})` : "(entered by hand)"}
+              {kind === "carrier_reply" ? "Add carrier quote" : "Add request"}
+              <span className="ml-2 font-normal" style={{ color: "var(--text-muted)" }}>{staged.file ? staged.file.name : "typed in"}</span>
             </p>
             <button onClick={() => { setStaged(null); setMsg(null) }} aria-label="Cancel" style={{ color: "var(--text-muted)" }}><X className="h-4 w-4" /></button>
           </div>
+          {kind === "carrier_reply" && options && options.length > 1 && (
+            <label className="flex flex-wrap items-center gap-2 text-[12.5px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+              Which destination is this quote for?
+              <select className="lt-select" value={optionPick} onChange={(e) => setOptionPick(e.target.value)}>
+                <option value="">Read it from the email</option>
+                {options.map((o, i) => <option key={i} value={i}>Option {i + 1} · {o}</option>)}
+              </select>
+            </label>
+          )}
           {staged.hint && (
             <p className="rounded px-2 py-1.5" style={{ background: "rgba(245,158,11,0.12)", color: "#b45309" }}>{staged.hint}</p>
           )}

@@ -9,7 +9,16 @@ import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 
 const BASE_COLS =
-  "id, sender_name, origin_city, origin_country, destination_city, destination_country, cargo_type, status, received_at"
+  "id, sender_name, origin_city, origin_country, destination_city, destination_country, cargo_type, status, received_at, legs"
+
+/** Destination options of a request (alternatives of one shipment), or null for an ordinary request. */
+function optionsOf(r: any): string[] | null {
+  let legs = r.legs
+  if (typeof legs === "string") { try { legs = JSON.parse(legs) } catch { legs = null } }
+  if (!Array.isArray(legs) || !legs.length || !legs.every((l: any) => l && l.alt === true)) return null
+  const d = (c: unknown, k: unknown) => [c, k].filter((x) => typeof x === "string" && x.trim()).join(", ")
+  return [d(r.destination_city, r.destination_country), ...legs.map((l: any) => d(l.destination_city, l.destination_country))]
+}
 
 export async function GET(req: NextRequest) {
   const cookie  = req.cookies.get("portal_session")?.value
@@ -60,6 +69,7 @@ export async function GET(req: NextRequest) {
       status:       r.status as string,
       receivedAt:   r.received_at as string,
       rfqSentToCarrier: rfqSent.has(r.id as string),
+      options:      optionsOf(r),
     }))
     .sort((a, b) => Number(b.rfqSentToCarrier) - Number(a.rfqSentToCarrier))
 

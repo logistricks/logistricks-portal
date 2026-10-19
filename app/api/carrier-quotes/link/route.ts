@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
       linked_at:                new Date().toISOString(),
       linked_by:                session.username,
       unlinked_reason:          null,
+      ...(Number.isInteger(Number(body?.option_index)) && body?.option_index != null && Number(body.option_index) >= 0 ? { leg_index: Number(body.option_index) } : {}),
     })
     .eq("id", quoteId)
     .eq("client_code", session.clientCode)

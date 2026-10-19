@@ -44,6 +44,7 @@ interface Suggestion {
 interface CarrierOption { id: number; name: string; email: string }
 
 interface LinkTarget {
+  options?: string[] | null
   id: string
   ref: string
   senderName: string
@@ -143,6 +144,8 @@ function LinkDialog({
   }, [targets, search])
 
   const selected = targets.find((t) => t.id === selectedId) ?? null
+  const [optionPick, setOptionPick] = useState<string>("")
+  useEffect(() => { setOptionPick("") }, [selectedId])
   const carrierName = carriers.find((c) => c.id === carrierId)?.name ?? carrierText(quote)
 
   async function confirm() {
@@ -152,7 +155,7 @@ function LinkDialog({
       const res = await fetch("/api/carrier-quotes/link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quote_id: quote.id, freight_request_id: selected.id, carrier_id: carrierId }),
+        body: JSON.stringify({ quote_id: quote.id, freight_request_id: selected.id, carrier_id: carrierId, ...(selected.options && optionPick !== "" ? { option_index: Number(optionPick) } : {}) }),
       })
       if (!res.ok) throw new Error(await readError(res))
       onLinked(quote.id, selected.ref)
@@ -257,6 +260,15 @@ function LinkDialog({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4" style={{ borderColor: "var(--divider)" }}>
+          {selected?.options && (
+            <label className="flex w-full items-center justify-center gap-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+              Which destination is this quote for?
+              <select className="lt-select" value={optionPick} onChange={(e) => setOptionPick(e.target.value)}>
+                <option value="">All / not sure</option>
+                {selected.options.map((o, i) => <option key={i} value={i}>Option {i + 1} · {o}</option>)}
+              </select>
+            </label>
+          )}
           <p className="min-w-0 flex-1 text-xs" style={{ color: "var(--text-secondary)" }}>
             {selected && carrierId
               ? <>Link <strong>{carrierName}</strong>&apos;s {rateText(quote)} quote to <strong>{selected.ref}</strong> ({selected.senderName})?</>
