@@ -23,6 +23,8 @@ export async function GET() {
     .from("notifications")
     .select("id, type, title, body, request_id, created_at")
     .eq("client_code", session.clientCode)
+    // personal notifications (approvals, results of my own sends) reach only their user; the rest are for everyone
+    .or(`username.is.null,username.eq.${session.username}`)
     .order("created_at", { ascending: false })
     .limit(30)
 
@@ -65,6 +67,7 @@ export async function PATCH(req: Request) {
       .from("notifications")
       .select("id")
       .eq("client_code", session.clientCode)
+      .or(`username.is.null,username.eq.${session.username}`)
 
     if (unread && unread.length > 0) {
       const rows = unread.map((n: { id: string }) => ({

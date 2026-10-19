@@ -292,7 +292,7 @@ export function NotificationBell() {
                       onClick={() => {
                         if (!n.read_at) markOneRead(n.id)
                         if (n.request_id) {
-                          window.location.href = `/requests`
+                          window.location.href = n.type === "approval_required" || n.type === "approval_notification" ? "/approvals" : "/requests"
                           setOpen(false)
                         }
                       }}
