@@ -56,6 +56,7 @@ const ALLOWED_FIELDS = new Set([
   "auto_reply_enabled",
   "auto_reply_missing_enabled",
   "auto_reply_complete_enabled",
+  "rfq_options_mode",
 ])
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -72,7 +73,9 @@ export async function GET(req: NextRequest) {
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  // migration 079 not run yet: the default (separate emails) applies
+  const mode = await adminClient().from("clients").select("rfq_options_mode").eq("client_code", session.clientCode).single()
+  return NextResponse.json({ ...data, rfq_options_mode: (mode.data as any)?.rfq_options_mode === "one" ? "one" : "separate" })
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
@@ -92,6 +95,7 @@ export async function PATCH(req: NextRequest) {
   const update: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(body)) {
     if (key === "critical_fields_by_type") update[key] = sanitizeCriticalConfig(value)
+    else if (key === "rfq_options_mode") { if (value === "separate" || value === "one") update[key] = value }
     else if (ALLOWED_FIELDS.has(key)) update[key] = value
   }
 

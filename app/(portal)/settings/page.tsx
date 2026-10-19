@@ -357,6 +357,7 @@ function SettingsInner() {
   const [autoReply, setAutoReply]                         = useState(false)
   const [flagsLoading, setFlagsLoading]                   = useState(true)
   const [autoSendBusy, setAutoSendBusy]                   = useState(false)
+  const [optionsMode, setOptionsMode]                     = useState<"separate" | "one">("separate")
   const [requireCritBusy, setRequireCritBusy]             = useState(false)
   const [autoReplyBusy, setAutoReplyBusy]                 = useState(false)
   const [autoReplyMissing, setAutoReplyMissing]           = useState(false)
@@ -396,6 +397,7 @@ function SettingsInner() {
     fetch("/api/settings").then((r) => r.json()).then((data) => {
       if (data && !data.error) {
         setAutoSend(data.allow_auto_send_to_carrier ?? false)
+        setOptionsMode(data.rfq_options_mode === "one" ? "one" : "separate")
         setRequireCritical(data.require_critical_data ?? false)
         setCriticalByType((data.critical_fields_by_type as CriticalConfig | null) ?? null)
         setAutoReply(data.auto_reply_enabled ?? false)
@@ -558,6 +560,12 @@ function SettingsInner() {
     const err = await patchSettings({ allow_auto_send_to_carrier: !autoSend })
     if (err) setError(err); else setAutoSend((v) => !v)
     setAutoSendBusy(false)
+  }
+  async function changeOptionsMode(v: "separate" | "one") {
+    const prev = optionsMode
+    setOptionsMode(v)
+    const err = await patchSettings({ rfq_options_mode: v })
+    if (err) { setOptionsMode(prev); setError(/rfq_options_mode/.test(err) ? "Run migration 079 in Supabase first." : err) }
   }
   async function toggleRequireCritical() {
     const next = !requireCritical
@@ -765,6 +773,18 @@ function SettingsInner() {
                 description="The system can automatically send rate requests to carriers without requiring manual confirmation."
                 checked={autoSend} busy={autoSendBusy} onToggle={toggleAutoSend}
               />
+              <div className="rounded-xl border p-4" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Requests with several destinations</p>
+                    <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>When a request asks for a price to more than one destination, send the carrier a separate email for each destination, or a single email that lists them all. Separate emails keep each carrier reply tied to its destination.</p>
+                  </div>
+                  <select className="lt-select shrink-0" value={optionsMode} onChange={(e) => void changeOptionsMode(e.target.value === "one" ? "one" : "separate")} aria-label="Emails for several destinations">
+                    <option value="separate">Separate emails (one per destination)</option>
+                    <option value="one">One email for all destinations</option>
+                  </select>
+                </div>
+              </div>
               <SettingCard
                 label="Block sending if critical data is missing"
                 description="The Send to Carrier button is disabled until all critical fields are present in the freight request."

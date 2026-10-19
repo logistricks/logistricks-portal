@@ -19,7 +19,7 @@ import { logActivity } from "@/lib/log-activity"
 import { defaultTemplateFor } from "@/lib/template-defaults"
 import { loadCriticalConfig } from "@/lib/critical-config"
 import { allLegs, destinationOf, optionMode, rowForLeg, typedMissing, TYPE_LABEL } from "@/lib/shipment-types"
-import { loadCarrierContacts, registerRfqRows, renderRfqDraft } from "@/lib/rfq-send"
+import { loadCarrierContacts, loadOptionsMode, registerRfqRows, renderRfqDraft } from "@/lib/rfq-send"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -64,6 +64,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // one entry per leg, so the dialog can offer "Leg 2 · Land" and rank carriers by that leg's mode and countries
     legs: legList.length > 1 ? legList.map((l, i) => { const r = rowForLeg(row, i); return { index: i, type: l.type, label: opts ? `Option ${i + 1} · ${destinationOf(r) || "no destination"}` : `Leg ${i + 1} · ${l.type ? TYPE_LABEL[l.type] : "No type"}`, modes: modesOf(r), origin_country: r.origin_country ?? "", destination_country: r.destination_country ?? "" } }) : [],
     options: opts, // true = the "legs" are alternative destinations of one shipment
+    options_mode: opts ? await loadOptionsMode(admin, s.session.clientCode) : null, // 'separate' = one email per option, 'one' = one email for all
     smtp: { configured: !!cfg, enabled: !!cfg?.enabled },
     // typed requests only: the required fields still missing for the request's type (null = older, untyped request)
     missing_required: typedMissing(row, crit),
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const legCount = allLegs(row).length
   const opts = optionMode(row)
   // alternatives sent automatically always go out as ONE email per carrier that covers every destination
-  const sel = legParam(method === "automatic" && opts ? "all" : body.leg, legCount)
+  const sel = legParam(body.leg ?? (method === "automatic" && opts ? "all" : undefined), legCount)
   // automatic sending (the n8n workflow) does not know about legs yet: multi-leg requests are sent manually, one email per leg or one for all
   if (method === "automatic" && legCount > 1 && !opts) return NextResponse.json({ error: "multi_leg_manual", message: "Multi-leg requests are sent manually for now. Choose Send manually (one email per leg, or one email for all legs)." }, { status: 409 })
   const contacts = (await loadCarrierContacts(admin, code, carrierIds)).filter((c) => c.email)
@@ -127,7 +128,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const wanted = Number(body.template_id)
       const tpl = tpls.find((t) => t.template_id === wanted) ?? defaultTemplateFor(tpls, modes) ?? tpls[0]
       if (!tpl) return NextResponse.json({ error: "no_template", message: "There is no email template to send. Add one under Builder → Templates." }, { status: 409 })
-      autoDrafts = contacts.map((c) => ({ carrier_id: c.carrier_id, to: c.email, cc: c.cc, ...renderRfqDraft(tpl, row, c) }))
+      const draftRow = sel.all ? row : rowForLeg(row, sel.index)
+      autoDrafts = contacts.map((c) => ({ carrier_id: c.carrier_id, to: c.email, cc: c.cc, ...renderRfqDraft(tpl, draftRow, c) }))
     }
     const startedAt = new Date(Date.now() - 2000).toISOString()
     try {
@@ -135,7 +137,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         method: "POST",
         headers: { "Content-Type": "application/json", ...(process.env.PORTAL_WEBHOOK_SECRET ? { "X-Portal-Secret": process.env.PORTAL_WEBHOOK_SECRET } : {}) },
         // the portal writes the emails itself (alternatives must name every destination) and n8n just sends them
-        body: JSON.stringify({ client_code: code, freight_request_id: id, carrier_ids: carrierIds, requested_by: actor, ...(autoDrafts ? { drafts: autoDrafts, all_options: opts } : {}) }),
+        body: JSON.stringify({ client_code: code, freight_request_id: id, carrier_ids: carrierIds, requested_by: actor, ...(legCount > 1 && !sel.all ? { leg_index: sel.index } : {}), ...(autoDrafts ? { drafts: autoDrafts, all_options: opts && sel.all } : {}) }),
         signal: AbortSignal.timeout(45_000),
       })
       const txt = (await res.text().catch(() => "")).slice(0, 300)

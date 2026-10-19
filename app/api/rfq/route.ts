@@ -74,24 +74,25 @@ export async function POST(req: NextRequest) {
 
   if (carrierErr) return NextResponse.json({ error: carrierErr.message }, { status: 500 })
 
+  const legRaw = body.leg_index   // an RFQ about ONE destination option / leg: its reference then identifies it when the carrier replies
+  const legIndex = legRaw != null && Number.isInteger(Number(legRaw)) && Number(legRaw) >= 0 ? Number(legRaw) : null
   const items: { carrier_id: number; rfq_reference: string; row_id: number }[] = []
 
   for (const c of carrierRows ?? []) {
     const reference = genReference(freightRequestId, c.carrier_id)
-    const { data: row, error } = await admin
-      .from("carrier_quote_requests")
-      .insert({
-        freight_request_id: freightRequestId,
-        carrier_id:         c.id,
-        email_thread_id:    reference, // placeholder until PATCHed with the real Gmail threadId
-        rfq_reference:      reference,
-        status:              "sent",
-      })
-      .select("id")
-      .single()
+    const base = {
+      freight_request_id: freightRequestId,
+      carrier_id:         c.id,
+      email_thread_id:    reference, // placeholder until PATCHed with the real Gmail threadId
+      rfq_reference:      reference,
+      status:              "sent",
+    }
+    let { data: row, error } = await admin.from("carrier_quote_requests").insert(legIndex != null ? { ...base, leg_index: legIndex } : base).select("id").single()
+    // before migration 075 there is no leg_index column: store the RFQ without it
+    if (error && legIndex != null && /leg_index/.test(error.message)) ({ data: row, error } = await admin.from("carrier_quote_requests").insert(base).select("id").single())
 
     if (error) continue // skip carriers whose row failed to insert rather than aborting the whole send
-    items.push({ carrier_id: c.carrier_id, rfq_reference: reference, row_id: row.id })
+    items.push({ carrier_id: c.carrier_id, rfq_reference: reference, row_id: row!.id })
   }
 
   return NextResponse.json({ ok: true, items })

@@ -76,7 +76,7 @@ import { allLegs, destinationOf, rowForLeg } from "@/lib/shipment-types"
  * Which destination option a quote is for. The extraction may give `leg_index` (0 = option 1) or the destination as the carrier
  * wrote it ("Aqaba"); the latter is matched against the request's option destinations. null = whole request / unknown.
  */
-async function optionIndex(admin: any, requestId: string, body: Record<string, unknown>): Promise<number | null> {
+async function optionIndex(admin: any, requestId: string, body: Record<string, unknown>, rfqLeg: number | null = null): Promise<number | null> {
   try {
     const { data: row } = await admin.from("freight_requests").select("*").eq("id", requestId).maybeSingle()
     if (!row) return null
@@ -85,12 +85,12 @@ async function optionIndex(admin: any, requestId: string, body: Record<string, u
     const li = Number(body.leg_index ?? body.option_index)
     if (body.leg_index != null && Number.isInteger(li) && li >= 0 && li < n) return li
     const want = String(body.destination ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim()
-    if (!want) return null
+    if (!want) return rfqLeg != null && rfqLeg < n ? rfqLeg : null
     const hits = Array.from({ length: n }, (_, i) => i).filter((i) => {
       const d = rowForLeg(row, i)
       return [d.destination_city, d.destination_country, destinationOf(d)].some((t) => { const x = String(t ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim(); return x && (want.includes(x) || x.includes(want)) })
     })
-    return hits.length === 1 ? hits[0] : null
+    return hits.length === 1 ? hits[0] : rfqLeg != null && rfqLeg < n ? rfqLeg : null
   } catch { return null }
 }
 
@@ -103,7 +103,7 @@ async function insertQuote(admin: any, base: Record<string, unknown>, ext: Recor
 }
 
 type LinkMethod = "rfq_reference" | "request_and_carrier" | "email_thread" | "manual"
-type Match = { id: number; freight_request_id: string; carrier_id: number }
+type Match = { id: number; freight_request_id: string; carrier_id: number; leg_index?: number | null }
 
 export async function POST(req: NextRequest) {
   const secret    = req.headers.get("x-portal-secret")
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
   // ── Try to match the reply to an RFQ we sent ──────────────────────────────
   let match: Match | null = null
   let method: LinkMethod | null = null
-  const cols = "id, freight_request_id, carrier_id"
+  const cols = "id, freight_request_id, carrier_id, leg_index"
 
   if (body.rfq_reference) {
     const { data } = await admin
@@ -342,7 +342,8 @@ export async function POST(req: NextRequest) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-  const legIdx = await optionIndex(admin, match.freight_request_id, body)
+  // the RFQ itself names the option when it was sent for one destination only
+  const legIdx = await optionIndex(admin, match.freight_request_id, body, match.leg_index != null ? Number(match.leg_index) : null)
   if (legIdx != null) ext.leg_index = legIdx
 
   const { data: quoteRow, error: insertErr } = await insertQuote(admin, {

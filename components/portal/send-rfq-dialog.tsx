@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, Clock, Copy, ExternalLink, Loader2, Mail, Send, X, XCircle, Zap } from "lucide-react"
 import type { Carrier, CarrierRow } from "@/lib/portal-data"
 import { groupCarrierRows } from "@/components/portal/send-to-carriers-modal"
@@ -8,10 +8,10 @@ import { rankCarriers, type Match } from "@/lib/carrier-match"
 import { FitTag, fitHint } from "@/components/portal/suggested-badge"
 import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/components/portal/missing-fields-confirm"
 
-type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string }
+type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string; leg?: number }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
 type LegInfo = { index: number; label: string; modes: string[]; origin_country: string; destination_country: string }
-type Info = { options?: boolean; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
+type Info = { options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -21,6 +21,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [info, setInfo] = useState<Info | null>(null)
+  const defaulted = useRef(false)
   const [leg, setLeg] = useState<string>("0") // multi-leg requests: a leg number - 1, or "all" = one email for every leg
   const [templateId, setTemplateId] = useState<string>("")
   const [step, setStep] = useState<"select" | "manual" | "result">("select")
@@ -36,7 +37,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   // (re)load the request's sending info; the default template depends on the leg
   useEffect(() => {
     fetch(`/api/requests/${requestId}/send-rfq?leg=${leg}`).then((r) => (r.ok ? r.json() : null)).then((d: Info | null) => {
-      if (d) { setInfo(d); if (d.options && leg === "0") setLeg("all") /* alternatives: one email for every destination by default */; const def = d.templates.find((t) => t.template_id === d.default_template_id) ?? d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
+      if (d) { setInfo(d); if (d.options && !defaulted.current) { defaulted.current = true; setLeg("all") } /* alternatives: start on "all options"; choosing one option must stay chosen */ const def = d.templates.find((t) => t.template_id === d.default_template_id) ?? d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
     }).catch(() => {})
   }, [requestId, leg])
 
@@ -67,29 +68,50 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
     if (!r && missingRequired.length) { setConfirm({ info: { missing: missingRequired, sender_name: "", sender_email: "", source: "Email", asked: null }, run }); return }
     run()
   }
+  const separateAll = options && leg === "all" && info?.options_mode !== "one" // every option goes out as its own email
   const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n && (!multi || options) // alternatives go out as one email per carrier, also automatically; real multi-leg requests are sent manually for now
 
   async function prepareManual() {
     setBusy(true); setError(null)
     try {
-      const r = await fetch(`/api/requests/${requestId}/send-rfq?leg=${leg}&carrier_ids=${ids.join(",")}${templateId ? `&template_id=${templateId}` : ""}`)
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error ?? "Could not prepare the emails")
-      if (!d.drafts?.length) throw new Error("There is no RFQ email template yet. Create one on the Templates page (tag it Default).")
-      setDrafts(d.drafts); setStep("manual")
+      const legsToDraft = separateAll ? legs.map((l) => String(l.index)) : [leg]
+      const all: Draft[] = []
+      for (const lg of legsToDraft) {
+        const r = await fetch(`/api/requests/${requestId}/send-rfq?leg=${lg}&carrier_ids=${ids.join(",")}${templateId ? `&template_id=${templateId}` : ""}`)
+        const d = await r.json()
+        if (!r.ok) throw new Error(d.error ?? "Could not prepare the emails")
+        if (!d.drafts?.length) throw new Error("There is no RFQ email template yet. Create one on the Templates page (tag it Default).")
+        all.push(...(d.drafts as Draft[]).map((x) => (separateAll ? { ...x, leg: Number(lg) } : x)))
+      }
+      setDrafts(all); setStep("manual")
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
 
   async function send(method: "manual" | "automatic") {
     setBusy(true); setError(null)
     try {
-      const r = await fetch(`/api/requests/${requestId}/send-rfq`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, leg: multi ? leg : undefined, carrier_ids: ids, template_id: templateId ? Number(templateId) : undefined, drafts: method === "manual" ? drafts : undefined }),
-      })
-      const d = await r.json().catch(() => ({}))
-      if (d.results) { setResult(d); setStep("result"); onDone(); return }
-      throw new Error(d.message ?? d.error ?? `Failed (${r.status})`)
+      const post = async (lg: string | undefined, dr: Draft[] | undefined) => {
+        const r = await fetch(`/api/requests/${requestId}/send-rfq`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ method, leg: lg, carrier_ids: ids, template_id: templateId ? Number(templateId) : undefined, drafts: dr }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!d.results) throw new Error(d.message ?? d.error ?? `Failed (${r.status})`)
+        return d
+      }
+      if (separateAll) {
+        // one email per destination option: each is sent (and registered) on its own, so its reply links to that option
+        let sent = 0, total = 0, n8n: any = null
+        const results: Result[] = []
+        for (const l of legs) {
+          const d = await post(String(l.index), method === "manual" ? drafts.filter((x) => x.leg === l.index) : undefined)
+          sent += d.sent; total += d.total; if (d.n8n && !d.n8n.ok) n8n = d.n8n
+          results.push(...(d.results as Result[]).map((x) => ({ ...x, carrier_name: `${x.carrier_name} · Option ${l.index + 1}` })))
+        }
+        setResult({ method, sent, total, results, n8n }); setStep("result"); onDone(); return
+      }
+      const d = await post(multi ? leg : undefined, method === "manual" ? drafts : undefined)
+      setResult(d); setStep("result"); onDone(); return
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -116,7 +138,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{options ? "Destinations in this email" : "This email is about"}</label>
                   <div className="flex flex-wrap gap-1.5">
-                    {[...legs.map((l) => ({ key: String(l.index), label: l.label })), { key: "all", label: options ? "All options in one email" : "All legs in one email" }].map((o) => (
+                    {[...legs.map((l) => ({ key: String(l.index), label: l.label })), { key: "all", label: options ? (info?.options_mode === "one" ? "All options in one email" : "All options · separate emails") : "All legs in one email" }].map((o) => (
                       <button key={o.key} type="button" onClick={() => setLeg(o.key)} className="rounded-full px-3 py-1 text-[11.5px] font-bold"
                         style={leg === o.key ? { background: "var(--brand-accent)", color: "#fff" } : { border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}>{o.label}</button>
                     ))}
@@ -181,9 +203,9 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
                 Send each email from your own mail app (open it, or copy it). Keep the request number in the subject so the carrier&apos;s reply links back. When all are sent, press <b>Log as sent</b>.
               </p>
               {drafts.map((d, i) => (
-                <div key={d.carrier_id} className="space-y-2 rounded-lg p-3" style={{ border: "1px solid var(--card-border)" }}>
+                <div key={`${d.carrier_id}-${d.leg ?? "x"}`} className="space-y-2 rounded-lg p-3" style={{ border: "1px solid var(--card-border)" }}>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>{d.carrier_name} <span className="font-normal" style={{ color: "var(--text-muted)" }}>· {d.to}</span></p>
+                    <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>{d.carrier_name} <span className="font-normal" style={{ color: "var(--text-muted)" }}>· {d.to}{d.leg != null ? ` · Option ${d.leg + 1}` : ""}</span></p>
                     <div className="flex gap-1.5">
                       <a href={mailto(d)} className={btn} style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }}><ExternalLink className="h-3 w-3" /> Open in mail</a>
                       <button className={btn} style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)" }} onClick={() => navigator.clipboard?.writeText(`To: ${d.to}\nSubject: ${d.subject}\n\n${d.body}`)}><Copy className="h-3 w-3" /> Copy</button>
@@ -203,8 +225,8 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
               </p>
               {result.n8n && !result.n8n.ok && <p className="rounded-md px-3 py-2 text-[11px]" style={{ background: "rgb(239 68 68 / 0.1)", color: "#ef4444" }}>The sending workflow reported a problem: {result.n8n.error}</p>}
               <ul className="overflow-hidden rounded-lg" style={{ border: "1px solid var(--card-border)" }}>
-                {result.results.map((r) => (
-                  <li key={r.carrier_id} className="flex items-start gap-2 px-3 py-2" style={{ borderBottom: "1px solid var(--divider)" }}>
+                {result.results.map((r, ri) => (
+                  <li key={`${r.carrier_id}-${ri}`} className="flex items-start gap-2 px-3 py-2" style={{ borderBottom: "1px solid var(--divider)" }}>
                     {r.status === "sent" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#10b981" }} /> : r.status === "pending" ? <Clock className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#d97706" }} /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#ef4444" }} />}
                     <div className="min-w-0">
                       <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{r.carrier_name} <span className="font-normal" style={{ color: "var(--text-muted)" }}>· {r.email}</span></p>

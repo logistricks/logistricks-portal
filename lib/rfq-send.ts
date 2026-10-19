@@ -80,3 +80,11 @@ export async function registerRfqRows(admin: any, requestId: string, contacts: C
   }
   return refs
 }
+
+/** How a request with destination options goes to a carrier: 'separate' = one email per option (default), 'one' = one email listing every destination. */
+export async function loadOptionsMode(admin: any, clientCode: string): Promise<"separate" | "one"> {
+  try {
+    const { data, error } = await admin.from("clients").select("rfq_options_mode").ilike("client_code", clientCode).maybeSingle()
+    return !error && data?.rfq_options_mode === "one" ? "one" : "separate"
+  } catch { return "separate" }
+}
