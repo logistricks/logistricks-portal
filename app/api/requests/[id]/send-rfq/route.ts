@@ -33,6 +33,8 @@ function legParam(v: unknown, count: number): { all: boolean; index: number } {
   const n = Number(v)
   return { all: false, index: Number.isInteger(n) && n >= 0 && n < count ? n : 0 }
 }
+/** The request as seen for ONE leg / option. Option 1 is the request itself, but the email must still be about that option only, so it is marked with its index. */
+const legRowOf = (row: Record<string, any>, i: number, count: number) => (count > 1 ? { ...rowForLeg(row, i), leg_index: i } : rowForLeg(row, i))
 const modesOf = (r: Record<string, any>) => [r.is_sea ? "Sea" : "", r.is_air ? "Air" : "", r.is_land ? "Land" : ""].filter(Boolean)
 
 async function loadRequest(admin: any, clientCode: string, id: string) {
@@ -56,7 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const [cfg, tpls, crit] = await Promise.all([loadSmtp(admin, s.session.clientCode), emailTemplates(admin, s.session.clientCode), loadCriticalConfig(admin, s.session.clientCode)])
   const legList = allLegs(row)
   const sel = legParam(req.nextUrl.searchParams.get("leg"), legList.length)
-  const legRow = sel.all ? row : rowForLeg(row, sel.index)
+  const legRow = sel.all ? row : legRowOf(row, sel.index, legList.length)
   const opts = optionMode(row)
   // alternatives are ONE shipment: the normal template for its mode, not the multi-leg one
   const tplModes = sel.all && !opts ? ["Multi", ...modesOf(row)] : sel.all ? modesOf(row) : modesOf(legRow)
@@ -136,7 +138,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const wanted = Number(body.template_id)
       const tpl = tpls.find((t) => t.template_id === wanted) ?? defaultTemplateFor(tpls, modes) ?? tpls[0]
       if (!tpl) return NextResponse.json({ error: "no_template", message: "There is no email template to send. Add one under Builder → Templates." }, { status: 409 })
-      const draftRow = sel.all ? row : rowForLeg(row, sel.index)
+      const draftRow = sel.all ? row : legRowOf(row, sel.index, legCount)
       autoDrafts = contacts.map((c) => ({ carrier_id: c.carrier_id, to: c.email, cc: c.cc, ...renderRfqDraft(tpl, draftRow, c) }))
     }
     const startedAt = new Date(Date.now() - 2000).toISOString()

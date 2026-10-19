@@ -46,7 +46,7 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
     shipment_type: TYPE_LABEL[s(row.shipment_type) as ShipmentType] ?? "",
     // multi-leg requests: which leg this email is about, and one line per leg for an email that covers all of them
     leg_number: row.leg_index != null ? String(Number(row.leg_index) + 1) : "", leg_count: allLegs(row).length > 1 ? String(allLegs(row).length) : "",
-    legs_summary: legsSummary(row), options_summary: allOptions ? legsSummary(row) : "",
+    legs_summary: optionMode(row) && row.leg_index != null ? "" : legsSummary(row), options_summary: allOptions ? legsSummary(row) : "",
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),
     dgr: row.dgr ? "Yes" : "", aog: row.aog ? "Yes" : "",
