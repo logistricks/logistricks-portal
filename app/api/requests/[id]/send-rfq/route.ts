@@ -121,7 +121,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!url) return NextResponse.json({ error: "n8n_not_configured", message: "The automatic sending workflow is not connected yet (N8N_RFQ_WEBHOOK_URL). Choose Send manually, or ask your administrator." }, { status: 409 })
 
     let autoDrafts: { carrier_id: number; to: string; cc: string[]; subject: string; body: string }[] | null = null
-    if (opts && legCount > 1) {
+    {
       const tpls = await emailTemplates(admin, code)
       const modes = modesOf(row)
       const wanted = Number(body.template_id)
@@ -134,8 +134,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(process.env.PORTAL_WEBHOOK_SECRET ? { "X-Portal-Secret": process.env.PORTAL_WEBHOOK_SECRET } : {}) },
-        // for alternatives the portal writes the emails itself (they must name every destination) and n8n just sends them
-        body: JSON.stringify({ client_code: code, freight_request_id: id, carrier_ids: carrierIds, requested_by: actor, ...(autoDrafts ? { drafts: autoDrafts, all_options: true } : {}) }),
+        // the portal writes the emails itself (alternatives must name every destination) and n8n just sends them
+        body: JSON.stringify({ client_code: code, freight_request_id: id, carrier_ids: carrierIds, requested_by: actor, ...(autoDrafts ? { drafts: autoDrafts, all_options: opts } : {}) }),
         signal: AbortSignal.timeout(45_000),
       })
       const txt = (await res.text().catch(() => "")).slice(0, 300)
