@@ -11,7 +11,7 @@ import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/componen
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string; leg?: number }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
 type LegInfo = { index: number; label: string; modes: string[]; origin_country: string; destination_country: string }
-type Info = { approved_edit?: { subject?: string | null; body?: string | null; cc?: string[] | null } | null; already_sent?: { carrier_id: number; leg_index: number | null; sent_at: string | null }[]; options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
+type Info = { gated?: boolean; held?: { carrier_id: number; state: "pending" | "approved" }[]; approved_edit?: { subject?: string | null; body?: string | null; cc?: string[] | null } | null; already_sent?: { carrier_id: number; leg_index: number | null; sent_at: string | null }[]; options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -59,8 +59,13 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   // pre-tick the suggested carriers so the common case is one click
   // carriers that already got a request for what is being sent now (this option, or the whole request) are flagged and not pre-ticked
   const alreadySent = (carrierId: number) => (info?.already_sent ?? []).filter((r) => r.carrier_id === carrierId && (leg === "all" || r.leg_index == null || Number(r.leg_index) === Number(leg)))
-  useEffect(() => { setSelected(new Set(carriers.filter((x) => x.match.suggested && alreadySent(x.carrier.carrier_id).length === 0).map((x) => x.carrier.carrier_id))) }, [carriers, info]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setSelected(new Set(carriers.filter((x) => x.match.suggested && alreadySent(x.carrier.carrier_id).length === 0 && !heldState(x.carrier.carrier_id)).map((x) => x.carrier.carrier_id))) }, [carriers, info]) // eslint-disable-line react-hooks/exhaustive-deps
+  // users in an approval workflow cannot send again to a carrier that was sent, is waiting for approval, or is approved
+  const heldState = (carrierId: number) => info?.held?.find((h) => h.carrier_id === carrierId)?.state ?? null
+  const locked = (carrierId: number) => !!info?.gated && (alreadySent(carrierId).length > 0 || !!heldState(carrierId))
   const sentLabel = (carrierId: number) => {
+    const hs = heldState(carrierId)
+    if (info?.gated && hs) return hs === "pending" ? "Waiting for approval" : "Approved, ready to send"
     const rs = alreadySent(carrierId)
     if (!rs.length) return null
     const last = rs.map((r) => r.sent_at).filter(Boolean).sort().pop()
@@ -71,7 +76,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
 
   const ids = useMemo(() => Array.from(selected), [selected])
   const suggestedIds = useMemo(() => carriers.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id), [carriers])
-  const toggle = (id: number) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggle = (id: number) => { if (locked(id)) return; setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n }) }
   const missingRequired = info?.missing_required ?? []
   /** Runs the action straight away, or after a confirmation pop-up when mandatory fields are still missing. */
   async function guarded(run: () => void) {
@@ -170,11 +175,11 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
                     {carriers.map(({ carrier: c, match }) => (
                       <li key={c.carrier_id} style={{ borderBottom: "1px solid var(--divider)" }}>
                         <label className="flex cursor-pointer items-center gap-3 px-3 py-2">
-                          <input type="checkbox" checked={selected.has(c.carrier_id)} onChange={() => toggle(c.carrier_id)} className="h-4 w-4 accent-[var(--brand-accent)]" />
+                          <input type="checkbox" checked={selected.has(c.carrier_id)} disabled={locked(c.carrier_id)} onChange={() => toggle(c.carrier_id)} className="h-4 w-4 accent-[var(--brand-accent)]" />
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{c.carrier_name}{c.person_name ? <span className="font-normal" style={{ color: "var(--text-muted)" }}> — {c.person_name}</span> : null}<FitTag match={match} /></p>
                             <p className="truncate text-[11px]" style={{ color: "var(--text-muted)" }}>{c.email} · {fitHint(match)}</p>
-                            {sentLabel(c.carrier_id) && <p className="text-[11px] font-semibold" style={{ color: "#b45309" }}>{sentLabel(c.carrier_id)}. Tick it only to send again.</p>}
+                            {sentLabel(c.carrier_id) && <p className="text-[11px] font-semibold" style={{ color: "#b45309" }}>{sentLabel(c.carrier_id)}.{locked(c.carrier_id) ? " Locked while approval is in place." : " Tick it only to send again."}</p>}
                           </div>
                         </label>
                       </li>

@@ -24,6 +24,30 @@ import { loadCarrierContacts, loadOptionsMode, renderRfqDraft } from "@/lib/rfq-
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
+
+/** Carriers that already got this request (for the given legs), or whose send is held in an approval chain. */
+async function blockedCarriers(admin: any, id: string, legs: (string | undefined)[], myCarrierIds: number[]) {
+  const sentSet = new Set<number>(), held = new Map<number, "pending" | "approved">()
+  const { data: sent } = await admin.from("carrier_quote_requests").select("carrier_id, leg_index").eq("freight_request_id", id)
+  const pks = Array.from(new Set((sent ?? []).map((r: any) => r.carrier_id)))
+  const { data: cs } = pks.length ? await admin.from("carriers").select("id, carrier_id").in("id", pks) : { data: [] as any[] }
+  const logical = new Map((cs ?? []).map((c: any) => [c.id, c.carrier_id]))
+  const legNums = legs.map((l) => (l === undefined || l === "all" || l === "" ? null : Number(l)))
+  for (const r of (sent ?? []) as any[]) {
+    const cid = logical.get(r.carrier_id) as number | undefined
+    if (cid == null) continue
+    if (r.leg_index == null || legNums.some((n) => n == null || n === Number(r.leg_index))) sentSet.add(cid)
+  }
+  const { data: chain } = await admin.from("approval_requests").select("step_status, status, send_job").eq("request_id", id)
+  const list = (chain ?? []) as any[]
+  const job = list.map((c) => c.send_job).find(Boolean)
+  if (job && !list.some((c) => c.status === "rejected" || c.step_status === "rejected")) {
+    const done = list.every((c) => c.step_status === "approved" || c.step_status === "skipped")
+    for (const cid of ids(job.carrier_ids)) held.set(cid, done ? "approved" : "pending")
+  }
+  return { sent: sentSet, held, mine: myCarrierIds }
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const s = await sessionWithRole(req)
   if (!s) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -59,6 +83,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const logical = new Map((cs ?? []).map((c: any) => [c.id, c.carrier_id]))
     out.already_sent = (sent ?? []).filter((r: any) => logical.has(r.carrier_id)).map((r: any) => ({ carrier_id: logical.get(r.carrier_id), leg_index: r.leg_index ?? null, sent_at: r.sent_at ?? null }))
   } catch { out.already_sent = [] }
+  try {
+    const { data: ini } = await admin.from("approval_cycle_initiators").select("cycle_id").eq("client_code", s.session.clientCode).eq("username", s.session.username).maybeSingle()
+    out.gated = !!ini
+    const b = await blockedCarriers(admin, id, [], [])
+    out.held = Array.from(b.held.entries()).map(([carrier_id, state]) => ({ carrier_id, state }))
+  } catch { out.gated = false; out.held = [] }
   // an approver's edits to the email (subject / body / cc), once the whole chain approved it
   try {
     const { data: chain } = await admin.from("approval_requests").select("id, step_status, submitted_by, send_job").eq("request_id", id)
@@ -97,6 +127,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const actor = s.session.username
   const row = await loadRequest(admin, code, id)
   if (!row) return NextResponse.json({ error: "Request not found" }, { status: 404 })
+  const contacts = (await loadCarrierContacts(admin, code, carrierIds)).filter((c) => c.email)
   const jobs: { leg?: string; drafts?: any[] }[] = Array.isArray(body.jobs) && body.jobs.length ? body.jobs : [{ leg: body.leg, drafts: body.drafts }]
   const base: any = { method, carrier_ids: carrierIds, template_id: body.template_id }
 
@@ -109,13 +140,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const list = (chain ?? []) as any[]
       approvedChain = list.length > 0 && list.every((c) => c.step_status === "approved" || c.step_status === "skipped") && list.some((c) => c.send_job)
       if (!approvedChain) {
+        const b = await blockedCarriers(admin, id, jobs.map((j) => j.leg ?? (optionMode(row) ? "all" : undefined)), carrierIds)
+        const bad = contacts.filter((c) => b.sent.has(c.carrier_id) || b.held.has(c.carrier_id))
+        if (bad.length) {
+          const why = (c: { carrier_id: number }) => (b.held.get(c.carrier_id) === "pending" ? "waiting for approval" : b.held.get(c.carrier_id) === "approved" ? "approved, ready to send" : "already sent")
+          return NextResponse.json({ error: "already_requested", message: `Not sent for approval: ${bad.map((c) => `${c.carrier_name} (${why(c)})`).join(", ")}. Untick them and try again.` }, { status: 409 })
+        }
         // the first email, so approvers see what would go out
         let first: { subject?: string; body?: string; to?: string; cc?: string[] } = {}
         const d0 = (jobs[0]?.drafts ?? [])[0]
         if (d0) first = { subject: d0.subject, body: d0.body, to: d0.to, cc: d0.cc }
         else {
           try {
-            const contacts = (await loadCarrierContacts(admin, code, carrierIds)).filter((c) => c.email)
             const tpls = await emailTemplates(admin, code)
             const tpl = tpls.find((t) => t.template_id === Number(body.template_id)) ?? defaultTemplateFor(tpls, modesOf(row)) ?? tpls[0]
             const legCount = allLegs(row).length
