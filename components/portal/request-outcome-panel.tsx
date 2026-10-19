@@ -106,7 +106,7 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
 
   if (loading) return null
   // Only once there is something to decide: a quote came in, the RFQ is out, or an outcome was already saved.
-  if (!options.length && !saved.outcome && !["Sent to Carrier", "Quoted", "Closed"].includes(status ?? "")) return null
+  if (!options.length && !saved.outcome && !["Sent to Carrier", "Quoted", "Closed"].includes(status ?? "")) return <p className="py-1 text-center text-xs font-semibold text-white/60">This request has not been quoted yet.</p>
   const dis = !canEdit
   const tone = outcome === "won" ? "#16a34a" : outcome === "lost" ? "#ef4444" : "#64748b"
 
