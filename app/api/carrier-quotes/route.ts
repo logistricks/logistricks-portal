@@ -84,13 +84,18 @@ async function optionIndex(admin: any, requestId: string, body: Record<string, u
     if (n < 2) return null
     const li = Number(body.leg_index ?? body.option_index)
     if (body.leg_index != null && Number.isInteger(li) && li >= 0 && li < n) return li
-    const want = String(body.destination ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim()
-    if (!want) return rfqLeg != null && rfqLeg < n ? rfqLeg : null
-    const hits = Array.from({ length: n }, (_, i) => i).filter((i) => {
+    const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim()
+    // the destination the carrier priced: what the workflow named explicitly, else the extracted destination, else the subject line
+    const wants = [body.destination, body.destination_place, body.destination_code].map(norm).filter(Boolean)
+    const subject = norm(body.email_subject)
+    const matches = (want: string, cityOnly: boolean) => Array.from({ length: n }, (_, i) => i).filter((i) => {
       const d = rowForLeg(row, i)
-      return [d.destination_city, d.destination_country, destinationOf(d)].some((t) => { const x = String(t ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim(); return x && (want.includes(x) || x.includes(want)) })
+      const cands = cityOnly ? [d.destination_city] : [d.destination_city, d.destination_country, destinationOf(d)]
+      return cands.some((t) => { const x = norm(t); return x && (want.includes(x) || (!cityOnly && x.includes(want))) })
     })
-    return hits.length === 1 ? hits[0] : rfqLeg != null && rfqLeg < n ? rfqLeg : null
+    for (const w of wants) { const h = matches(w, false); if (h.length === 1) return h[0] }
+    if (!wants.length && subject) { const h = matches(subject, true); if (h.length === 1) return h[0] }
+    return rfqLeg != null && rfqLeg < n ? rfqLeg : null
   } catch { return null }
 }
 
