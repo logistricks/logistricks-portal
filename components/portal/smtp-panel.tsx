@@ -63,7 +63,15 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
   async function test() {
     setMsg(null); setTesting(true)
     try {
-      const res = await fetch("/api/settings/smtp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body(), action: "test", to: testTo || undefined }) })
+      const payload = body()
+      // A password typed here is only ever kept by Save: testing with it must not leave it unsaved, or it is lost on the next visit
+      if (password || msSecret) {
+        const sv = await fetch("/api/settings/smtp", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        const sd = await sv.json().catch(() => ({}))
+        if (!sv.ok) { setMsg({ ok: false, text: sd.error ?? "Couldn't save the settings before testing." }); return }
+        setF(sd); setPassword(""); setMsSecret("")
+      }
+      const res = await fetch("/api/settings/smtp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, action: "test", to: testTo || undefined }) })
       const d = await res.json().catch(() => ({}))
       setMsg(d.ok ? { ok: true, text: `Test email sent to ${d.to}. Check that inbox (and spam).` } : { ok: false, text: d.error ?? "The test failed." })
       const fresh = await fetch("/api/settings/smtp").then((r) => r.json()).catch(() => null)
@@ -148,7 +156,7 @@ export function SmtpPanel({ canEdit }: { canEdit: boolean }) {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Username"><input value={f.username} disabled={!canEdit} onChange={(e) => set({ username: e.target.value })} autoComplete="off" placeholder="you@example.com" className={inputCls} style={inputStyle} /></Field>
-            <Field label="Password" hint={f.has_password && !password ? "A password is saved. Type here only to replace it." : undefined}>
+            <Field label="Password" hint={password ? "Not saved yet. Press Save (or Send test email, which saves it first)." : f.has_password ? "A password is saved. Type here only to replace it." : undefined}>
               <div className="relative">
                 <input type={showPw ? "text" : "password"} value={password} disabled={!canEdit} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
                   placeholder={f.has_password ? "••••••••••••" : "App password"} className={`${inputCls} pr-10`} style={inputStyle} />
