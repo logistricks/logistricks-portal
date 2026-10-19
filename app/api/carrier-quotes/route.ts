@@ -342,8 +342,8 @@ export async function POST(req: NextRequest) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-  // the RFQ itself names the option when it was sent for one destination only
-  const legIdx = await optionIndex(admin, match.freight_request_id, body, match.leg_index != null ? Number(match.leg_index) : null)
+  // the RFQ itself names the option when it was sent for one destination only (only when the reply was matched to that exact RFQ, not just "latest RFQ to this carrier")
+  const legIdx = await optionIndex(admin, match.freight_request_id, body, match.leg_index != null && (method === "rfq_reference" || method === "email_thread") ? Number(match.leg_index) : null)
   if (legIdx != null) ext.leg_index = legIdx
 
   const { data: quoteRow, error: insertErr } = await insertQuote(admin, {

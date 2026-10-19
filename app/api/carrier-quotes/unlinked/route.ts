@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
     notes:           q.notes,
     rawReply:        q.raw_reply,
     reason:          q.unlinked_reason ?? null,
+    destination:     q.destination_place ?? q.destination_code ?? null,
     receivedAt:      q.received_at,
     intakeSource:    q.intake_source ?? "automatic",
   }))

@@ -24,6 +24,7 @@ interface UnlinkedQuote {
   notes: string | null
   rawReply: string | null
   reason: string | null
+  destination?: string | null
   receivedAt: string
   intakeSource?: string
   suggestions?: Suggestion[]
@@ -145,7 +146,15 @@ function LinkDialog({
 
   const selected = targets.find((t) => t.id === selectedId) ?? null
   const [optionPick, setOptionPick] = useState<string>("")
-  useEffect(() => { setOptionPick("") }, [selectedId])
+  // pre-pick the option whose destination the carrier named in the quote (the person can change it)
+  useEffect(() => {
+    const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim()
+    const want = norm(quote.destination)
+    const opts = targets.find((t) => t.id === selectedId)?.options
+    if (!want || !opts) { setOptionPick(""); return }
+    const hits = opts.map((o, i) => ({ i, city: norm(o.split(",")[0].replace(/\(.*?\)/g, "")) })).filter(({ city }) => city && (want.includes(city) || city.includes(want)))
+    setOptionPick(hits.length === 1 ? String(hits[0].i) : "")
+  }, [selectedId, targets]) // eslint-disable-line react-hooks/exhaustive-deps
   const carrierName = carriers.find((c) => c.id === carrierId)?.name ?? carrierText(quote)
 
   async function confirm() {
@@ -262,7 +271,7 @@ function LinkDialog({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4" style={{ borderColor: "var(--divider)" }}>
           {selected?.options && (
             <label className="flex w-full items-center justify-center gap-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-              Which destination is this quote for?
+              Which destination is this quote for?{quote.destination ? <span className="font-normal" style={{ color: "var(--text-muted)" }}>(quote says: {quote.destination})</span> : null}
               <select className="lt-select" value={optionPick} onChange={(e) => setOptionPick(e.target.value)}>
                 <option value="">All / not sure</option>
                 {selected.options.map((o, i) => <option key={i} value={i}>Option {i + 1} · {o}</option>)}
