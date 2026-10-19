@@ -311,7 +311,10 @@ function ApprovalCard({
   const [draftBody, setDraftBody] = useState("")
   const [draftCc, setDraftCc] = useState("")
   const [saving, setSaving] = useState(false)
-  const { toast } = useToast()
+  const [tpls, setTpls] = useState<{ template_id: number; template_name: string }[]>([])
+  const [tplId, setTplId] = useState("")
+  const [tplBusy, setTplBusy] = useState(false)
+  const { success, error: toastError } = useToast()
 
   if (!item.freight_request) return null
 
@@ -327,6 +330,25 @@ function ApprovalCard({
     setDraftBody(currentBody)
     setDraftCc(currentCc.join(", "))
     setEditingEmail(true)
+    fetch(`/api/approval-requests/${item.id}/templates`).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (d?.available) { setTpls(d.templates ?? []); setTplId(d.default_template_id ? String(d.default_template_id) : "") }
+    }).catch(() => {})
+  }
+
+  /** Replace the draft with the carrier email made from a system template (the sender may have picked the wrong one). */
+  async function applyTemplate() {
+    if (!tplId) return
+    setTplBusy(true)
+    try {
+      const res = await fetch(`/api/approval-requests/${item.id}/templates`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: Number(tplId) }) })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error ?? "Could not generate the email")
+      setDraftSubject(d.subject ?? ""); setDraftBody(d.body ?? "")
+      if (item.can_edit_cc && Array.isArray(d.cc)) setDraftCc(d.cc.join(", "))
+      success("Email regenerated", d.others > 0 ? `Made for ${d.carrier}. It is used for all ${d.others + 1} carriers, so check the greeting.` : `Made for ${d.carrier}. Review it, then approve.`)
+    } catch (e: unknown) {
+      toastError("Template failed", e instanceof Error ? e.message : "Unknown error")
+    } finally { setTplBusy(false) }
   }
 
   async function saveDraft() {
@@ -346,15 +368,11 @@ function ApprovalCard({
         }),
       })
       if (!res.ok) throw new Error(await res.text())
-      toast({ title: "Draft saved", description: "Your edits have been saved." })
+      success("Draft saved", "Your edits have been saved.")
       setEditingEmail(false)
       onDecision()
     } catch (e: unknown) {
-      toast({
-        title: "Save failed",
-        description: e instanceof Error ? e.message : "Unknown error",
-        variant: "destructive",
-      })
+      toastError("Save failed", e instanceof Error ? e.message : "Unknown error")
     } finally {
       setSaving(false)
     }
@@ -378,17 +396,10 @@ function ApprovalCard({
         body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(await res.text())
-      toast({
-        title: "Approved!",
-        description: `Step approved for ${req.reference_number}.`,
-      })
+      success("Approved", `Step approved for ${req.reference_number}.`)
       onDecision()
     } catch (e: unknown) {
-      toast({
-        title: "Approve failed",
-        description: e instanceof Error ? e.message : "Unknown error",
-        variant: "destructive",
-      })
+      toastError("Approve failed", e instanceof Error ? e.message : "Unknown error")
     } finally {
       setActing(false)
     }
@@ -396,11 +407,7 @@ function ApprovalCard({
 
   async function reject() {
     if (!rejectNote.trim()) {
-      toast({
-        title: "Note required",
-        description: "Please add a rejection note.",
-        variant: "destructive",
-      })
+      toastError("Note required", "Please add a rejection note.")
       return
     }
     setActing(true)
@@ -411,19 +418,12 @@ function ApprovalCard({
         body: JSON.stringify({ action: "reject", notes: rejectNote }),
       })
       if (!res.ok) throw new Error(await res.text())
-      toast({
-        title: "Rejected",
-        description: `Request ${req.reference_number} returned to draft.`,
-      })
+      success("Rejected", `Request ${req.reference_number} returned to draft.`)
       setShowReject(false)
       setRejectNote("")
       onDecision()
     } catch (e: unknown) {
-      toast({
-        title: "Reject failed",
-        description: e instanceof Error ? e.message : "Unknown error",
-        variant: "destructive",
-      })
+      toastError("Reject failed", e instanceof Error ? e.message : "Unknown error")
     } finally {
       setActing(false)
     }
@@ -648,6 +648,16 @@ function ApprovalCard({
 
             {editingEmail ? (
               <div className="space-y-3">
+                {tpls.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2">
+                    <span className="text-xs font-medium text-[var(--text-muted)]">Regenerate from a template</span>
+                    <select value={tplId} onChange={(e) => setTplId(e.target.value)} className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-primary)]">
+                      <option value="">Choose…</option>
+                      {tpls.map((t) => <option key={t.template_id} value={t.template_id}>{t.template_name}</option>)}
+                    </select>
+                    <button type="button" onClick={applyTemplate} disabled={!tplId || tplBusy} className="h-8 rounded-md border border-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--brand-accent)] transition-colors hover:bg-[var(--brand-accent)] hover:text-white disabled:opacity-50">{tplBusy ? "Generating…" : "Generate"}</button>
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
                     Subject
