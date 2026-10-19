@@ -253,17 +253,30 @@ export default function RequestsPage() {
   }, [home, homeCodes])
   const regionOptions = useMemo(() => Array.from(new Set(requests.flatMap((r) => geoOf(r).regions))).sort((a, b) => a.localeCompare(b)), [requests, geoOf])
 
+  // requests approved through an approval workflow stay under "Approved" even after they were sent or quoted
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    const load = () => fetch("/api/approval-requests?view=approved_ids").then((r) => (r.ok ? r.json() : [])).then((a: string[]) => setApprovedIds(new Set(a))).catch(() => {})
+    load()
+    const t = setInterval(load, POLL_INTERVAL)
+    return () => clearInterval(t)
+  }, [])
+  const stagesOf = useCallback((r: FreightRequest): Stage[] => {
+    const st = parseStatus(r.status).stage
+    return st !== "Approved" && approvedIds.has(String(r.id)) ? [st, "Approved"] : [st]
+  }, [approvedIds])
+
   const stageCounts = useMemo(() => {
     const c: Record<string, number> = {}
-    for (const r of requests) { const k = parseStatus(r.status).stage; c[k] = (c[k] ?? 0) + 1 }
+    for (const r of requests) for (const k of stagesOf(r)) c[k] = (c[k] ?? 0) + 1
     return c
-  }, [requests])
+  }, [requests, stagesOf])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const base = requests.filter((r) => {
       const p = parseStatus(r.status)
-      if (stages.length && !stages.includes(p.stage)) return false
+      if (stages.length && !stagesOf(r).some((x) => stages.includes(x))) return false
       if (p.stage === "Approved" && stages.includes("Approved")) {
         if (targets.length && !(p.target && targets.includes(p.target))) return false
         if (deliveries.length && !(p.delivery && deliveries.includes(p.delivery))) return false
@@ -295,7 +308,7 @@ export default function RequestsPage() {
       if (nb !== na) return sortBy === "oldest" ? na - nb : nb - na
       return String(a.id).localeCompare(String(b.id))
     })
-  }, [requests, stages, targets, deliveries, sources, onlyFlagged, onlyOverdue, lateMap, results, search, isFlagged, sortBy, directions, regions, geoOf])
+  }, [requests, stagesOf, stages, targets, deliveries, sources, onlyFlagged, onlyOverdue, lateMap, results, search, isFlagged, sortBy, directions, regions, geoOf])
 
   const flip = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, v: NoInfer<T>) => set((a) => (a.includes(v) ? a.filter((x) => x !== v) : [...a, v]))
   function clearFilters() { setOnlyOverdue(false); setResults([]); setStages(["Pending"]); setTargets([]); setDeliveries([]); setSources([]); setOnlyFlagged(false); setDirections([]); setRegions([]); setSearch("") }

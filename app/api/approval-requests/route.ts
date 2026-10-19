@@ -28,6 +28,18 @@ export async function GET(req: NextRequest) {
   const view = req.nextUrl.searchParams.get("view") ?? "mine"
   const admin = adminClient()
 
+  // requests whose whole approval chain approved them (they keep moving on to Sent / Quoted, but still count as Approved)
+  if (view === "approved_ids") {
+    const { data: rows } = await admin.from("approval_requests").select("request_id, step_status, freight_requests!inner ( client_code )")
+    const by = new Map<string, boolean>()
+    for (const r of (rows ?? []) as any[]) {
+      if (String(r.freight_requests?.client_code ?? "").toLowerCase() !== String(session.clientCode).toLowerCase()) continue
+      const ok = r.step_status === "approved" || r.step_status === "skipped"
+      by.set(r.request_id, (by.get(r.request_id) ?? true) && ok)
+    }
+    return NextResponse.json(Array.from(by.entries()).filter(([, ok]) => ok).map(([id]) => id))
+  }
+
   const { data, error } = await admin
     .from("approval_requests")
     .select(`

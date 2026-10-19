@@ -10,7 +10,7 @@ export const runtime = "nodejs"
 export type TimelineEvent = {
   id: string
   at: string
-  kind: "request_sent" | "added" | "requester_reply" | "rfq_sent" | "carrier_reply" | "reply_sent" | "quotation_sent" | "failed" | "outcome"
+  kind: "request_sent" | "added" | "requester_reply" | "rfq_sent" | "carrier_reply" | "reply_sent" | "quotation_sent" | "failed" | "outcome" | "approval"
   title: string
   from: string | null
   to: string | null
@@ -100,6 +100,37 @@ export async function GET(req: NextRequest) {
       from: o.from_email ?? ourFrom, to: to.join(", "), subject: o.subject, body: o.body_text ?? null,
       note: o.redirected ? "Test mode: delivered to the test address instead" : null })
   }
+
+  // 4b. the approval workflow: sent for approval, each decision, and edits made to the email
+  try {
+    const { data: steps } = await admin.from("approval_requests")
+      .select("id, sort_order, step_status, status, submitted_by, assigned_usernames, assigned_to, created_at, decided_at, notes, email_type, approval_cycles ( name ), approval_step_responses ( id, username, response, notes, created_at )")
+      .eq("request_id", id).order("sort_order", { ascending: true })
+    const st = (steps ?? []) as any[]
+    if (st.length) {
+      const f = st[0]
+      const kindWord = f.email_type === "reply" ? "reply to the requester" : "carrier email"
+      const chain = st.map((x) => (x.assigned_usernames?.length ? x.assigned_usernames : [x.assigned_to]).filter(Boolean).join(" / ")).join(" → ")
+      ev.push({ id: `appr-start-${f.id}`, at: new Date(f.created_at).toISOString(), kind: "approval", title: `Sent for approval${f.approval_cycles?.name ? ` · ${f.approval_cycles.name}` : ""}`,
+        from: f.submitted_by ?? null, to: null, subject: null, body: null, note: `${kindWord}. Approvers: ${chain}` })
+      for (const x of st) {
+        const resp = (x.approval_step_responses ?? []) as any[]
+        for (const r of resp) {
+          ev.push({ id: `appr-${r.id}`, at: new Date(r.created_at).toISOString(), kind: r.response === "rejected" ? "failed" : "approval",
+            title: `${r.response === "rejected" ? "Rejected" : "Approved"} by ${r.username} · step ${x.sort_order + 1}`, from: r.username, to: null, subject: null, body: null, note: r.notes ?? null })
+        }
+        if (!resp.length && x.decided_at && x.step_status === "approved") {
+          ev.push({ id: `appr-auto-${x.id}`, at: new Date(x.decided_at).toISOString(), kind: "approval", title: `Step ${x.sort_order + 1} passed (notification only)`, from: null, to: null, subject: null, body: null, note: null })
+        }
+      }
+      const { data: drafts } = await admin.from("approval_drafts").select("id, edited_by, email_subject, email_body, email_cc, created_at").in("approval_id", st.map((x) => x.id)).order("created_at", { ascending: true })
+      for (const d of (drafts ?? []) as any[]) {
+        if (d.edited_by === f.submitted_by) continue
+        ev.push({ id: `appr-draft-${d.id}`, at: new Date(d.created_at).toISOString(), kind: "approval", title: `Email edited by ${d.edited_by}`, from: d.edited_by, to: null,
+          subject: d.email_subject ?? null, body: d.email_body ?? null, note: Array.isArray(d.email_cc) && d.email_cc.length ? `cc: ${d.email_cc.join(", ")}` : null })
+      }
+    }
+  } catch { /* approvals not set up */ }
 
   // RFQs from before emails were logged
   const carrierName = new Map<string, string>()
