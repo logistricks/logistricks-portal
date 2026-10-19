@@ -22,6 +22,7 @@ import { rankCarriers } from "@/lib/carrier-match"
 import { toCountryCode } from "@/lib/countries"
 import { defaultTemplateFor } from "@/lib/template-defaults"
 import { loadCarrierContacts, renderRfqDraft } from "@/lib/rfq-send"
+import { extraLegs, isAltLeg } from "@/lib/shipment-types"
 
 export const dynamic = "force-dynamic"
 
@@ -42,7 +43,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data } = await admin.from("carriers").select("carrier_id, carrier_name, email, is_sea, is_air, is_land, countries, active, auto_send_rfq").ilike("client_code", clientCode).eq("is_cc", false)
   const modes = [fr.is_sea ? "Sea" : "", fr.is_air ? "Air" : "", fr.is_land ? "Land" : ""].filter(Boolean)
-  const ranked = rankCarriers(((data ?? []) as any[]).filter((c) => c.email), { modes, originCountry: fr.origin_country, destinationCountry: fr.destination_country })
+  const withEmail = ((data ?? []) as any[]).filter((c) => c.email)
+  // alternative destinations: a carrier fits when it covers ANY of the destinations (the email asks it to quote each one it can)
+  const destCountries: string[] = [fr.destination_country, ...extraLegs(fr).filter(isAltLeg).map((l) => (l as Record<string, unknown>).destination_country as string)].filter((x) => typeof x === "string" && x.trim())
+  let ranked = rankCarriers(withEmail, { modes, originCountry: fr.origin_country, destinationCountry: fr.destination_country })
+  if (destCountries.length > 1) {
+    const lists = destCountries.map((d) => rankCarriers(withEmail, { modes, originCountry: fr.origin_country, destinationCountry: d }))
+    const best = new Map<number, (typeof ranked)[number]>()
+    for (const list of lists) for (const e of list) { const cur = best.get(e.carrier.carrier_id); if (!cur || (e.match.suggested && !cur.match.suggested)) best.set(e.carrier.carrier_id, e) }
+    ranked = ranked.map((e) => best.get(e.carrier.carrier_id) ?? e).sort((a, b) => Number(b.match.suggested) - Number(a.match.suggested))
+  }
 
   const carriers = ranked.map(({ carrier: c, match }) => ({
     carrier_id: c.carrier_id, carrier_name: c.carrier_name, email: c.email, fit: match.fit, suggested: match.suggested, reason: match.reason,
