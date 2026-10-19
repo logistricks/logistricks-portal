@@ -11,6 +11,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { carrierBase } from "@/lib/quotation-render"
+import { optionDestinations } from "@/lib/shipment-types"
 import { logActivity } from "@/lib/log-activity"
 
 export const runtime = "nodejs"
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
       cost_usd: carrierBase(q) || null,
       currency: q.rate_currency ?? "USD",
       received_at: q.received_at,
+      leg_index: q.leg_index == null ? null : Number(q.leg_index),
       quotations: (qts.data ?? []).filter((x: any) => x.carrier_quote_id === q.id),
     }))
 
@@ -52,7 +54,8 @@ export async function GET(req: NextRequest) {
     "won_cost_usd", "won_sell_usd", "won_margin_usd", "booking_reference", "booking_description", "booked_at", "invoiced_at", "paid_at"]
   const saved: Record<string, unknown> = {}
   for (const k of keys) saved[k] = (fr as any)[k] ?? null
-  return NextResponse.json({ saved, options, can_edit: s.role !== "viewer" })
+  const option_labels = optionDestinations(fr as Record<string, any>)
+  return NextResponse.json({ saved, options, option_labels: option_labels.length > 1 ? option_labels : [], can_edit: s.role !== "viewer" })
 }
 
 export async function POST(req: NextRequest) {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { BadgeCheck, CheckCircle2, Loader2, Package, Save, Trophy, XCircle } from "lucide-react"
 
 type Quotation = { id: number; carrier_quote_id: number; quotation_number: string | null; base_rate_usd: number | null; final_price_usd: number | null; status: string; created_at: string }
-type Option = { carrier_quote_id: number; carrier_name: string; cost_usd: number | null; currency: string; received_at: string; quotations: Quotation[] }
+type Option = { leg_index?: number | null; carrier_quote_id: number; carrier_name: string; cost_usd: number | null; currency: string; received_at: string; quotations: Quotation[] }
 type Saved = Record<string, any>
 type Outcome = "won" | "lost" | "expired" | "cancelled" | null
 
@@ -27,6 +27,7 @@ function Check({ on, onChange, disabled, children, tone = "var(--brand-accent)" 
 export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requestId: string; refreshSignal?: number; status?: string }) {
   const [loading, setLoading] = useState(true)
   const [options, setOptions] = useState<Option[]>([])
+  const [optionLabels, setOptionLabels] = useState<string[]>([])
   const [canEdit, setCanEdit] = useState(true)
   const [saved, setSaved] = useState<Saved>({})
   const [outcome, setOutcome] = useState<Outcome>(null)
@@ -58,11 +59,15 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
       const r = await fetch(`/api/request-outcome?freight_request_id=${encodeURIComponent(requestId)}`, { cache: "no-store" })
       if (!r.ok) throw new Error()
       const j = await r.json()
-      setOptions(j.options ?? []); setCanEdit(j.can_edit !== false); fill(j.saved ?? {})
+      setOptions(j.options ?? []); setOptionLabels(j.option_labels ?? []); setCanEdit(j.can_edit !== false); fill(j.saved ?? {})
     } catch { /* panel stays empty */ } finally { setLoading(false) }
   }, [requestId, fill])
   useEffect(() => { void load() }, [load, refreshSignal])
 
+  // several destination options: the quotes are listed under their option (a quote that covers all of them first)
+  const multi = optionLabels.length > 1
+  const optionGroup = (o: Option) => o.leg_index == null ? "All options" : `Option ${o.leg_index + 1} · ${optionLabels[o.leg_index] || "destination not set"}`
+  const orderedOptions = multi ? [...options].sort((a, b) => (a.leg_index ?? -1) - (b.leg_index ?? -1)) : options
   const chosen = options.find((o) => o.carrier_quote_id === cqId) ?? null
   // Which quotation carries the price: the one picked, otherwise the newest built for that carrier quote.
   const quotation = useMemo(() => chosen?.quotations.find((q) => q.id === qtId) ?? chosen?.quotations[0] ?? null, [chosen, qtId])
@@ -124,7 +129,7 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
           {dis && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>View only</span>}
           {msg && <span className="text-xs font-semibold" style={{ color: msg.ok ? "#16a34a" : "#ef4444" }}>{msg.text}</span>}
           {saved.outcome_at && !msg && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Saved by {saved.outcome_by ?? "—"}</span>}
-          {saved.outcome && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome === "won" ? `won · ${saved.paid_at ? "paid" : saved.invoiced_at ? "invoiced" : saved.booked_at ? "booked" : "to book"}` : saved.outcome}</span>}
+          {saved.outcome && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>{saved.outcome === "won" ? `won${multi && chosen?.leg_index != null ? ` · option ${chosen.leg_index + 1}` : ""} · ${saved.paid_at ? "paid" : saved.invoiced_at ? "invoiced" : saved.booked_at ? "booked" : "to book"}` : saved.outcome}</span>}
           <button onClick={save} disabled={busy || dis} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
           </button>
@@ -136,20 +141,25 @@ export function RequestOutcomePanel({ requestId, refreshSignal, status }: { requ
         {outcome === "won" && (
           <>
             <div>
-              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Which carrier quote won?</p>
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{multi ? "Which carrier quote won (and for which option)?" : "Which carrier quote won?"}</p>
               {options.length === 0 ? <p className="text-sm" style={{ color: "var(--text-muted)" }}>No carrier quotes on this request yet.</p> : (
                 <div className="space-y-1.5">
-                  {options.map((o) => {
+                  {orderedOptions.map((o, idx) => {
+                    const grp = optionGroup(o)
+                    const head = multi && (idx === 0 || optionGroup(orderedOptions[idx - 1]) !== grp)
                     const q = o.quotations.find((x) => x.status === "sent") ?? o.quotations[0]
                     const on = cqId === o.carrier_quote_id
                     return (
-                      <label key={o.carrier_quote_id} className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 rounded-lg px-3 py-2.5 text-sm" style={{ border: `1px solid ${on ? "#16a34a" : "var(--card-border)"}`, background: on ? "color-mix(in srgb, #16a34a 10%, var(--card-bg))" : "var(--card-bg)", opacity: dis ? 0.7 : 1 }}>
+                      <div key={o.carrier_quote_id} className="space-y-1.5">
+                      {head && <p className="pt-1 text-[11px] font-extrabold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>{grp}</p>}
+                      <label className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 rounded-lg px-3 py-2.5 text-sm" style={{ border: `1px solid ${on ? "#16a34a" : "var(--card-border)"}`, background: on ? "color-mix(in srgb, #16a34a 10%, var(--card-bg))" : "var(--card-bg)", opacity: dis ? 0.7 : 1 }}>
                         <input type="radio" name="won-quote" className="h-4 w-4" style={{ accentColor: "#16a34a" }} checked={on} disabled={dis} onChange={() => pick(o)} />
                         <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{o.carrier_name}</span>
                         <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>Carrier price {o.cost_usd != null ? usd(o.cost_usd) : "not computed"}</span>
                         {q ? <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>→ Quotation {q.quotation_number ?? `#${q.id}`}: <b style={{ color: "var(--text-primary)" }}>{usd(q.final_price_usd)}</b>{q.status === "sent" ? " (sent)" : " (draft)"}</span>
                           : <span style={{ color: "#d97706" }}>No quotation built yet</span>}
                       </label>
+                      </div>
                     )
                   })}
                 </div>
