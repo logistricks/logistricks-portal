@@ -22,6 +22,8 @@ import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
 import { runJobs } from "@/lib/rfq-run"
+import { allLegs, optionMode, rowForLeg, TYPE_LABEL } from "@/lib/shipment-types"
+import { loadCarrierContacts } from "@/lib/rfq-send"
 import { after } from "next/server"
 import { notifyApprovalDecided, notifyApprovalRequested } from "@/lib/notify-hooks"
 
@@ -127,10 +129,43 @@ export async function GET(
     email_cc:             null,
   }
 
+  // Legs / options in the same shape as the request page, and who the email goes to
+  const has = (v: unknown) => String(v ?? "").trim() !== "" && String(v).trim() !== "—"
+  const optsMode = optionMode(_fr)
+  const legList = allLegs(_fr).map((l, i) => {
+    const d = rowForLeg(_fr, i)
+    const place = (c: string, k: string) => [d[c], d[k]].filter(has).join(", ")
+    const fields: [string, string][] = ([
+      ["Commodity", d.cargo_type], ["Equipment", d.equipment], ["Quantity", d.quantity], ["Weight", d.weight ? `${d.weight}` : ""], ["Dimensions", d.dimensions],
+      ["Volume (CBM)", d.cbm], ["Package type", d.package_type], ["Truck type", d.truck_type], ["Temperature", d.temperature_control],
+      ["Incoterm", d.incoterm], ["B/L type", d.bl_type], ["Cargo ready", d.cargo_ready_date], ["Pickup address", d.pickup_address],
+    ] as [string, unknown][]).filter(([, v]) => has(v)).map(([k, v]) => [k, String(v)])
+    return {
+      label: allLegs(_fr).length > 1 ? `${optsMode ? "Option" : "Leg"} ${i + 1}` : "Shipment",
+      type: l.type ? TYPE_LABEL[l.type] : null,
+      origin: place("origin_city", "origin_country"),
+      destination: place("destination_city", "destination_country"),
+      fields,
+    }
+  })
+  let recipients: { carrier: string; email: string; cc: string[] }[] = []
+  let send_scope: string | null = null
+  try {
+    const { data: jobRows } = await admin.from("approval_requests").select("send_job").eq("request_id", fr.id)
+    const job = ((jobRows ?? []) as any[]).map((c) => c.send_job).find(Boolean)
+    if (job) {
+      const cs = await loadCarrierContacts(admin, session.clientCode, (job.carrier_ids ?? []).map(Number))
+      recipients = cs.map((c) => ({ carrier: c.carrier_name, email: c.email, cc: c.cc ?? [] }))
+      const jl = (job.jobs ?? []) as { leg?: string }[]
+      send_scope = jl.length > 1 ? `One email per option (${jl.length})` : jl[0]?.leg === "all" ? "One email covering all options" : jl[0]?.leg != null && legList.length > 1 ? `${legList[Number(jl[0].leg)]?.label ?? "Option"} only` : null
+      if (job.method) send_scope = `${job.method === "automatic" ? "Sent automatically" : "Logged as a manual send"}${send_scope ? " · " + send_scope : ""}`
+    }
+  } catch { /* shown without recipients */ }
+
   return NextResponse.json({
     ...rest,
     email_type: _email_type ?? null,
-    freight_request,
+    freight_request: { ...freight_request, legs: legList, options: optsMode, recipients, send_scope },
     cycle: approval_cycles ?? null,
     drafts,
     chain: chain ?? [],

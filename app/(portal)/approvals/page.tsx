@@ -67,6 +67,10 @@ interface FreightRequest {
   email_cc: string[] | null
   sender_name: string | null
   sender_email: string | null
+  legs?: { label: string; type: string | null; origin: string; destination: string; fields: [string, string][] }[]
+  options?: boolean
+  recipients?: { carrier: string; email: string; cc: string[] }[]
+  send_scope?: string | null
 }
 
 interface ApprovalDetail {
@@ -478,21 +482,26 @@ function ApprovalCard({
         </button>
       </div>
 
-      {/* Quick fields */}
-      <div className="px-5 pb-4 grid grid-cols-2 gap-x-6 gap-y-2 text-xs sm:grid-cols-4">
-        {[
-          { icon: Package, label: "Commodity", value: req.commodity },
-          { icon: MapPin, label: "Origin", value: req.origin_port },
-          { icon: MapPin, label: "Destination", value: req.destination_port },
-          { icon: FileText, label: "Mode", value: req.transport_mode },
-        ].map(({ icon: Icon, label, value }) => (
-          <div key={label}>
-            <p className="text-[var(--text-muted)] flex items-center gap-1 mb-0.5">
-              <Icon className="h-3 w-3" /> {label}
-            </p>
-            <p className="font-medium text-[var(--text-primary)] truncate">
-              {value || "—"}
-            </p>
+      {/* Who this goes to */}
+      {item.email_type !== "reply" && (
+        <div className="mx-5 mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-center text-xs">
+          <p className="mb-1.5 font-semibold uppercase tracking-wider text-[var(--text-muted)]">Being sent to{req.send_scope ? ` · ${req.send_scope}` : ""}</p>
+          {(req.recipients ?? []).length > 0 ? (
+            <div className="space-y-1">
+              {(req.recipients ?? []).map((r, i) => (
+                <p key={i} className="text-[var(--text-primary)]"><span className="font-semibold">{r.carrier}</span> · {r.email || <span className="text-red-500">no email</span>}{r.cc.length > 0 && <span className="text-[var(--text-muted)]"> · cc {r.cc.join(", ")}</span>}</p>
+              ))}
+            </div>
+          ) : <p className="text-[var(--text-muted)]">Recipients are not recorded for this approval.</p>}
+        </div>
+      )}
+
+      {/* Route: one box per option / leg */}
+      <div className="px-5 pb-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+        {(req.legs?.length ? req.legs : [{ label: "Shipment", type: null, origin: req.origin_port ?? "", destination: req.destination_port ?? "", fields: [] as [string, string][] }]).map((l, i) => (
+          <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-center text-xs">
+            <p className="font-semibold uppercase tracking-wider text-[var(--text-muted)]">{l.label}{l.type ? ` · ${l.type}` : ""}{i === 0 && req.transport_mode ? ` · ${req.transport_mode}` : ""}</p>
+            <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{l.origin || "—"} → {l.destination || "—"}</p>
           </div>
         ))}
       </div>
@@ -500,29 +509,23 @@ function ApprovalCard({
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-[var(--border)] px-5 py-5 space-y-6">
-          {/* Full fields */}
+          {/* Full fields, per option / leg */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
               Request Details
             </h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
-              {[
-                [
-                  "Weight",
-                  req.weight_kg != null ? `${req.weight_kg} kg` : null,
-                ],
-                ["Dimensions", req.dimensions],
-                ["Incoterms", req.incoterms],
-                ["AOG", req.is_aog ? "Yes" : "No"],
-                ["DGR", req.is_dgr ? "Yes" : "No"],
-              ].map(([label, value]) => (
-                <div key={label as string}>
-                  <p className="text-xs text-[var(--text-muted)] mb-0.5">
-                    {label}
-                  </p>
-                  <p className="font-medium text-[var(--text-primary)]">
-                    {value || "—"}
-                  </p>
+            <div className="space-y-3">
+              {(req.legs ?? []).map((l, i) => (
+                <div key={i} className="rounded-xl border border-[var(--border)] p-4">
+                  {(req.legs ?? []).length > 1 && <p className="mb-2 text-center text-xs font-semibold text-[var(--text-primary)]">{l.label}{l.type ? ` · ${l.type}` : ""}: {l.origin || "—"} → {l.destination || "—"}</p>}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-center text-sm sm:grid-cols-3">
+                    {[...l.fields, ...(i === 0 ? ([["AOG", req.is_aog ? "Yes" : "No"], ["DGR", req.is_dgr ? "Yes" : "No"]] as [string, string][]) : [])].map(([label, value]) => (
+                      <div key={label}>
+                        <p className="text-xs text-[var(--text-muted)] mb-0.5">{label}</p>
+                        <p className="font-medium text-[var(--text-primary)]">{value || "—"}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
