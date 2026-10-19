@@ -545,106 +545,74 @@ export default function RequestsPage() {
       {/* Table */}
       <div id="requests-table" className={view === "table" ? "ds-card scroll-mt-24 overflow-hidden" : "scroll-mt-24"}>
         {view === "cards" ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {filtered.map((r) => {
               const f = flagsOf(r)
               const sea = isSeaOnly(r.modes)
               return (
                 <div key={r.id} onClick={() => router.push(`/requests/${r.id}`)} title="Click to open the request"
-                  className={`rq-card ds-card relative flex cursor-pointer flex-col items-center gap-3 px-5 pb-5 pt-12 text-center ${r.aog ? "rq-card-aog" : ""}`}>
-                  <input type="checkbox" aria-label={`Select ${r.senderName}`} checked={selected.includes(r.id)} onChange={() => {}} onClick={(e) => toggle(r.id, e)}
-                    className="absolute left-4 top-4 h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
-                  <a href={`/requests/${r.id}`} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} title="Open full page in a new tab" aria-label="Open full page in a new tab"
-                    className="absolute right-4 top-4 inline-flex items-center rounded-lg p-1.5" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                  <table className="w-full table-fixed border-collapse text-center">
-                    <tbody>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Request</th>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="font-mono text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</span>
-                      </td>
-                    </tr>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Sender</th>
-                      <td className="px-3 py-2.5 text-center">
-                  <div className="min-w-0 max-w-full">
-                    <p className="flex items-center justify-center gap-1.5 font-display text-[15px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
-                      {r.source === "WhatsApp" ? <MessageCircle className="h-4 w-4 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-4 w-4 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
-                      <span className="truncate">{r.senderName}</span>
-                    </p>
-                    <p className="mt-0.5 truncate text-[13px]" style={{ color: "var(--text-secondary)" }}>{r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}</p>
-                  </div>
-
-                      </td>
-                    </tr>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Route</th>
-                      <td className="px-3 py-2.5 text-center">
-                  <p className="font-display text-[15px] font-bold" style={{ color: "var(--text-primary)" }}>
-                    {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}
-                    {r.incoterm && <span className="ml-3 inline-block rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide align-middle" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)", marginLeft: 12 }}>{r.incoterm}</span>}
-                  </p>
-
-                      </td>
-                    </tr>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Cargo</th>
-                      <td className="px-3 py-2.5 text-center">
-                  <p className="max-w-full truncate text-[13.5px]" style={{ color: "var(--text-secondary)" }}>{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</p>
-
-                      </td>
-                    </tr>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Flags</th>
-                      <td className="px-3 py-2.5 text-center">
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    {r.shipmentType && <Chip tone="blue">{TYPE_LABEL[r.shipmentType]}</Chip>}
-                    {lateChip(r)}
-                    {r.aog && <Chip tone="red" icon={<Zap className="h-3 w-3" />}>AOG</Chip>}
-                    {r.dgr && <Chip tone="amber" icon={<TriangleAlert className="h-3 w-3" />}>DGR</Chip>}
-                    {f.exw && <Chip tone="red" icon={<MapPinOff className="h-3 w-3" />} title="EXW — pickup address missing">EXW address</Chip>}
-                    {f.missing > 0 && <Chip tone="amber" title={`Missing: ${r.missingFields.join(", ")}`}>Missing {f.missing}</Chip>}
-                    {(r.specialRequirements?.length ?? 0) > 0 && (
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setSpecialFor(r) }} title="Show the special requests" className="rounded-full">
-                        <Chip tone="blue">Special {r.specialRequirements.length}</Chip>
+                  className={`rq-card ds-card relative cursor-pointer overflow-hidden ${r.aog ? "rq-card-aog" : ""}`}>
+                  <div className="flex items-center justify-between gap-2 px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--card-border)" }}>
+                    <input type="checkbox" aria-label={`Select ${r.senderName}`} checked={selected.includes(r.id)} onChange={() => {}} onClick={(e) => toggle(r.id, e)}
+                      className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
+                    <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</span>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => setActive(r)} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
+                        className="rq-preview inline-flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "var(--brand-accent)" }}>
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
-                    )}
-                    {f.urgent && <Chip tone="blue" icon={<Clock className="h-3 w-3" />}>Urgent</Chip>}
-                    {f.low && <Chip tone="slate" title="The AI was not confident reading this request">Low conf.</Chip>}
+                      <a href={`/requests/${r.id}`} target="_blank" rel="noopener" title="Open full page in a new tab" aria-label="Open full page in a new tab"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
                   </div>
-
-                      </td>
-                    </tr>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Status</th>
-                      <td className="px-3 py-2.5 text-center">
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
-                    {r.outcome && (
-                      <span className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-bold uppercase" title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined}
-                        style={{ background: `color-mix(in srgb, ${r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b"} 16%, transparent)`, color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>
-                        {outcomeLabel(r)}
-                      </span>
-                    )}
-                  </div>
-
-                      </td>
-                    </tr>
-                    <tr style={{ borderTop: "1px solid var(--card-border)" }}>
-                      <th scope="row" className="w-[28%] px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>Received</th>
-                      <td className="px-3 py-2.5 text-center">
-                  <p className="font-mono text-[12px]" style={{ color: "var(--text-muted)" }} title={r.receivedExact}>{r.receivedRelative}</p>
-
-                      </td>
-                    </tr>
-                    </tbody>
-                  </table>
-                  <button onClick={(e) => { e.stopPropagation(); setActive(r) }} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
-                    className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-bold" style={{ background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
-                    <Eye className="h-4 w-4" /> Preview
-                  </button>
+                  {(() => {
+                    const late = lateMap[String(r.id)]
+                    const lateTxt = late ? (late.lateH < 48 ? `${Math.max(1, Math.floor(late.lateH))}h` : `${Math.floor(late.lateH / 24)}d`) : ""
+                    const flags: { k: string; text: string; critical?: boolean; tone?: string; title?: string; onClick?: () => void }[] = []
+                    if (r.aog) flags.push({ k: "aog", text: "AOG", critical: true })
+                    if (late?.stuck) flags.push({ k: "late", text: `Stuck ${lateTxt}`, critical: true, title: late.title })
+                    if (f.exw) flags.push({ k: "exw", text: "EXW address", critical: true, title: "EXW: pickup address missing" })
+                    if (f.missing > 0) flags.push({ k: "miss", text: `Missing ${f.missing}`, critical: true, title: `Missing: ${r.missingFields.join(", ")}` })
+                    if (late && !late.stuck) flags.push({ k: "late", text: `Overdue ${lateTxt}`, tone: "#d97706", title: late.title })
+                    if (r.dgr) flags.push({ k: "dgr", text: "DGR", tone: "#d97706" })
+                    if (f.urgent) flags.push({ k: "urg", text: "Urgent", tone: "#d97706" })
+                    if ((r.specialRequirements?.length ?? 0) > 0) flags.push({ k: "sp", text: `Special · ${r.specialRequirements.length}`, tone: "#2563eb", title: "Show the special requests", onClick: () => setSpecialFor(r) })
+                    if (f.low) flags.push({ k: "low", text: "Low conf.", title: "The AI was not confident reading this request" })
+                    const cell = (label: string, value: React.ReactNode, cls = "") => (
+                      <div className={`flex items-center justify-between gap-3 px-3.5 py-1.5 ${cls}`}>
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
+                        <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-right text-[12.5px] font-semibold" style={{ color: "var(--text-primary)" }}>{value}</span>
+                      </div>
+                    )
+                    const line = "border-t [border-color:var(--card-border)]"
+                    return (
+                      <div className="grid grid-cols-1">
+                        {cell("Sender", <span className="flex min-w-0 items-center gap-1.5">
+                          {r.source === "WhatsApp" ? <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
+                          <span className="truncate" title={r.source === "WhatsApp" ? r.senderPhone ?? "" : r.senderEmail}>{r.senderName}</span>
+                        </span>)}
+                        {cell("Contact", <span className="truncate text-xs font-normal" style={{ color: "var(--text-secondary)" }}>{r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}</span>, line)}
+                        {cell("Route", <span className="whitespace-nowrap">{sea && <span className="mr-1 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}{r.incoterm && <span className="ml-1.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)" }}>{r.incoterm}</span>}</span>, line)}
+                        {cell("Cargo", <span className="truncate">{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</span>, line)}
+                        {cell("Type", r.shipmentType ? TYPE_LABEL[r.shipmentType] : "—", line)}
+                        {cell("Status", <span className="inline-flex flex-wrap items-center justify-end gap-1"><StatusPill status={r.status} quoteCount={r.activeQuoteCount} />{r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>{outcomeLabel(r)}</span>}</span>, line)}
+                        {cell("Received", <span title={r.receivedExact} style={{ color: "var(--text-secondary)" }}>{r.receivedRelative}</span>, line)}
+                        {cell("Flags", flags.length ? flags.map((fl, i) => {
+                          const st = { color: fl.critical ? "#dc2626" : fl.tone ?? "var(--text-secondary)" }
+                          return (
+                            <span key={fl.k} className="inline-flex items-center gap-2">
+                              {i > 0 && <span aria-hidden className="mx-0.5 inline-block h-3 w-px self-center" style={{ background: "var(--card-border)" }} />}
+                              {fl.onClick
+                                ? <button type="button" title={fl.title} onClick={(e) => { e.stopPropagation(); fl.onClick!() }} className="underline decoration-dotted underline-offset-2" style={st}>{fl.text}</button>
+                                : <span title={fl.title} style={st}>{fl.text}</span>}
+                            </span>
+                          )
+                        }) : <span style={{ color: "var(--text-muted)" }}>None</span>, line)}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
