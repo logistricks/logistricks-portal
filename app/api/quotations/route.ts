@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
   if (quoteErr || !quoteRow) return NextResponse.json({ error: "Carrier quote not found" }, { status: 404 })
   // a quote for one destination option is quoted to the requester for THAT destination
   const qLeg = (quoteRow as { leg_index?: number | null }).leg_index
+  const optionLabel = qLeg != null && optionMode(reqRow as Record<string, unknown>) ? `Option ${Number(qLeg) + 1}` : ""
   if (qLeg != null && Number(qLeg) > 0 && optionMode(reqRow as Record<string, unknown>)) request = mapDbToRequest(rowForLeg(reqRow as Record<string, any>, Number(qLeg)) as DbFreightRequest)
   if ((quoteRow as { disregarded?: boolean }).disregarded === true)
     return NextResponse.json({ error: "This carrier quote was disregarded. Reactivate it before building a quotation." }, { status: 400 })
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
     request, quote: quoteRow, carrierName, markupType, markupAmount, baseRate, finalPrice, options, showMarkupPercent, lineOverrides: lineOverrides ?? undefined,
     preparedBy: (userRow as { display_name?: string } | null)?.display_name || session.username,
     company: company ? { name: company.company_name, email: company.contact_email, phone: company.contact_phone } : undefined,
-    quotationNumber, fx: fxRates,
+    quotationNumber, fx: fxRates, optionLabel,
   })
   const rendered = renderQuotation(template, ctx, options)
 

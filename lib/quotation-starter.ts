@@ -1,7 +1,7 @@
 /** Starter / default quotation template (HTML). Offered when a user creates a template, and used by "Reset to starter". */
 export const STARTER_SUBJECT = "Quotation {{quotation_number}} — {{origin}} to {{destination}}"
 
-export const STARTER_HTML = `<h2 style="color:#0D1B2A;margin:0 0 4px">Quotation</h2>
+export const STARTER_HTML = `<h2 style="color:#0D1B2A;margin:0 0 4px">Quotation{{#if option_label}} — {{option_label}}{{/if}}</h2>
 <table cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-size:13px;margin-bottom:14px">
 <tr><td style="color:#64748b;padding-right:18px">Quotation no.</td><td><strong>{{quotation_number}}</strong></td></tr>
 <tr><td style="color:#64748b;padding-right:18px">Date</td><td>{{quotation_date}}</td></tr>

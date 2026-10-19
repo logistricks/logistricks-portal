@@ -287,6 +287,8 @@ export interface BuildInput {
   preparedBy?: string
   company?: { name?: string | null; email?: string | null; phone?: string | null }
   quotationNumber?: string
+  /** "Option 2" when the quotation is for one destination option of the request. */
+  optionLabel?: string
   /** Exchange-rate overrides (USD per unit) the total was built with, so the lines convert at the same rates. */
   fx?: FxOverrides | null
   /** Manually edited sell lines — replace the computed ones; the caller sets finalPrice to their sum. */
@@ -398,7 +400,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
 
   const v: Record<string, string> = {
     pol, pod, pickup_address: isExw(r.incoterm) || isExw(q.incoterm) ? pickup : "",
-    quotation_number: input.quotationNumber ?? "",
+    quotation_number: input.quotationNumber ?? "", option_label: input.optionLabel ?? "",
     quotation_date: fmtDate(now.toISOString()),
     quotation_valid_until: fmtDate(validUntilIso),
     prepared_by: input.preparedBy ?? "",

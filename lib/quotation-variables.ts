@@ -21,6 +21,7 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
     id: "quotation", label: "Quotation",
     vars: [
       { key: "quotation_number", label: "Quotation number", example: "QT-LT-0017-01" },
+      { key: "option_label", label: "Option (several destinations)", example: "Option 2", note: "Only filled when the request has destination options and this quotation is for one of them." },
       { key: "quotation_date", label: "Today's date", example: "2 Oct 2026" },
       { key: "quotation_valid_until", label: "Quotation valid until", example: "31 Oct 2026", note: "Today + the template's validity days, or the carrier's validity, whichever is earlier." },
       { key: "prepared_by", label: "Prepared by (your name)", example: "Osama" },
