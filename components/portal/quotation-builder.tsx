@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { optionLabels } from "@/components/portal/quote-comparison-panel"
 import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { downloadQuotationPdf } from "@/lib/quotation-pdf"
@@ -372,13 +373,28 @@ export function QuotationBuilder({
 
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [request.id, refreshSignal])
 
-  const responded = useMemo(
-    () => rows.filter((r) => r.status === "responded" && r.quote && !r.quote.disregarded),
+  // every live carrier quote, one entry each (a carrier can have a quote per option)
+  const allResponded = useMemo(
+    () => rows.filter((r) => r.status === "responded").flatMap((r) => {
+      const qs = r.quotes?.length ? r.quotes : r.quote ? [r.quote] : []
+      return qs.filter((q) => !q.disregarded).map((q) => ({ ...r, quote: q }))
+    }),
     [rows],
+  )
+  // a request with several destinations gets one tab per option, unless the carriers quoted all of them in one go
+  const labels = optionLabels(request as any)
+  const split = !!labels && labels.length > 1 && allResponded.some((r) => r.quote!.legIndex != null)
+  const [tab, setTab] = useState(0)
+  const inTab = (q: { legIndex?: number | null }) => !split || q.legIndex == null || q.legIndex === tab
+  const responded = useMemo(
+    () => allResponded.filter((r) => inTab(r.quote!)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allResponded, split, tab],
   )
 
   useEffect(() => {
-    if (!selectedQuoteId && responded.length > 0) setSelectedQuoteId(responded[0].quote!.id)
+    if (responded.length === 0) { if (selectedQuoteId) setSelectedQuoteId(null); return }
+    if (!selectedQuoteId || !responded.some((r) => r.quote!.id === selectedQuoteId)) setSelectedQuoteId(responded[0].quote!.id)
   }, [responded, selectedQuoteId])
 
   const selectedRow = responded.find((r) => r.quote?.id === selectedQuoteId)
@@ -546,9 +562,21 @@ export function QuotationBuilder({
 
       {error && <p className="rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-400" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{error}</p>}
 
+      {split && (
+        <div className="flex flex-wrap gap-2">
+          {labels!.map((l, i) => (
+            <button key={i} type="button" onClick={() => setTab(i)}
+              className="rounded-md border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: tab === i ? "var(--brand-accent)" : "var(--card-border)", background: tab === i ? "color-mix(in srgb, var(--brand-accent) 10%, transparent)" : "transparent", color: "var(--text-primary)" }}>
+              Option {i + 1} · {l || "destination not set"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {responded.length === 0 ? (
         <div className="rounded border border-dashed px-4 py-6 text-center text-sm" style={{ borderColor: "var(--card-border)", color: "var(--text-muted)" }}>
-          Waiting for at least one carrier to respond with a rate before a quotation can be built.
+          {split ? `Waiting for a carrier to respond with a rate for Option ${tab + 1}.` : "Waiting for at least one carrier to respond with a rate before a quotation can be built."}
         </div>
       ) : (
         <div className="ds-card space-y-4 p-5">
@@ -721,10 +749,10 @@ export function QuotationBuilder({
         </div>
       )}
 
-      {quotations.length > 0 && (
+      {quotations.filter((q) => !split || inTab(allResponded.find((r) => r.quote!.id === q.carrier_quote_id)?.quote ?? {})).length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Generated Quotations</p>
-          {quotations.map((q) => (
+          {quotations.filter((q) => !split || inTab(allResponded.find((r) => r.quote!.id === q.carrier_quote_id)?.quote ?? {})).map((q) => (
             <div key={q.id} className="ds-card p-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>

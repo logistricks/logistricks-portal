@@ -13,6 +13,7 @@ import { cleanFx } from "@/lib/fx"
 import { NextRequest, NextResponse } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
+import { optionMode, rowForLeg } from "@/lib/shipment-types"
 import { logActivity } from "@/lib/log-activity"
 import { buildContext, carrierBaseDetail, renderQuotation } from "@/lib/quotation-render"
 import { normalizeOptions } from "@/lib/quotation-variables"
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     .eq("client_code", session.clientCode)
     .single()
   if (reqErr || !reqRow) return NextResponse.json({ error: "Request not found" }, { status: 404 })
-  const request = mapDbToRequest(reqRow as DbFreightRequest)
+  let request = mapDbToRequest(reqRow as DbFreightRequest)
 
   const { data: quoteRow, error: quoteErr } = await admin
     .from("carrier_quotes")
@@ -86,6 +87,9 @@ export async function POST(req: NextRequest) {
     .eq("freight_request_id", freightRequestId)
     .single()
   if (quoteErr || !quoteRow) return NextResponse.json({ error: "Carrier quote not found" }, { status: 404 })
+  // a quote for one destination option is quoted to the requester for THAT destination
+  const qLeg = (quoteRow as { leg_index?: number | null }).leg_index
+  if (qLeg != null && Number(qLeg) > 0 && optionMode(reqRow as Record<string, unknown>)) request = mapDbToRequest(rowForLeg(reqRow as Record<string, any>, Number(qLeg)) as DbFreightRequest)
   if ((quoteRow as { disregarded?: boolean }).disregarded === true)
     return NextResponse.json({ error: "This carrier quote was disregarded. Reactivate it before building a quotation." }, { status: 400 })
 
