@@ -21,8 +21,11 @@ import { toStringList } from "@/lib/special"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
+import { runJobs } from "@/lib/rfq-run"
 import { after } from "next/server"
 import { notifyApprovalDecided, notifyApprovalRequested } from "@/lib/notify-hooks"
+
+export const maxDuration = 60
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
 function badInput(msg: string) { return NextResponse.json({ error: msg }, { status: 400 }) }
@@ -318,6 +321,32 @@ export async function PATCH(
       })
 
       after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "approved", decidedBy: session.username, notes }))
+
+      // A carrier send that was held for this approval: automatic sends go out now, with any approver edits to the email
+      if (emailType !== "reply") {
+        const submitter: string = (ar as any).submitted_by
+        const cc: string = session.clientCode
+        after(async () => {
+          try {
+            const { data: chain } = await admin.from("approval_requests").select("id, send_job").eq("request_id", requestId)
+            const job = ((chain ?? []) as any[]).map((c) => c.send_job).find(Boolean)
+            if (!job || job.method !== "automatic") return
+            const { data: dr } = await admin.from("approval_drafts").select("edited_by, email_subject, email_body, email_cc, created_at").in("approval_id", ((chain ?? []) as any[]).map((c) => c.id)).order("created_at", { ascending: false }).limit(1)
+            const d = (dr ?? [])[0] as any
+            const override = d && d.edited_by !== submitter ? { subject: d.email_subject, body: d.email_body, cc: d.email_cc } : undefined
+            const { jobs, ...base } = job
+            const r = await runJobs(admin, cc, submitter, requestId, { ...base, override }, jobs ?? [])
+            const sent = r.json?.sent ?? 0
+            if (sent > 0) await admin.from("approval_requests").update({ send_job: null }).eq("request_id", requestId)
+            await admin.from("notifications").insert({
+              client_code: cc, username: submitter, type: "approval_complete",
+              title: sent > 0 ? "Sent to carriers" : "Approved, but the send failed",
+              body: sent > 0 ? `Approved by ${session.username} and sent to ${sent} carrier(s)` : (r.json?.message ?? r.json?.error ?? "Open the request and send it again."),
+              request_id: requestId,
+            })
+          } catch { /* the request stays Approved, Pending Send */ }
+        })
+      }
 
       void logActivity({
         clientCode:  session.clientCode,

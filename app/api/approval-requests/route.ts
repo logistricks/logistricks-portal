@@ -67,7 +67,8 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return badInput("Invalid JSON") }
 
-  const { request_id, email_subject, email_body, email_to, email_cc, email_type } = body as {
+  const { request_id, email_subject, email_body, email_to, email_cc, email_type, send_job } = body as {
+    send_job?: Record<string, unknown> | null
     request_id?: string
     email_subject?: string
     email_body?: string
@@ -164,6 +165,8 @@ export async function POST(req: NextRequest) {
       step_status:        idx === 0 ? "active" : "waiting",
       cycle_id:           (cycle as any).id,
       email_type:         email_type ?? null,
+      // the send held for approval (carrier sends): runs automatically after the last approval
+      ...(send_job ? { send_job } : {}),
     }
   })
 
@@ -172,7 +175,10 @@ export async function POST(req: NextRequest) {
     .insert(rows)
     .select("id, sort_order, assigned_to, assigned_usernames, step_status")
 
-  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+  if (insertErr) {
+    if (send_job && /send_job/.test(insertErr.message)) return NextResponse.json({ error: "Run migration 082 (approval_requests.send_job) first." }, { status: 409 })
+    return NextResponse.json({ error: insertErr.message }, { status: 500 })
+  }
 
   // Update freight request status to "In Review"
   await admin.from("freight_requests").update({ status: "Waiting for Approval" }).eq("id", request_id)
@@ -243,5 +249,5 @@ export async function POST(req: NextRequest) {
     meta:        { cycle_id: (cycle as any).id, cycle_name: (cycle as any).name, step_count: steps.length },
   })
 
-  return NextResponse.json({ ok: true, steps: inserted }, { status: 201 })
+  return NextResponse.json({ ok: true, steps: inserted, cycle_name: (cycle as any).name }, { status: 201 })
 }

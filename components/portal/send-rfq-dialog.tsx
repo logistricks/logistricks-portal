@@ -11,7 +11,7 @@ import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/componen
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string; leg?: number }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
 type LegInfo = { index: number; label: string; modes: string[]; origin_country: string; destination_country: string }
-type Info = { already_sent?: { carrier_id: number; leg_index: number | null; sent_at: string | null }[]; options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
+type Info = { approved_edit?: { subject?: string | null; body?: string | null; cc?: string[] | null } | null; already_sent?: { carrier_id: number; leg_index: number | null; sent_at: string | null }[]; options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -32,6 +32,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{ info: Readiness; run: () => void } | null>(null)
   const [drafts, setDrafts] = useState<Draft[]>([])
+  const [approval, setApproval] = useState<{ cycle_name?: string | null; already?: boolean; steps: { order: number; approvers: string[] }[] } | null>(null)
   const [result, setResult] = useState<{ method: string; sent: number; total: number; results: Result[]; n8n?: { ok: boolean; error?: string } | null } | null>(null)
 
   useEffect(() => {
@@ -94,7 +95,11 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
         const d = await r.json()
         if (!r.ok) throw new Error(d.error ?? "Could not prepare the emails")
         if (!d.drafts?.length) throw new Error("There is no RFQ email template yet. Create one on the Templates page (tag it Default).")
-        all.push(...(d.drafts as Draft[]).map((x) => (separateAll ? { ...x, leg: Number(lg) } : x)))
+        const ed = d.approved_edit as { subject?: string | null; body?: string | null; cc?: string[] | null } | undefined
+        all.push(...(d.drafts as Draft[]).map((x) => {
+          const y = ed ? { ...x, ...(ed.subject ? { subject: ed.subject } : {}), ...(ed.body ? { body: ed.body } : {}), ...(ed.cc && ed.cc.length ? { cc: ed.cc } : {}) } : x
+          return separateAll ? { ...y, leg: Number(lg) } : y
+        }))
       }
       setDrafts(all); setStep("manual")
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
@@ -103,28 +108,16 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   async function send(method: "manual" | "automatic") {
     setBusy(true); setError(null)
     try {
-      const post = async (lg: string | undefined, dr: Draft[] | undefined) => {
-        const r = await fetch(`/api/requests/${requestId}/send-rfq`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method, leg: lg, carrier_ids: ids, template_id: templateId ? Number(templateId) : undefined, drafts: dr }),
-        })
-        const d = await r.json().catch(() => ({}))
-        if (!d.results) throw new Error(d.message ?? d.error ?? `Failed (${r.status})`)
-        return d
-      }
-      if (separateAll) {
-        // one email per destination option: each is sent (and registered) on its own, so its reply links to that option
-        let sent = 0, total = 0, n8n: any = null
-        const results: Result[] = []
-        for (const l of legs) {
-          const d = await post(String(l.index), method === "manual" ? drafts.filter((x) => x.leg === l.index) : undefined)
-          sent += d.sent; total += d.total; if (d.n8n && !d.n8n.ok) n8n = d.n8n
-          results.push(...(d.results as Result[]).map((x) => ({ ...x, carrier_name: `${x.carrier_name} · Option ${l.index + 1}` })))
-        }
-        setResult({ method, sent, total, results, n8n }); setStep("result"); didSend.current = true; return
-      }
-      const d = await post(multi ? leg : undefined, method === "manual" ? drafts : undefined)
-      setResult(d); setStep("result"); didSend.current = true; return
+      // one request: one email per option when sent separately, otherwise a single send
+      const jobs = separateAll ? legs.map((l) => ({ leg: String(l.index), drafts: method === "manual" ? drafts.filter((x) => x.leg === l.index) : undefined })) : [{ leg: multi ? leg : undefined, drafts: method === "manual" ? drafts : undefined }]
+      const r = await fetch(`/api/requests/${requestId}/send-rfq`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method, carrier_ids: ids, template_id: templateId ? Number(templateId) : undefined, jobs }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (d.approval_required) { setApproval({ cycle_name: d.cycle_name, already: d.already, steps: d.steps ?? [] }); didSend.current = true; return }
+      if (!d.results) throw new Error(d.message ?? d.error ?? `Failed (${r.status})`)
+      setResult(d); setStep("result"); didSend.current = true
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -281,6 +274,24 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
           {step === "result" && (<><span /><button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={close}>Close</button></>)}
         </div>
       </div>
+      {approval && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+            <CheckCircle2 className="mx-auto h-8 w-8" style={{ color: "var(--brand-accent)" }} />
+            <h3 className="mt-3 text-base font-bold" style={{ color: "var(--text-primary)" }}>{approval.already ? "Already waiting for approval" : "Sent for approval"}</h3>
+            <p className="mt-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+              {approval.already ? "This request is already in the approval chain." : "Nothing has gone to the carriers yet. It will be sent once everyone has approved."}
+            </p>
+            {approval.steps.length > 0 && (
+              <div className="mt-3 space-y-1 text-xs" style={{ color: "var(--text-primary)" }}>
+                {approval.cycle_name && <p className="font-semibold">{approval.cycle_name}</p>}
+                {approval.steps.map((st) => <p key={st.order}>Step {st.order}: {st.approvers.join(", ") || "no approver set"}</p>)}
+              </div>
+            )}
+            <button className={`${btn} mt-5 text-white`} style={{ background: "var(--brand-accent)" }} onClick={close}>OK</button>
+          </div>
+        </div>
+      )}
       {confirm && (
         <MissingFieldsConfirm info={confirm.info} action="ask carriers for a quotation"
           onCancel={() => setConfirm(null)}
