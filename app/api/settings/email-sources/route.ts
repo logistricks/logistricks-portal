@@ -7,6 +7,7 @@
  * DELETE — delete an email source (body: { id })
  */
 import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
+import { adminOnly } from "@/lib/api-admin"
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { encryptSecret } from "@/lib/secret-box"
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const cookie = req.cookies.get("portal_session")?.value
   if (!cookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const session = getSession(cookie)
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const cookie = req.cookies.get("portal_session")?.value
   if (!cookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const session = getSession(cookie)
@@ -118,6 +121,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const cookie = req.cookies.get("portal_session")?.value
   if (!cookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const session = getSession(cookie)

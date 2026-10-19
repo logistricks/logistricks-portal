@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { adminOnly } from "@/lib/api-admin"
 import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const s = auth(req)
   if (!s) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (s.role === "viewer") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -88,6 +90,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const s = auth(req)
   if (!s) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (s.role === "viewer") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -105,6 +108,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const s = auth(req)
   if (!s) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (s.role === "viewer") return NextResponse.json({ error: "Forbidden" }, { status: 403 })

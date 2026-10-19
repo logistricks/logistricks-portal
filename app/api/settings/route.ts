@@ -14,6 +14,7 @@
  *   auto_reply_complete_enabled   boolean
  */
 import { restoreRows, saveUndo, snapshot, type UndoOp } from "@/lib/undo"
+import { adminOnly } from "@/lib/api-admin"
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sanitizeCriticalConfig } from "@/lib/critical-config"
@@ -81,6 +82,7 @@ export async function GET(req: NextRequest) {
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
 export async function PATCH(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const session = auth(req)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

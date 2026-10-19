@@ -5,6 +5,7 @@
  * DELETE — remove a cycle (cascades to steps, members, initiators)
  */
 import { NextResponse, type NextRequest } from "next/server"
+import { adminOnly } from "@/lib/api-admin"
 import { adminClient, getSession } from "@/lib/api-session"
 import { saveUndo, snapshotCycle, snapshotInitiators } from "@/lib/undo"
 
@@ -26,6 +27,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const sessionCookie = req.cookies.get("portal_session")?.value
   if (!sessionCookie) return unauth()
   const session = getSession(sessionCookie)
@@ -117,6 +119,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const sessionCookie = req.cookies.get("portal_session")?.value
   if (!sessionCookie) return unauth()
   const session = getSession(sessionCookie)

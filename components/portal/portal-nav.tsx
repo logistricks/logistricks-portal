@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { HOME_HREF, NAV, sectionFor, type BadgeKey, type SectionKey } from "@/lib/portal-nav"
+import { HOME_HREF, NAV as ALL_NAV, sectionFor, type BadgeKey, type SectionKey } from "@/lib/portal-nav"
 
 const PIN_KEY = "portal_nav_pin"
+const NAV = ALL_NAV
 
 export type NavCounts = Partial<Record<BadgeKey, number>>
 
@@ -21,7 +22,18 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
   const pathname = usePathname() ?? ""
   const tab = useSearchParams()?.get("tab") ?? ""
 
+  const router = useRouter()
+  const [role, setRole] = useState<string | null>(null)
+  useEffect(() => {
+    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((m) => setRole(m?.role ?? "viewer")).catch(() => setRole("viewer"))
+  }, [])
+  // The Admin section (setup, users, logs) is for admins only.
+  const NAV = role === "admin" ? ALL_NAV : ALL_NAV.filter((s) => s.key !== "admin")
+
   const current = sectionFor(pathname, tab)
+  useEffect(() => {
+    if (role && role !== "admin" && current?.key === "admin") router.replace("/requests")
+  }, [role, current?.key, router])
   const [pinFlag, setPinFlag] = useState(false)
   const [hover, setHover] = useState<SectionKey | null>(null)
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)

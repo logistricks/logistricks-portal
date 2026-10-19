@@ -2,6 +2,7 @@
  * app/api/auto-reply-logs/route.ts
  */
 import { NextResponse, type NextRequest } from "next/server"
+import { adminOnly } from "@/lib/api-admin"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
 
@@ -30,6 +31,7 @@ function getSession(cookie: string): { username: string; clientCode: string } | 
 }
 
 export async function GET(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const sessionCookie = req.cookies.get("portal_session")?.value
   if (!sessionCookie) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const session = getSession(sessionCookie)

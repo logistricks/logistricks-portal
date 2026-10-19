@@ -17,6 +17,7 @@
  *        }
  */
 import { NextResponse, type NextRequest } from "next/server"
+import { adminOnly } from "@/lib/api-admin"
 import { adminClient, getSession } from "@/lib/api-session"
 import { saveUndo, snapshotInitiators } from "@/lib/undo"
 
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const sessionCookie = req.cookies.get("portal_session")?.value
   if (!sessionCookie) return unauth()
   const session = getSession(sessionCookie)

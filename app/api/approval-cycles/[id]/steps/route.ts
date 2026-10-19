@@ -5,6 +5,7 @@
  * PUT    — replace all steps (full reorder / rebuild)
  */
 import { NextResponse, type NextRequest } from "next/server"
+import { adminOnly } from "@/lib/api-admin"
 import { adminClient, getSession } from "@/lib/api-session"
 
 function unauth() { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
@@ -14,6 +15,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const sessionCookie = req.cookies.get("portal_session")?.value
   if (!sessionCookie) return unauth()
   const session = getSession(sessionCookie)
@@ -67,6 +69,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  { const denied = await adminOnly(req); if (denied) return denied }
   const sessionCookie = req.cookies.get("portal_session")?.value
   if (!sessionCookie) return unauth()
   const session = getSession(sessionCookie)
