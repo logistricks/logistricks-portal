@@ -45,7 +45,7 @@ import { IntakeBadge } from "@/components/portal/intake-badge"
 import { ShipmentTypeChip, TypedCargoDetails, TagTable } from "@/components/portal/cargo-details"
 import { RequestAttachments } from "@/components/portal/request-attachments"
 import { EmailDropZone } from "@/components/portal/email-drop-zone"
-import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
+import { QuoteComparisonPanel, optionLabels } from "@/components/portal/quote-comparison-panel"
 import { ForwardQuotationDialog } from "@/components/portal/forward-quotation-dialog"
 import type { CarrierQuote } from "@/lib/carrier-quotes-queries"
 import { QuotationBuilder } from "@/components/portal/quotation-builder"
@@ -494,8 +494,11 @@ export default function RequestDetailPage() {
                   <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</p>
                 </div>
                 <div>
-                  <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{seaOnly ? "Destination · POD" : "Destination"}</p>
+                  <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{(request.legs ?? []).some((l) => (l as Record<string, unknown>).alt === true) ? (seaOnly ? "Destinations · POD" : "Destinations") : seaOnly ? "Destination · POD" : "Destination"}</p>
                   <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.destinationFlag} {fieldValues.destinationCity ?? request.destinationCity}</p>
+                  {(request.legs ?? []).filter((l) => (l as Record<string, unknown>).alt === true && l.destination_city).map((l, i) => (
+                    <p key={i} className="font-display text-[20px] font-extrabold leading-tight text-white"><span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-white/45">or</span>{String(l.destination_city)}</p>
+                  ))}
                 </div>
               </div>
             </div>
@@ -595,6 +598,7 @@ export default function RequestDetailPage() {
               <EmailDropZone kind="carrier_reply" freightRequestId={request.id} slim onReplyToSender={replyToSender} onDone={() => setRfqRefreshSignal((n) => n + 1)} />
             </div>
             <QuoteComparisonPanel
+                options={optionLabels(request as any)}
               key={rfqRefreshSignal}
               freightRequestId={request.id}
               requestReceivedAt={request.receivedIso}

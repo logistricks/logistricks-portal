@@ -96,6 +96,15 @@ function rateLabel(q: CarrierQuote): string {
   return "no rate"
 }
 
+
+/** Destinations of a request of alternatives ("Umm Qasr, Iraq", "Aqaba, Jordan"); undefined when it is not one. */
+export function optionLabels(r: { destinationCity?: string; destinationCountry?: string; legs?: Record<string, unknown>[] }): string[] | undefined {
+  const legs = r.legs ?? []
+  if (!legs.length || !legs.every((l) => l.alt === true)) return undefined
+  const d = (c?: unknown, k?: unknown) => [c, k].filter((x) => typeof x === "string" && x.trim()).join(", ")
+  return [d(r.destinationCity, r.destinationCountry), ...legs.map((l) => d(l.destination_city, l.destination_country))]
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────
 
 interface Props {
@@ -106,11 +115,13 @@ interface Props {
   onChanged?: () => void
   /** Reports the carrier quotes that are still active (not disregarded) whenever they load or change. */
   onActiveQuotes?: (quotes: CarrierQuote[]) => void
+  /** Request of alternative destinations: the destination of each option, in order. The quotes are shown split per destination. */
+  options?: string[]
   /** When the request itself arrived (ISO): the quote card shows how long after it the carrier's quote came in. */
   requestReceivedAt?: string
 }
 
-export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged, onActiveQuotes, requestReceivedAt }: Props) {
+export function QuoteComparisonPanel({ freightRequestId, locked = false, onChanged, onActiveQuotes, requestReceivedAt, options }: Props) {
   const [rows, setRows]       = useState<CarrierQuoteRequest[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -128,7 +139,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
     const data = await fetchQuotesForRequest(createClient(), freightRequestId)
     setRows(data)
     setLoading(false)
-    onActiveQuotes?.(data.map((r) => r.quote).filter((q): q is CarrierQuote => isActiveQuote(q)))
+    onActiveQuotes?.(data.flatMap((r) => (r.quotes?.length ? r.quotes : r.quote ? [r.quote] : [])).filter((q): q is CarrierQuote => isActiveQuote(q)))
   }
 
   useEffect(() => { void load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [freightRequestId])
@@ -228,33 +239,20 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
 
   const respondedRows = rows.filter((r) => r.status === "responded" && isActiveQuote(r.quote))
   const disregardedCount = rows.filter((r) => r.quote?.disregarded).length
-  const bestRate      = respondedRows.length
-    ? Math.min(...respondedRows.map((r) => r.quote!.rateUsd ?? Infinity))
-    : null
 
-  return (
-    <div className="space-y-3">
-      {/* Summary line */}
-      <div className="flex flex-wrap items-center gap-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
-        <span>{rows.length} carrier{rows.length !== 1 ? "s" : ""} contacted</span>
-        <span className="text-[#CBD5E1]">·</span>
-        <span className="text-emerald-600 dark:text-emerald-400">
-          {respondedRows.length} active quote{respondedRows.length !== 1 ? "s" : ""}
-        </span>
-        {disregardedCount > 0 && (<><span className="text-[#CBD5E1]">·</span><span>{disregardedCount} disregarded</span></>)}
-        <span className="text-[#CBD5E1]">·</span>
-        <span>{rows.filter((r) => r.status === "sent").length} pending</span>
-      </div>
-
-      {/* Cards */}
+  /** The quote cards of one list of RFQ rows (all of them, or the rows as seen by one destination option). */
+  const renderCards = (list: CarrierQuoteRequest[], kp = "") => {
+    const ok = list.filter((r) => r.status === "responded" && isActiveQuote(r.quote))
+    const bestRate = ok.length ? Math.min(...ok.map((r) => r.quote!.rateUsd ?? Infinity)) : null
+    return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {rows.map((row) => {
+        {list.map((row) => {
           const off = row.quote?.disregarded === true
           const expired = !off && isExpiredDate(row.quote?.validityDate)
           const isBest = !off && row.quote?.rateUsd != null && row.quote.rateUsd === bestRate
           return (
             <div
-              key={row.id}
+              key={`${kp}${row.id}`}
               className={`relative overflow-hidden rounded border bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:bg-[#111E33] ${
                 off ? "opacity-60 grayscale " : ""}${
                 isBest
@@ -457,6 +455,42 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
           )
         })}
       </div>
+    )
+  }
+
+  // alternatives: one section per destination, each carrier's quote for THAT destination (a quote that covers all of them shows in every section)
+  const optionRows = (i: number): CarrierQuoteRequest[] => rows.map((r) => {
+    const all = r.quotes?.length ? r.quotes : r.quote ? [r.quote] : []
+    const q = all.find((x) => x.legIndex === i) ?? all.find((x) => x.legIndex == null) ?? null
+    return { ...r, quote: q, status: q ? "responded" : r.status === "responded" ? "sent" : r.status }
+  })
+
+  return (
+    <div className="space-y-3">
+      {/* Summary line */}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
+        <span>{rows.length} carrier{rows.length !== 1 ? "s" : ""} contacted</span>
+        <span className="text-[#CBD5E1]">·</span>
+        <span className="text-emerald-600 dark:text-emerald-400">
+          {respondedRows.length} active quote{respondedRows.length !== 1 ? "s" : ""}
+        </span>
+        {disregardedCount > 0 && (<><span className="text-[#CBD5E1]">·</span><span>{disregardedCount} disregarded</span></>)}
+        <span className="text-[#CBD5E1]">·</span>
+        <span>{rows.filter((r) => r.status === "sent").length} pending</span>
+      </div>
+
+      {options && options.length > 1 ? (
+        <div className="space-y-5">
+          {options.map((label, i) => (
+            <section key={i}>
+              <h3 className="mb-2 flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-[0.1em]" style={{ color: "var(--text-primary)" }}>
+                Option {i + 1} <span className="font-semibold normal-case tracking-normal" style={{ color: "var(--text-secondary)" }}>· {label || "destination not set"}</span>
+              </h3>
+              {renderCards(optionRows(i), `o${i}-`)}
+            </section>
+          ))}
+        </div>
+      ) : renderCards(rows)}
 
       <ConfirmStepsDialog
         open={pending !== null}

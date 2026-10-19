@@ -28,7 +28,7 @@ import {
   StatusBadge,
   UrgencyBadge,
 } from "@/components/portal/badges"
-import { QuoteComparisonPanel } from "@/components/portal/quote-comparison-panel"
+import { QuoteComparisonPanel, optionLabels } from "@/components/portal/quote-comparison-panel"
 import { QuotationBuilder } from "@/components/portal/quotation-builder"
 import {
   type Carrier,
@@ -655,6 +655,9 @@ export function RequestDetailModal({
                 <div>
                   <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{isSeaOnly(request.modes) ? "Destination · POD" : "Destination"}</p>
                   <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.destinationFlag} {request.destinationCity}</p>
+                  {(request.legs ?? []).filter((l) => (l as Record<string, unknown>).alt === true && l.destination_city).map((l, i) => (
+                    <p key={i} className="font-display text-[20px] font-extrabold leading-tight text-white"><span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-white/45">or</span>{String(l.destination_city)}</p>
+                  ))}
                 </div>
               </div>
               {exwNeedsAddress(request.incoterm, request.pickupAddress) && (
@@ -736,6 +739,7 @@ export function RequestDetailModal({
           {activeTab === "quotes" && (
             <div className="p-5">
               <QuoteComparisonPanel
+                options={optionLabels(request as any)}
                 freightRequestId={request.id}
                 requestReceivedAt={request.receivedIso}
                 key={rfqRefreshSignal}

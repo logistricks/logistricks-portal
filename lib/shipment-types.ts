@@ -232,17 +232,39 @@ export function quotableCheck(t: ShipmentType, data: Record<string, unknown>, cf
 /** Every request column that belongs to one leg (the rest of the row is the common block shared by all legs). */
 export const LEG_COLUMNS: string[] = [...new Set([...Object.values(FIELD_COLUMNS).flat(), "bl_type"])]
 
-/** Legs stored on a row (leg 2, 3 ...). Accepts an array or a JSON string; anything else = none. */
+/** A leg flagged `alt` is not a further stage of the journey: it is an ALTERNATIVE destination for the same cargo ("Umm Qasr or Aqaba"). */
+export const isAltLeg = (l: unknown): boolean => !!l && typeof l === "object" && (l as Record<string, unknown>).alt === true
+
+/** Legs stored on a row (leg 2, 3 ...). Accepts an array or a JSON string; anything else = none. An alternative may leave its type out (it takes leg 1's). */
 export function extraLegs(row: Record<string, unknown> | null | undefined): LegData[] {
   let v: unknown = row?.legs
   if (typeof v === "string") { try { v = JSON.parse(v) } catch { v = null } }
-  return Array.isArray(v) ? (v as unknown[]).filter((x): x is LegData => !!x && typeof x === "object" && isShipmentType((x as LegData).shipment_type)) : []
+  if (!Array.isArray(v)) return []
+  const inherit = isShipmentType(row?.shipment_type) ? (row!.shipment_type as ShipmentType) : null
+  return (v as unknown[]).flatMap((x): LegData[] => {
+    if (!x || typeof x !== "object") return []
+    const l = x as Record<string, unknown>
+    if (isShipmentType(l.shipment_type)) return [l as LegData]
+    return isAltLeg(l) && inherit ? [{ ...l, shipment_type: inherit } as LegData] : []
+  })
 }
 
+/** True when every extra leg is an alternative destination: the request is ONE shipment with several destination options. */
+export function optionMode(row: Record<string, unknown> | null | undefined): boolean {
+  const l = extraLegs(row)
+  return l.length > 0 && l.every(isAltLeg)
+}
+
+/** "Option 2" for a request of alternatives, "Leg 2" otherwise. `index` is the leg number - 1. */
+export const legWord = (row: Record<string, unknown>, index: number): string => `${optionMode(row) ? "Option" : "Leg"} ${index + 1}`
+
 /** All legs of a request in order: leg 1 is the request's own columns, then the stored extra legs. */
-export function allLegs(row: Record<string, unknown>): { type: ShipmentType | null; data: Record<string, unknown> }[] {
+export function allLegs(row: Record<string, unknown>): { type: ShipmentType | null; data: Record<string, unknown>; alt?: boolean }[] {
   const first = { type: isShipmentType(row.shipment_type) ? row.shipment_type : null, data: row }
-  return [first, ...extraLegs(row).map((l) => ({ type: l.shipment_type as ShipmentType | null, data: l as Record<string, unknown> }))]
+  return [first, ...extraLegs(row).map((l, i) => {
+    const alt = isAltLeg(l)
+    return { type: l.shipment_type as ShipmentType | null, data: alt ? rowForLeg(row as Record<string, any>, i + 1) : l as Record<string, unknown>, alt }
+  })]
 }
 
 /**
@@ -255,7 +277,8 @@ export function rowForLeg(row: Record<string, any>, index: number): Record<strin
   const leg = extraLegs(row)[index - 1]
   if (!leg) return row
   const out: Record<string, any> = { ...row }
-  for (const c of LEG_COLUMNS) out[c] = null
+  // an alternative destination keeps everything of leg 1 (same cargo) and only replaces what it states itself (its destination)
+  if (!isAltLeg(leg)) for (const c of LEG_COLUMNS) out[c] = null
   for (const c of LEG_COLUMNS) if (leg[c] != null) out[c] = leg[c]
   // incoterm and pickup are per leg: a leg never inherits another leg's (EXW air + FOB sea in one email is normal)
   out.shipment_type = leg.shipment_type
@@ -274,18 +297,31 @@ export function typedMissing(row: Record<string, unknown> | null | undefined, cf
   if (!row || !isShipmentType(row.shipment_type)) return null
   const legs = allLegs(row)
   if (legs.length === 1) return quotableCheck(row.shipment_type, row, cfg).missing
-  return legs.flatMap((l, i) => (l.type ? quotableCheck(l.type, l.data, cfg).missing : ["Type"]).map((m) => `Leg ${i + 1}: ${m}`))
+  return legs.flatMap((l, i) => (l.type ? quotableCheck(l.type, l.data, cfg).missing : ["Type"]).map((m) => `${legWord(row, i)}: ${m}`))
 }
 
-/** One line per leg for emails: "Leg 2 (Land): Aqaba, Jordan to Abu Dhabi, UAE. Commodity: ... Truck type: ...". */
+/** Where an option / leg goes: "Umm Qasr, Iraq". */
+export function destinationOf(d: Record<string, any>): string { return [d.destination_city, d.destination_country].filter(hasText).join(", ") }
+
+/** The destinations of a request of alternatives, one per option ("Umm Qasr, Iraq", "Aqaba, Jordan"); [] when it is not one. */
+export function optionDestinations(row: Record<string, any>): string[] {
+  if (!optionMode(row)) return []
+  return allLegs(row).map((_, i) => destinationOf(rowForLeg(row, i)))
+}
+
+/** One line per leg for emails: "Leg 2 (Land): Aqaba, Jordan to Abu Dhabi, UAE. Commodity: ... Truck type: ...". For alternatives: "Option 2: Pasir Gudang to Aqaba". */
 export function legsSummary(row: Record<string, any>): string {
   const legs = allLegs(row)
   if (legs.length < 2) return ""
+  const opts = optionMode(row)
   return legs.map((l, i) => {
     const d = rowForLeg(row, i)
     const place = (c: string, k: string) => [d[c], d[k]].filter(hasText).join(", ")
+    const route = `${place("origin_city", "origin_country") || "?"} to ${place("destination_city", "destination_country") || "?"}`
+    // same cargo for every option: the email already describes it once, so an option line is just its route
+    if (opts) return `Option ${i + 1}: ${route}`
     const parts = [
-      `${place("origin_city", "origin_country") || "?"} to ${place("destination_city", "destination_country") || "?"}`,
+      route,
       ...(["cargo_type", "equipment", "truck_type", "quantity", "package_type", "weight", "cbm", "dimensions", "temperature_control", "cargo_ready_date"] as const)
         .filter((k) => hasText(d[k])).map((k) => `${k === "cargo_type" ? "Commodity" : k === "temperature_control" ? "Temperature" : k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())}: ${d[k]}`),
     ]

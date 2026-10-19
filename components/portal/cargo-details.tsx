@@ -251,15 +251,21 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
   const tab = Math.min(active, legs.length) // 0 = leg 1
 
   const first = { ...initial, ...edits }
-  const legVals = (i: number): Record<string, string> => ({ ...Object.fromEntries(Object.entries(legs[i - 1] ?? {}).map(([k, v]) => [k, clean(v)])), ...(legEdits[i] ?? {}) })
+  const isAlt = (i: number) => i > 0 && (legs[i - 1] as Record<string, unknown> | undefined)?.alt === true
+  const optMode = legs.length > 0 && legs.every((l) => (l as Record<string, unknown>).alt === true) // alternatives of ONE shipment, not stages
+  const word = optMode ? "Option" : "Leg"
+  // an option follows leg 1 for everything it does not state itself (it only has its own destination)
+  const legVals = (i: number): Record<string, string> => ({ ...(isAlt(i) ? first : {}), ...Object.fromEntries(Object.entries(legs[i - 1] ?? {}).filter(([k]) => k !== "alt").map(([k, v]) => [k, clean(v)])), ...(legEdits[i] ?? {}) })
   const legType = (i: number) => (i === 0 ? type : (legs[i - 1]?.shipment_type as ShipmentType))
   // readiness over ALL legs
   const checks = [quotableCheck(type, first, crit), ...legs.map((l, i) => quotableCheck(legType(i + 1), { ...legVals(i + 1) }, crit))]
-  const missing = checks.flatMap((c, i) => c.missing.map((m) => (legs.length ? `Leg ${i + 1}: ${m}` : m)))
+  const missing = checks.flatMap((c, i) => c.missing.map((m) => (legs.length ? `${word} ${i + 1}: ${m}` : m)))
 
   const vals = tab === 0 ? first : legVals(tab)
   const curType = legType(tab)
-  const rows = buildRows(curType, vals, { first: tab === 0 }, crit)
+  const allRows = buildRows(curType, vals, { first: tab === 0 }, crit)
+  // an option's cargo is leg 1's: only its route is edited here
+  const rows = isAlt(tab) ? { ...allRows, Cargo: [], Measurements: [], Conditions: [] } : allRows
   const saveFirst = async (fields: Record<string, string>) => {
     try { return (await fetch("/api/requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: request.id, fields }) })).ok } catch { return false }
   }
@@ -271,6 +277,18 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
     const ok = await post(`/api/requests/${request.id}/legs`, { action: "add", shipment_type: t })
     setBusy(false)
     if (ok) { setActive(legs.length + 1); onChanged() }
+  }
+  async function addOption() {
+    setAdding(false); setBusy(true)
+    const ok = await post(`/api/requests/${request.id}/legs`, { action: "add", alt: true })
+    setBusy(false)
+    if (ok) { setActive(legs.length + 1); onChanged() }
+  }
+  async function setKind(alt: boolean) {
+    setBusy(true)
+    const ok = await post(`/api/requests/${request.id}/legs`, { action: "kind", index: tab, alt })
+    setBusy(false)
+    if (ok) { setLegEdits({}); onChanged() }
   }
   async function removeLeg() {
     if (tab === 0) return
@@ -302,19 +320,22 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
       {banner}
 
       <div className="flex flex-wrap items-center justify-center gap-2 px-5 pt-3">
-        <Seg label="Legs" items={[type, ...legs.map((l) => l.shipment_type as ShipmentType)].map((t, i) => ({
+        <Seg label={optMode ? "Destination options" : "Legs"} items={[type, ...legs.map((l) => l.shipment_type as ShipmentType)].map((t, i) => ({
           key: String(i), on: i === tab, onClick: () => setActive(i),
-          label: <>{legs.length ? `Leg ${i + 1} · ` : ""}{TYPE_LABEL[t]}{checks[i] && !checks[i].ready && <span className="inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: i === tab ? "#fff" : "#ef4444" }} title="Missing required fields" />}</>,
+          label: <>{legs.length ? `${word} ${i + 1} · ` : ""}{optMode ? ((i === 0 ? first.destination_city : legVals(i).destination_city) || "no destination") : TYPE_LABEL[t]}{checks[i] && !checks[i].ready && <span className="inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: i === tab ? "#fff" : "#ef4444" }} title="Missing required fields" />}</>,
         }))} />
         {!locked && (
           <div className="relative">
-            <button type="button" disabled={busy} onClick={() => setAdding((v) => !v)} className="inline-flex items-center gap-1 rounded-2xl px-3.5 py-2 text-[13px] font-bold transition-colors hover:bg-[rgb(var(--brand-accent-rgb)/0.12)] disabled:opacity-50" style={{ border: "1px dashed var(--card-border)", color: "var(--text-secondary)" }}>
-              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} {legs.length ? "Add leg" : "Quote another leg"}
+            <button type="button" disabled={busy} onClick={() => (optMode ? addOption() : setAdding((v) => !v))} className="inline-flex items-center gap-1 rounded-2xl px-3.5 py-2 text-[13px] font-bold transition-colors hover:bg-[rgb(var(--brand-accent-rgb)/0.12)] disabled:opacity-50" style={{ border: "1px dashed var(--card-border)", color: "var(--text-secondary)" }}>
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />} {optMode ? "Add option" : legs.length ? "Add leg" : "Add destination or leg"}
             </button>
             {adding && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setAdding(false)} />
-                <ul className="absolute left-1/2 z-20 mt-1 w-36 -translate-x-1/2 overflow-hidden rounded-lg py-1 shadow-xl" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+                <ul className="absolute left-1/2 z-20 mt-1 w-56 -translate-x-1/2 overflow-hidden rounded-lg py-1 shadow-xl" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+                  <li><button type="button" onClick={addOption} className="w-full px-3 py-1.5 text-left text-xs font-bold" style={{ color: "var(--brand-accent)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")} onMouseLeave={(e) => (e.currentTarget.style.background = "")}>Another destination, same cargo</button></li>
+                  <li className="px-3 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Or a further leg</li>
                   {SHIPMENT_TYPES.map((t) => (
                     <li key={t}><button type="button" onClick={() => addLeg(t)} className="w-full px-3 py-1.5 text-left text-xs font-semibold" style={{ color: "var(--text-primary)" }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")} onMouseLeave={(e) => (e.currentTarget.style.background = "")}>{TYPE_LABEL[t]}</button></li>
@@ -325,6 +346,9 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
           </div>
         )}
       </div>
+      {optMode && tab > 0 && (
+        <p className="mx-5 mt-2 text-center text-[11.5px]" style={{ color: "var(--text-muted)" }}>Same cargo as Option 1. Only the route can differ.</p>
+      )}
       {legs.length > 0 && missing.length > 0 && (
         <p className="mx-5 mt-2 rounded-lg px-3 py-2 text-center text-xs font-semibold" style={{ background: "rgba(245,158,11,0.1)", color: "#b45309" }}>
           Needed to quote: {missing.join(", ")}
@@ -337,7 +361,8 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
       />
       {tab > 0 && !locked && (
         <div className="px-5 pb-4 text-center">
-          <button type="button" onClick={removeLeg} disabled={busy} className="text-[11.5px] font-semibold underline disabled:opacity-50" style={{ color: "#ef4444" }}>Remove this leg</button>
+          <button type="button" onClick={() => setKind(!isAlt(tab))} disabled={busy} className="mr-4 text-[11.5px] font-semibold underline disabled:opacity-50" style={{ color: "var(--text-secondary)" }}>{isAlt(tab) ? "This is a further leg, not an option" : "This is an alternative destination, not a further leg"}</button>
+          <button type="button" onClick={removeLeg} disabled={busy} className="text-[11.5px] font-semibold underline disabled:opacity-50" style={{ color: "#ef4444" }}>Remove this {optMode ? "option" : "leg"}</button>
         </div>
       )}
     </div>

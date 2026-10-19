@@ -11,7 +11,7 @@ import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/componen
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
 type LegInfo = { index: number; label: string; modes: string[]; origin_country: string; destination_country: string }
-type Info = { legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
+type Info = { options?: boolean; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -36,12 +36,13 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   // (re)load the request's sending info; the default template depends on the leg
   useEffect(() => {
     fetch(`/api/requests/${requestId}/send-rfq?leg=${leg}`).then((r) => (r.ok ? r.json() : null)).then((d: Info | null) => {
-      if (d) { setInfo(d); const def = d.templates.find((t) => t.template_id === d.default_template_id) ?? d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
+      if (d) { setInfo(d); if (d.options && leg === "0") setLeg("all") /* alternatives: one email for every destination by default */; const def = d.templates.find((t) => t.template_id === d.default_template_id) ?? d.templates.find((t) => t.is_default) ?? d.templates[0]; if (def) setTemplateId(String(def.template_id)) }
     }).catch(() => {})
   }, [requestId, leg])
 
   const legs = info?.legs ?? []
   const multi = legs.length > 1
+  const options = !!info?.options // the "legs" are alternative destinations of one shipment
   // carriers are ranked for the chosen leg's mode and countries (for "all legs": every mode of the request, no country filter)
   const scope = useMemo(() => {
     const l = leg === "all" ? null : legs.find((x) => String(x.index) === leg)
@@ -66,7 +67,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
     if (!r && missingRequired.length) { setConfirm({ info: { missing: missingRequired, sender_name: "", sender_email: "", source: "Email", asked: null }, run }); return }
     run()
   }
-  const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n && !multi // multi-leg requests are sent manually for now
+  const autoReady = !!info?.smtp.configured && !!info?.smtp.enabled && !!info?.n8n && (!multi || options) // alternatives go out as one email per carrier, also automatically; real multi-leg requests are sent manually for now
 
   async function prepareManual() {
     setBusy(true); setError(null)
@@ -113,9 +114,9 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
             <div className="space-y-3">
               {multi && (
                 <div>
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>This email is about</label>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>{options ? "Destinations in this email" : "This email is about"}</label>
                   <div className="flex flex-wrap gap-1.5">
-                    {[...legs.map((l) => ({ key: String(l.index), label: l.label })), { key: "all", label: "All legs in one email" }].map((o) => (
+                    {[...legs.map((l) => ({ key: String(l.index), label: l.label })), { key: "all", label: options ? "All options in one email" : "All legs in one email" }].map((o) => (
                       <button key={o.key} type="button" onClick={() => setLeg(o.key)} className="rounded-full px-3 py-1 text-[11.5px] font-bold"
                         style={leg === o.key ? { background: "var(--brand-accent)", color: "#fff" } : { border: "1px solid var(--card-border)", color: "var(--text-secondary)" }}>{o.label}</button>
                     ))}

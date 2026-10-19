@@ -70,6 +70,29 @@ import { buildExtendedFields } from "@/lib/quote-extended"
 import { syncRequestStatus } from "@/lib/request-status"
 import { normId } from "@/lib/inbound-match"
 import { resolveCarrierPk } from "@/lib/quote-suggest"
+import { allLegs, destinationOf, rowForLeg } from "@/lib/shipment-types"
+
+/**
+ * Which destination option a quote is for. The extraction may give `leg_index` (0 = option 1) or the destination as the carrier
+ * wrote it ("Aqaba"); the latter is matched against the request's option destinations. null = whole request / unknown.
+ */
+async function optionIndex(admin: any, requestId: string, body: Record<string, unknown>): Promise<number | null> {
+  try {
+    const { data: row } = await admin.from("freight_requests").select("*").eq("id", requestId).maybeSingle()
+    if (!row) return null
+    const n = allLegs(row).length
+    if (n < 2) return null
+    const li = Number(body.leg_index ?? body.option_index)
+    if (body.leg_index != null && Number.isInteger(li) && li >= 0 && li < n) return li
+    const want = String(body.destination ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim()
+    if (!want) return null
+    const hits = Array.from({ length: n }, (_, i) => i).filter((i) => {
+      const d = rowForLeg(row, i)
+      return [d.destination_city, d.destination_country, destinationOf(d)].some((t) => { const x = String(t ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim(); return x && (want.includes(x) || x.includes(want)) })
+    })
+    return hits.length === 1 ? hits[0] : null
+  } catch { return null }
+}
 
 /** Insert with the extended columns; if migration 040 has not run yet, store the base fields only. */
 async function insertQuote(admin: any, base: Record<string, unknown>, ext: Record<string, unknown>) {
@@ -318,6 +341,9 @@ export async function POST(req: NextRequest) {
     .eq("id", match.id)
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+  const legIdx = await optionIndex(admin, match.freight_request_id, body)
+  if (legIdx != null) ext.leg_index = legIdx
 
   const { data: quoteRow, error: insertErr } = await insertQuote(admin, {
     ...quoteFields,

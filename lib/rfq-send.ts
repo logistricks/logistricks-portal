@@ -3,7 +3,7 @@
  *  - renderRfqDraft: fills the client's RFQ template for one carrier (same rules as the n8n "Render RFQ email" node)
  *  - registerRfqRows: creates the carrier_quote_requests rows that make later carrier replies link back
  */
-import { allLegs, legsSummary, TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
+import { allLegs, legsSummary, optionDestinations, optionMode, TYPE_LABEL, type ShipmentType } from "@/lib/shipment-types"
 import { randomBytes } from "crypto"
 import { applyTemplate } from "@/lib/template-render"
 import { htmlToPlainText } from "@/lib/quotation-render"
@@ -33,8 +33,12 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
   const list = (v: unknown) => forLegType(toStringList(v), s(row.shipment_type)).join("\n")
   const pickup = s(row.pickup_address).trim()
   const exw = isExw(row.incoterm)
+  // one email for every option of a request of alternatives: the destination reads "Umm Qasr, Iraq or Aqaba, Jordan"
+  const allOptions = optionMode(row) && row.leg_index == null
+  const dests = allOptions ? optionDestinations(row).filter(Boolean) : []
   return {
-    origin_city: s(row.origin_city), origin_country: s(row.origin_country), destination_city: s(row.destination_city), destination_country: s(row.destination_country),
+    origin_city: s(row.origin_city), origin_country: s(row.origin_country),
+    destination_city: dests.length > 1 ? dests.join(" or ") : s(row.destination_city), destination_country: dests.length > 1 ? "" : s(row.destination_country),
     cargo_type: s(row.cargo_type), quantity: s(row.quantity), weight: s(row.weight), dimensions: s(row.dimensions), equipment: joinList(row.equipment) || s(row.equipment),
     incoterm: s(row.incoterm), pickup_address: exw && hasText(pickup) ? pickup : "", bl_type: s(row.bl_type), urgency: s(row.urgency),
     cbm: s(row.cbm), package_type: s(row.package_type), truck_type: s(row.truck_type), temperature: s(row.temperature_control),
@@ -42,7 +46,7 @@ export function rfqVars(row: Record<string, any>, carrier: { carrier_name: strin
     shipment_type: TYPE_LABEL[s(row.shipment_type) as ShipmentType] ?? "",
     // multi-leg requests: which leg this email is about, and one line per leg for an email that covers all of them
     leg_number: row.leg_index != null ? String(Number(row.leg_index) + 1) : "", leg_count: allLegs(row).length > 1 ? String(allLegs(row).length) : "",
-    legs_summary: legsSummary(row),
+    legs_summary: legsSummary(row), options_summary: allOptions ? legsSummary(row) : "",
     mode: [(row.is_sea ?? row.mode_sea) ? "Sea" : "", (row.is_air ?? row.mode_air) ? "Air" : "", (row.is_land ?? row.mode_land) ? "Land" : ""].filter(Boolean).join(", "),
     sender_name: s(row.sender_name), sender_email: s(row.sender_email), received_date: when(row.received_at), preferred_carrier: s(row.preferred_carrier),
     dgr: row.dgr ? "Yes" : "", aog: row.aog ? "Yes" : "",
@@ -57,7 +61,9 @@ export function renderRfqDraft(tpl: { subject?: string | null; body?: string | n
   if (!subject) subject = `Rate request ${vars.request_ref} - ${vars.origin_city} to ${vars.destination_city}`.trim()
   // carriers' replies are matched on the request number: make sure it is in the subject when the template does not show it
   if (vars.request_ref && !/request_ref/.test(`${tpl.subject ?? ""} ${tpl.body ?? ""}`) && !subject.includes(vars.request_ref)) subject = `${subject} [${vars.request_ref}]`.trim()
-  const body = htmlToPlainText(applyTemplate(tpl.body ?? "", vars))
+  let body = htmlToPlainText(applyTemplate(tpl.body ?? "", vars))
+  // alternatives: if the template does not list the options itself, say so at the end so every carrier quotes each destination
+  if (vars.options_summary && !/legs_summary|options_summary/.test(tpl.body ?? "")) body = `${body.trimEnd()}\n\nPlease quote each destination separately:\n${vars.options_summary}`
   return { subject, body }
 }
 

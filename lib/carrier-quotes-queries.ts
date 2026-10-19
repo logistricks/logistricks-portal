@@ -27,6 +27,8 @@ export interface CarrierQuoteRequest {
   /** False when no request was sent from the portal for this quote (it was dropped / linked by hand), so there is no real response time. */
   rfqSent: boolean
   quote: CarrierQuote | null
+  /** Every quote received on this RFQ. A request of alternative destinations gets one per destination. */
+  quotes: CarrierQuote[]
 }
 
 export interface CarrierQuote {
@@ -45,6 +47,8 @@ export interface CarrierQuote {
   linkedByAi: boolean | null
   linkMethod: string | null
   linkedBy: string | null
+  /** Which destination option this quote is for (0 = option 1 ...); null = the whole request or not stated. */
+  legIndex: number | null
   /** Disregarded quotes are greyed out and can't be used in a quotation or sent to the sender. */
   disregarded: boolean
   disregardedAt: string | null
@@ -167,6 +171,30 @@ export interface SendRfqPayload {
   n8nWebhookUrl: string
 }
 
+function toQuote(q: any, row: any): CarrierQuote {
+  return {
+    id: q.id,
+    carrierId: q.carrier_id,
+    carrierName: row.carriers?.carrier_name ?? "Unknown",
+    rateUsd: q.rate_usd,
+    rateCurrency: q.rate_currency,
+    rateOriginal: q.rate_original,
+    transitDays: q.transit_days,
+    validityDate: q.validity_date,
+    freeDays: q.free_days,
+    notes: q.notes,
+    receivedAt: q.received_at,
+    linkedByAi: q.linked_by_ai ?? null,
+    linkMethod: q.link_method ?? null,
+    linkedBy:   q.linked_by ?? null,
+    legIndex:   q.leg_index == null ? null : Number(q.leg_index),
+    disregarded:   q.disregarded === true,
+    disregardedAt: q.disregarded_at ?? null,
+    disregardedBy: q.disregarded_by ?? null,
+    ext:        mapQuoteExt(q),
+  }
+}
+
 // ─── Fetch quotes for a specific freight request ────────────────────────────
 
 export async function fetchQuotesForRequest(
@@ -200,28 +228,8 @@ export async function fetchQuotesForRequest(
     sentAt: row.sent_at,
     respondedAt: row.responded_at,
     rfqSent: !/^manual-/.test(String(row.email_thread_id ?? "")),
-    quote: row.carrier_quotes?.[0]
-      ? {
-          id: row.carrier_quotes[0].id,
-          carrierId: row.carrier_quotes[0].carrier_id,
-          carrierName: row.carriers?.carrier_name ?? "Unknown",
-          rateUsd: row.carrier_quotes[0].rate_usd,
-          rateCurrency: row.carrier_quotes[0].rate_currency,
-          rateOriginal: row.carrier_quotes[0].rate_original,
-          transitDays: row.carrier_quotes[0].transit_days,
-          validityDate: row.carrier_quotes[0].validity_date,
-          freeDays: row.carrier_quotes[0].free_days,
-          notes: row.carrier_quotes[0].notes,
-          receivedAt: row.carrier_quotes[0].received_at,
-          linkedByAi: row.carrier_quotes[0].linked_by_ai ?? null,
-          linkMethod: row.carrier_quotes[0].link_method ?? null,
-          linkedBy:   row.carrier_quotes[0].linked_by ?? null,
-          disregarded:   row.carrier_quotes[0].disregarded === true,
-          disregardedAt: row.carrier_quotes[0].disregarded_at ?? null,
-          disregardedBy: row.carrier_quotes[0].disregarded_by ?? null,
-          ext:        mapQuoteExt(row.carrier_quotes[0]),
-        }
-      : null,
+    quotes: (row.carrier_quotes ?? []).map((q: any) => toQuote(q, row)),
+    quote: row.carrier_quotes?.[0] ? toQuote(row.carrier_quotes[0], row) : null,
   }))
 }
 
