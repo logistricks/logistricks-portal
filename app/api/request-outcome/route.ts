@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   const [qs, qts, rfqs] = await Promise.all([
     admin.from("carrier_quotes").select("*").eq("freight_request_id", id).order("received_at", { ascending: true }),
-    admin.from("quotations").select("id, carrier_quote_id, quotation_number, base_rate_usd, final_price_usd, markup_type, markup_amount, status, sent_at, created_at").eq("freight_request_id", id).order("created_at", { ascending: false }),
+    admin.from("quotations").select("*").eq("freight_request_id", id).order("created_at", { ascending: false }),
     admin.from("carrier_quote_requests").select("id, carrier_id, carriers ( carrier_name )").eq("freight_request_id", id),
   ])
   const nameOf = (q: any) => (rfqs.data ?? []).find((r: any) => String(r.id) === String(q.carrier_quote_request_id) || r.carrier_id === q.carrier_id)?.carriers?.carrier_name ?? q.from_email ?? "Carrier"
@@ -47,7 +47,8 @@ export async function GET(req: NextRequest) {
       currency: q.rate_currency ?? "USD",
       received_at: q.received_at,
       leg_index: q.leg_index == null ? null : Number(q.leg_index),
-      quotations: (qts.data ?? []).filter((x: any) => x.carrier_quote_id === q.id),
+      // a combined quotation (several options in one document) has no price of its own per option: the sold price is entered per option
+      quotations: (qts.data ?? []).filter((x: any) => x.carrier_quote_id === q.id && !(Array.isArray(x.carrier_quote_ids) && x.carrier_quote_ids.length > 1)).map((x: any) => ({ id: x.id, carrier_quote_id: x.carrier_quote_id, quotation_number: x.quotation_number, base_rate_usd: x.base_rate_usd, final_price_usd: x.final_price_usd, markup_type: x.markup_type, markup_amount: x.markup_amount, status: x.status, sent_at: x.sent_at, created_at: x.created_at })),
     }))
 
   const keys = ["outcome", "outcome_at", "outcome_by", "outcome_reason", "outcome_note", "won_carrier_quote_id", "won_quotation_id", "won_carrier_name",

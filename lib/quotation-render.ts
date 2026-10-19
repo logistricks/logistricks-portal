@@ -651,3 +651,72 @@ export function sampleContext(optionsRaw?: unknown): RenderCtx {
 }
 
 export { ALL_VARIABLES, BLOCK_KEYS }
+
+// ── one quotation for several destination options ────────────────────────────
+
+export interface CombinedPart { label: string; destination: string; ctx: RenderCtx }
+
+/**
+ * One customer document for a request with destination options: the shipment is described once, then each option gets its own
+ * route, charges table, total and terms. `parts` are the per-option contexts from buildContext (each already priced with its own markup).
+ */
+export function renderCombined(parts: CombinedPart[], head: { number: string; subject?: string }, optionsRaw?: unknown): RenderedQuotation {
+  const o = normalizeOptions(optionsRaw)
+  const first = parts[0].ctx.values
+  const v = (p: CombinedPart, k: string) => (p.ctx.values[k] ?? "").trim()
+  const dates = parts.map((p) => v(p, "quotation_valid_until")).filter(Boolean)
+  const validUntil = dates[0] ?? ""
+  const subject = head.subject ?? `Quotation ${head.number} — ${parts.map((p) => p.destination).filter(Boolean).join(" or ")}`
+
+  const pairs = (rows: [string, string][]) => rows.filter(([, val]) => val)
+  const common = pairs([
+    ["Commodity", v(parts[0], "cargo_type")],
+    ["Equipment / quantity", [v(parts[0], "equipment"), v(parts[0], "quantity")].filter(Boolean).join(" — ")],
+    ["Weight", v(parts[0], "weight")], ["Volume", v(parts[0], "cbm")], ["Incoterm", v(parts[0], "incoterm")], ["Pickup address", v(parts[0], "pickup_address")],
+  ])
+  const perOption = (p: CombinedPart) => pairs([
+    ["Port of loading", v(p, "pol")], ["Port of discharge", v(p, "pod")], ["Route", v(p, "route")], ["Routing", v(p, "routing")],
+    ["Sailing", v(p, "etd") ? "" : v(p, "sailing_period")], ["Estimated departure", v(p, "etd")], ["Estimated arrival", v(p, "eta")],
+    ["Transit time", v(p, "transit_days") ? `${v(p, "transit_days")} days` : ""], ["Cargo cut-off", v(p, "cut_off_date")], ["Documents cut-off", v(p, "doc_cut_off")],
+  ])
+  const tbl = (rows: [string, string][]) => `<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">${rows.map(([k, val]) => `<tr><td style="width:34%;padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">${esc(k)}</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">${esc(val)}</td></tr>`).join("")}</table>`
+  const h3 = (t: string) => `<h3 style="color:${o.accent_color};margin:18px 0 6px">${esc(t)}</h3>`
+  const meta: [string, string][] = [["Quotation no.", head.number], ["Date", first.quotation_date ?? ""], ["Your reference", first.request_ref ?? ""], ["Valid until", validUntil]]
+
+  const inner = [
+    `<h2 style="color:${o.accent_color};margin:0 0 4px">Quotation — ${parts.length} options</h2>`,
+    `<table cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-size:13px;margin-bottom:14px">${meta.filter(([, val]) => val).map(([k, val]) => `<tr><td style="color:#64748b;padding-right:18px">${esc(k)}</td><td><strong>${esc(val)}</strong></td></tr>`).join("")}</table>`,
+    `<p>Dear ${esc(first.sender_first_name || "Sir/Madam")},</p>`,
+    `<p>Thank you for your enquiry. We are pleased to offer the following ${parts.length} options for your shipment.</p>`,
+    common.length ? h3("Shipment details") + tbl(common) : "",
+    ...parts.map((p) => {
+      const det = perOption(p)
+      const tb = p.ctx.blocks
+      return h3(`${p.label} — ${p.destination}`) + (det.length ? tbl(det) : "") +
+        `<div style="margin-top:10px">${tb.charges_table?.html ?? ""}</div>` +
+        (tb.optional_charges_list?.html ? `<p style="margin:10px 0 2px;font-weight:600">Additional charges (not included above)</p>${tb.optional_charges_list.html}` : "") +
+        (tb.terms_block?.html ? `<p style="margin:10px 0 2px;font-weight:600">Terms &amp; conditions</p>${tb.terms_block.html}` : "")
+    }),
+    `<p>Please let us know which option you would like to proceed with.</p>`,
+    `<p>Best regards,<br>${esc(first.prepared_by ?? "")}<br>${esc(first.company_name ?? "")}<br>${esc(`${first.company_contact_email ?? ""} ${first.company_contact_phone ?? ""}`.trim())}</p>`,
+  ].join("\n")
+
+  const lines = (rows: [string, string][]) => rows.map(([k, val]) => `${k}: ${val}`).join("\n")
+  const text = [
+    `Quotation ${head.number} — ${parts.length} options`, `Date: ${first.quotation_date ?? ""}`, `Your reference: ${first.request_ref ?? ""}`, validUntil ? `Valid until: ${validUntil}` : "", "",
+    `Dear ${first.sender_first_name || "Sir/Madam"},`, "", `Thank you for your enquiry. We are pleased to offer the following ${parts.length} options for your shipment.`, "",
+    common.length ? `Shipment details\n${lines(common)}\n` : "",
+    ...parts.map((p) => `${p.label} — ${p.destination}\n${lines(perOption(p))}\n${p.ctx.blocks.charges_table?.text ?? ""}${p.ctx.blocks.optional_charges_list?.text ? `\nAdditional charges (not included above)\n${p.ctx.blocks.optional_charges_list.text}` : ""}${p.ctx.blocks.terms_block?.text ? `\nTerms & conditions\n${p.ctx.blocks.terms_block.text}` : ""}\n`),
+    "Please let us know which option you would like to proceed with.", "", "Best regards,", first.prepared_by ?? "", first.company_name ?? "",
+  ].filter((x) => x !== undefined).join("\n")
+
+  const html = `<div style="font-family:${o.font_family};font-size:14px;line-height:1.55;color:#1e293b">${inner}</div>`
+  if (o.delivery === "pdf") {
+    const email = o.email_body.trim()
+      ? renderTemplate(o.email_body, parts[0].ctx, "text")
+      : `Dear ${first.sender_first_name || "Sir/Madam"},\n\nPlease find our quotation ${head.number} attached, with ${parts.length} options.\n\nBest regards,\n${first.prepared_by ?? ""}\n${first.company_name ?? ""}`.trim()
+    return { subject, html, text: email, format: "pdf" }
+  }
+  if (o.delivery === "email_text") return { subject, html: null, text, format: "text" }
+  return { subject, html, text, format: "html" }
+}

@@ -385,6 +385,7 @@ export function QuotationBuilder({
   const labels = optionLabels(request as any)
   const split = !!labels && labels.length > 1 && allResponded.some((r) => r.quote!.legIndex != null)
   const [tab, setTab] = useState(0)
+  const combinedTab = split && tab === -1
   const inTab = (q: { legIndex?: number | null }) => !split || q.legIndex == null || q.legIndex === tab
   const responded = useMemo(
     () => allResponded.filter((r) => inTab(r.quote!)),
@@ -474,6 +475,49 @@ export function QuotationBuilder({
     return () => { clearTimeout(timer); ctl.abort() }
   }, [selectedQuoteId, templateId, markupType, markupAmount, showPct, styleOverride, overrides, fxRates, templates.length, request.id])
 
+  // ── one quotation for all options ──
+  type Cmb = { quoteId: number | null; type: "flat" | "percent"; amount: string }
+  const [cmb, setCmb] = useState<Record<number, Cmb>>({})
+  const [cmbPreview, setCmbPreview] = useState<{ generated_subject: string; generated_html: string | null; generated_body: string } | null>(null)
+  const [cmbBusy, setCmbBusy] = useState(false)
+  const candidates = (i: number) => allResponded.filter((r) => r.quote!.legIndex == null || r.quote!.legIndex === i)
+  const cmbOf = (i: number): Cmb => {
+    const c = cmb[i]
+    const list = candidates(i)
+    const id = c?.quoteId && list.some((r) => r.quote!.id === c.quoteId) ? c.quoteId : list[0]?.quote!.id ?? null
+    if (c && id === c.quoteId) return c
+    const saved = id ? markupMap[String(id)] : undefined
+    return { quoteId: id, type: c?.type ?? saved?.markup_type ?? "flat", amount: c?.amount ?? String(saved?.markup_amount ?? 0) }
+  }
+  const cmbParts = (labels ?? []).map((_, i) => cmbOf(i)).filter((c) => c.quoteId)
+  const cmbPrice = (c: Cmb) => {
+    const base = allResponded.find((r) => r.quote!.id === c.quoteId)?.quote?.rateUsd ?? 0
+    const a = Number(c.amount) || 0
+    return Math.round((c.type === "percent" ? base * (1 + a / 100) : base + a) * 100) / 100
+  }
+  const cmbBody = () => ({ freight_request_id: request.id, quotation_template_id: templateId ?? undefined, fx_rates: fxRates, parts: cmbParts.map((c) => ({ carrier_quote_id: c.quoteId, markup_type: c.type, markup_amount: Number(c.amount) || 0 })) })
+  useEffect(() => {
+    if (!combinedTab || cmbParts.length < 2) { setCmbPreview(null); return }
+    const ctl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/quotations/combined", { method: "POST", headers: { "Content-Type": "application/json" }, signal: ctl.signal, body: JSON.stringify({ ...cmbBody(), preview: true }) })
+        setCmbPreview(res.ok ? await res.json() : null)
+      } catch { /* aborted */ }
+    }, 400)
+    return () => { clearTimeout(t); ctl.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combinedTab, JSON.stringify(cmbParts), templateId, request.id])
+  async function handleBuildCombined() {
+    setCmbBusy(true); setError(null)
+    try {
+      const res = await fetch("/api/quotations/combined", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cmbBody()) })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error ?? `Server error ${res.status}`)
+      setQuotations((q) => [d, ...q])
+    } catch (e) { setError((e as Error).message) } finally { setCmbBusy(false) }
+  }
+
   async function handleBuild() {
     if (!selectedRow?.quote || templates.length === 0) return
     setBuilding(true); setError(null)
@@ -507,6 +551,8 @@ export function QuotationBuilder({
     }
   }
 
+  const isCombined = (q: Quotation) => Array.isArray((q as unknown as { carrier_quote_ids?: number[] }).carrier_quote_ids) && ((q as unknown as { carrier_quote_ids: number[] }).carrier_quote_ids.length > 1)
+  const shownQuotation = (q: Quotation) => !split || (combinedTab ? isCombined(q) : !isCombined(q) && inTab(allResponded.find((r) => r.quote!.id === q.carrier_quote_id)?.quote ?? {}))
   const [pdfBusyId, setPdfBusyId] = useState<number | null>(null)
   async function handleCardPdf(q: Quotation) {
     setPdfBusyId(q.id); setError(null)
@@ -571,10 +617,65 @@ export function QuotationBuilder({
               Option {i + 1} · {l || "destination not set"}
             </button>
           ))}
+          <button type="button" onClick={() => setTab(-1)}
+            className="rounded-md border px-3 py-1.5 text-xs font-semibold"
+            style={{ borderColor: tab === -1 ? "var(--brand-accent)" : "var(--card-border)", background: tab === -1 ? "color-mix(in srgb, var(--brand-accent) 10%, transparent)" : "transparent", color: "var(--text-primary)" }}>
+            All options · one quotation
+          </button>
         </div>
       )}
 
-      {responded.length === 0 ? (
+      {combinedTab ? (
+        <div className="ds-card space-y-4 p-5">
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>One quotation listing every option, each with its own carrier quote and markup.</p>
+          {(labels ?? []).map((l, i) => {
+            const c = cmbOf(i)
+            const list = candidates(i)
+            return (
+              <div key={i} className="space-y-2 rounded-lg border p-3" style={{ borderColor: "var(--card-border)" }}>
+                <p className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>Option {i + 1} <span className="font-semibold normal-case tracking-normal" style={{ color: "var(--text-secondary)" }}>· {l || "destination not set"}</span></p>
+                {list.length === 0 ? <p className="text-xs" style={{ color: "var(--text-muted)" }}>No carrier quote for this option yet.</p> : (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
+                    <select value={c.quoteId ?? ""} onChange={(e) => { const id = Number(e.target.value); const sv = markupMap[String(id)]; setCmb((cur) => ({ ...cur, [i]: { quoteId: id, type: sv?.markup_type ?? c.type, amount: String(sv?.markup_amount ?? c.amount) } })) }}
+                      className="lt-select h-9 rounded-md border px-2 text-sm" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
+                      {list.map((r) => <option key={r.quote!.id} value={r.quote!.id}>{quoteOptionLabel(r.carrierName, r.quote!)}</option>)}
+                    </select>
+                    <select value={c.type} onChange={(e) => setCmb((cur) => ({ ...cur, [i]: { ...c, type: e.target.value as "flat" | "percent" } }))}
+                      className="lt-select h-9 rounded-md border px-2 text-sm" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
+                      <option value="flat">Flat ($)</option><option value="percent">Percent (%)</option>
+                    </select>
+                    <input type="number" value={c.amount} onChange={(e) => setCmb((cur) => ({ ...cur, [i]: { ...c, amount: e.target.value } }))}
+                      className="h-9 w-28 rounded-md border px-2 text-sm" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
+                    <span className="self-center text-right text-sm font-black tabular-nums" style={{ color: "var(--text-primary)" }}>${cmbPrice(c).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Quotation Template</label>
+            <select value={templateId ?? ""} onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : null)} className="lt-select h-10 w-full rounded-md border px-3 text-sm" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}>
+              <option value="">Automatic (the default template&apos;s style)</option>
+              {templates.map((t) => <option key={t.template_id} value={t.template_id}>{t.template_name}{t.is_default ? " (Default)" : ""}</option>)}
+            </select>
+          </div>
+          {cmbParts.length < 2 ? (
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>A combined quotation needs a carrier quote for at least two options.</p>
+          ) : cmbPreview && (
+            <div>
+              <p className="mb-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>Subject: <span className="font-semibold">{cmbPreview.generated_subject}</span></p>
+              {cmbPreview.generated_html
+                ? <iframe title="Combined quotation preview" sandbox="" srcDoc={htmlFrame(cmbPreview.generated_html)} className="h-96 w-full rounded-md border bg-white" style={{ borderColor: "var(--card-border)" }} />
+                : <p className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-md border p-3 text-xs" style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)" }}>{cmbPreview.generated_body}</p>}
+            </div>
+          )}
+          <button onClick={handleBuildCombined} disabled={cmbBusy || cmbParts.length < 2 || templates.length === 0}
+            className="inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--brand-accent)" }}>
+            {cmbBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+            Create combined quotation
+          </button>
+        </div>
+      ) : responded.length === 0 ? (
         <div className="rounded border border-dashed px-4 py-6 text-center text-sm" style={{ borderColor: "var(--card-border)", color: "var(--text-muted)" }}>
           {split ? `Waiting for a carrier to respond with a rate for Option ${tab + 1}.` : "Waiting for at least one carrier to respond with a rate before a quotation can be built."}
         </div>
@@ -749,10 +850,10 @@ export function QuotationBuilder({
         </div>
       )}
 
-      {quotations.filter((q) => !split || inTab(allResponded.find((r) => r.quote!.id === q.carrier_quote_id)?.quote ?? {})).length > 0 && (
+      {quotations.filter(shownQuotation).length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Generated Quotations</p>
-          {quotations.filter((q) => !split || inTab(allResponded.find((r) => r.quote!.id === q.carrier_quote_id)?.quote ?? {})).map((q) => (
+          {quotations.filter(shownQuotation).map((q) => (
             <div key={q.id} className="ds-card p-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
