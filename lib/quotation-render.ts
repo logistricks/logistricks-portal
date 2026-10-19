@@ -408,7 +408,7 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     request_ref: r.requestRef ?? "", received_date: r.receivedExact, urgency: r.urgency,
     origin_city: dash(r.originCity), origin_country: dash(r.originCountry), origin,
     destination_city: dash(r.destinationCity), destination_country: dash(r.destinationCountry), destination,
-    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip || (r.shipmentType === "sea_lcl" ? ["LCL", dash(r.cbm), dash(r.weight)].filter(Boolean).join(" · ") : ""), weight: dash(r.weight), quantity: dash(r.quantity),
+    cargo_type: dash(r.cargoType), equipment: dash(r.equipment) || quotedEquip || (r.shipmentType === "sea_lcl" ? ["LCL", dash(r.cbm), dash(r.weight)].filter(Boolean).join(" · ") : ""), weight: dash(r.weight), quantity: /^\s*\d+\s*x\s/i.test(dash(r.equipment) || quotedEquip) ? "" : dash(r.quantity),
     dimensions: dash(r.dimensions), incoterm: dash(r.incoterm), bl_type: dash(r.blType),
     cbm: dash(r.cbm), package_type: dash(r.packageType), truck_type: dash(r.truckType), temperature: dash(r.temperatureControl),
     cargo_ready_date: dash(r.cargoReadyDate),
@@ -484,6 +484,13 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
 
   const opt = optional.map((c) => `${c.carrier_label ?? "Charge"}${num(c.amount) !== null ? ` (${currency} ${money(num(c.amount) as number)})` : ""}${c.inclusion === "excluded" ? " — not included" : c.inclusion === "optional" ? " — optional" : c.inclusion === "at_cost" ? " — at cost" : c.inclusion === "subject_to" ? " — subject to conditions" : ""}`)
   blocks.optional_charges_list = { html: opt.length ? `<ul>${opt.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "", text: opt.map((s) => `- ${s}`).join("\n") }
+
+  // charges the carrier states as included without a price ("THC at destination: included") belong under the table, so the customer sees what the price covers
+  const noPrice = Array.from(new Set(charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) === null && String(c.carrier_label ?? "").trim()).map((c) => String(c.carrier_label).trim())))
+  if (noPrice.length) {
+    const t = `Included in the price: ${noPrice.join(", ")}.`
+    blocks.charges_table = { html: blocks.charges_table.html + `<p style="margin:6px 0 0;font-size:12px;color:#64748b">${esc(t)}</p>`, text: `${blocks.charges_table.text}\n${t}` }
+  }
 
   const sr = r.specialRequirements ?? []
   blocks.special_requirements_list = { html: sr.length ? `<ul>${sr.map((s) => { const p = parseSpecial(s); return `<li>${p.label ? `<strong>${esc(p.label)}:</strong> ${esc(p.value)}` : esc(s)}</li>` }).join("")}</ul>` : "", text: sr.map((s) => `- ${s}`).join("\n") }
