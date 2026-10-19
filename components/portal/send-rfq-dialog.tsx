@@ -22,6 +22,9 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [info, setInfo] = useState<Info | null>(null)
   const defaulted = useRef(false)
+  // The page reloads (and would rebuild this dialog, sending it back to the first step) when told about a send: tell it only on close
+  const didSend = useRef(false)
+  const close = () => { if (didSend.current) onDone(); onClose() }
   const [leg, setLeg] = useState<string>("0") // multi-leg requests: a leg number - 1, or "all" = one email for every leg
   const [templateId, setTemplateId] = useState<string>("")
   const [step, setStep] = useState<"select" | "manual" | "result">("select")
@@ -118,10 +121,10 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
           sent += d.sent; total += d.total; if (d.n8n && !d.n8n.ok) n8n = d.n8n
           results.push(...(d.results as Result[]).map((x) => ({ ...x, carrier_name: `${x.carrier_name} · Option ${l.index + 1}` })))
         }
-        setResult({ method, sent, total, results, n8n }); setStep("result"); onDone(); return
+        setResult({ method, sent, total, results, n8n }); setStep("result"); didSend.current = true; return
       }
       const d = await post(multi ? leg : undefined, method === "manual" ? drafts : undefined)
-      setResult(d); setStep("result"); onDone(); return
+      setResult(d); setStep("result"); didSend.current = true; return
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
 
@@ -138,7 +141,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
               {step === "select" ? "Choose carriers, then how to send" : step === "manual" ? "Review, send from your own mail, then log it" : "Result"}
             </p>
           </div>
-          <button onClick={onClose} aria-label="Close" style={{ color: "var(--text-muted)" }}><X className="h-4 w-4" /></button>
+          <button onClick={close} aria-label="Close" style={{ color: "var(--text-muted)" }}><X className="h-4 w-4" /></button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
@@ -231,6 +234,10 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
 
           {step === "result" && result && (
             <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg px-3 py-3" style={{ background: result.sent === result.total ? "rgb(16 185 129 / 0.12)" : result.sent > 0 ? "rgb(245 158 11 / 0.14)" : "rgb(239 68 68 / 0.1)" }}>
+                {result.sent === result.total ? <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: "#10b981" }} /> : result.sent > 0 ? <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: "#d97706" }} /> : <XCircle className="h-5 w-5 shrink-0" style={{ color: "#ef4444" }} />}
+                <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{result.sent === result.total ? (result.method === "automatic" ? "Sent successfully" : "Logged successfully") : result.results.some((r) => r.status === "pending") && !result.results.some((r) => r.status === "failed") ? "Accepted, confirmation still pending" : result.sent > 0 ? "Only some were sent" : "Not sent"}</p>
+              </div>
               <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
                 {result.method === "automatic" ? "Automatic send" : "Logged manual send"}: {result.sent} of {result.total} carrier{result.total !== 1 ? "s" : ""} {result.method === "automatic" ? "sent" : "logged"}.
               </p>
@@ -271,7 +278,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Log as sent
             </button>
           </>)}
-          {step === "result" && (<><span /><button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={onClose}>Close</button></>)}
+          {step === "result" && (<><span /><button className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }} onClick={close}>Close</button></>)}
         </div>
       </div>
       {confirm && (
