@@ -551,20 +551,15 @@ export default function RequestsPage() {
               const sea = isSeaOnly(r.modes)
               return (
                 <div key={r.id} onClick={() => router.push(`/requests/${r.id}`)} title="Click to open the request"
-                  className={`rq-card ds-card relative cursor-pointer overflow-hidden ${r.aog ? "rq-card-aog" : ""}`}>
-                  <div className="flex items-center justify-between gap-2 px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--card-border)" }}>
+                  className={`rq-card ds-card relative flex cursor-pointer flex-col overflow-hidden text-center ${r.aog ? "rq-card-aog" : ""}`}
+                  style={{ borderRadius: 20, boxShadow: "0 10px 28px -16px rgba(15,30,54,0.35)" }}>
+                  <div className="relative px-4 pb-3 pt-4" style={{ background: "color-mix(in srgb, var(--brand-accent) 7%, var(--card-bg))", borderBottom: "1px solid var(--card-border)" }}>
                     <input type="checkbox" aria-label={`Select ${r.senderName}`} checked={selected.includes(r.id)} onChange={() => {}} onClick={(e) => toggle(r.id, e)}
-                      className="h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
-                    <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</span>
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => setActive(r)} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
-                        className="rq-preview inline-flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "var(--brand-accent)" }}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      <a href={`/requests/${r.id}`} target="_blank" rel="noopener" title="Open full page in a new tab" aria-label="Open full page in a new tab"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
+                      className="absolute left-3.5 top-3.5 h-4 w-4" style={{ accentColor: "var(--brand-accent)" }} />
+                    <p className="font-mono text-[15px] font-extrabold tabular-nums tracking-wide" style={{ color: "var(--text-primary)" }}>{r.requestRef ?? (r.id ? `LT-${r.id}` : "")}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5">
+                      <StatusPill status={r.status} quoteCount={r.activeQuoteCount} />
+                      {r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>{outcomeLabel(r)}</span>}
                     </div>
                   </div>
                   {(() => {
@@ -581,24 +576,26 @@ export default function RequestsPage() {
                     if ((r.specialRequirements?.length ?? 0) > 0) flags.push({ k: "sp", text: `Special · ${r.specialRequirements.length}`, tone: "#2563eb", title: "Show the special requests", onClick: () => setSpecialFor(r) })
                     if (f.low) flags.push({ k: "low", text: "Low conf.", title: "The AI was not confident reading this request" })
                     const cell = (label: string, value: React.ReactNode, cls = "") => (
-                      <div className={`flex items-center justify-between gap-3 px-3.5 py-1.5 ${cls}`}>
-                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
-                        <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-right text-[12.5px] font-semibold" style={{ color: "var(--text-primary)" }}>{value}</span>
+                      <div className={`flex min-w-0 flex-col items-center justify-center gap-0.5 px-3 py-2.5 ${cls}`}>
+                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</span>
+                        <span className="flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>{value}</span>
                       </div>
                     )
-                    const line = "border-t [border-color:var(--card-border)]"
+                    const top = "border-t [border-color:var(--card-border)]"
+                    const left = "border-l [border-color:var(--card-border)]"
                     return (
-                      <div className="grid grid-cols-1">
-                        {cell("Sender", <span className="flex min-w-0 items-center gap-1.5">
-                          {r.source === "WhatsApp" ? <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
-                          <span className="truncate" title={r.source === "WhatsApp" ? r.senderPhone ?? "" : r.senderEmail}>{r.senderName}</span>
+                      <div className="grid flex-1 grid-cols-2">
+                        {cell("Sender", <span className="flex max-w-full flex-col items-center">
+                          <span className="flex max-w-full items-center gap-1.5">
+                            {r.source === "WhatsApp" ? <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#22c55e" }} aria-label="WhatsApp" /> : <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: "#3b82f6" }} aria-label="Email" />}
+                            <span className="truncate">{r.senderName}</span>
+                          </span>
+                          <span className="max-w-full truncate text-[11.5px] font-normal" style={{ color: "var(--text-secondary)" }}>{r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}</span>
                         </span>)}
-                        {cell("Contact", <span className="truncate text-xs font-normal" style={{ color: "var(--text-secondary)" }}>{r.source === "WhatsApp" ? r.senderPhone : r.senderEmail}</span>, line)}
-                        {cell("Route", <span className="whitespace-nowrap">{sea && <span className="mr-1 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}{r.incoterm && <span className="ml-1.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)" }}>{r.incoterm}</span>}</span>, line)}
-                        {cell("Cargo", <span className="truncate">{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</span>, line)}
-                        {cell("Type", r.shipmentType ? TYPE_LABEL[r.shipmentType] : "—", line)}
-                        {cell("Status", <span className="inline-flex flex-wrap items-center justify-end gap-1"><StatusPill status={r.status} quoteCount={r.activeQuoteCount} />{r.outcome && <span title={r.bookingReference ? `Booking ${r.bookingReference}` : undefined} className="text-[11px] font-bold uppercase" style={{ color: r.outcome === "won" ? "#16a34a" : r.outcome === "lost" ? "#ef4444" : "#64748b" }}>{outcomeLabel(r)}</span>}</span>, line)}
-                        {cell("Received", <span title={r.receivedExact} style={{ color: "var(--text-secondary)" }}>{r.receivedRelative}</span>, line)}
+                        {cell("Received", <span title={r.receivedExact} style={{ color: "var(--text-secondary)" }}>{r.receivedRelative}</span>, left)}
+                        {cell("Route", <span className="whitespace-nowrap">{sea && <span className="mr-1 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POL</span>}{r.originFlag} {r.originCity} → {sea && <span className="mr-1 text-[9.5px] font-bold" style={{ color: "var(--text-muted)" }}>POD</span>}{r.destinationFlag} {r.destinationCity}{r.incoterm && <span className="ml-1.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold tracking-wide" style={{ color: "var(--text-muted)", background: "rgb(var(--brand-navy-rgb, 15 23 42) / 0.06)" }}>{r.incoterm}</span>}</span>, `col-span-2 ${top}`)}
+                        {cell("Cargo", <span className="max-w-full truncate">{r.cargoType}{r.equipment ? ` · ${parseArrayField(r.equipment)}` : ""}</span>, top)}
+                        {cell("Type", r.shipmentType ? TYPE_LABEL[r.shipmentType] : "—", `${top} ${left}`)}
                         {cell("Flags", flags.length ? flags.map((fl, i) => {
                           const st = { color: fl.critical ? "#dc2626" : fl.tone ?? "var(--text-secondary)" }
                           return (
@@ -609,10 +606,20 @@ export default function RequestsPage() {
                                 : <span title={fl.title} style={st}>{fl.text}</span>}
                             </span>
                           )
-                        }) : <span style={{ color: "var(--text-muted)" }}>None</span>, line)}
+                        }) : <span style={{ color: "var(--text-muted)" }}>None</span>, `col-span-2 ${top}`)}
                       </div>
                     )
                   })()}
+                  <div className="flex items-center justify-center gap-2 px-4 py-3" style={{ borderTop: "1px solid var(--card-border)", background: "color-mix(in srgb, var(--text-primary) 3%, var(--card-bg))" }} onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setActive(r)} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
+                      className="rq-preview inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-bold shadow-sm" style={{ background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
+                      <Eye className="h-4 w-4" /> Preview
+                    </button>
+                    <a href={`/requests/${r.id}`} target="_blank" rel="noopener" title="Open full page in a new tab" aria-label="Open full page in a new tab"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
                 </div>
               )
             })}
