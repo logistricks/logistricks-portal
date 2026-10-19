@@ -134,6 +134,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
   const [expanded, setExpanded]     = useState<Set<number>>(new Set())
   const [actionBusy, setActionBusy]   = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   async function load() {
     const data = await fetchQuotesForRequest(createClient(), freightRequestId)
@@ -143,6 +144,16 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
   }
 
   useEffect(() => { void load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [freightRequestId])
+
+  async function moveQuote(quoteId: number, value: string) {
+    setMoveError(null)
+    const res = await fetch("/api/carrier-quotes/move", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quote_id: quoteId, leg_index: value === "" ? null : Number(value) }),
+    })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setMoveError(d.error ?? `Server error ${res.status}`); return }
+    await load(); onChanged?.()
+  }
 
   async function runAction() {
     if (!pending) return
@@ -407,6 +418,19 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                     <LinkedByBadge quote={row.quote} />
                     <div className="flex flex-wrap items-center gap-1.5">
+                      {options && options.length > 1 && (
+                        <select
+                          disabled={locked}
+                          value={row.quote.legIndex == null ? "" : String(row.quote.legIndex)}
+                          onChange={(e) => void moveQuote(row.quote!.id, e.target.value)}
+                          title="Which destination option this quote is for"
+                          className="lt-select h-7 rounded border px-2 text-[11px] font-semibold disabled:opacity-40"
+                          style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}
+                        >
+                          <option value="">All options</option>
+                          {options.map((l, i) => <option key={i} value={i}>Option {i + 1} · {l || "destination not set"}</option>)}
+                        </select>
+                      )}
                       <button
                         type="button"
                         disabled={locked}
@@ -479,6 +503,8 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
         <span className="text-[#CBD5E1]">·</span>
         <span>{rows.filter((r) => r.status === "sent").length} pending</span>
       </div>
+
+      {moveError && <p className="text-xs font-semibold text-red-600">{moveError}</p>}
 
       {options && options.length > 1 ? (
         <div className="space-y-5">

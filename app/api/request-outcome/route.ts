@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     }))
 
   const keys = ["outcome", "outcome_at", "outcome_by", "outcome_reason", "outcome_note", "won_carrier_quote_id", "won_quotation_id", "won_carrier_name",
-    "won_cost_usd", "won_sell_usd", "won_margin_usd", "booking_reference", "booking_description", "booked_at", "invoiced_at", "paid_at"]
+    "won_cost_usd", "won_sell_usd", "won_margin_usd", "booking_reference", "booking_description", "booked_at", "invoiced_at", "paid_at", "won_options"]
   const saved: Record<string, unknown> = {}
   for (const k of keys) saved[k] = (fr as any)[k] ?? null
   const option_labels = optionDestinations(fr as Record<string, any>)
@@ -83,7 +83,54 @@ export async function POST(req: NextRequest) {
   }
   if (patch.outcome_at === undefined) delete patch.outcome_at
 
-  if (outcome === "won") {
+  // several destination options won: one record per option, the usual columns hold the totals
+  if ("won_options" in b) {
+    const list: any[] = outcome === "won" && Array.isArray(b.won_options) ? b.won_options : []
+    const entries: Record<string, unknown>[] = []
+    for (const w of list.slice(0, 20)) {
+      const cqId = Number(w?.carrier_quote_id) || null
+      if (!cqId) continue
+      const { data: q } = await admin.from("carrier_quotes").select("*").eq("id", cqId).eq("freight_request_id", fr.id).maybeSingle()
+      if (!q) return NextResponse.json({ error: "That carrier quote does not belong to this request." }, { status: 400 })
+      const { data: rfq } = await admin.from("carrier_quote_requests").select("carriers ( carrier_name )").eq("freight_request_id", fr.id).or(`id.eq.${(q as any).carrier_quote_request_id ?? 0},carrier_id.eq.${(q as any).carrier_id ?? 0}`).limit(1).maybeSingle()
+      const cost = carrierBase(q as Record<string, any>) || null
+      let sell: number | null = null
+      let qtId: number | null = null
+      const qtWanted = Number(w?.quotation_id) || null
+      if (qtWanted) {
+        const { data: qt } = await admin.from("quotations").select("id, final_price_usd, carrier_quote_id").eq("id", qtWanted).eq("freight_request_id", fr.id).maybeSingle()
+        if (qt && qt.carrier_quote_id === cqId) { qtId = qt.id; sell = qt.final_price_usd != null ? Number(qt.final_price_usd) : null }
+      }
+      const typed = w?.sell_usd === null || w?.sell_usd === "" || w?.sell_usd === undefined ? null : Number(w.sell_usd)
+      if (typed != null && Number.isFinite(typed) && typed >= 0) sell = r2(typed)
+      const booked = w?.booked === true
+      if (booked && !txt(w?.booking_reference, 120)) return NextResponse.json({ error: "A booked option needs its booking reference." }, { status: 400 })
+      const now = new Date().toISOString()
+      const bookedAt = booked ? (isoOrNull(w?.booked_at) ?? now) : null
+      const paidAt = w?.paid === true ? (isoOrNull(w?.paid_at) ?? now) : null
+      const invoicedAt = w?.invoiced === true || paidAt ? (isoOrNull(w?.invoiced_at) ?? paidAt ?? now) : null
+      entries.push({
+        carrier_quote_id: cqId, quotation_id: qtId, leg_index: (q as any).leg_index == null ? null : Number((q as any).leg_index),
+        carrier_name: (rfq as any)?.carriers?.carrier_name ?? null, cost_usd: cost, sell_usd: sell, margin_usd: sell != null && cost != null ? r2(sell - cost) : null,
+        booking_reference: booked ? txt(w?.booking_reference, 120) : null, booking_description: booked ? txt(w?.booking_description, 1000) : null,
+        booked_at: bookedAt, invoiced_at: invoicedAt, paid_at: paidAt,
+      })
+    }
+    if (outcome === "won" && entries.length === 0) return NextResponse.json({ error: "Choose at least one winning carrier quote." }, { status: 400 })
+    patch.won_options = entries.length ? entries : null
+    if (entries.length) {
+      const sum = (k: string) => { const v = entries.map((e) => e[k]).filter((x): x is number => typeof x === "number"); return v.length ? r2(v.reduce((a, c) => a + c, 0)) : null }
+      const all = (k: string) => entries.every((e) => e[k]) ? entries.map((e) => String(e[k])).sort().slice(-1)[0] : null
+      const joined = (k: string, max: number) => { const v = entries.map((e) => e[k]).filter(Boolean); return v.length ? String(v.join(" · ")).slice(0, max) : null }
+      patch.won_carrier_quote_id = entries[0].carrier_quote_id
+      patch.won_quotation_id = entries[0].quotation_id
+      patch.won_carrier_name = Array.from(new Set(entries.map((e) => e.carrier_name).filter(Boolean))).join(" · ") || null
+      patch.won_cost_usd = sum("cost_usd"); patch.won_sell_usd = sum("sell_usd")
+      patch.won_margin_usd = patch.won_cost_usd != null && patch.won_sell_usd != null ? r2((patch.won_sell_usd as number) - (patch.won_cost_usd as number)) : null
+      patch.booking_reference = joined("booking_reference", 120); patch.booking_description = joined("booking_description", 1000)
+      patch.booked_at = all("booked_at"); patch.invoiced_at = all("invoiced_at"); patch.paid_at = all("paid_at")
+    }
+  } else if (outcome === "won") {
     const cqId = Number(b.won_carrier_quote_id) || null
     if (cqId) {
       const { data: q } = await admin.from("carrier_quotes").select("*").eq("id", cqId).eq("freight_request_id", fr.id).maybeSingle()
@@ -121,7 +168,7 @@ export async function POST(req: NextRequest) {
   const { error } = await admin.from("freight_requests").update(patch).eq("id", fr.id)
   if (error) {
     const missing = /outcome|won_|booking_|invoiced_at|paid_at/.test(error.message) && /column|schema/i.test(error.message)
-    return NextResponse.json({ error: missing ? "Run migration 057 in Supabase first." : error.message }, { status: missing ? 409 : 500 })
+    return NextResponse.json({ error: missing ? (/won_options/.test(error.message) ? "Run migration 080 (won_options) in Supabase first." : "Run migration 057 in Supabase first.") : error.message }, { status: missing ? 409 : 500 })
   }
   await logActivity({
     clientCode: s.session.clientCode, eventType: "request_outcome", actor: s.session.username, requestId: fr.id,
