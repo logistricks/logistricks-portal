@@ -72,6 +72,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     templates: tpls.map((t) => ({ template_id: t.template_id, template_name: t.template_name, is_default: !!t.is_default, default_sea: !!t.default_sea, default_air: !!t.default_air, default_land: !!t.default_land, default_multi: !!t.default_multi })),
     default_template_id: defaultTemplateFor(tpls, tplModes)?.template_id ?? null,
   }
+  // RFQs already sent for this request (any way: automatic, manual, or logged), so the dialog can flag carriers that already got one
+  try {
+    const { data: sent } = await admin.from("carrier_quote_requests").select("carrier_id, leg_index, sent_at, status").eq("freight_request_id", id)
+    const pks = Array.from(new Set((sent ?? []).map((r: any) => r.carrier_id)))
+    const { data: cs } = pks.length ? await admin.from("carriers").select("id, carrier_id").in("id", pks) : { data: [] as any[] }
+    const logical = new Map((cs ?? []).map((c: any) => [c.id, c.carrier_id]))
+    out.already_sent = (sent ?? []).filter((r: any) => logical.has(r.carrier_id)).map((r: any) => ({ carrier_id: logical.get(r.carrier_id), leg_index: r.leg_index ?? null, sent_at: r.sent_at ?? null }))
+  } catch { out.already_sent = [] }
   const carrierIds = ids(req.nextUrl.searchParams.get("carrier_ids"))
   if (carrierIds.length) {
     const wanted = Number(req.nextUrl.searchParams.get("template_id"))

@@ -11,7 +11,7 @@ import { MissingFieldsConfirm, fetchReadiness, type Readiness } from "@/componen
 type Draft = { carrier_id: number; carrier_name: string; to: string; cc: string[]; subject: string; body: string; leg?: number }
 type Result = { carrier_id: number; carrier_name: string; email: string; status: "sent" | "failed" | "pending"; error?: string | null }
 type LegInfo = { index: number; label: string; modes: string[]; origin_country: string; destination_country: string }
-type Info = { options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
+type Info = { already_sent?: { carrier_id: number; leg_index: number | null; sent_at: string | null }[]; options?: boolean; options_mode?: "separate" | "one" | null; legs?: LegInfo[]; missing_required?: string[] | null; smtp: { configured: boolean; enabled: boolean }; n8n: boolean; default_template_id?: number | null; templates: { template_id: number; template_name: string; is_default: boolean; default_sea?: boolean; default_air?: boolean; default_land?: boolean; default_multi?: boolean }[] }
 
 const btn = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 const field = { border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" } as const
@@ -53,7 +53,17 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
   }, [leg, legs, modes, originCountry, destinationCountry])
   const carriers = useMemo(() => rankCarriers(groupCarrierRows(rows).filter((c) => c.email), scope), [rows, scope])
   // pre-tick the suggested carriers so the common case is one click
-  useEffect(() => { setSelected(new Set(carriers.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id))) }, [carriers])
+  // carriers that already got a request for what is being sent now (this option, or the whole request) are flagged and not pre-ticked
+  const alreadySent = (carrierId: number) => (info?.already_sent ?? []).filter((r) => r.carrier_id === carrierId && (leg === "all" || r.leg_index == null || Number(r.leg_index) === Number(leg)))
+  useEffect(() => { setSelected(new Set(carriers.filter((x) => x.match.suggested && alreadySent(x.carrier.carrier_id).length === 0).map((x) => x.carrier.carrier_id))) }, [carriers, info]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sentLabel = (carrierId: number) => {
+    const rs = alreadySent(carrierId)
+    if (!rs.length) return null
+    const last = rs.map((r) => r.sent_at).filter(Boolean).sort().pop()
+    const what = multi ? (leg === "all" ? "" : rs.some((r) => r.leg_index == null) ? " (whole request)" : "") : ""
+    const when = last ? new Date(last).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""
+    return `Already sent${options && leg !== "all" ? ` for Option ${Number(leg) + 1}` : ""}${what}${when ? ` · ${when}` : ""}`
+  }
 
   const ids = useMemo(() => Array.from(selected), [selected])
   const suggestedIds = useMemo(() => carriers.filter((x) => x.match.suggested).map((x) => x.carrier.carrier_id), [carriers])
@@ -168,6 +178,7 @@ export function SendRfqDialog({ requestId, modes, originCountry, destinationCoun
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{c.carrier_name}{c.person_name ? <span className="font-normal" style={{ color: "var(--text-muted)" }}> — {c.person_name}</span> : null}<FitTag match={match} /></p>
                             <p className="truncate text-[11px]" style={{ color: "var(--text-muted)" }}>{c.email} · {fitHint(match)}</p>
+                            {sentLabel(c.carrier_id) && <p className="text-[11px] font-semibold" style={{ color: "#b45309" }}>{sentLabel(c.carrier_id)}. Tick it only to send again.</p>}
                           </div>
                         </label>
                       </li>
