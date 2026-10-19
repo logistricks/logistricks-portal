@@ -23,6 +23,7 @@ export const STARTER_HTML = `<h2 style="color:#0D1B2A;margin:0 0 4px">Quotation{
 {{#if cbm}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Volume</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{cbm}}</td></tr>{{/if}}
 <tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Incoterm</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{incoterm}}</td></tr>
 {{#if pickup_address}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Pickup address</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pickup_address}}</td></tr>{{/if}}
+{{#if sailing_period}}{{#unless etd}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Sailing</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{sailing_period}}</td></tr>{{/unless}}{{/if}}
 {{#if etd}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Estimated departure</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{etd}}</td></tr>{{/if}}
 {{#if eta}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Estimated arrival</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{eta}}</td></tr>{{/if}}
 {{#if transit_days}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Transit time</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{transit_days}} days</td></tr>{{/if}}

@@ -373,6 +373,10 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const space = q.space_confirmed === true ? "Space confirmed" : q.space_confirmed === false ? "Subject to space availability" : status
   const markupStr = input.markupType === "percent" ? `${input.markupAmount}%` : money(input.markupAmount)
   const markupAmt = input.markupType === "percent" ? round2(input.baseRate * input.markupAmount / 100) : input.markupAmount
+  // "Sailing: October." in the carrier notes (the extraction puts a stated sailing month there) is a shipment detail, not a note
+  const sailMatch = String(q.notes ?? "").match(/(?:^|\s)Sailing:\s*([^.]+)\./i)
+  const sailing = sailMatch ? sailMatch[1].trim() : ""
+  const notesNoSail = sailMatch ? String(q.notes).replace(sailMatch[0], " ").trim() : q.notes
   const freeDays = q.free_days != null ? String(q.free_days) : ""
 
   // What the carrier actually quoted wins over what was asked (a request can say "Air" while the carrier quotes a 40GP container).
@@ -444,12 +448,15 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     required_documents: q.required_documents ?? "", liability_limit: q.liability_limit ?? "",
     cancellation_terms: q.cancellation_terms ?? "",
     insurance_note: q.insurance_offered === true ? "Insurance available" : q.insurance_offered === false ? "Insurance not included" : "",
-    quote_notes: cleanCarrierText(q.notes, input.carrierName, input.baseRate > 0 ? finalPrice / input.baseRate : 1),
+    sailing_period: sailing,
+    quote_notes: cleanCarrierText(notesNoSail, input.carrierName, input.baseRate > 0 ? finalPrice / input.baseRate : 1),
   }
 
   // blocks
   const blocks: Record<string, Block> = {}
-  const totalLabel = `Total (${currency})`
+  // charges the carrier states as included without a price ("THC at destination: included") make the price all-in
+  const noPrice = Array.from(new Set(charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) === null && String(c.carrier_label ?? "").trim()).map((c) => String(c.carrier_label).trim())))
+  const totalLabel = noPrice.length ? `Total all-in (${currency})` : `Total (${currency})`
 
   const summaryRows = [[`Total freight charges${v.route ? ` — ${v.route}` : ""}`, money(finalPrice)]]
   blocks.summary_table = {
@@ -488,7 +495,6 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   blocks.optional_charges_list = { html: opt.length ? `<ul>${opt.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : "", text: opt.map((s) => `- ${s}`).join("\n") }
 
   // charges the carrier states as included without a price ("THC at destination: included") belong under the table, so the customer sees what the price covers
-  const noPrice = Array.from(new Set(charges.filter((c) => (c.inclusion ?? "included") === "included" && num(c.amount) === null && String(c.carrier_label ?? "").trim()).map((c) => String(c.carrier_label).trim())))
   if (noPrice.length) {
     const t = `Included in the price: ${noPrice.join(", ")}.`
     blocks.charges_table = { html: blocks.charges_table.html + `<p style="margin:6px 0 0;font-size:12px;color:#64748b">${esc(t)}</p>`, text: `${blocks.charges_table.text}\n${t}` }

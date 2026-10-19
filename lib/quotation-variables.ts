@@ -90,6 +90,7 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
       { key: "transit_days", label: "Transit time (days)", example: "19" },
       { key: "cut_off_date", label: "Cargo cut-off (sea / air)", example: "23 Oct 2026" },
       { key: "doc_cut_off", label: "Documents cut-off", example: "22 Oct 2026" },
+      { key: "sailing_period", label: "Sailing period", example: "October", note: "The sailing month the carrier stated when no exact departure date was given." },
       { key: "routing", label: "Routing / transhipment", example: "via Port Said", note: "Blank for direct services or when the carrier gave no routing." },
       { key: "frequency", label: "Sailing / flight frequency", example: "Weekly" },
       { key: "space_status", label: "Space / equipment status", example: "Subject to equipment availability" },
