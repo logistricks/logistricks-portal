@@ -264,8 +264,10 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
   const vals = tab === 0 ? first : legVals(tab)
   const curType = legType(tab)
   const allRows = buildRows(curType, vals, { first: tab === 0 }, crit)
-  // an option's cargo is leg 1's: only its route is edited here
+  // an option's cargo is leg 1's: only its route is edited here; the cargo is shown in full below, read-only
+  const INHERITED: FieldGroup[] = ["Cargo", "Measurements", "Conditions"]
   const rows = isAlt(tab) ? { ...allRows, Cargo: [], Measurements: [], Conditions: [] } : allRows
+  const inheritedRows = isAlt(tab) ? ({ ...Object.fromEntries(Object.keys(allRows).map((g) => [g, []])), ...Object.fromEntries(INHERITED.map((g) => [g, allRows[g] ?? []])) } as Record<FieldGroup, RowSpec[]>) : null
   const saveFirst = async (fields: Record<string, string>) => {
     try { return (await fetch("/api/requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: request.id, fields }) })).ok } catch { return false }
   }
@@ -346,9 +348,6 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
           </div>
         )}
       </div>
-      {optMode && tab > 0 && (
-        <p className="mx-5 mt-2 text-center text-[11.5px]" style={{ color: "var(--text-muted)" }}>Same cargo as Option 1. Only the route can differ.</p>
-      )}
       {legs.length > 0 && missing.length > 0 && (
         <p className="mx-5 mt-2 rounded-lg px-3 py-2 text-center text-xs font-semibold" style={{ background: "rgba(245,158,11,0.1)", color: "#b45309" }}>
           Needed to quote: {missing.join(", ")}
@@ -359,9 +358,12 @@ export function TypedCargoDetails({ request, type, lockReason, lockBadge, banner
         key={tab} rows={rows} vals={vals} lockReason={lockReason} save={tab === 0 ? saveFirst : saveLeg}
         onSaved={(v) => { if (tab === 0) setEdits((p) => ({ ...p, ...v })); else setLegEdits((p) => ({ ...p, [tab]: { ...(p[tab] ?? {}), ...v } })); onFieldSaved?.() }}
       />
+      {inheritedRows && (
+        <GroupedRows key={`inh${tab}`} rows={inheritedRows} vals={vals} lockReason="Same cargo as Option 1. Change it on Option 1." save={async () => false} onSaved={() => {}} />
+      )}
       {tab > 0 && !locked && (
         <div className="px-5 pb-4 text-center">
-          <button type="button" onClick={() => setKind(!isAlt(tab))} disabled={busy} className="mr-4 text-[11.5px] font-semibold underline disabled:opacity-50" style={{ color: "var(--text-secondary)" }}>{isAlt(tab) ? "This is a further leg, not an option" : "This is an alternative destination, not a further leg"}</button>
+          {!isAlt(tab) && <button type="button" onClick={() => setKind(true)} disabled={busy} className="mr-4 text-[11.5px] font-semibold underline disabled:opacity-50" style={{ color: "var(--text-secondary)" }}>This is an alternative destination, not a further leg</button>}
           <button type="button" onClick={removeLeg} disabled={busy} className="text-[11.5px] font-semibold underline disabled:opacity-50" style={{ color: "#ef4444" }}>Remove this {optMode ? "option" : "leg"}</button>
         </div>
       )}
