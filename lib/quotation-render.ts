@@ -398,8 +398,10 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     const first = n.split(" ")[0]
     return inlandNames.some((i) => i.includes(n) || n.includes(i) || (first.length >= 4 && i.split(" ").includes(first)))
   }
-  const pol = seaShip ? ((op && !isInland(op) ? op : "") || dash(r.originCity)) : ""
-  const pod = seaShip ? ((dp && !isInland(dp) ? dp : "") || dash(r.destinationCity)) : ""
+  // a port reads the same on both sides: "Aqaba", not "Aqaba, Jordan" next to a bare "Pasir Gudang"
+  const bare = (place: string, country: string) => { const c = dash(country).trim().toLowerCase(); const m = place.match(/^(.*?),\s*([^,]+)$/); return m && c && m[2].trim().toLowerCase() === c ? m[1].trim() : place }
+  const pol = seaShip ? bare((op && !isInland(op) ? op : "") || dash(r.originCity), r.originCountry) : ""
+  const pod = seaShip ? bare((dp && !isInland(dp) ? dp : "") || dash(r.destinationCity), r.destinationCountry) : ""
   const pickup = String(q.pickup_address || r.pickupAddress || "").trim()
 
   const v: Record<string, string> = {
