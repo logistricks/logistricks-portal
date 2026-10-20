@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { adminSession } from "@/lib/trial-admin"
-import { DEFAULT_PROMPTS, PROMPT_KEYS, PROMPT_META, loadPrompts, type PromptKey } from "@/lib/trial-gen"
+import { DEFAULT_PROMPTS, aiConfigured, PROMPT_KEYS, PROMPT_META, loadPrompts, type PromptKey } from "@/lib/trial-gen"
 
 export const runtime = "nodejs"
 const isKey = (k: unknown): k is PromptKey => (PROMPT_KEYS as readonly string[]).includes(String(k))
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   if (!adminSession(req)) return NextResponse.json({ error: "Not signed in" }, { status: 401 })
   const cur = await loadPrompts(adminClient())
   return NextResponse.json({
-    configured: !!process.env.GEMINI_API_KEY,
+    configured: aiConfigured(),
     prompts: PROMPT_KEYS.map((k) => ({ key: k, ...PROMPT_META[k], body: cur[k].body, custom: cur[k].custom, default: DEFAULT_PROMPTS[k] })),
   })
 }

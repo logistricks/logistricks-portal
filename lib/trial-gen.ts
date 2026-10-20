@@ -71,7 +71,25 @@ export async function loadPrompts(admin: any): Promise<Record<PromptKey, { body:
 
 const fill = (t: string, vars: Record<string, string>) => t.replace(/\{\{(\w+)\}\}/g, (_m, k) => (k in vars ? vars[k] : ""))
 
+/**
+ * Asks Gemini through n8n (workflow "41 · Trial · AI writer"), so the Gemini key lives in one place only.
+ * Without N8N_TRIAL_GENERATE_WEBHOOK_URL it falls back to GEMINI_API_KEY directly.
+ */
+export const aiConfigured = () => !!(process.env.N8N_TRIAL_GENERATE_WEBHOOK_URL || process.env.GEMINI_API_KEY)
 async function gemini(prompt: string, schema: unknown, temperature: number): Promise<any> {
+  const hook = process.env.N8N_TRIAL_GENERATE_WEBHOOK_URL
+  if (hook) {
+    const r = await fetch(hook, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Portal-Secret": process.env.PORTAL_WEBHOOK_SECRET ?? "" },
+      body: JSON.stringify({ prompt, schema, temperature }), signal: AbortSignal.timeout(60_000),
+    })
+    const j: any = await r.json().catch(() => ({}))
+    if (!r.ok || !j?.ok || j.ai == null) {
+      console.error("[trial-gen] n8n writer", r.status, JSON.stringify(j).slice(0, 400))
+      throw new Error("n8n_" + r.status)
+    }
+    return typeof j.ai === "string" ? JSON.parse(String(j.ai).replace(/```json|```/g, "").trim()) : j.ai
+  }
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error("not_configured")
   const model = process.env.TRIAL_GEMINI_MODEL || "gemini-3.6-flash"

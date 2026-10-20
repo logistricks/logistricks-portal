@@ -1,0 +1,238 @@
+{
+  "name": "41 · Trial · AI writer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trial-generate",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "511511b2-e241-44a9-94e2-bdc21e65cb18",
+      "name": "Receive writer request",
+      "webhookId": "e5d3dd27-b9b6-4e37-a66b-e84651fdf7a5",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kfR2UwMkFKF0lC46",
+          "name": "Portal secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json\nconst b = item.body || item\nconst prompt = String(b.prompt || '')\nif (prompt.length < 40 || prompt.length > 12000) return [{ json: { bad_request: 'prompt is required' } }]\nconst schema = b.schema && typeof b.schema === 'object' ? b.schema : null\n// the shared Gemini workflow answers with the same settings every time, so a random line keeps the examples different\nconst seed = Math.random().toString(36).slice(2, 8)\nreturn [{ json: { system: 'Follow the instructions in the message. Return JSON only.', schema, parts: [{ text: prompt + '\\n\\nVariation code (ignore it, never mention it): ' + seed }] } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "098725ad-c662-48ed-99dc-5d3234ed4731",
+      "name": "Prepare"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "daa6d7a5-aa63-408b-bd39-50ddcf0003d9",
+              "leftValue": "={{ !$json.bad_request }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        208
+      ],
+      "id": "1b66e13a-a8df-4eef-b026-165054bb6aef",
+      "name": "Request is valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.bad_request } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        64
+      ],
+      "id": "67a43d25-3a2a-430f-8c33-ef0061f3b081",
+      "name": "Reject bad request"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Ul5O6vuYKGIoD6vU",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Ul5O6vuYKGIoD6vU",
+          "cachedResultName": "00 · Shared · Gemini call"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        304
+      ],
+      "id": "717a5e84-658d-45bf-9dc2-cf3ea9d6cf27",
+      "name": "Write with Gemini"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, ai: $input.first().json.ai } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        304
+      ],
+      "id": "edf70b98-5a6c-4e3c-81f9-45811545750c",
+      "name": "Shape answer"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        304
+      ],
+      "id": "92a8f80f-c5bb-4bb7-9cab-d79cf2e8e0b7",
+      "name": "Answer"
+    },
+    {
+      "parameters": {
+        "content": "41 · Trial · AI writer\n\nUsed by the portal's trial page for 'Generate with AI' (/webhook/trial-generate).\nTakes a prompt (and an optional schema) and returns Gemini's JSON answer. Nothing is saved.\n\nChecks the 'Portal secret' header on the webhook itself.\nGemini work is done by '00 · Shared · Gemini call', so the Gemini key lives only in n8n.\nRebuild from the repo: n8n/trial/build-41.js",
+        "height": 170,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8c1fa828-19d0-480d-9d71-eeb131b56727",
+      "name": "Read me"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive writer request": {
+      "main": [
+        [
+          {
+            "node": "Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare": {
+      "main": [
+        [
+          {
+            "node": "Request is valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request is valid?": {
+      "main": [
+        [
+          {
+            "node": "Write with Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject bad request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write with Gemini": {
+      "main": [
+        [
+          {
+            "node": "Shape answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape answer": {
+      "main": [
+        [
+          {
+            "node": "Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

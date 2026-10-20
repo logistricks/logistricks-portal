@@ -14,3 +14,7 @@ The step 1 prompt is copied from workflow 20 (`node-build-extraction.js`): when 
 Then `node build-40.js` and import the JSON over workflow 40 in n8n.
 
 The portal turns the answer into what the page shows in `buildRequestView` (`lib/trial-server.ts`): required fields come from `lib/shipment-types.ts`, so the "missing" list matches the portal.
+
+## AI writer (Generate with AI)
+`41 · Trial · AI writer` (`41-trial-ai-writer.json`, `POST /webhook/trial-generate`) writes the sample emails and carrier replies and checks the keywords. It calls `00 · Shared · Gemini call`, so the Gemini key lives only in n8n.
+Set `N8N_TRIAL_GENERATE_WEBHOOK_URL` in Vercel to its production URL (without it the portal falls back to `GEMINI_API_KEY`). The shared workflow runs at its own fixed temperature, so the portal adds a random variation code to each prompt to keep the examples different.
