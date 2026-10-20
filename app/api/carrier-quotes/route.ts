@@ -149,6 +149,8 @@ export async function POST(req: NextRequest) {
   // carrier_quote_requests.carrier_id and carrier_quotes.carrier_id both point at
   // carriers.id, NOT at the per-client logical carrier_id the caller sends.
   let carrierPk: number | null = null
+  // carriers that share the sender's address (the same person can quote for several carrier setups)
+  let sameEmailPks: number[] = []
 
   if (body.carrier_id != null) {
     const { data } = await admin
@@ -168,10 +170,11 @@ export async function POST(req: NextRequest) {
       .select("id, email")
       .eq("client_code", client_code)
       .eq("is_cc", false)
-    const hit = (carrierList ?? []).find(
+    const hits = (carrierList ?? []).filter(
       (c: { id: number; email: string | null }) => (c.email ?? "").trim().toLowerCase() === wanted,
     )
-    carrierPk = hit?.id ?? null
+    sameEmailPks = hits.map((c: { id: number }) => c.id)
+    carrierPk = hits[0]?.id ?? null
   }
 
   // Not an exact contact address: a carrier on the same company domain counts too
@@ -202,6 +205,22 @@ export async function POST(req: NextRequest) {
       .eq("request_ref", body.request_ref.trim().toUpperCase())
       .maybeSingle()
     if (fr) { freightRequestId = fr.id; requestFound = true }
+  }
+
+  // Several carriers share the sender's address: the address alone cannot say which one is answering. The RFQ we sent says it:
+  // by the email thread, else by the request (the one that was asked and has not answered yet, newest first).
+  if (!match && sameEmailPks.length > 1) {
+    let pick: number | null = null
+    if (body.email_thread_id) {
+      const { data } = await admin.from("carrier_quote_requests").select("carrier_id").eq("email_thread_id", body.email_thread_id as string).in("carrier_id", sameEmailPks).limit(1).maybeSingle()
+      pick = data?.carrier_id ?? null
+    }
+    if (!pick && freightRequestId) {
+      const { data } = await admin.from("carrier_quote_requests").select("carrier_id, sent_at, carrier_quotes ( id )").eq("freight_request_id", freightRequestId).in("carrier_id", sameEmailPks).order("sent_at", { ascending: false })
+      const rows = (data ?? []) as any[]
+      pick = (rows.find((r) => !(r.carrier_quotes ?? []).length) ?? rows[0])?.carrier_id ?? null
+    }
+    if (pick) carrierPk = pick
   }
 
   // The request is known (chosen by hand or named in the email) but the sender is not: take the one carrier still owing a quote on it
