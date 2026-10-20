@@ -196,7 +196,7 @@ export function NotificationTemplatesPanel({ onOpenSmtp, groups: showGroups = DE
   useEffect(() => {
     if (view === "edit" && editorRef.current) editorRef.current.innerHTML = draft.html
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view])
+  }, [view, loading])
 
   const readEditor = useCallback(() => {
     if (view === "edit" && editorRef.current) { const v = editorRef.current.innerHTML; setDraft((d) => ({ ...d, html: v })); return v }
@@ -312,6 +312,7 @@ export function NotificationTemplatesPanel({ onOpenSmtp, groups: showGroups = DE
   async function reset() {
     if (!window.confirm("Replace this email with the built-in default? Your changes to it will be lost.")) return
     setError(null); setNotice(null)
+    if (!rows[selected]) { open(selected, rows); setNotice("Back to the default."); return }
     const res = await fetch(`/api/notification-templates?event_key=${selected}`, { method: "DELETE" })
     if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "Couldn't reset."); return }
     const map = (await load()) ?? {}
@@ -434,7 +435,7 @@ export function NotificationTemplatesPanel({ onOpenSmtp, groups: showGroups = DE
                     </button>
                   ))}
                 </div>
-                {isCustom && canEdit && (
+                {canEdit && (
                   <button type="button" onClick={reset} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
                     <RotateCcw className="h-3.5 w-3.5" /> Back to default
                   </button>
