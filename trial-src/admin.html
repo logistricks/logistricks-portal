@@ -341,8 +341,9 @@ tr.dt>td{background:var(--surface2);padding:18px}
 .st.Active{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
 .sub2{font-size:12px;color:var(--muted);margin-top:3px}
 [hidden]{display:none!important}
+#loginBox[hidden]{display:none!important}
 </style></head><body>
-<div id="loginBox" style="min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,var(--navy),var(--navy2) 60%,var(--navy3))">
+<div id="loginBox" hidden style="min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,var(--navy),var(--navy2) 60%,var(--navy3))">
   <form class="card" id="lf" style="width:min(400px,100%);display:grid;gap:4px">
     <svg width="40" height="40" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#E8821A"/><path d="M6 19c4 0 4-10 8-10s4 10 8 10" stroke="#0F1E36" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="19" r="2" fill="#0F1E36"/><circle cx="22" cy="19" r="2" fill="#0F1E36"/></svg>
     <h1 style="font-size:24px;margin:12px 0 2px">Trial console</h1><p class="hint" style="margin-bottom:12px">Owner sign-in.</p>
@@ -415,7 +416,7 @@ function detailHtml(l){
 }
 function load(){return api("/api/trial-admin/leads").then(function(r){
   if(r.status===401){$("#app").hidden=true;$("#loginBox").hidden=false;return}
-  if(!r.ok){$("#ge").textContent=r.json.error||"Could not load.";return}
+  if(!r.ok){$("#app").hidden=false;$("#ge").textContent=r.json.error||"Could not load.";return}
   $("#ge").textContent="";data=r.json;$("#loginBox").hidden=true;$("#app").hidden=false;draw();
 })}
 function draw(){
