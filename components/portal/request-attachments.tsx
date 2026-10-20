@@ -9,17 +9,17 @@ const size = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b
 export function RequestAttachments({ requestId, files }: { requestId: string; files: RequestAttachment[] }) {
   if (!files.length) return null
   return (
-    <div className="ds-card p-5">
+    <div className="ds-card min-w-0 overflow-hidden p-5">
       <div className="flex items-center gap-2">
         <Paperclip className="h-4 w-4" style={{ color: "var(--text-muted)" }} />
         <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Attachments</h4>
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>{files.length}</span>
       </div>
-      <ul className="mt-3 grid gap-2">
+      <ul className="mt-3 grid min-w-0 grid-cols-1 gap-2">
         {files.map((f, i) => (
-          <li key={i}>
+          <li key={i} className="min-w-0">
             <a href={`/api/requests/${requestId}/attachments/${i}`} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors"
+              className="flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors"
               style={{ borderColor: "var(--divider)", color: "var(--text-primary)" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "")}>
