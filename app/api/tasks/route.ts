@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     }
     const dayStart = (() => { const d = new Date(now - tz * 60_000); d.setUTCHours(0, 0, 0, 0); return d.getTime() + tz * 60_000 })()
     const [all, stateRes, doneRes] = await Promise.all([
-      computeTasks(admin, cc, limits, now),
+      computeTasks(admin, cc, limits, now, session.username),
       admin.from("task_state").select("task_key, snoozed_until, dismissed").eq("client_code", cc).or(`dismissed.eq.true,snoozed_until.gt.${new Date(now).toISOString()}`).limit(5000),
       admin.from("activity_log").select("id", { count: "exact", head: true }).eq("client_code", cc).in("event_type", DONE_EVENTS).gte("created_at", new Date(dayStart).toISOString()),
     ])

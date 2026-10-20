@@ -14,7 +14,7 @@ type Task = {
 }
 type Data = { now: number; tasks: Task[]; snoozed: Task[]; counts: { overdue: number; actionable: number; waiting: number; snoozed: number }; doneToday: number; goal: number }
 
-const href = (t: Task) => (t.type === "approve" ? "/approvals" : `/requests/${t.requestId}`)
+const href = (t: Task) => (t.type === "approve" && !t.waiting ? "/approvals" : `/requests/${t.requestId}`)
 function dur(ms: number) {
   const m = Math.max(1, Math.round(Math.abs(ms) / 60000))
   if (m < 60) return `${m}m`

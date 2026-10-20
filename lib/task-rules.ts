@@ -68,7 +68,7 @@ async function fetchAll<T>(build: (a: number, b: number) => any, cap = 5000): Pr
   return out
 }
 
-export async function computeTasks(admin: any, clientCode: string, limits: TaskLimits, now = Date.now()): Promise<Task[]> {
+export async function computeTasks(admin: any, clientCode: string, limits: TaskLimits, now = Date.now(), username?: string | null): Promise<Task[]> {
   const since = new Date(now - 120 * 24 * H).toISOString()
   const COLS = "id, request_ref, status, received_at, outcome, sender_name, sender_email, origin_city, destination_city, cargo_type, urgency, aog, dgr, is_sea, is_air, is_land, missing_fields, reply_sent_type, replied_at, fields_confirmed_at, fields_edited_at"
   const loadReqs = (cols: string) => fetchAll<any>((a, b) =>
@@ -84,6 +84,16 @@ export async function computeTasks(admin: any, clientCode: string, limits: TaskL
     fetchAll<any>((a, b) => admin.from("quotations").select("freight_request_id, status, sent_at, created_at, final_price_usd")
       .eq("client_code", clientCode).gte("created_at", since).range(a, b)).catch(() => [] as any[]),
   ])
+
+  // Approvals are personal: the approver is asked to decide, the person who sent it waits (everyone else sees nothing)
+  const steps = new Map<string, any[]>()
+  if (username) {
+    const waitingIds = reqs.filter((r: any) => r.status === "Waiting for Approval").map((r: any) => String(r.id))
+    if (waitingIds.length) {
+      const { data } = await admin.from("approval_requests").select("request_id, sort_order, step_status, submitted_by, assigned_to, assigned_usernames, created_at, decided_at").in("request_id", waitingIds).order("sort_order", { ascending: true })
+      for (const x of (data ?? []) as any[]) { const l = steps.get(x.request_id); l ? l.push(x) : steps.set(x.request_id, [x]) }
+    }
+  }
 
   const group = <T extends { freight_request_id: string }>(xs: T[]) => {
     const m = new Map<string, T[]>(); for (const x of xs) { const l = m.get(x.freight_request_id); l ? l.push(x) : m.set(x.freight_request_id, [x]) } return m
@@ -112,6 +122,21 @@ export async function computeTasks(admin: any, clientCode: string, limits: TaskL
     if (r.status === "Waiting for Approval") {
       type = "approve"; due = received + limits.approval_h * H; stamp = received
       title = "Approval needed"; why = "Waiting for an approval decision"; action = "Open approvals"
+      if (username) {
+        const chain = steps.get(id) ?? []
+        const active = chain.find((x) => x.step_status === "active")
+        const names = (x: any): string[] => (x?.assigned_usernames?.length ? x.assigned_usernames : [x?.assigned_to]).filter(Boolean)
+        if (active && names(active).includes(username)) {
+          const prev = chain.filter((x) => x.sort_order < active.sort_order).map((x) => t(x.decided_at))
+          stamp = Math.max(t(active.created_at), ...prev, 0) || received
+          due = stamp + limits.approval_h * H
+          why = `Step ${active.sort_order + 1} of ${chain.length} · sent by ${active.submitted_by ?? "a colleague"}`
+        } else if (chain.length && chain[0].submitted_by === username) {
+          stamp = t(chain[0].created_at) || received
+          due = stamp + limits.approval_h * H; waiting = due > now
+          title = "Waiting for approval"; why = active ? `With ${names(active).join(" / ")} (step ${active.sort_order + 1} of ${chain.length})` : "Waiting for an approval decision"; action = "Open request"
+        } else continue
+      }
     } else if (sentAt) {
       type = "follow_up"; due = sentAt + limits.followup_h * H; waiting = due > now; stamp = sentAt
       title = "Follow up on the quotation"; why = waiting ? "Quotation sent — waiting for the requester" : "Quotation sent, no result yet"; action = "Follow up"
