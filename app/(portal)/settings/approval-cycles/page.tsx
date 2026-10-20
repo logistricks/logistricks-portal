@@ -534,8 +534,8 @@ export default function ApprovalCyclesPage() {
       </div>
 
       {setupFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setSetupFor(null); }}>
-          <div className="w-full max-w-md space-y-5 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setSetupFor(null); }}>
+          <div className="my-auto w-full max-w-md space-y-5 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">Notifications · {setupFor.name}</h3>

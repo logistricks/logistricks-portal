@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   AlertTriangle, AlignCenter, AlignLeft, AlignRight, Bold, CheckCircle2, ClipboardCheck, Code2, Eraser, Eye, FileText, Heading2,
   Inbox, Italic, Link2, List, ListOrdered, Loader2, Minus, Palette, Pencil, Redo2, Reply, RotateCcw, Search, Send, Server, Table2, Underline, Undo2, Users,
@@ -54,11 +55,22 @@ function RecipientsButton({ ev, recipients, users, canEdit, onChange }: { ev: No
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<string | null>(null) // null = the list of types
   const ref = useRef<HTMLSpanElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; maxH: number }>({ top: 0, left: 0, maxH: 400 })
+  const place = useCallback(() => {
+    const r = ref.current?.getBoundingClientRect(); if (!r) return
+    const w = 256, below = window.innerHeight - r.bottom - 16, above = r.top - 16
+    const up = below < 280 && above > below
+    const maxH = Math.max(200, up ? above : below)
+    setPos({ left: Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)), top: up ? Math.max(8, r.top - 6 - maxH) : r.bottom + 6, maxH })
+  }, [])
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setType(null) } }
-    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h)
-  }, [open])
+    place()
+    const h = (e: MouseEvent) => { const t = e.target as Node; if (ref.current?.contains(t) || pop.current?.contains(t)) return; setOpen(false); setType(null) }
+    document.addEventListener("mousedown", h); window.addEventListener("resize", place)
+    return () => { document.removeEventListener("mousedown", h); window.removeEventListener("resize", place) }
+  }, [open, place])
   const listFor = (t: string): string[] => (t === "all" ? recipients.users ?? [] : recipients.by_type?.[t] ?? [])
   const setList = (t: string, list: string[]) => onChange(t === "all" ? { ...recipients, users: list } : { ...recipients, by_type: { ...(recipients.by_type ?? {}), [t]: list } })
   const toggle = (t: string, u: string) => { const cur = listFor(t); setList(t, cur.includes(u) ? cur.filter((x) => x !== u) : [...cur, u]) }
@@ -72,8 +84,8 @@ function RecipientsButton({ ev, recipients, users, canEdit, onChange }: { ev: No
         style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
         <Users className="h-3.5 w-3.5" />{total > 0 ? total : ""}
       </button>
-      {open && (
-        <div className="absolute right-0 top-full z-30 mt-1.5 w-64 rounded-xl border p-3 text-left shadow-xl" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+      {open && createPortal(
+        <div ref={pop} onClick={(e) => e.stopPropagation()} className="fixed z-[200] w-64 overflow-y-auto rounded-xl border p-3 text-left shadow-xl" style={{ top: pos.top, left: pos.left, maxHeight: pos.maxH, borderColor: "var(--card-border)", background: "var(--surface, #fff)" }}>
           {type === null ? (
             <>
               <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>Who gets “{ev.label}”</p>
@@ -96,7 +108,7 @@ function RecipientsButton({ ev, recipients, users, canEdit, onChange }: { ev: No
             <>
               <button type="button" onClick={() => setType(null)} className="text-[11px] font-semibold" style={{ color: "var(--brand-accent)" }}>‹ Request types</button>
               <p className="mt-1 text-xs font-bold" style={{ color: "var(--text-primary)" }}>{label}: who gets it</p>
-              <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+              <div className="mt-2 space-y-1">
                 {users.filter((u) => u.is_active).map((u) => {
                   const ok = realEmail(u.auth_email)
                   return (
@@ -113,8 +125,7 @@ function RecipientsButton({ ev, recipients, users, canEdit, onChange }: { ev: No
               </div>
             </>
           )}
-        </div>
-      )}
+        </div>, document.body)}
     </span>
   )
 }
