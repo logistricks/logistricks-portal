@@ -1,24 +1,16 @@
 # Trial workflows (lead trial portal)
 
-Two webhook workflows used by `try.logistricks.net` through the portal (`/api/trial/parse-request`, `/api/trial/parse-quote`).
-They answer the portal directly and write nothing to the portal database.
+The trial page (`try.logistricks.net`) reads emails through n8n. Nothing is saved by these workflows.
 
-| Workflow | Path | Prompts |
+| Workflow in n8n | Webhook | What it does |
 |---|---|---|
-| `trial-request-workflow.json` | `POST /webhook/trial-request` | Step 1: the request extraction prompt and schema from `../request-intake`, **unchanged**. Step 2: `reply-prompt.md` (new): missing items, `suggested_reply`, `port_warning`, `language`. |
-| `trial-quote-workflow.json` | `POST /webhook/trial-quote` | The carrier extraction prompt and schema from `../carrier-reply`, **unchanged**. |
+| `40 · Trial · Request email` (`40-trial-request-email.json`) | `POST /webhook/trial-request` | Step 1: the same extraction prompt as `20 · Core · Request intake` (shipment type, CBM, package and truck type, temperature, ready date, legs and alternative destinations, notes, suggested reply). Step 2 (`rfq-prompt.md`): port check and the carrier RFQ email. |
+| `30 · Carrier · Quote intake` | `POST /webhook/trial-quote` | The trial quote door of the live carrier workflow. Same prompt as production, saves nothing. |
 
-The request extraction prompt has no reply or port-check output, so those come from the second, separate step.
+Both check the `Portal secret` header on the webhook. Gemini calls go through `00 · Shared · Gemini call`.
 
-## Set up
-1. Import both JSON files into n8n.
-2. Edit the **Config** node in each: `portal_secret` (same value as `PORTAL_WEBHOOK_SECRET` in Vercel), `gemini_key`, `gemini_model`.
-3. Activate both, then set in Vercel:
-   - `N8N_TRIAL_REQUEST_WEBHOOK_URL` = production URL of `/webhook/trial-request`
-   - `N8N_TRIAL_QUOTE_WEBHOOK_URL` = production URL of `/webhook/trial-quote`
-   - `CRON_SECRET` (any random string; Vercel Cron sends it to `/api/trial/purge`)
-   - optional `TRIAL_URL` (default `https://try.logistricks.net`)
-4. Run migrations `060_trial_portal.sql` and `061_trial_admins.sql`, then create your owner login (separate from the client portal) with the insert line shown in the comment of 061, e.g. `insert into trial_admins (username, password_hash) values ('azeez', encode(sha256('your-password'::bytea), 'hex'));`. The owner console is at `try.logistricks.net/admin`.
-5. Add the domain `try.logistricks.net` to the same Vercel project and a CNAME in Cloudflare.
+## Updating the request reader
+The step 1 prompt is copied from workflow 20 (`node-build-extraction.js`): when the live prompt changes, copy its node code over this file (keep the trial changes: no default location, built-in required fields, the TRIAL FIELDS addendum, `Prepare` input).
+Then `node build-40.js` and import the JSON over workflow 40 in n8n.
 
-Regenerate after editing a prompt: `node build-workflow.js`.
+The portal turns the answer into what the page shows in `buildRequestView` (`lib/trial-server.ts`): required fields come from `lib/shipment-types.ts`, so the "missing" list matches the portal.

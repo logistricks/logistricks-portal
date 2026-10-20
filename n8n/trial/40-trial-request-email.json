@@ -1,0 +1,425 @@
+{
+  "name": "40 · Trial · Request email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trial-request",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "753c2182-1719-4bfc-998a-503d7d1c1100",
+      "name": "Receive trial request",
+      "webhookId": "23ddf066-d67b-488f-b37f-2147ee1770b7",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kfR2UwMkFKF0lC46",
+          "name": "Portal secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json\nconst b = item.body || item\nconst text = String(b.body_text || '').trim()\nif (!text && !(b.attachments || []).length) return [{ json: { bad_request: 'body_text or an attachment is required' } }]\nconst files = (b.attachments || [])\n  .filter((a) => a && a.data_base64 && /^(application\\/pdf|image\\/(png|jpe?g|webp))$/i.test(String(a.mime_type || '')) && String(a.data_base64).length < 8000000)\n  .slice(0, 4)\n  .map((a) => ({ filename: a.filename || 'file', mime_type: String(a.mime_type).toLowerCase(), data: String(a.data_base64).replace(/^data:[^,]*,/, '') }))\nreturn [{ json: { subject: b.subject || '', received_at: new Date().toISOString(), fresh_text: text.slice(0, 20000), files } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ],
+      "id": "fc2eea10-f6ad-4f44-acd2-bce58384e30b",
+      "name": "Prepare"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1bb1a1cc-431a-4d4e-bb10-f8a274293e0a",
+              "leftValue": "={{ !$json.bad_request }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        208
+      ],
+      "id": "f93adb2b-f765-4f6f-a652-b45511a0dac3",
+      "name": "Request is valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.bad_request } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        64
+      ],
+      "id": "f9ceac0e-14f5-489c-beba-677daa5c7e16",
+      "name": "Reject bad request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// \"Build extraction prompt\": the ONE place the extraction instructions live (new requests and replies).\n// To change the instructions, edit ONLY the text inside prompt_text below.\nconst item = $input.first().json;\nconst rcvDate = new Date();\nconst today = rcvDate.toISOString().slice(0, 10) + ' (' + rcvDate.toLocaleDateString('en-US', { weekday: 'long' }) + ')';\n\n// The trial has no Settings, so there is no default port or airport.\nconst defaultRule = '';\n\nconst typeRules = \" SHIPMENT TYPE RULES. Return shipment_type: exactly one of air, sea_fcl, sea_lcl, land, for the leg we are asked to quote. air is by air. sea_fcl is by sea in full containers (20DV, 40HC, reefer and so on). sea_lcl is by sea as loose cargo, groupage, consolidation or sharing a container, or sea cargo given by CBM, pallets or cartons with no container named. land is by road or truck. If the request names a container type or a number of containers it is sea_fcl. If the mode of the quoted leg truly cannot be told, return null. NEW FIELDS (null when not stated, never guess). cbm: total volume as text, for example 3.6 CBM. package_type: the kind of package in plain English, for example Pallets, Cartons, Crates, Drums. truck_type: land only, for example Flatbed, Curtain-side, Reefer, Lowbed, or as written. temperature_control: the temperature requirement as written, for example +2 to +8C. cargo_ready_date: the date the goods are ready. The email was received on \" + today + \". Write a clear date as YYYY-MM-DD and work out relative dates from the received date, for example next Thursday is the Thursday of the following week, end of November is the 30th, mid-month is the 15th. If it is only vague, such as ready now, soon or ASAP, write it as written. chargeable_weight_stated: ONLY a chargeable weight the sender states, with its unit; never calculate it yourself. Values that now have their own field (CBM, package type, truck type, temperature, cargo ready date, chargeable weight) must NOT also be added to special_requirements. MULTIPLE LEGS. If the sender asks us to quote more than one leg or mode (for example sea freight and then road delivery), return the first quoted leg in the normal fields and every other quoted leg in legs: an array of objects, each with shipment_type, origin_city, origin_country, destination_city, destination_country and any of cargo_type, quantity, package_type, weight, dimensions, cbm, equipment, truck_type, temperature_control, cargo_ready_date, incoterm, pickup_address that apply to that leg, using the same formats and rules as above. Use an empty array when only one leg is requested. A leg that is already booked is never a leg here (see the booked leg rule). ALTERNATIVE DESTINATIONS. When the sender offers a choice of destinations for the SAME cargo, for example to Umm Qasr or Aqaba, or either port, this is ONE shipment with options and NOT separate legs. Put the first destination in the normal fields. Put every other destination in legs as an object with alt set to the boolean true, the same shipment_type as the main request, the same origin_city and origin_country, and only its own destination_city and destination_country (same port format rules as above, with the country of that port). Do not repeat cargo, weight, equipment, incoterm or any other cargo field in an alt object. Use normal legs only when the cargo really travels one stage after another. If the options are different modes or different cargo, they are normal legs.REQUIRED FIELDS BY TYPE (these replace the earlier remark that LCL needs both weight and CBM, and apply to missing_fields and suggested_reply). \" + \"air: airport of loading (aol), airport of destination (aod), pickup_address (only when the incoterm is EXW), commodity, quantity, package type, gross weight, dimensions or cbm. sea_fcl: port of loading (pol), port of discharge (pod), pickup_address (only when the incoterm is EXW), commodity, equipment. sea_lcl: port of loading (pol), port of discharge (pod), pickup_address (only when the incoterm is EXW), commodity, cbm. land: from, to, pickup_address (only when the incoterm is EXW), commodity, truck type\" + \" Origin and destination are always required. Never ask for a field that is not listed for the type. LEG LOCATION OVERRIDES (these replace the earlier location rules wherever they conflict). The rule to always return a seaport, and to move an inland place into special_requirements, applies ONLY to sea legs. For a land leg, origin_city and destination_city are the real places where the truck starts and ends, even when they are inland towns, industrial areas or warehouses, and a port counts as a place when the truck starts or ends there. Never add Inland delivery or Inland pickup to special_requirements for a place that is an end of a land leg. When the sender wants a sea leg and then trucking, the sea leg ends at the port and the land leg starts at that same port. List legs in journey order: the first leg of the journey goes in the normal fields. A leg is booked only if the sender says that exact leg is booked or handled by them. Never drop a leg the sender asks us to quote because a different leg is booked. If two statements conflict, keep every leg the sender asks us to quote and add the conflict to notes as Please check. PORT PRIORITY. A loading port, loading place or discharge port the sender states in plain words (for example we load at Santos, to Shuwaikh Port) always wins over any guess about where a booked leg ends. For a sea leg the origin port is where the sender says the goods are loaded and the destination port is where they are discharged. Origin and destination of one leg must never be the same place; if they would be, the earlier statement of the loading place is right. Only use the booked leg end as the start of a quoted leg when the sender names no loading place for it. BOOKED LEG NOTES ARE MANDATORY. Every leg the sender says is booked or already arranged gets its own notes item, one per booked leg, written Booked leg: followed by a short description (for example Booked leg: Brazil to Rotterdam by sea with another forwarder, Booked leg: trucking from the factory in Brazil to Santos port arranged by the sender). Never leave a booked leg out of notes. CONTAINERS AND TEMPERATURE. For a sea_fcl leg, equipment includes the number of containers in front, for example 2 x 40ft Reefer, when a number is given. When a reefer container or reefer truck is mentioned, put the required temperature in temperature_control of every leg that moves the goods in that reefer, so a sea leg and a trucking leg both get it. Write temperatures in a short form such as -18C or +2 to +8C.\";  const prompt_text = \"The message may be written in any language including English, Arabic, Turkish, Urdu, Hindi, French, Spanish, Chinese, or any other language. Always extract the shipment details regardless of the language the message is written in. Always return all field values in English: translate city names, cargo types and all other values to English. Never return field values in the original language. You are a freight forwarding assistant for Logistricks. Extract structured shipment details from the email below AND from any attached files (PDFs, images, scans). Attachments such as rate confirmations, booking forms, or packing lists are often more authoritative than the email body: if a field is stated differently in the email versus an attachment, prefer the attachment value and use the email only to fill gaps. Respond with valid JSON only. No markdown, no backticks, no extra text. Use null for anything not stated and never guess, except where the location rules below tell you to choose a port. LOCATION RULES. origin_city and destination_city hold only the place, no extra detail. SEA requests: origin_city is the Port of Loading (POL) and destination_city is the Port of Discharge (POD). Always return a seaport name, never an inland town or city. If the email names a specific port, use exactly that port. If the goods are collected from, delivered to, or located at an inland place (a pickup address, factory, warehouse, free zone or any inland city), use the seaport that is closest to that place and that really handles ocean container cargo, and set the country to the country of that port. Never copy the inland city into origin_city or destination_city. If the country has several ports, choose the nearest one by road. If the country has no coast, use the port normally used for it. Write each port as Port name (UN/LOCODE), for example Aqaba (JOAQJ), Jebel Ali (AEJEA), Dammam (SADMM), adding the code only when you are certain of it. Example: pickup in Zarqa, Jordan gives origin_city Aqaba (JOAQJ) and origin_country Jordan, because Aqaba is the only seaport in Jordan. Keep the inland place in pickup_address only when the incoterm is EXW and a full address is given; otherwise add it to special_requirements as Inland pickup: city name or Inland delivery: city name. AIR requests: origin_city and destination_city are the city followed by its airport IATA code in brackets, for example Amman (AMM), Dubai (DXB); if only an airport code is given, use your knowledge to resolve it to the city and keep the code in brackets; return null only if the code is completely unrecognizable. LAND requests: plain full official city name. If the request has more than one mode, use the sea format for the sea leg and the air format for the air leg. If no place is given at all, return null. BOOKED LEG RULE. If the sender says any leg is already booked, arranged, confirmed or being handled by them (for example: we already have UK to Aqaba booked), that leg is NOT part of this request and must be ignored for every field. Extract only the leg the sender is asking us to quote. origin_city is where the quoted leg starts, which is usually where the booked leg ends (for example Aqaba). destination_city is where the quoted leg ends. mode contains only the modes of the quoted leg (for example land if only the road leg is requested). Use the location format of the quoted leg's mode, so a land leg uses a plain city name, not a port code. preferred_carrier and bl_type must come only from the quoted leg: never use the carrier, vessel line or BL number of the already booked leg for them. Instead add one item to notes: Booked leg: followed by a short description, for example Booked leg: Southampton to Aqaba by sea with Hoegh Autoliners, BL HOEG7B28GOJA001. If a route passes through a transit country (for example by road via Saudi Arabia), add Transit route: via Saudi Arabia.\" + defaultRule + typeRules + \" FIELDS. origin_city, destination_city: per the location rules above. origin_country, destination_country: full country name always, never abbreviate. cargo_type: what is shipped. quantity: always return as text string, never as a number, for example 2 Nos, 5 Pallets, 1 Unit. weight: the TOTAL gross weight of the whole shipment, with its unit. If the message gives separate weights (per container or per line), convert every one to the same unit before adding them: 1 ton = 1000 kg, 1 lb = 0.4536 kg, so 22,000 lbs = 9.98 tons, not 22 tons. Never treat lbs as kg or tons. Return the total, for example 28.5 tons, and put the breakdown in special_requirements as Weight breakdown: 1x40HC 18.5 tons, 1x20DV 22,000 lbs (9.98 tons). If only one weight is given, preserve its unit as written. dimensions: string or null. Preserve the complete dimension string exactly as written. If it contains @ N that means N pieces and must always be kept. Format as L x W x H unit @ N. Never remove the @ symbol. equipment: comma separated text, not an array. mode: array of sea/air/land for the leg(s) we are asked to quote only, never for a leg the sender says is already booked; infer from context, unknown if unclear. preferred_carrier: as written or null. urgency: urgent or standard. incoterm: the 3-letter code in upper case, or null. pickup_address: string or null. For EXW (ex-works) requests, the full street address where the goods are collected, exactly as written (company, street, city, postcode, country). Null if not given. Any address given under labels like Collection, Pickup, Pick-up, Loading address, Collect from or Ready for collection at is the pickup address, including a P.O. box or an airport / free zone location. A city alone is not an address. Always null when the incoterm is not EXW. bl_type: string or null. The requested Bill of Lading type if mentioned, for example OBL, Telex Release, Sea Waybill, Express BL. Only for sea shipments: always null for air and land. aog: true or false. True ONLY for an aircraft-on-ground request (an aircraft is grounded and needs a part urgently). A stopped production line, an urgent shipment or ordinary aircraft spare parts are NOT aog. dgr: true or false. True for ANY dangerous goods, even when the sender does not use the words dangerous goods. This includes: a UN number (for example UN3481, UN 3090), lithium-ion or lithium metal batteries (also when packed with or contained in equipment), IATA DGR or IMDG mentioned, packing instruction 965 to 970, a hazard class 1 to 9, MSDS or SDS or a DG declaration, flammable, corrosive, toxic, explosive, oxidizer, radioactive, aerosol, dry ice, paint, chemicals, perfume or any compressed gas. If in doubt about batteries or chemicals, set dgr to true. Never set dgr to false when a UN number or batteries appear anywhere in the message. special_requirements: array of strings, written as Label: value. Every item is its own separate string in the array. NEVER put two Label: value pairs in one string and never join items with commas. Wrong: ['Inland pickup: Gebze, Packaging details: 640 pieces']. Right: ['Inland pickup: Gebze', 'Packaging details: 640 pieces']. special_requirements is sent to the CARRIERS word for word, so it holds ONLY what a carrier needs to price or handle the shipment: handling needs, documents, free time or detention requests, packing, insurance, rate validity, items the quote must include, transit routes, pickup or delivery place details. notes is a separate array of strings written as Label: value, for things only our own team needs and that are never sent to a carrier or the customer: Booked leg items (see the booked leg rule), what the sender used or arranged with another forwarder, the sender's own totals or conversions that only repeat a field, remarks about the sender or the request, and contradictory statements to check. Never put the same item in both lists. If unsure whether a carrier needs it, put it in special_requirements. Use a short label of 2 to 4 words for each item. Capture all of these. (a) Details beyond what a field holds, such as total volume, chargeable weight, gross weight, weight per package, package count, carton size, commodity sub-type. (b) Everything the sender asks the quote to include, as ONE item, for example Quote must include: EXW pickup, air freight, airline and routing, transit time, earliest flight, origin charges, rate validity. Separate the parts with commas, never semicolons. (c) Anything the sender asks the carrier to confirm, for example Please confirm: final chargeable weight. (d) Handling, documents, certificates, free time, temperature, packaging, insurance, PO number, customs, routing and remarks. Examples: Total volume: 3.596 CBM / Chargeable weight: approx 600 KG / Weight per carton: approx 3.2 KG / Documents: pharma acceptance and documentation requirements / Free time at POD: at least 10 days / Temperature: +18C / PO number: 450012345. Only skip a value that is already stored in full in origin, destination, incoterm, pickup address, equipment, cargo type, weight, dimensions, quantity, BL type, preferred carrier, urgency, AOG or DGR. When the email gives more detail than a field holds (for example the weight field has the gross weight but the email also gives the weight per carton), add the extra detail as its own item. Always keep the piece or unit count (for example 640 pieces) as its own item, and when the sender offers two incoterms or options to compare, add an item Incoterm option: followed by the comparison. Never drop a request line only because it looks routine. Use an empty array only when nothing is left over. If the sender mentions a target price, budget, competitor offer or a rate to beat, keep it as its own item with the label Target rate: (for example Target rate: beat USD 2.20 per kg all in). Never merge it into another item. Prefer these labels when they apply: Inland pickup, Inland delivery, Weight breakdown, Packaging details, Commodity note, Quote must include, Please confirm, Free time at POD, Rate validity, Cargo readiness date, Incoterm option, Documents, Temperature, Insurance, PO number. availability_questions: array of specific questions or checks the client is asking you to verify, for example space availability, transit time confirmation, freighter availability. missing_fields: array of field names not found or returned null, but never list pickup_address unless the incoterm is EXW, and never list equipment or bl_type unless the shipment is by sea (equipment and bl_type do not apply to air or land). confidence: high, medium or low. attachments_used: array of strings, briefly noting which attached files, if any, contributed information, for example rate_confirmation.pdf: confirmed weight and dimensions. Empty array if no attachments or none were useful. suggested_reply: string or null. Evaluate independently whether a reply to the sender would help get a complete, quotable enquiry. Do NOT rely solely on missing_fields being non-empty; instead ask: can we actually quote this right now? Common cases that need a reply: weight is absent even if CBM was given (for LCL both are required), incoterm is not stated, the incoterm is EXW but no pickup address is given, cargo readiness date is unknown, commodity is too vague to price, quantity or packaging is unclear. If anything needed to produce a real rate is missing or ambiguous, write the reply. Rules: (1) ALWAYS open with their first name, extracted from the message signature or the sender line; NEVER write Dear Customer or any generic greeting; if no name is found at all, write hello; (2) write in the EXACT same language as the original message; (3) match their tone: a brief message gets a brief reply, a formal one gets a formal reply; (4) reference the route and commodity so they know it was read; (5) ask only for what is genuinely missing, do not ask for things already stated; (6) no sign-off, no company name, end after the ask. Return null only if the enquiry is fully quotable as is. For air and sea enquiries, also ask for the cargo readiness date when it is not stated, and when dgr is true and the message gives no UN number, hazard class or dangerous goods document, ask for the UN number, class and packing instruction or the MSDS. Combine every question into one short reply, in a natural sentence or a short list, never as separate paragraphs. Never mention the client target rate or any competitor in the reply.\";\n\nconst prep = $('Prepare').first().json\nconst text = prompt_text + \" TRIAL FIELDS. Also return these fields. is_rate_request: false for out-of-office replies, newsletters, invoices or anything that is not asking for a freight rate, otherwise true. sender_name: the sender's name from the signature or sender line, or null. sender_phone: or null. inferred_fields: array of the field names you had to deduce rather than read; include origin_city and destination_city when you chose the port yourself. language: the language of the email written in English, for example English, Spanish, Arabic.\" + ' Subject: ' + (prep.subject || '') + '\\nBody: ' + prep.fresh_text\nconst parts = [{ text }]\nfor (const f of prep.files) parts.push({ inline_data: { mime_type: f.mime_type, data: f.data } })\nreturn [{ json: { system: 'Follow the instructions in the message. Return JSON only.', schema: null, parts } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        304
+      ],
+      "id": "34ef0abc-327a-4ba7-bc1c-818b9ab0ed4c",
+      "name": "Build extraction input"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Ul5O6vuYKGIoD6vU",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Ul5O6vuYKGIoD6vU",
+          "cachedResultName": "00 · Shared · Gemini call"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        304
+      ],
+      "id": "99d27f5c-2a6e-4cbe-9bb2-68edcd62d79d",
+      "name": "Extract the request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $('Prepare').first().json\nreturn [{ json: { ai: $input.first().json.ai, email_text: prep.fresh_text } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        304
+      ],
+      "id": "5f893653-4ebb-4521-b4aa-ae6f61c47c69",
+      "name": "Keep extraction"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a46b37d4-d400-4f87-aa63-17e4fd057a13",
+              "leftValue": "={{ $json.ai.is_rate_request === false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        304
+      ],
+      "id": "048c02d0-3502-4f04-8cbe-13ea33df1a50",
+      "name": "Not a freight request?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: 'The email is not a freight rate request.' } }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        208
+      ],
+      "id": "0ac02370-f185-44be-9c81-3ac46c1464f6",
+      "name": "Answer · not a request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const SYSTEM = \"You help a freight forwarder handle a client's freight request. You receive the client's email and the data already extracted from it. Return JSON only.\\n\\n1. port_warning: only for sea requests (shipment_type sea_fcl or sea_lcl) where the extracted origin or destination port was chosen by the extraction (named in inferred_fields) and not named in the email. If the chosen port is impractical for the real pickup or delivery place (very far, in a different country, no sensible road or rail link, or a clearly better gateway port exists), one short English sentence naming the problem and the better port. Otherwise null.\\n2. rfq_subject and rfq_body: the request for quotation the forwarder would send to carriers for the shipment in the extracted data (the main leg). Always write it in English, whatever the language of the client's email. rfq_subject: one line, for example \\\"Rate request: Toulouse (TLS) to Singapore (SIN), Air\\\" or \\\"Rate request: Jebel Ali (AEJEA) to Aqaba (JOAQJ), Sea FCL\\\". rfq_body: a short professional email to a carrier. Start with \\\"Hello,\\\", ask them to quote the shipment below, then list the shipment type, route, cargo, quantity, package type, weight, CBM, dimensions, equipment or truck type, temperature, cargo ready date, incoterm and pickup address, but only what the extracted data actually states. Never invent a value and never write \\\"not given\\\". Include any urgency, AOG, dangerous goods and the special requirements the client raised. If the extracted data has legs marked alt (alternative destinations for the same cargo), ask the carrier to quote each destination separately. Any other legs are quoted in their own request: leave them out. Never include the notes field, a target rate or a competitor offer. Then ask the carrier to include every charge itemised with its basis and currency, routing and transit time, validity date, free time, and any conditions or exclusions. If the pickup or delivery address is missing, say it will follow. End with a short sign-off and no name or signature. Do not include prices, a reference number or the client's name or company. No markdown.\"\nconst SCHEMA = {\"type\":\"OBJECT\",\"properties\":{\"port_warning\":{\"type\":\"STRING\",\"nullable\":true},\"rfq_subject\":{\"type\":\"STRING\"},\"rfq_body\":{\"type\":\"STRING\"}},\"required\":[\"port_warning\",\"rfq_subject\",\"rfq_body\"]}\nconst prev = $input.first().json\nconst parts = [{ text: 'Client email:\\n' + prev.email_text + '\\n\\nExtracted data:\\n' + JSON.stringify(prev.ai) }]\nreturn [{ json: { system: SYSTEM, schema: SCHEMA, parts, ai: prev.ai } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        400
+      ],
+      "id": "bd9d191f-5a9d-4386-a541-25286f826721",
+      "name": "Build checks input"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Ul5O6vuYKGIoD6vU",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Ul5O6vuYKGIoD6vU",
+          "cachedResultName": "00 · Shared · Gemini call"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1792,
+        400
+      ],
+      "id": "d8dddb02-0345-48fa-b9c3-644a775467fb",
+      "name": "Check ports and draft RFQ"
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json.ai || {}\nconst extraction = $('Keep extraction').first().json.ai\n// missing items are worked out in the portal from the shipment type's required fields; the reply comes from the same prompt as production\nreturn [{ json: { ok: true, extraction, suggested_reply: extraction.suggested_reply || null, port_warning: r.port_warning || null, rfq_subject: r.rfq_subject || null, rfq_body: r.rfq_body || null, language: extraction.language || null } }]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        400
+      ],
+      "id": "647d42aa-1b17-46ad-b9f6-1ba174ff1731",
+      "name": "Shape answer"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2240,
+        400
+      ],
+      "id": "d4734ef4-b810-4dfd-a22a-4bf39126c7c4",
+      "name": "Answer · result"
+    },
+    {
+      "parameters": {
+        "content": "40 · Trial · Request email\n\nUsed by the portal's trial page (/webhook/trial-request).\nReads a pasted freight request the way production does (same extraction prompt as 20 · Core · Request intake), then writes the carrier RFQ and a port check. Nothing is saved.\n\nChecks the 'Portal secret' header on the webhook itself.\nGemini work is done by '00 · Shared · Gemini call'.\nRebuild from the repo: n8n/trial/build-40.js",
+        "height": 170,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c15439eb-a031-461f-acfe-5a066992ed33",
+      "name": "Read me"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive trial request": {
+      "main": [
+        [
+          {
+            "node": "Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare": {
+      "main": [
+        [
+          {
+            "node": "Request is valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request is valid?": {
+      "main": [
+        [
+          {
+            "node": "Build extraction input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject bad request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build extraction input": {
+      "main": [
+        [
+          {
+            "node": "Extract the request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract the request": {
+      "main": [
+        [
+          {
+            "node": "Keep extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep extraction": {
+      "main": [
+        [
+          {
+            "node": "Not a freight request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not a freight request?": {
+      "main": [
+        [
+          {
+            "node": "Answer · not a request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build checks input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build checks input": {
+      "main": [
+        [
+          {
+            "node": "Check ports and draft RFQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape answer": {
+      "main": [
+        [
+          {
+            "node": "Answer · result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check ports and draft RFQ": {
+      "main": [
+        [
+          {
+            "node": "Shape answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ee68064d-2bfe-4ce8-bbe1-f168ab7f89ea",
+  "meta": {
+    "instanceId": "e24094cf5d2fffcffdbad8166b68e58408f81d32e5feaa2f244972f0fa33419d"
+  },
+  "nodeGroups": [],
+  "id": "hUSDw2KgDf1ZtbW4",
+  "tags": []
+}

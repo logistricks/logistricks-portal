@@ -15,6 +15,8 @@ export const DEFAULT_PROMPTS: Record<PromptKey, string> = {
 Rules:
 - Invent a fictional company and person. Never use real company names.
 - Pick a realistic lane, cargo and quantities. Weights, dimensions and incoterms must be consistent with each other.
+- The request must clearly be ONE of these shipment types, and say so by how it is written: by air (airports, weight, dimensions, packages); sea in full containers (container size and number, ports); sea LCL (loose cargo given in CBM, pallets or cartons, no container named); or by road (truck type such as flatbed, curtain-side or reefer, pickup and delivery places). Vary the type from one email to the next unless the keywords decide it.
+- Mention the date the goods are ready (for example "ready on 12 November" or "ready next week") in most emails.
 - Write in English unless the keywords clearly ask for another language.
 - Plain text only. No markdown, no subject line inside the body, no placeholders like [name].
 - If keywords are given, build the request around them naturally. Never mention that they were supplied.
@@ -22,7 +24,7 @@ Rules:
 Difficulty level: {{level}}
 - low: one transport mode, every detail present (route, cargo, weight, incoterm), a single simple ask. Nothing missing, nothing odd.
 - medium: one transport mode. Something real is missing or unclear, for example EXW without a pickup address, weight only in lbs, or no ready date. A couple of special requests such as free time or a deadline.
-- complex: messy and demanding. Several pieces with mixed units (kg and lb, cm and inches), an urgent deadline, special handling, possibly dangerous goods (for example lithium batteries with a UN number), an alternative origin airport or port, an optional second delivery option, and a mention of a competitor offer. May be a multi-leg request.
+- complex: messy and demanding. Several pieces with mixed units (kg and lb, cm and inches), an urgent deadline, special handling (for example a reefer with a temperature range), possibly dangerous goods (for example lithium batteries with a UN number), a mention of a competitor offer or a target rate. Often a multi-leg request (for example sea freight and then trucking, with one leg already booked by the sender) or a choice of destinations for the same cargo ("to Umm Qasr or Aqaba").
 
 Keywords: {{keywords}}
 
@@ -32,7 +34,8 @@ Return JSON with "subject" and "body".`,
 Rules:
 - Invent a fictional carrier. Never use a real carrier name.
 - Base it on the request below: same lane, same cargo, same quantities. Charge lines must be itemised with a basis (per kg, per container, per shipment) and a currency, one per line, in a dash list.
-- Include transit time, free time (sea only), validity and a reference number.
+- Include transit time, free time (sea only), validity and a reference number. For sea quotes also give the cargo and documents cut-off dates and the transhipment port when there is one.
+- If the request offers more than one destination, price each destination separately with its own total, transit time and validity.
 - Plain text only. No markdown.
 
 Difficulty level: {{level}}

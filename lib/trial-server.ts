@@ -2,6 +2,7 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto"
 import type { NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
+import { TYPE_LABEL, isShipmentType, quotableCheck, type ShipmentType } from "@/lib/shipment-types"
 
 export const TRIAL_COOKIE = "trial_session"
 export const RETENTION_DAYS = 5
@@ -98,43 +99,89 @@ const MODE: Record<string, string> = { sea: "Sea", air: "Air", land: "Road" }
 const CONF: Record<string, [number, string]> = { high: [92, "High"], medium: [70, "Medium"], low: [45, "Low"] }
 const s = (v: unknown) => (v == null ? "" : String(v).trim())
 
+export interface RequestLeg { label: string; kind: "leg" | "option"; typeLabel: string; from: string; to: string; fields: [string, string][] }
 export interface RequestView {
   mode: string; route: { from: string; fc: string; to: string; tc: string; chosen: boolean; note: string }
+  /** air, sea_fcl, sea_lcl or land (null when the email did not make it clear) */
+  shipmentType: ShipmentType | null; typeLabel: string
   fields: [string, string | null][]; special: string[]; missing: string[]
+  /** further legs, or alternative destinations for the same cargo */
+  legs: RequestLeg[]
   conf: number; confL: string; reply: string | null; replyKind: string; portWarning: string | null
   sender: string; senderName: string; language: string | null; freeDaysAsked: number | null
   rfq: { subject: string; body: string } | null
 }
-export function buildRequestView(ai: any, extra: { missing: string[]; suggested_reply: string | null; port_warning: string | null; language: string | null; sender: string; rfq_subject?: string | null; rfq_body?: string | null }): RequestView {
-  const mode = MODE[(ai.modes && ai.modes[0]) || ""] || "Sea"
+
+/** The shipment type of an extraction: the new field, else worked out from the old mode list. */
+function typeOf(ai: any): ShipmentType | null {
+  if (isShipmentType(ai.shipment_type)) return ai.shipment_type
+  const m = String((Array.isArray(ai.mode) ? ai.mode[0] : ai.mode) ?? (ai.modes && ai.modes[0]) ?? "").toLowerCase()
+  if (m === "air") return "air"
+  if (m === "land") return "land"
+  if (m === "sea") return /lcl|cbm|groupage|consolid/i.test(s(ai.equipment) + " " + s(ai.cbm)) && !s(ai.equipment) ? "sea_lcl" : "sea_fcl"
+  return null
+}
+const MODE_OF: Record<ShipmentType, string> = { air: "Air", sea_fcl: "Sea", sea_lcl: "Sea", land: "Road" }
+
+export function buildRequestView(ai: any, extra: { missing?: string[]; suggested_reply: string | null; port_warning: string | null; language: string | null; sender: string; rfq_subject?: string | null; rfq_body?: string | null }): RequestView {
+  const type = typeOf(ai)
+  const mode = type ? MODE_OF[type] : (MODE[(Array.isArray(ai.mode) ? ai.mode[0] : ai.mode) || (ai.modes && ai.modes[0]) || ""] || "Sea")
   const inferred: string[] = ai.inferred_fields || []
   const chosen = mode === "Sea" && (inferred.includes("origin_city") || inferred.includes("destination_city"))
   const incoterm = s(ai.incoterm).toUpperCase()
+  const t: ShipmentType = type ?? "sea_fcl"
   const fields: [string, string | null][] = []
-  const add = (label: string, v: unknown, core = false) => { const t = s(v); if (t || core) fields.push([label, t || null]) }
+  const add = (label: string, v: unknown, core = false) => { const x = s(v); if (x || core) fields.push([label, x || null]) }
+  // the same fields the portal shows for this type, in the portal's order
   add("Cargo", ai.cargo_type, true)
-  if (mode === "Sea" || s(ai.equipment)) add("Equipment", ai.equipment, mode === "Sea")
-  add("Quantity", ai.quantity)
-  add("Weight", ai.weight, true)
+  if (t === "sea_fcl" || s(ai.equipment)) add("Equipment", ai.equipment, t === "sea_fcl")
+  if (t === "land" || s(ai.truck_type)) add("Truck type", ai.truck_type, t === "land")
+  add("Quantity", ai.quantity, t === "air")
+  if (t === "air" || s(ai.package_type)) add("Package type", ai.package_type, t === "air")
+  add("Weight", ai.weight, t === "air" || type === null)
+  add("CBM", ai.cbm, t === "sea_lcl")
   add("Dimensions", ai.dimensions)
+  add("Chargeable weight", ai.chargeable_weight_stated)
   add("Incoterm", incoterm, true)
   add("Pickup address", ai.pickup_address, ["EXW", "FCA"].includes(incoterm))
+  add("Temperature", ai.temperature_control)
+  add("Cargo ready date", ai.cargo_ready_date)
   add("Urgency", ai.aog ? (s(ai.urgency) ? s(ai.urgency) + ", AOG" : "AOG, critical") : ai.urgency)
   add("Preferred carrier", ai.preferred_carrier)
-  add("B/L type", ai.bl_type)
+  if (t === "sea_fcl" || t === "sea_lcl") add("B/L type", ai.bl_type)
   const special: string[] = [...(ai.special_requirements || []), ...(ai.availability_questions || []).map((q: string) => "Question: " + q)]
   if (ai.dgr) special.unshift("Dangerous goods: yes")
   let free: number | null = null
   for (const x of special) { const m = /free time.*?(\d+)\s*(?:days?|d)\b/i.exec(x); if (m) { free = Number(m[1]); break } }
   const [conf, confL] = CONF[s(ai.confidence).toLowerCase()] || [70, "Medium"]
+
+  // what is missing: the portal's own required-field rules for this type, plus anything the reader could not open
+  const missing = [...(type ? quotableCheck(type, ai).missing : ["Shipment type"]), ...(extra.missing || [])]
+
+  const legs: RequestLeg[] = (Array.isArray(ai.legs) ? ai.legs : []).filter((l: any) => l && typeof l === "object").map((l: any, i: number): RequestLeg => {
+    const alt = l.alt === true
+    const lt: ShipmentType | null = isShipmentType(l.shipment_type) ? l.shipment_type : alt ? type : null
+    const lf: [string, string][] = []
+    const push = (label: string, v: unknown) => { const x = s(v); if (x) lf.push([label, x]) }
+    if (!alt) {
+      push("Cargo", l.cargo_type); push("Equipment", l.equipment); push("Truck type", l.truck_type); push("Quantity", l.quantity); push("Package type", l.package_type)
+      push("Weight", l.weight); push("CBM", l.cbm); push("Dimensions", l.dimensions); push("Temperature", l.temperature_control); push("Cargo ready date", l.cargo_ready_date)
+      push("Incoterm", s(l.incoterm).toUpperCase()); push("Pickup address", l.pickup_address)
+    }
+    const place = (c: unknown, k: unknown) => [s(c), s(k)].filter(Boolean).join(", ")
+    return {
+      label: `${alt ? "Option" : "Leg"} ${i + 2}`, kind: alt ? "option" : "leg", typeLabel: lt ? TYPE_LABEL[lt] : "",
+      from: place(l.origin_city, l.origin_country) || place(ai.origin_city, ai.origin_country), to: place(l.destination_city, l.destination_country), fields: lf,
+    }
+  })
   const kind = extra.suggested_reply ? "Missing information" : "No reply needed"
   return {
-    mode,
+    mode, shipmentType: type, typeLabel: type ? TYPE_LABEL[type] : mode,
     route: {
       from: s(ai.origin_city) || "Not given", fc: s(ai.origin_country), to: s(ai.destination_city) || "Not given", tc: s(ai.destination_country), chosen,
       note: chosen ? "The email did not name the port, so the nearest suitable seaport was chosen for each end. Check them before you price." : "",
     },
-    fields, special, missing: extra.missing, conf, confL, reply: extra.suggested_reply, replyKind: extra.language && extra.suggested_reply && !/english/i.test(extra.language) ? `${kind} · ${extra.language}` : kind,
+    fields, special, missing, legs, conf, confL, reply: extra.suggested_reply, replyKind: extra.language && extra.suggested_reply && !/english/i.test(extra.language) ? `${kind} · ${extra.language}` : kind,
     portWarning: extra.port_warning, sender: extra.sender, senderName: s(ai.sender_name), language: extra.language, freeDaysAsked: free,
     rfq: extra.rfq_body && extra.rfq_body.trim().length > 20 ? { subject: (extra.rfq_subject || "").trim(), body: extra.rfq_body.trim() } : null,
   }
@@ -151,7 +198,20 @@ export function buildQuoteView(ai: any, req: RequestView | null, carrierName: st
   q.quoteValid = validity(q)
   return q
 }
-function buildQuoteViewRaw(ai: any, req: RequestView | null, carrierName: string): QuoteView {
+function buildQuoteViewRaw(ai0: any, req: RequestView | null, carrierName: string): QuoteView {
+  // The carrier priced several destinations (the request offered alternatives): the trial quotes the first one and tells the lead about the rest.
+  const dqs: any[] = Array.isArray(ai0.destination_quotes) ? ai0.destination_quotes.filter((d: any) => d && d.destination) : []
+  let ai = ai0
+  const extraFlags: [string, string][] = []
+  if (dqs.length >= 2) {
+    const d = dqs[0]
+    ai = { ...ai0, ...Object.fromEntries(["total_amount_stated", "transit_days", "etd", "eta", "validity_date", "currency"].filter((k) => d[k] != null).map((k) => [k, d[k]])) }
+    if (Array.isArray(d.charges) && d.charges.length) ai.charges = d.charges
+    extraFlags.push(["info", `The carrier priced ${dqs.length} destinations. The trial uses ${s(d.destination)}. Also quoted: ${dqs.slice(1).map((x) => `${s(x.destination)}${x.total_amount_stated != null ? " (" + (s(x.currency || ai0.currency) || "USD").toUpperCase() + " " + x.total_amount_stated + ")" : ""}`).join(", ")}.`])
+  }
+  const cut = ai0.cutoffs && typeof ai0.cutoffs === "object" ? ai0.cutoffs : null
+  if (cut && (cut.cargo || cut.documents)) extraFlags.push(["info", `Cut-offs: ${[cut.cargo ? "cargo " + cut.cargo : "", cut.documents ? "documents " + cut.documents : ""].filter(Boolean).join(", ")}.`])
+  if (Array.isArray(ai0.legs) && ai0.legs.some((l: any) => l && l.via)) extraFlags.push(["info", `Routing: ${ai0.legs.map((l: any) => [s(l.from), s(l.via) ? "via " + s(l.via) : "", s(l.to)].filter(Boolean).join(" ")).join("; ")}.`])
   const currency = (s(ai.currency) || "USD").toUpperCase()
   const lines: Line[] = [], excluded: Line[] = []
   for (const c of ai.charges || []) {
@@ -186,6 +246,7 @@ function buildQuoteViewRaw(ai: any, req: RequestView | null, carrierName: string
   if (excluded.length) flags.push(["info", `${excluded.length} charge${excluded.length === 1 ? " is" : "s are"} excluded or optional and not counted: ${excluded.map((e) => e.label).join(", ")}.`])
   if (currency !== "USD") flags.push(["info", `Prices are in ${currency}. The trial does not convert currencies.`])
   if (ai.chargeable_weight_stated) flags.push(["info", `Chargeable weight stated by the carrier: ${ai.chargeable_weight_stated} ${s(ai.weight_unit) || "kg"}.`])
+  flags.push(...extraFlags)
   const eq = [ai.container_count && ai.container_type ? `${ai.container_count} x ${ai.container_type}` : s(ai.container_type), s(ai.equipment_type)].filter(Boolean)[0] || ""
   return {
     name: carrierName || "Carrier", ref: s(ai.carrier_quote_ref) || "—", currency, lines, excluded, statedTotal: stated,
