@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { RESUME_HOURS, activeLead, buildRequestView, callN8n, logEvent, purgeTrialData } from "@/lib/trial-server"
+import { buildReply } from "@/lib/trial-replies"
+import { detectFlags } from "@/lib/aog-dgr-detector"
 import { readTrialInput } from "@/lib/trial-input"
 
 export const runtime = "nodejs"
@@ -29,10 +31,15 @@ export async function POST(req: NextRequest) {
     const msg = r.status === 422 ? "That does not look like a freight rate request. It was not counted as a try." : (r.json?.error || "We could not read that email. It was not counted as a try.")
     return NextResponse.json({ error: msg, free: true }, { status: r.status === 422 ? 422 : 502 })
   }
-  const view = buildRequestView(r.json.extraction, {
+  // the portal's keyword safety net behind the AI's dangerous-goods flag
+  const ex = r.json.extraction
+  if (ex && ex.dgr !== true && detectFlags({ isAir: String(ex.shipment_type || "").includes("air"), fields: [inp.text, ex.cargo_type] }).dgr) ex.dgr = true
+  const view = buildRequestView(ex, {
     suggested_reply: r.json.suggested_reply || null, port_warning: r.json.port_warning || null, language: r.json.language || null, sender: inp.sender,
     rfq_subject: r.json.rfq_subject || null, rfq_body: r.json.rfq_body || null,
   })
+  const rep = await buildReply(view, lead.company)
+  view.reply = rep.body; view.replyKind = rep.kind
   const base = { input_source: ["sample", "paste", "file", "ai"].includes(inp.declared) ? inp.declared : inp.source, mode: view.mode, route_from: view.route.from, route_to: view.route.to, cargo: view.fields.find((f) => f[0] === "Cargo")?.[1] ?? null, parse1_ok: true, last_active_at: new Date().toISOString() }
   let runId: string, tryNo: number, used = lead.tries_used
   if (open) {

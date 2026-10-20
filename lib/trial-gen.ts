@@ -159,3 +159,13 @@ export function requestSummary(v: any): string {
   return [`Mode: ${v?.mode}`, `From: ${v?.route?.from}${v?.route?.fc ? ", " + v.route.fc : ""}`, `To: ${v?.route?.to}${v?.route?.tc ? ", " + v.route.tc : ""}`, ...f, ...(v?.special ?? []).map((s: string) => `Note: ${s}`),
     ...(v?.legs ?? []).map((l: any) => l.kind === "option" ? `Also quote this destination: ${l.to}` : `Further leg (${l.label}, quoted separately, do not price it): ${[l.typeLabel, l.from && l.to ? `${l.from} to ${l.to}` : ""].filter(Boolean).join(", ")}`)].join("\n")
 }
+
+/** Puts a short email into the sender's language; the English text is kept when the AI cannot do it. */
+export async function translateReply(text: string, language: string): Promise<string> {
+  try {
+    const out = await gemini(`Translate this email into ${language}. Keep the meaning, the greeting and the sign-off, keep any line breaks, and do not add or remove information. Return JSON {"body": string}.\n\n${text}`,
+      { type: "OBJECT", properties: { body: { type: "STRING" } }, required: ["body"] }, 0.2)
+    const b = String(out?.body ?? "").trim()
+    return b.length > 20 ? b : text
+  } catch { return text }
+}
