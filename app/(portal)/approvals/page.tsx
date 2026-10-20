@@ -442,46 +442,55 @@ function ApprovalCard({
       className="ds-card overflow-hidden"
       style={req.is_aog ? { borderLeft: "3px solid #ef4444" } : undefined}
     >
-      {/* Header */}
-      <div className="px-5 py-4 flex items-start gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-base font-bold text-[var(--text-primary)]">
-              {req.reference_number}
+      {/* Narrow row: click anywhere to expand */}
+      {(() => {
+        const rec = req.recipients ?? []
+        const dests = Array.from(new Set((req.legs ?? []).map((l) => l.destination).filter(Boolean)))
+        const type = req.legs?.[0]?.type || req.transport_mode || "—"
+        const cell = "min-w-0 px-3 text-center"
+        const lbl = "text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]"
+        return (
+          <div
+            role="button" tabIndex={0} aria-expanded={expanded}
+            onClick={() => setExpanded((e) => !e)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded((x) => !x) } }}
+            className="flex cursor-pointer flex-wrap items-center gap-y-2 px-3 py-3 transition-colors hover:bg-[var(--surface-2)] md:flex-nowrap"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)]">
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </span>
-            {req.is_aog && (
-              <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 bg-red-500/10 text-red-500 text-xs font-bold">
-                <AlertTriangle className="h-3 w-3" /> AOG
-              </span>
-            )}
-            {req.is_dgr && (
-              <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 bg-amber-500/10 text-amber-500 text-xs font-bold">
-                ⚠ DGR
-              </span>
-            )}
+            <div className={`${cell} w-[150px] shrink-0`}>
+              <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-[var(--text-primary)]">
+                {req.reference_number}
+                {req.is_aog && <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-500">AOG</span>}
+                {req.is_dgr && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">DGR</span>}
+              </p>
+              <p className="truncate text-[11px] text-[var(--text-muted)]" title={`${stepPosition} · submitted by ${req.submitted_by} · ${fmt(req.submitted_at)}`}>{stepPosition}</p>
+            </div>
+            <div className={`${cell} w-[110px] shrink-0`}><p className={lbl}>Type</p><p className="truncate text-[13px] font-semibold text-[var(--text-primary)]">{type}</p></div>
+            <div className={`${cell} w-[170px] shrink-0`}><p className={lbl}>Requester</p><p className="truncate text-[13px] font-semibold text-[var(--text-primary)]" title={req.sender_email ?? ""}>{req.sender_name || req.sender_email || "—"}</p></div>
+            <div className={`${cell} min-w-[180px] flex-1`}>
+              <p className={lbl}>Sending to{req.send_scope ? "" : ""}</p>
+              {rec.length > 0 ? (
+                <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]" title={rec.map((r) => `${r.carrier} <${r.email}>`).join(", ")}>
+                  {rec[0].carrier}{rec.length > 1 ? ` +${rec.length - 1}` : ""} <span className="font-normal text-[var(--text-muted)]">· {rec[0].email || "no email"}</span>
+                </p>
+              ) : <p className="text-[13px] text-[var(--text-muted)]">{item.email_type === "reply" ? "Reply to requester" : "—"}</p>}
+            </div>
+            <div className={`${cell} min-w-[160px] flex-1`}><p className={lbl}>Destination</p><p className="truncate text-[13px] font-semibold text-[var(--text-primary)]" title={dests.join(" / ")}>{dests.length ? dests.join(" / ") : req.destination_port || "—"}</p></div>
+            <div className="ml-auto flex shrink-0 items-center gap-2 pl-3" onClick={(e) => e.stopPropagation()}>
+              <button onClick={approve} disabled={acting} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-green-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50">
+                {acting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Approve
+              </button>
+              <button onClick={() => { setShowReject(true); setExpanded(true) }} disabled={acting} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-400/50 px-3 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50">
+                <XCircle className="h-3.5 w-3.5" /> Reject
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">{stepPosition}</p>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Submitted by{" "}
-            <span className="text-[var(--text-secondary)] font-medium">
-              {req.submitted_by}
-            </span>{" "}
-            · {fmt(req.submitted_at)}
-          </p>
-        </div>
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 pt-1"
-        >
-          {expanded ? "Collapse" : "Expand"}
-          {expanded ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </button>
-      </div>
+        )
+      })()}
 
+      {expanded && (<div className="border-t border-[var(--border)] pt-4">
       {/* Who this goes to */}
       {item.email_type !== "reply" && (
         <div className="mx-5 mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-center text-xs">
@@ -505,6 +514,8 @@ function ApprovalCard({
           </div>
         ))}
       </div>
+
+      </div>)}
 
       {/* Expanded detail */}
       {expanded && (
@@ -768,7 +779,7 @@ function ApprovalCard({
       )}
 
       {/* Action bar */}
-      <div className="px-5 py-4 border-t border-[var(--border)] bg-[var(--surface-2)] flex flex-col gap-3">
+      {(expanded || showReject) && <div className="px-5 py-4 border-t border-[var(--border)] bg-[var(--surface-2)] flex flex-col gap-3">
         {showReject ? (
           <div className="space-y-2">
             <textarea
@@ -824,17 +835,9 @@ function ApprovalCard({
               <XCircle className="h-4 w-4" />
               Reject
             </button>
-            {!expanded && (
-              <button
-                onClick={() => setExpanded(true)}
-                className="ml-auto flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-              >
-                <Mail className="h-3.5 w-3.5" /> View email preview
-              </button>
-            )}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }
