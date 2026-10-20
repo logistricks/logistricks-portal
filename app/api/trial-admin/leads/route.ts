@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const hasData = lr.some((r: any) => !r.data_purged_at)
     const status = l.status === "disabled" ? "Disabled" : Date.now() > Date.parse(l.expires_at) ? "Expired" : !l.first_login_at ? "Not opened" : finished >= l.tries_total ? "Finished" : l.tries_used > 0 ? "In progress" : "Active"
     return {
-      genLimit: l.gen_limit ?? 12, genUsed: mine.filter((e: any) => e.type === "generated" && Date.now() - Date.parse(e.created_at) < 86400000).length,
+      readsPerTry: l.reads_per_try ?? 3, genLimit: l.gen_limit ?? 12, genUsed: mine.filter((e: any) => e.type === "generated" && Date.now() - Date.parse(e.created_at) < 86400000).length,
       id: l.id, company: l.company, contact: l.contact_name, code: l.code, triesTotal: l.tries_total, triesUsed: l.tries_used, status,
       expiresAt: l.expires_at, createdAt: l.created_at, lastActive: l.last_active_at, converted: l.converted, notes: l.notes,
       signals: sig.length, hot: finished >= 1 && sig.length >= 3, finishedTries: finished,
@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
   const g = await admin_(req); if (g.err) return g.err
   const b = await req.json().catch(() => ({}))
   const company = String(b.company ?? "").trim()
+  const reads = Math.min(Math.max(Math.floor(Number(b.reads_per_try)) || 3, 1), 50)
   if (!company) return NextResponse.json({ error: "Company is required." }, { status: 400 })
   const contact = String(b.contact ?? "").trim() || null
   const tries = Math.min(Math.max(Number(b.tries) || 2, 1), 10)
@@ -92,10 +93,10 @@ export async function POST(req: NextRequest) {
   const admin = adminClient()
   for (let i = 0; i < 5; i++) {
     const code = newAccessCode()
-    const row: Record<string, unknown> = { company, contact_name: contact, code, password_hash: hashPassword(code), tries_total: tries, gen_limit: genLimit, expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: g.by }
+    const row: Record<string, unknown> = { company, contact_name: contact, code, password_hash: hashPassword(code), tries_total: tries, gen_limit: genLimit, reads_per_try: reads, expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: g.by }
     let { data, error } = await admin.from("trial_leads").insert(row).select("id").single()
     // Migration 069 not run yet: create the lead without the AI limit rather than failing.
-    if (error && /gen_limit/.test(error.message)) { delete row.gen_limit; ;({ data, error } = await admin.from("trial_leads").insert(row).select("id").single()) }
+    if (error && /gen_limit|reads_per_try/.test(error.message)) { delete row.gen_limit; delete row.reads_per_try; ;({ data, error } = await admin.from("trial_leads").insert(row).select("id").single()) }
     if (error?.code === "23505") continue
     if (error || !data) return NextResponse.json({ error: error?.message ?? "Could not create the lead." }, { status: 500 })
     const link = `${trialUrl()}/?code=${code}`

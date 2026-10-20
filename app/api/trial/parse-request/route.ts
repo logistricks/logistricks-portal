@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
   // Which try is this? An unfinished try inside its 48 hours is reused; otherwise a new one is needed.
   const since = new Date(Date.now() - RESUME_HOURS * 3600_000).toISOString()
   const { data: open } = await admin.from("trial_runs").select("*").eq("lead_id", lead.id).is("finished_at", null).gte("started_at", since).order("started_at", { ascending: false }).limit(1).maybeSingle()
-  if (open && open.parse_calls >= 3) return NextResponse.json({ error: "This try has reached its 3 reads. Finish it to start the next one." }, { status: 429 })
+  const maxReads = Number((lead as any).reads_per_try) > 0 ? Number((lead as any).reads_per_try) : 3
+  if (open && open.parse_calls >= maxReads) return NextResponse.json({ error: `This try has reached its ${maxReads} reads. Finish it to start the next one.` }, { status: 429 })
   if (!open && lead.tries_used >= lead.tries_total) return NextResponse.json({ error: "Both of your tries are used." }, { status: 403 })
   const day = new Date(Date.now() - 86400_000).toISOString()
   const { count: fails } = await admin.from("trial_events").select("id", { count: "exact", head: true }).eq("lead_id", lead.id).eq("type", "parse_failed").gte("created_at", day)
