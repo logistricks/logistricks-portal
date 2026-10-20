@@ -498,6 +498,21 @@ function emailParts(){
   var body="Hello "+(s.senderName||"there")+",\n\nThank you for your request. Please find our quotation for "+lane+(c.equip?" ("+c.equip+")":"")+".\n\nTotal: "+money(p.final,c.currency)+"\nTransit time: "+c.transit+"\nValid until: "+fmtDate(c.quoteValid)+"\n\n"+p.lines.map(function(l){return "- "+l.label+": "+money(l.amount,c.currency)}).join("\n")+"\n\nPrices are in "+c.currency+" and subject to space and equipment availability. The quotation is attached as a PDF.\n\nBest regards,\n"+(st.lead?st.lead.company:"");
   return {subj:subj,body:body};
 }
+function quoteFields(){
+  return cur.fields.filter(function(f){return f[1]&&!/^(Preferred carrier)$/i.test(f[0])})
+}
+function quoteTerms(){
+  var c=quote,cu=c.currency,s=cur,t=[];
+  t.push("This quotation is valid until "+fmtDate(c.quoteValid)+".");
+  if(c.transit&&c.transit!=="Not stated")t.push("Transit time: "+c.transit+".");
+  if(c.free&&c.free!=="Not stated")t.push("Free time at destination: "+c.free+".");
+  t.push("All prices are in "+cu+" and cover only the charges listed above.");
+  if(c.excluded&&c.excluded.length)t.push("Not included: "+c.excluded.map(function(l){return l.label}).join(", ")+".");
+  if(s.special&&s.special.length)t.push("Special requirements noted: "+s.special.join("; ")+".");
+  t.push("Rates are subject to space and equipment availability at the time of booking.");
+  t.push("Cargo details are as supplied by the shipper. The rate may change if the cargo, route or dates differ.");
+  return t;
+}
 function renderOut3(){
   if(!st.parsed2||!st.s3on)return;
   var p=pricing(),s=cur,c=quote,cu=c.currency;
@@ -506,10 +521,14 @@ function renderOut3(){
   var tabs='<div class="tabs" role="tablist" aria-label="Output format"><button type="button" role="tab" data-f="pdf" aria-selected="'+(st.fmt==="pdf")+'">PDF</button><button type="button" role="tab" data-f="mail" aria-selected="'+(st.fmt==="mail")+'">Email body</button></div>';
   var out;
   if(st.fmt==="pdf"){
+    var qf=quoteFields(),tl=quoteTerms(),rt=s.route;
     out='<div class="paper"><div class="top"><div><h4>QUOTATION</h4><div class="mono" style="font-size:12px;margin-top:8px">'+quoteNo()+' · '+fmtDate(new Date())+'</div></div><div style="font:700 17px/1.2 var(--font-display);text-align:right">'+esc(st.lead?st.lead.company:"")+'</div></div>'
-    +'<table><tbody><tr><td><b>For</b><br>'+esc(s.senderName||"Your client")+'</td><td><b>Route</b><br>'+esc(s.route.from)+' to '+esc(s.route.to)+'</td><td><b>Valid until</b><br>'+fmtDate(c.quoteValid)+'</td></tr></tbody></table>'
-    +'<table><thead><tr><th>Description</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount ('+esc(cu)+')</th></tr></thead><tbody>'+p.lines.map(function(l){return '<tr><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+l.qty+'</td><td class="r">'+money(l.amount,cu)+'</td></tr>'}).join("")+'</tbody></table>'
-    +'<div class="total"><span>Total</span><b>'+money(p.final,cu)+'</b></div><small>Transit time '+esc(c.transit)+'. Free time '+esc(c.free)+'. Prices in '+esc(cu)+', subject to space and equipment availability. Valid until '+fmtDate(c.quoteValid)+'.</small></div>'
+    +'<table class="meta"><tbody><tr><td><b>Prepared for</b><br>'+esc(s.senderName||"Your client")+(s.sender?'<br><span class="mut">'+esc(s.sender)+'</span>':'')+'</td><td><b>Route</b><br>'+esc(rt.from)+(rt.fc?', '+esc(rt.fc):'')+'<br>to '+esc(rt.to)+(rt.tc?', '+esc(rt.tc):'')+'</td><td><b>Service</b><br>'+esc(s.typeLabel||s.mode)+'</td><td><b>Valid until</b><br>'+fmtDate(c.quoteValid)+'</td></tr></tbody></table>'
+    +(qf.length?'<h5>Shipment details</h5><div class="kvp">'+qf.map(function(f){return '<div><small>'+esc(f[0])+'</small><b>'+esc(f[1])+'</b></div>'}).join("")+'</div>':'')
+    +'<h5>Charges</h5><table><thead><tr><th>Description</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount ('+esc(cu)+')</th></tr></thead><tbody>'+p.lines.map(function(l){return '<tr><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+l.qty+'</td><td class="r">'+money(l.amount,cu)+'</td></tr>'}).join("")+'</tbody></table>'
+    +'<div class="total"><span>Total</span><b>'+money(p.final,cu)+'</b></div>'
+    +'<h5>Terms and conditions</h5><ul class="terms">'+tl.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>'
+    +'<small>Thank you for the opportunity to quote. Reply to this quotation to confirm the booking.</small></div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px"><button class="btn btn-primary" id="dlPdf" type="button">'+ICON.file+' Download PDF</button></div>';
   }else{
     var e=emailParts();

@@ -10,6 +10,18 @@ export function quotationHtml(c: TrialDocCtx): string {
   const p = pricing(c.quote.lines, c.markupType, c.markupValue), cur = c.quote.currency
   const no = quoteNumber(c.code, c.tryNo)
   const rows = p.lines.map((l) => `<tr><td>${esc(l.label)}</td><td>${esc(l.basis)}</td><td class="r">${l.qty}</td><td class="r">${money(l.price, cur)}</td></tr>`).join("")
+  const fields = c.req.fields.filter((f) => f[1] && f[0] !== "Preferred carrier") as [string, string][]
+  const q = c.quote
+  const terms = [
+    `This quotation is valid until ${fmtDate(q.quoteValid)}.`,
+    ...(q.transit && q.transit !== "Not stated" ? [`Transit time: ${q.transit}.`] : []),
+    ...(q.free && q.free !== "Not stated" ? [`Free time at destination: ${q.free}.`] : []),
+    `All prices are in ${cur} and cover only the charges listed above.`,
+    ...(q.excluded.length ? [`Not included: ${q.excluded.map((l) => l.label).join(", ")}.`] : []),
+    ...(c.req.special.length ? [`Special requirements noted: ${c.req.special.join("; ")}.`] : []),
+    "Rates are subject to space and equipment availability at the time of booking.",
+    "Cargo details are as supplied by the shipper. The rate may change if the cargo, route or dates differ.",
+  ]
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}body{font:13px/1.5 Arial,Helvetica,sans-serif;color:#1B2740;margin:0}
 .top{display:flex;justify-content:space-between;border-bottom:3px solid #E8821A;padding-bottom:14px;margin-bottom:18px}
@@ -17,13 +29,18 @@ h1{margin:0;font-size:26px;letter-spacing:.04em}.muted{color:#5b6a80}.co{text-al
 table{width:100%;border-collapse:collapse;margin:12px 0}th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;text-align:left;padding:7px 6px;border-bottom:1px solid #cfd8e5}
 td{padding:8px 6px;border-bottom:1px solid #e6ebf2;vertical-align:top}.r{text-align:right}th.r{text-align:right}
 .meta td{border:0;padding:4px 6px}.total{display:flex;justify-content:space-between;background:#0F1E36;color:#fff;border-radius:6px;padding:12px 16px;margin-top:8px;font-size:18px;font-weight:700}
-small{display:block;margin-top:16px;color:#5b6a80}</style></head><body>
+small{display:block;margin-top:16px;color:#5b6a80}
+.meta td{width:25%}h5{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin:20px 0 4px}
+.kvp{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;border-top:1px solid #cfd8e5;padding-top:10px}.kvp small{display:block;margin:0 0 2px;font-size:11px}.kvp b{font-weight:600}
+ul.terms{margin:8px 0 0;padding-left:18px;color:#34425a;font-size:12px;line-height:1.55}</style></head><body>
 <div class="top"><div><h1>QUOTATION</h1><div class="muted">${esc(no)} · ${fmtDate(new Date())}</div></div><div class="co">${esc(c.company)}</div></div>
-<table class="meta"><tr><td><b>For</b><br>${esc(c.req.senderName || "Your client")}</td><td><b>Route</b><br>${esc(c.req.route.from)} to ${esc(c.req.route.to)}</td><td><b>Valid until</b><br>${fmtDate(c.quote.quoteValid)}</td></tr>
-<tr><td><b>Mode</b><br>${esc(c.req.mode)}</td><td><b>Cargo</b><br>${esc(c.req.fields.find((f) => f[0] === "Cargo")?.[1] ?? "")}</td><td><b>Incoterm</b><br>${esc(c.req.fields.find((f) => f[0] === "Incoterm")?.[1] ?? "")}</td></tr></table>
+<table class="meta"><tr><td><b>Prepared for</b><br>${esc(c.req.senderName || "Your client")}${c.req.sender ? `<br><span class="muted">${esc(c.req.sender)}</span>` : ""}</td><td><b>Route</b><br>${esc(c.req.route.from)}${c.req.route.fc ? ", " + esc(c.req.route.fc) : ""}<br>to ${esc(c.req.route.to)}${c.req.route.tc ? ", " + esc(c.req.route.tc) : ""}</td><td><b>Service</b><br>${esc(c.req.typeLabel || c.req.mode)}</td><td><b>Valid until</b><br>${fmtDate(c.quote.quoteValid)}</td></tr></table>
+${fields.length ? `<h5>Shipment details</h5><div class="kvp">${fields.map((f) => `<div><small>${esc(f[0])}</small><b>${esc(f[1])}</b></div>`).join("")}</div>` : ""}
+<h5>Charges</h5>
 <table><thead><tr><th>Description</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount (${esc(cur)})</th></tr></thead><tbody>${rows}</tbody></table>
 <div class="total"><span>Total</span><span>${money(p.final, cur)}</span></div>
-<small>Transit time ${esc(c.quote.transit)}. Free time ${esc(c.quote.free)}. Prices in ${esc(cur)}, subject to space and equipment availability${c.quote.status ? "" : ""}. Valid until ${fmtDate(c.quote.quoteValid)}.</small>
+<h5>Terms and conditions</h5><ul class="terms">${terms.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+<small>Thank you for the opportunity to quote. Reply to this quotation to confirm the booking.</small>
 </body></html>`
 }
 
