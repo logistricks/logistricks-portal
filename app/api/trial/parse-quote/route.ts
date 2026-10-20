@@ -23,12 +23,12 @@ export async function POST(req: NextRequest) {
     await logEvent(admin, lead.id, "quote_failed", { status: r.status }, run.id)
     return NextResponse.json({ error: r.json?.error || "We could not read a quote in that email.", free: true }, { status: r.status === 502 ? 502 : 422 })
   }
-  const quote = buildQuoteView(r.json.extraction, run.data.request, inp.fromName)
+  const { raw, ...quote } = buildQuoteView(r.json.extraction, run.data.request, inp.fromName)
   if (!quote.lines.length) {
     await logEvent(admin, lead.id, "quote_failed", { reason: "no prices" }, run.id)
     return NextResponse.json({ error: "We could not find prices in that email.", free: true }, { status: 422 })
   }
-  await admin.from("trial_runs").update({ parse2_ok: true, currency: quote.currency, data: { ...run.data, quote }, last_active_at: new Date().toISOString() }).eq("id", run.id)
+  await admin.from("trial_runs").update({ parse2_ok: true, currency: quote.currency, data: { ...run.data, quote, raw }, last_active_at: new Date().toISOString() }).eq("id", run.id)
   await logEvent(admin, lead.id, "quote_read", { charges: quote.lines.length, currency: quote.currency, flags: quote.flags.filter((f) => f[0] === "warn").length }, run.id)
   return NextResponse.json({ quote })
 }

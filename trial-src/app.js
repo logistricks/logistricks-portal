@@ -493,27 +493,30 @@ function paintBreak(){
 /* ---------- step 3 ---------- */
 function quoteNo(){var c=(st.lead&&st.lead.code||"TRIAL").replace(/[^A-Z0-9]/gi,"").slice(0,6).toUpperCase();return "QT-"+c+"-"+("0"+(st.tryNo||1)).slice(-2)}
 function emailParts(){
+  if(st.qText)return {subj:st.qSubj,body:st.qText};
   var p=pricing(),s=cur,c=quote,lane=s.route.from+" to "+s.route.to;
   var subj="Quotation "+quoteNo()+": "+lane;
   var body="Hello "+(s.senderName||"there")+",\n\nThank you for your request. Please find our quotation for "+lane+(c.equip?" ("+c.equip+")":"")+".\n\nTotal: "+money(p.final,c.currency)+"\nTransit time: "+c.transit+"\nValid until: "+fmtDate(c.quoteValid)+"\n\n"+p.lines.map(function(l){return "- "+l.label+": "+money(l.amount,c.currency)}).join("\n")+"\n\nPrices are in "+c.currency+" and subject to space and equipment availability. The quotation is attached as a PDF.\n\nBest regards,\n"+(st.lead?st.lead.company:"");
   return {subj:subj,body:body};
 }
-function quoteFields(){
-  return cur.fields.filter(function(f){return f[1]&&!/^(Preferred carrier)$/i.test(f[0])})
+/* The quotation is built by the portal's own template on the server (same code as the PDF); the page only shows it. */
+var qSeq=0;
+var qTimer=0;
+function loadQuotation(){
+  if(!st.runId)return;
+  st.qFor=st.mtype+":"+st.mval;clearTimeout(qTimer);
+  qTimer=setTimeout(fetchQuotation,350);
 }
-function quoteTerms(){
-  var c=quote,cu=c.currency,s=cur,t=[];
-  t.push("This quotation is valid until "+fmtDate(c.quoteValid)+".");
-  if(c.transit&&c.transit!=="Not stated")t.push("Transit time: "+c.transit+".");
-  if(c.free&&c.free!=="Not stated")t.push("Free time at destination: "+c.free+".");
-  t.push("All prices are in "+cu+" and cover only the charges listed above.");
-  if(c.excluded&&c.excluded.length)t.push("Not included: "+c.excluded.map(function(l){return l.label}).join(", ")+".");
-  if(s.special&&s.special.length)t.push("Special requirements noted: "+s.special.join("; ")+".");
-  t.push("Rates are subject to space and equipment availability at the time of booking.");
-  t.push("Cargo details are as supplied by the shipper. The rate may change if the cargo, route or dates differ.");
-  return t;
+function fetchQuotation(){
+  var my=++qSeq;
+  post("/api/trial/quotation-html",{run_id:st.runId,markup_type:st.mtype,markup_value:Number(st.mval)||0}).then(function(r){
+    if(my!==qSeq||!r.ok)return;
+    st.qDoc=r.json.document;st.qSubj=r.json.subject;st.qText=r.json.text;
+    var f=$("#qFrame");if(f){f.srcdoc=r.json.document;f.onload=function(){try{f.style.height=(f.contentDocument.documentElement.scrollHeight+8)+"px"}catch(e){}}}
+    if(st.fmt==="mail")renderOut3(true);
+  });
 }
-function renderOut3(){
+function renderOut3(noLoad){
   if(!st.parsed2||!st.s3on)return;
   var p=pricing(),s=cur,c=quote,cu=c.currency;
   var tpl='<div class="tpls"><button type="button" class="tpl" aria-pressed="true"><b>Default template</b><span class="hint">Clean layout with your price, validity and terms.</span><div class="thumb"></div></button>'
@@ -521,14 +524,7 @@ function renderOut3(){
   var tabs='<div class="tabs" role="tablist" aria-label="Output format"><button type="button" role="tab" data-f="pdf" aria-selected="'+(st.fmt==="pdf")+'">PDF</button><button type="button" role="tab" data-f="mail" aria-selected="'+(st.fmt==="mail")+'">Email body</button></div>';
   var out;
   if(st.fmt==="pdf"){
-    var qf=quoteFields(),tl=quoteTerms(),rt=s.route;
-    out='<div class="paper"><div class="top"><div><h4>QUOTATION</h4><div class="mono" style="font-size:12px;margin-top:8px">'+quoteNo()+' · '+fmtDate(new Date())+'</div></div><div style="font:700 17px/1.2 var(--font-display);text-align:right">'+esc(st.lead?st.lead.company:"")+'</div></div>'
-    +'<table class="meta"><tbody><tr><td><b>Prepared for</b><br>'+esc(s.senderName||"Your client")+(s.sender?'<br><span class="mut">'+esc(s.sender)+'</span>':'')+'</td><td><b>Route</b><br>'+esc(rt.from)+(rt.fc?', '+esc(rt.fc):'')+'<br>to '+esc(rt.to)+(rt.tc?', '+esc(rt.tc):'')+'</td><td><b>Service</b><br>'+esc(s.typeLabel||s.mode)+'</td><td><b>Valid until</b><br>'+fmtDate(c.quoteValid)+'</td></tr></tbody></table>'
-    +(qf.length?'<h5>Shipment details</h5><div class="kvp">'+qf.map(function(f){return '<div><small>'+esc(f[0])+'</small><b>'+esc(f[1])+'</b></div>'}).join("")+'</div>':'')
-    +'<h5>Charges</h5><table><thead><tr><th>Description</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount ('+esc(cu)+')</th></tr></thead><tbody>'+p.lines.map(function(l){return '<tr><td>'+esc(l.label)+'</td><td>'+esc(l.basis)+'</td><td class="r">'+l.qty+'</td><td class="r">'+money(l.amount,cu)+'</td></tr>'}).join("")+'</tbody></table>'
-    +'<div class="total"><span>Total</span><b>'+money(p.final,cu)+'</b></div>'
-    +'<h5>Terms and conditions</h5><ul class="terms">'+tl.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul>'
-    +'<small>Thank you for the opportunity to quote. Reply to this quotation to confirm the booking.</small></div>'
+    out='<div class="paper paperframe"><iframe id="qFrame" title="Quotation preview" sandbox="allow-same-origin" srcdoc="'+esc(st.qDoc||'<body style=&quot;font:14px Arial;color:#64748b;padding:24px&quot;>Building your quotation...</body>')+'"></iframe></div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px"><button class="btn btn-primary" id="dlPdf" type="button">'+ICON.file+' Download PDF</button></div>';
   }else{
     var e=emailParts();
@@ -537,6 +533,8 @@ function renderOut3(){
   var fin=!st.finished?'<p class="hint" style="margin-top:22px">Your try completes when you download the PDF or copy the email.</p>':'';
   $("#out3").innerHTML='<div class="grid2 g-out"><div class="card" data-rv><h3>Template</h3><p class="hint" style="margin-bottom:14px">Pick how the quotation looks. Same price and terms either way.</p>'+tpl+'<h3>Format</h3><p class="hint" style="margin-bottom:12px">Same content, two ways to send it.</p>'+tabs+fin+'</div><div data-rv>'+out+'</div></div>';
   $$("#out3 .tabs button").forEach(function(b){b.addEventListener("click",function(){st.fmt=b.dataset.f;renderOut3();saveRun(false,true)})});
+  if(!noLoad&&st.qFor!==st.mtype+":"+st.mval)loadQuotation();
+  else if(st.fmt==="pdf"){var qf=$("#qFrame");if(qf)qf.onload=function(){try{qf.style.height=(qf.contentDocument.documentElement.scrollHeight+8)+"px"}catch(e){}}}
   [$("#dlPdf"),$("#dlPdf2")].forEach(function(d){if(d)d.addEventListener("click",function(){download("/api/trial/pdf",d,true)})});
   var cm=$("#cpMail");if(cm)cm.addEventListener("click",function(){copy(emailParts().body,"Email body copied");logEv("email_copied");autoFinish()});
   var cs=$("#cpSubj");if(cs)cs.addEventListener("click",function(){copy(emailParts().subj,"Subject copied")});

@@ -1,47 +1,44 @@
 /** Builds the trial quotation as a PDF document (HTML) and as an Excel workbook. Server only. */
 import { money, pricing, quoteNumber, type QuoteView, type RequestView } from "@/lib/trial-server"
+import { buildContext, htmlDocument, renderQuotation, type RequestIn } from "@/lib/quotation-render"
+import { STARTER_HTML, STARTER_SUBJECT } from "@/lib/quotation-starter"
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as Record<string, string>)[c])
 const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 
-export interface TrialDocCtx { company: string; code: string; tryNo: number; req: RequestView; quote: QuoteView; markupType: string; markupValue: number }
+export interface TrialDocCtx { company: string; contact?: string; code: string; tryNo: number; req: RequestView; quote: QuoteView; raw?: any; markupType: string; markupValue: number }
+
+/**
+ * The quotation exactly as the portal builds it: the portal's own default template, variables and charge rules
+ * (lib/quotation-render + lib/quotation-starter), fed with what the trial read from the two emails.
+ */
+export function renderTrialQuotation(c: TrialDocCtx): { subject: string; html: string; text: string; document: string } {
+  const p = pricing(c.quote.lines, c.markupType, c.markupValue)
+  const f = (k: string) => c.req.fields.find((x) => x[0] === k)?.[1] ?? ""
+  const rt = c.req.route
+  const request: RequestIn = {
+    requestRef: "", receivedExact: "", urgency: f("Urgency"),
+    originCity: rt.from === "Not given" ? "" : rt.from, originCountry: rt.fc ?? "", destinationCity: rt.to === "Not given" ? "" : rt.to, destinationCountry: rt.tc ?? "",
+    cargoType: f("Cargo"), equipment: f("Equipment"), weight: f("Weight"), quantity: f("Quantity"), dimensions: f("Dimensions"),
+    incoterm: f("Incoterm"), blType: f("B/L type"), modes: [c.req.mode], pickupAddress: f("Pickup address"),
+    senderName: c.req.senderName || "", senderEmail: c.req.sender || "", senderPhone: "", specialRequirements: c.req.special,
+    shipmentType: c.req.shipmentType, cbm: f("CBM"), packageType: f("Package type"), truckType: f("Truck type"), temperatureControl: f("Temperature"), cargoReadyDate: f("Cargo ready date"),
+  }
+  const raw = c.raw ?? {
+    charges: c.quote.lines.map((l) => ({ carrier_label: l.label, basis: l.basis, quantity: l.qty, unit_rate: l.unit, amount: l.amount, inclusion: "included" })),
+    transit_days: parseInt(c.quote.transit) || null, free_days: parseInt(c.quote.free) || null,
+  }
+  const quote = { ...raw, rate_currency: c.quote.currency, validity_date: c.quote.quoteValid, carrier_quote_ref: raw.carrier_quote_ref ?? null, origin_place: raw.origin_place || request.originCity, destination_place: raw.destination_place || request.destinationCity }
+  const { ctx } = buildContext({
+    request, quote, carrierName: c.quote.name, markupType: c.markupType === "flat" ? "flat" : "percent", markupAmount: c.markupValue,
+    baseRate: p.base, finalPrice: p.final, preparedBy: c.contact || "", company: { name: c.company }, quotationNumber: quoteNumber(c.code, c.tryNo),
+  })
+  const r = renderQuotation({ subject: STARTER_SUBJECT, body: "", body_html: STARTER_HTML, format: "html" }, ctx, { delivery: "pdf" })
+  return { subject: r.subject, html: r.html ?? "", text: r.text, document: htmlDocument(r.html ?? "") }
+}
 
 export function quotationHtml(c: TrialDocCtx): string {
-  const p = pricing(c.quote.lines, c.markupType, c.markupValue), cur = c.quote.currency
-  const no = quoteNumber(c.code, c.tryNo)
-  const rows = p.lines.map((l) => `<tr><td>${esc(l.label)}</td><td>${esc(l.basis)}</td><td class="r">${l.qty}</td><td class="r">${money(l.price, cur)}</td></tr>`).join("")
-  const fields = c.req.fields.filter((f) => f[1] && f[0] !== "Preferred carrier") as [string, string][]
-  const q = c.quote
-  const terms = [
-    `This quotation is valid until ${fmtDate(q.quoteValid)}.`,
-    ...(q.transit && q.transit !== "Not stated" ? [`Transit time: ${q.transit}.`] : []),
-    ...(q.free && q.free !== "Not stated" ? [`Free time at destination: ${q.free}.`] : []),
-    `All prices are in ${cur} and cover only the charges listed above.`,
-    ...(q.excluded.length ? [`Not included: ${q.excluded.map((l) => l.label).join(", ")}.`] : []),
-    ...(c.req.special.length ? [`Special requirements noted: ${c.req.special.join("; ")}.`] : []),
-    "Rates are subject to space and equipment availability at the time of booking.",
-    "Cargo details are as supplied by the shipper. The rate may change if the cargo, route or dates differ.",
-  ]
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-*{box-sizing:border-box}body{font:13px/1.5 Arial,Helvetica,sans-serif;color:#1B2740;margin:0}
-.top{display:flex;justify-content:space-between;border-bottom:3px solid #E8821A;padding-bottom:14px;margin-bottom:18px}
-h1{margin:0;font-size:26px;letter-spacing:.04em}.muted{color:#5b6a80}.co{text-align:right;font-weight:700;font-size:16px}
-table{width:100%;border-collapse:collapse;margin:12px 0}th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;text-align:left;padding:7px 6px;border-bottom:1px solid #cfd8e5}
-td{padding:8px 6px;border-bottom:1px solid #e6ebf2;vertical-align:top}.r{text-align:right}th.r{text-align:right}
-.meta td{border:0;padding:4px 6px}.total{display:flex;justify-content:space-between;background:#0F1E36;color:#fff;border-radius:6px;padding:12px 16px;margin-top:8px;font-size:18px;font-weight:700}
-small{display:block;margin-top:16px;color:#5b6a80}
-.meta td{width:25%}h5{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin:20px 0 4px}
-.kvp{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 16px;border-top:1px solid #cfd8e5;padding-top:10px}.kvp small{display:block;margin:0 0 2px;font-size:11px}.kvp b{font-weight:600}
-ul.terms{margin:8px 0 0;padding-left:18px;color:#34425a;font-size:12px;line-height:1.55}</style></head><body>
-<div class="top"><div><h1>QUOTATION</h1><div class="muted">${esc(no)} · ${fmtDate(new Date())}</div></div><div class="co">${esc(c.company)}</div></div>
-<table class="meta"><tr><td><b>Prepared for</b><br>${esc(c.req.senderName || "Your client")}${c.req.sender ? `<br><span class="muted">${esc(c.req.sender)}</span>` : ""}</td><td><b>Route</b><br>${esc(c.req.route.from)}${c.req.route.fc ? ", " + esc(c.req.route.fc) : ""}<br>to ${esc(c.req.route.to)}${c.req.route.tc ? ", " + esc(c.req.route.tc) : ""}</td><td><b>Service</b><br>${esc(c.req.typeLabel || c.req.mode)}</td><td><b>Valid until</b><br>${fmtDate(c.quote.quoteValid)}</td></tr></table>
-${fields.length ? `<h5>Shipment details</h5><div class="kvp">${fields.map((f) => `<div><small>${esc(f[0])}</small><b>${esc(f[1])}</b></div>`).join("")}</div>` : ""}
-<h5>Charges</h5>
-<table><thead><tr><th>Description</th><th>Basis</th><th class="r">Qty</th><th class="r">Amount (${esc(cur)})</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="total"><span>Total</span><span>${money(p.final, cur)}</span></div>
-<h5>Terms and conditions</h5><ul class="terms">${terms.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-<small>Thank you for the opportunity to quote. Reply to this quotation to confirm the booking.</small>
-</body></html>`
+  return renderTrialQuotation(c).document.replace("padding:28px", "padding:0")
 }
 
 export async function quotationXlsx(c: TrialDocCtx): Promise<Buffer> {

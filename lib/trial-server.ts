@@ -209,6 +209,8 @@ export interface Line { label: string; basis: string; qty: number; unit: number;
 export interface QuoteView {
   name: string; ref: string; currency: string; lines: Line[]; excluded: Line[]; statedTotal: number | null
   transit: string; free: string; validUntil: string | null; validDays: number | null; quoteValid: string; status: string | null; flags: [string, string][]; equip: string
+  /** The carrier's extraction as read (server only, never sent to the page): the portal's quotation template reads it. */
+  raw?: any
 }
 const r2 = (n: number) => Math.round(n * 100) / 100
 export function buildQuoteView(ai: any, req: RequestView | null, carrierName: string): QuoteView {
@@ -270,7 +272,7 @@ function buildQuoteViewRaw(ai0: any, req: RequestView | null, carrierName: strin
   return {
     name: carrierName || "Carrier", ref: s(ai.carrier_quote_ref) || "—", currency, lines, excluded, statedTotal: stated,
     transit: ai.transit_days != null ? `${ai.transit_days} days` : "Not stated", free: free != null ? `${free} days` : "Not stated",
-    validUntil, validDays, quoteValid: "", status: ai.quote_status ?? null, flags, equip: String(eq),
+    validUntil, validDays, quoteValid: "", status: ai.quote_status ?? null, flags, equip: String(eq), raw: ai,
   }
 }
 
