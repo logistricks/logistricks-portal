@@ -35,7 +35,7 @@ Rules:
 - Invent a fictional carrier. Never use a real carrier name.
 - Base it on the request below: same lane, same cargo, same quantities. Charge lines must be itemised with a basis (per kg, per container, per shipment) and a currency, one per line, in a dash list.
 - Include transit time, free time (sea only), validity and a reference number. For sea quotes also give the cargo and documents cut-off dates and the transhipment port when there is one.
-- If the request offers more than one destination, price each destination separately with its own total, transit time and validity.
+- If the request offers more than one destination, price each destination separately with its own total, transit time and validity. If it lists a further leg that is quoted separately, quote only the first leg and say the other leg is not included.
 - Plain text only. No markdown.
 
 Difficulty level: {{level}}
@@ -137,5 +137,6 @@ export async function writeCarrierReply(prompt: string, level: Level, requestSum
 /** The request the lead just read, as plain text for the carrier-reply writer. */
 export function requestSummary(v: any): string {
   const f = (v?.fields ?? []).filter((x: any) => x[1]).map((x: any) => `${x[0]}: ${x[1]}`)
-  return [`Mode: ${v?.mode}`, `From: ${v?.route?.from}${v?.route?.fc ? ", " + v.route.fc : ""}`, `To: ${v?.route?.to}${v?.route?.tc ? ", " + v.route.tc : ""}`, ...f, ...(v?.special ?? []).map((s: string) => `Note: ${s}`)].join("\n")
+  return [`Mode: ${v?.mode}`, `From: ${v?.route?.from}${v?.route?.fc ? ", " + v.route.fc : ""}`, `To: ${v?.route?.to}${v?.route?.tc ? ", " + v.route.tc : ""}`, ...f, ...(v?.special ?? []).map((s: string) => `Note: ${s}`),
+    ...(v?.legs ?? []).map((l: any) => l.kind === "option" ? `Also quote this destination: ${l.to}` : `Further leg (${l.label}, quoted separately, do not price it): ${[l.typeLabel, l.from && l.to ? `${l.from} to ${l.to}` : ""].filter(Boolean).join(", ")}`)].join("\n")
 }

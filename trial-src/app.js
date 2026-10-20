@@ -31,20 +31,17 @@ C:{label:"Sea, Guadalajara to Hamburg",tag:"Spanish",blurb:"Written in Spanish. 
 D:{label:"Road, Rotterdam to Milan",tag:"Road FTL",blurb:"A full truck, urgent, with details missing.",
  email:"Hi,\n\nWe urgently need a truck from Rotterdam to Milan. 22 pallets of packaged consumer goods, about 16,500 kg in total, delivered DAP to our warehouse in Milan. Pickup tomorrow if possible.\n\nPlease quote a full truck and confirm the transit time.\n\nThanks,\nMarco",
  carrier:"Hello,\n\nRef ET-5521. Rotterdam to Milan, full truck, 22 pallets, about 16,500 kg.\n- Road freight FTL USD 1,780\n- Fuel surcharge USD 110\n- Alpine tolls and road fees USD 190\n\nTransit 2 days. Loading and unloading 24 h included. Valid 5 days. Pickup tomorrow is subject to confirmed addresses and pallet dimensions.\n\nRegards,\nEuroTrans"},
-E:{key:"E",label:"Sea, Foshan to Amman",tag:"Arabic",blurb:"Written in Arabic. Returned in English, with an Arabic reply.",sender:"khaled@alamal-furniture.example",name:"Khaled",
+E:{label:"Sea, Foshan to Amman",tag:"Arabic",blurb:"Written in Arabic. Returned in English, with an Arabic reply.",
  email:"مرحباً،\n\nنحتاج إلى عرض سعر لشحن حاوية واحدة 40 قدم (40HC) من الأثاث المكتبي، حوالي 11 طناً، من مصنع المورّد في مدينة فوشان بالصين إلى مستودعنا في عمّان، الأردن. الشحن بنظام EXW.\n\nنرجو تأكيد مدة الرحلة وفترة السماح (الوقت المجاني) في ميناء العقبة. نفضّل 14 يوماً على الأقل.\n\nشكراً،\nخالد",
- route:{from:"Guangzhou Nansha (CNNSA)",fc:"China",to:"Aqaba (JOAQJ)",tc:"Jordan",chosen:true,note:"The pickup is in Foshan and the delivery is in Amman, both inland. Nansha is the nearest major seaport to Foshan and Aqaba is Jordan's only seaport, so they become the Port of Loading and the Port of Discharge."},
- mode:"Sea",
- fields:[["Cargo","Office furniture"],["Equipment","1 x 40HC"],["Weight","11 tons"],["Incoterm","EXW"],["Pickup address",null],["Urgency","Standard"]],
- special:["Original language: Arabic","Inland pickup: supplier factory, Foshan","Inland delivery: warehouse, Amman","Free time at POD: 14 days minimum requested","Please confirm: transit time, free time at Aqaba"],
- missing:["Full pickup address of the supplier's factory in Foshan (required for EXW)","Cargo ready date"],conf:80,confL:"Medium",replyKind:"Missing information · Arabic",
- reply:"مرحباً خالد،\n\nشكراً لطلبكم شحن حاوية 1 x 40HC من الأثاث المكتبي من فوشان إلى عمّان.\n\nلنقدّم لكم سعراً دقيقاً نحتاج إلى معلومتين:\n1. العنوان الكامل لمصنع المورّد في فوشان، لأن الشحن بنظام EXW.\n2. التاريخ الذي ستكون فيه البضاعة جاهزة للاستلام.\n\nفور وصولها سنرسل لكم السعر ومدة الرحلة وخيارات فترة السماح في ميناء العقبة.",
- carrier:{name:"Red Sea Gulf Line",ref:"RG-6108",days:8,transit:"30 to 34 days",free:"14 days",equip:"1 x 40HC",lane:"Nansha to Aqaba",
-  text:"Dear partner,\n\nRef RG-6108. Nansha to Aqaba, 1 x 40HC:\n- Ocean freight USD 2,980\n- Origin THC USD 125\n- Inland haulage Foshan to Nansha USD 240\n- BL fee USD 55\n- Documentation USD 40\n\nTransit 30 to 34 days. Free time 14 days demurrage and detention. Valid 8 days. Trucking from Aqaba to Amman is not included.\n\nBest regards,\nRed Sea Gulf",
-  lines:[["Ocean freight","per 40HC",1,2980],["Origin THC Nansha","per 40HC",1,125],["Inland haulage Foshan to Nansha","per 40HC",1,240],["Bill of lading fee","per BL",1,55],["Documentation","per shipment",1,40]],
-  flags:[["ok","Free time of 14 days matches the 14 days the client asked for."],["warn","Trucking from Aqaba to Amman is not included in this quote."],["ok","The charge lines add up to the carrier's stated total."]]}}
+ carrier:"Dear partner,\n\nRef RG-6108. Nansha to Aqaba, 1 x 40HC:\n- Ocean freight USD 2,980\n- Origin THC USD 125\n- Inland haulage Foshan to Nansha USD 240\n- BL fee USD 55\n- Documentation USD 40\n\nTransit 30 to 34 days. Free time 14 days demurrage and detention. Valid 8 days. Trucking from Aqaba to Amman is not included.\n\nBest regards,\nRed Sea Gulf"},
+F:{label:"Sea, Shanghai to Umm Qasr or Aqaba",tag:"Options",blurb:"One shipment, two possible destinations. The carrier prices both.",
+ email:"Hi team,\n\nPlease quote 1 x 40HC of ceramic floor tiles, about 26 tons, FOB Shanghai. We have not decided yet whether the goods go to Umm Qasr, Iraq or to Aqaba, Jordan, so please price both ports.\n\nThe cargo is ready on 25 November. We need at least 14 days of free time at destination, and please confirm the transit time to each port.\n\nThanks,\nHassan",
+ carrier:"Dear partner,\n\nRef GL-2207. Shanghai to Umm Qasr and to Aqaba, 1 x 40HC:\n\nTo Umm Qasr:\n- Ocean freight USD 3,400\n- Origin THC USD 130\n- BL fee USD 60\nTransit 32 days. Valid 10 days.\n\nTo Aqaba:\n- Ocean freight USD 2,650\n- Origin THC USD 130\n- BL fee USD 60\nTransit 26 days. Valid 10 days.\n\nFree time 14 days at both ports. Subject to equipment availability.\n\nBest regards,\nGulf Line"},
+G:{label:"Sea then road, Genoa to Zarqa",tag:"2 legs",blurb:"Two legs to quote: sea to Aqaba, then a flatbed truck to the site.",
+ email:"Hello,\n\nWe need two legs quoted for one shipment of industrial water pumps, about 12 tons on 8 wooden pallets.\n\nLeg 1: 1 x 20GP by sea from Genoa, Italy to Aqaba, Jordan, FOB Genoa.\nLeg 2: delivery by flatbed truck from Aqaba port to our site in Zarqa, Jordan.\n\nThe cargo is ready on 3 December. Please confirm the free time at Aqaba and the truck transit time.\n\nBest regards,\nOmar",
+ carrier:"Dear partner,\n\nRef MD-5190. Genoa to Aqaba, 1 x 20GP:\n- Ocean freight USD 1,850\n- Origin THC USD 140\n- BL fee USD 55\n- Documentation USD 40\n\nTransit 17 to 20 days. Free time 10 days demurrage and detention at Aqaba. Valid 10 days. Trucking from Aqaba to Zarqa is not included in this quote.\n\nRegards,\nMediterranean Direct"}
 };
-var ORDER=["A","B","C","D","E"];
+var ORDER=["A","B","C","D","E","F","G"];
 var SAMPLE_BY_MODE={Sea:"A",Air:"B",Road:"D"};
 
 /* ---------- state ---------- */

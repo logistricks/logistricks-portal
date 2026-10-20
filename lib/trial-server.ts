@@ -133,6 +133,9 @@ function typeOf(ai: any): ShipmentType | null {
   if (m === "sea") return /lcl|cbm|groupage|consolid/i.test(s(ai.equipment) + " " + s(ai.cbm)) && !s(ai.equipment) ? "sea_lcl" : "sea_fcl"
   return null
 }
+const cap = (v: unknown) => { const x = s(v); return x ? x.charAt(0).toUpperCase() + x.slice(1) : "" }
+/** 2026-11-25 reads as 25 Nov 2026; anything that is not a clear date (ASAP, ready now) stays as written. */
+const niceDate = (v: unknown) => { const x = s(v); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x); return m ? `${Number(m[3])} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][Number(m[2]) - 1]} ${m[1]}` : x }
 const MODE_OF: Record<ShipmentType, string> = { air: "Air", sea_fcl: "Sea", sea_lcl: "Sea", land: "Road" }
 
 export function buildRequestView(ai: any, extra: { missing?: string[]; suggested_reply: string | null; port_warning: string | null; language: string | null; sender: string; rfq_subject?: string | null; rfq_body?: string | null }): RequestView {
@@ -157,8 +160,8 @@ export function buildRequestView(ai: any, extra: { missing?: string[]; suggested
   add("Incoterm", incoterm, true)
   add("Pickup address", ai.pickup_address, ["EXW", "FCA"].includes(incoterm))
   add("Temperature", ai.temperature_control)
-  add("Cargo ready date", ai.cargo_ready_date)
-  add("Urgency", ai.aog ? (s(ai.urgency) ? s(ai.urgency) + ", AOG" : "AOG, critical") : ai.urgency)
+  add("Cargo ready date", niceDate(ai.cargo_ready_date))
+  add("Urgency", ai.aog ? (s(ai.urgency) ? cap(ai.urgency) + ", AOG" : "AOG, critical") : cap(ai.urgency))
   add("Preferred carrier", ai.preferred_carrier)
   if (t === "sea_fcl" || t === "sea_lcl") add("B/L type", ai.bl_type)
   const special: string[] = [...(ai.special_requirements || []), ...(ai.availability_questions || []).map((q: string) => "Question: " + q)]
@@ -177,7 +180,7 @@ export function buildRequestView(ai: any, extra: { missing?: string[]; suggested
     const push = (label: string, v: unknown) => { const x = s(v); if (x) lf.push([label, x]) }
     if (!alt) {
       push("Cargo", l.cargo_type); push("Equipment", l.equipment); push("Truck type", l.truck_type); push("Quantity", l.quantity); push("Package type", l.package_type)
-      push("Weight", l.weight); push("CBM", l.cbm); push("Dimensions", l.dimensions); push("Temperature", l.temperature_control); push("Cargo ready date", l.cargo_ready_date)
+      push("Weight", l.weight); push("CBM", l.cbm); push("Dimensions", l.dimensions); push("Temperature", l.temperature_control); push("Cargo ready date", niceDate(l.cargo_ready_date))
       push("Incoterm", s(l.incoterm).toUpperCase()); push("Pickup address", l.pickup_address)
     }
     const place = (c: unknown, k: unknown) => [s(c), s(k)].filter(Boolean).join(", ")
@@ -239,7 +242,8 @@ function buildQuoteViewRaw(ai0: any, req: RequestView | null, carrierName: strin
   const sum = r2(lines.reduce((t, l) => t + l.amount, 0))
   const flags: [string, string][] = []
   const today = new Date().toISOString().slice(0, 10)
-  const validUntil = s(ai.validity_date) || null
+  const vd = Number(ai.validity_days)
+  const validUntil = s(ai.validity_date) || (Number.isFinite(vd) && vd > 0 ? new Date(Date.parse(s(ai.quote_date) || today) + vd * 86400000).toISOString().slice(0, 10) : null)
   let validDays: number | null = null
   if (validUntil) {
     validDays = Math.round((Date.parse(validUntil) - Date.parse(today)) / 86400000)
