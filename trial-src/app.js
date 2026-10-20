@@ -255,7 +255,10 @@ $("#parse1").addEventListener("click",function(){
     var j=r.json;st.runId=j.runId;st.tryNo=j.tryNo;st.usedTries=j.triesUsed;st.total=j.triesTotal;st.src1=source;
     if(!st.t0||!st.parsed1)st.t0=Date.now();
     cur=j.view;st.parsed1=true;
-    updateRail();ready1();paintTries();onParsed1();applyLock2();
+    try{autoNotices(cur)}catch(e){}
+    try{updateRail();ready1();paintTries()}catch(e){}
+    try{onParsed1()}catch(e){}
+    applyLock2();
     showStep1Results(false);
   });
 });
@@ -667,7 +670,6 @@ function autoNotices(v){
   },2600);
 }
 function onParsed1(){
-  autoNotices(cur);
   tip("reply","The AI wrote your reply too","The AI reads the email and also writes the suggested reply for you, in the sender's language.");
   tip("step2","Now the carrier's side","Continue to step 2 and add the carrier's reply. Every charge is itemised, with flags where it does not match what the client asked for.");
 }
