@@ -630,6 +630,9 @@ table thead th { font-family: var(--font-mono), ui-monospace, monospace; font-si
 table th, table td { text-align: center !important; }
 table td p, table td > span, table td > div { margin-inline: auto; }
 table td .flex, table td p.flex { justify-content: center; }
+/* opt a cell block out of the centring above (avatar + name columns line up on the left of a centred block) */
+table td .cell-left, table td .cell-left * { justify-content: flex-start !important; text-align: left !important; margin-inline: 0; }
+table td .cell-left { margin-inline: auto; }
 /* rows as soft cards: no zebra, roomier */
 .rq-table tbody tr.rq-row:nth-child(even) { background: var(--card-bg); }
 .rq-table tbody tr.rq-row:hover { box-shadow: inset 0 0 0 1.5px var(--brand-accent); }
