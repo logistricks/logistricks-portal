@@ -283,14 +283,41 @@ function renderResult1(){
   if(s.portWarning)h+='<div class="flag warn" data-rv style="margin-bottom:14px"><span>'+ICON.warn+'</span><span><b>Check the ports.</b> '+esc(s.portWarning)+'</span></div>';
   h+='<div class="fields" data-rv><div class="field"><small>Shipment type</small><b>'+esc(s.typeLabel||s.mode)+'</b></div>'+s.fields.map(function(f){return f[1]?'<div class="field"><small>'+esc(f[0])+'</small><b>'+esc(f[1])+'</b></div>':'<div class="field empty"><small>'+esc(f[0])+'</small><b>Not given</b></div>'}).join("")+'</div>';
   if((s.legs||[]).length){var opt=s.legs.every(function(l){return l.kind==="option"});h+='<div data-rv><div class="sub">'+(opt?"Other destinations to quote":"More legs in this request")+'</div>'+s.legs.map(function(l){return '<div class="note" style="margin:6px 0"><span><b>'+esc(l.label)+(l.typeLabel&&!opt?" · "+esc(l.typeLabel):"")+'</b> '+esc((l.from&&!opt?l.from+" to ":"")+l.to)+(l.fields.length?'<br><span class="hint">'+l.fields.map(function(f){return esc(f[0])+": "+esc(f[1])}).join(" · ")+'</span>':"")+'</span></div>'}).join("")+'</div>'}
-  if(s.special.length)h+='<div data-rv><div class="sub">Special requirements</div><div class="chips">'+s.special.map(function(x){return '<span class="chip">'+esc(x)+'</span>'}).join("")+'</div></div>';
   if(s.missing.length)h+='<div class="miss" data-rv><b>Missing before this can be priced</b><ul>'+s.missing.map(function(x){return '<li>'+esc(x)+'</li>'}).join("")+'</ul></div>';
   else h+='<div class="flag ok" data-rv style="margin-top:16px"><span>'+ICON.check+'</span><span>Nothing missing. This request can be priced as it is.</span></div>';
   h+='<div class="conf" data-rv><span>Confidence <b style="color:var(--ink)">'+esc(s.confL)+'</b></span><div class="bar"><i style="width:'+s.conf+'%"></i></div><span class="mono">'+s.conf+'%</span></div>';
   if(srcText)h+='<details data-rv style="margin-top:14px"><summary class="hint" style="cursor:pointer">Show the email as received</summary><div class="emailbox" dir="auto" style="margin:10px 0 0">'+esc(srcText)+'</div></details>';
   h+='</div>';
+  h+=specialCard(s)+notesCard(s);
   $("#out1").innerHTML=h;
+  var mb=$("#spMore");if(mb)mb.addEventListener("click",function(){openSpecial(cur)});
+  var vb=$("#spAll");if(vb)vb.addEventListener("click",function(){openSpecial(cur)});
 }
+/* special requests and notes, laid out like the portal's request page */
+function parseSp(t){var m=/^\s*([^:]{2,40}):\s+(.+)$/.exec(t);return m?{l:m[1],v:m[2]}:{l:"",v:t}}
+function spItem(t){var p=parseSp(t);return p.l?'<b>'+esc(p.l)+':</b> '+esc(p.v):esc(t)}
+function specialCard(s){
+  var q=s.questions||[],r=s.special||[],total=r.length+q.length,pv=r.slice(0,2);
+  var h='<div class="card" data-rv><div class="sp-head"><h3>Special requests'+(total?' ('+r.length+(q.length?' + '+q.length+' questions':'')+')':'')+'</h3>'+(total?'<button type="button" class="btn btn-line btn-sm" id="spAll">View all</button>':'')+'</div>';
+  if(!total)return h+'<p class="hint">None picked up from this email.</p></div>';
+  h+='<ul class="sp-list">'+pv.map(function(x){return '<li><span class="dot"></span><span>'+spItem(x)+'</span></li>'}).join("")+'</ul>';
+  if(total>pv.length)h+='<button type="button" class="sp-more" id="spMore">+ '+(total-pv.length)+' more \u2014 open full list</button>';
+  return h+'</div>';
+}
+function notesCard(s){
+  var n=s.notes||[];
+  var h='<div class="card" data-rv><div class="sp-head"><h3>Notes</h3><span class="sp-pill">Only you see these</span></div><p class="hint" style="margin:-4px 0 10px">Never sent to carriers or the customer.</p>';
+  if(!n.length)return h+'<p class="hint">No notes.</p></div>';
+  return h+'<ul class="sp-list">'+n.map(function(x){return '<li><span class="dot"></span><span>'+spItem(x)+'</span></li>'}).join("")+'</ul></div>';
+}
+function openSpecial(s){
+  var q=s.questions||[],r=s.special||[];
+  var h='<h4 class="sub" style="margin-top:14px">Requirements ('+r.length+')</h4>'+(r.length?'<ol class="sp-num">'+r.map(function(x){var p=parseSp(x);return '<li><span>'+(p.l?'<small>'+esc(p.l)+'</small>'+esc(p.v):esc(x))+'</span></li>'}).join("")+'</ol>':'<p class="hint">Nothing was picked up from the email.</p>');
+  if(q.length)h+='<h4 class="sub">Questions for carriers ('+q.length+')</h4><ol class="sp-num q">'+q.map(function(x){return '<li><span>'+esc(x)+'</span></li>'}).join("")+'</ol>';
+  $("#spBody").innerHTML=h;$("#spDlg").hidden=false;logEv("tip_open",{feature:"Special requests, full list"});
+}
+$("#spX").addEventListener("click",function(){$("#spDlg").hidden=true});
+$("#spDlg").addEventListener("click",function(e){if(e.target===this)this.hidden=true});
 function renderReply1(){
   var s=cur,has=!!s.reply,left;
   if(has){
@@ -621,8 +648,26 @@ $("#tipChipX").addEventListener("click",function(){hideChip();tips.active=null;p
 function closeBox(){if(tipsOpenBox()){$("#tipBox").hidden=true;tips.active=null;pumpTips()}}
 $("#tipBoxX").addEventListener("click",closeBox);
 document.addEventListener("click",function(e){if(tipsOpenBox()&&!$("#tipBox").contains(e.target)&&!$("#tipChip").contains(e.target))closeBox()});
-document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeBox();closeBook()}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeBox();closeBook();$("#spDlg").hidden=true}});
+/* what the full system does on its own when a request arrives: shown as notifications after the email is read */
+var NOTE_ICON={bell:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>',mail:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>'};
+function notice(icon,title,body,ms){
+  var box=$("#notices"),n=document.createElement("div");n.className="notice";n.setAttribute("role","status");
+  n.innerHTML='<span class="ni">'+NOTE_ICON[icon]+'</span><div style="flex:1;min-width:0"><b>'+esc(title)+'</b><span class="nb">'+esc(body)+'</span></div><button type="button" aria-label="Dismiss">\u00d7</button>';
+  function close(){n.classList.remove("in");setTimeout(function(){if(n.parentNode)n.parentNode.removeChild(n)},320)}
+  n.querySelector("button").addEventListener("click",close);
+  box.appendChild(n);void n.offsetWidth;n.classList.add("in");setTimeout(close,ms||9000);
+}
+function autoNotices(v){
+  var who=(st.lead&&(st.lead.contact||st.lead.company))||"Your team";
+  setTimeout(function(){notice("bell","New request received",who+" was notified of a new request.")},700);
+  setTimeout(function(){
+    if(v&&v.missing&&v.missing.length)notice("mail","Missing information","An email was automatically sent to ask for the missing fields.");
+    else notice("mail","Request confirmed","An email was automatically sent confirming the request.");
+  },2600);
+}
 function onParsed1(){
+  autoNotices(cur);
   tip("reply","The AI wrote your reply too","The AI reads the email and also writes the suggested reply for you, in the sender's language.");
   tip("step2","Now the carrier's side","Continue to step 2 and add the carrier's reply. Every charge is itemised, with flags where it does not match what the client asked for.");
 }

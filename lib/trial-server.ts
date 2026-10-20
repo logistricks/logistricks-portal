@@ -3,6 +3,7 @@ import { createHash, createHmac, randomInt, timingSafeEqual } from "crypto"
 import type { NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { TYPE_LABEL, isShipmentType, quotableCheck, type ShipmentType } from "@/lib/shipment-types"
+import { toStringList } from "@/lib/special"
 
 export const TRIAL_COOKIE = "trial_session"
 export const RETENTION_DAYS = 5
@@ -116,7 +117,9 @@ export interface RequestView {
   mode: string; route: { from: string; fc: string; to: string; tc: string; chosen: boolean; note: string }
   /** air, sea_fcl, sea_lcl or land (null when the email did not make it clear) */
   shipmentType: ShipmentType | null; typeLabel: string
-  fields: [string, string | null][]; special: string[]; missing: string[]
+  fields: [string, string | null][]
+  /** special requirements, questions for carriers and team notes, read the way the portal reads them */
+  special: string[]; questions: string[]; notes: string[]; missing: string[]
   /** further legs, or alternative destinations for the same cargo */
   legs: RequestLeg[]
   conf: number; confL: string; reply: string | null; replyKind: string; portWarning: string | null
@@ -164,10 +167,10 @@ export function buildRequestView(ai: any, extra: { missing?: string[]; suggested
   add("Urgency", ai.aog ? (s(ai.urgency) ? cap(ai.urgency) + ", AOG" : "AOG, critical") : cap(ai.urgency))
   add("Preferred carrier", ai.preferred_carrier)
   if (t === "sea_fcl" || t === "sea_lcl") add("B/L type", ai.bl_type)
-  const special: string[] = [...(ai.special_requirements || []), ...(ai.availability_questions || []).map((q: string) => "Question: " + q)]
-  if (ai.dgr) special.unshift("Dangerous goods: yes")
+  if (ai.dgr) add("Dangerous goods", "Yes")
+  const special = toStringList(ai.special_requirements), questions = toStringList(ai.availability_questions), notes = toStringList(ai.notes)
   let free: number | null = null
-  for (const x of special) { const m = /free time.*?(\d+)\s*(?:days?|d)\b/i.exec(x); if (m) { free = Number(m[1]); break } }
+  for (const x of [...special, ...questions]) { const m = /free time.*?(\d+)\s*(?:days?|d)\b/i.exec(x); if (m) { free = Number(m[1]); break } }
   const [conf, confL] = CONF[s(ai.confidence).toLowerCase()] || [70, "Medium"]
 
   // what is missing: the portal's own required-field rules for this type, plus anything the reader could not open
@@ -196,7 +199,7 @@ export function buildRequestView(ai: any, extra: { missing?: string[]; suggested
       from: s(ai.origin_city) || "Not given", fc: s(ai.origin_country), to: s(ai.destination_city) || "Not given", tc: s(ai.destination_country), chosen,
       note: chosen ? "The email did not name the port, so the nearest suitable seaport was chosen for each end. Check them before you price." : "",
     },
-    fields, special, missing, legs, conf, confL, reply: extra.suggested_reply, replyKind: extra.language && extra.suggested_reply && !/english/i.test(extra.language) ? `${kind} · ${extra.language}` : kind,
+    fields, special, questions, notes, missing, legs, conf, confL, reply: extra.suggested_reply, replyKind: extra.language && extra.suggested_reply && !/english/i.test(extra.language) ? `${kind} · ${extra.language}` : kind,
     portWarning: extra.port_warning, sender: extra.sender, senderName: s(ai.sender_name), language: extra.language, freeDaysAsked: free,
     rfq: extra.rfq_body && extra.rfq_body.trim().length > 20 ? { subject: (extra.rfq_subject || "").trim(), body: extra.rfq_body.trim() } : null,
   }

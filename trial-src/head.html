@@ -155,6 +155,19 @@ textarea{min-height:130px;resize:vertical}
 .field.empty b{color:var(--warn)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .chip{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13.5px}
+.sp-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sp-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45}
+.sp-list .dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:8px}
+.sp-list b{font-weight:700;color:var(--ink)}
+.sp-more{border:0;background:transparent;color:var(--accent-strong);font-weight:700;font-size:13px;cursor:pointer;padding:0;margin-top:6px}
+.sp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sp-head h3{font-size:20px}
+.sp-pill{font-size:11px;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--muted)}
+.sp-num{display:grid;gap:10px;margin:8px 0 18px;padding:0;list-style:none;counter-reset:sp}
+.sp-num li{counter-increment:sp;display:flex;gap:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.sp-num li:before{content:counter(sp);flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
+.sp-num.q li:before{content:"?";background:#3b82f6}
+.sp-num small{display:block;font:700 11px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 .sub{font:600 13px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
 .miss{background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:12px;padding:12px 14px;margin-top:16px}
 .miss b{color:var(--warn)}
@@ -251,6 +264,16 @@ footer{padding-block:24px 120px;color:var(--muted);font-size:13px;text-align:cen
 section.band{padding-block:72px 0}
 .toast{position:fixed;left:50%;bottom:calc(112px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--navy);color:#fff;border:1px solid rgba(255,255,255,.2);padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:min(92vw,520px);font-size:14.5px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.notices{position:fixed;top:78px;right:18px;z-index:90;display:flex;flex-direction:column;gap:10px;width:min(360px,calc(100% - 36px));pointer-events:none}
+.notice{pointer-events:auto;display:flex;gap:12px;align-items:flex-start;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:13px 14px;opacity:0;transform:translateX(24px);transition:opacity .3s,transform .3s}
+.notice.in{opacity:1;transform:none}
+.notice .ni{flex:none;width:34px;height:34px;border-radius:10px;background:rgba(232,130,26,.14);color:var(--accent-strong);display:grid;place-items:center}
+.notice b{display:block;font-size:14px;line-height:1.3}
+.notice span.nb{display:block;font-size:13px;line-height:1.45;color:var(--muted,var(--ink));margin-top:2px}
+.notice button{flex:none;border:0;background:transparent;color:var(--muted,var(--ink));cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;border-radius:6px}
+@media (max-width:640px){.notices{top:64px;right:14px}}
+@media (prefers-reduced-motion:reduce){.notice{transition:none}}
+
 
 
 /* step 1 layout */
@@ -789,6 +812,7 @@ section.step.enter{animation:stepIn .7s cubic-bezier(.2,.8,.2,1) both}
 <div class="fabs" id="fabs" hidden><button class="fabkey" id="keyBtn" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/></svg>Key Features</button><button class="bookfab" id="bookFab" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Book now</button></div>
 <div class="tipchip" id="tipChip" hidden role="status"><button type="button" class="tc-main" id="tipChipMain"><span class="tc-ic" aria-hidden="true">i</span><span><b id="tipChipT"></b><small>Tap to read more</small></span></button><button type="button" class="tc-x" id="tipChipX" aria-label="Dismiss">&times;</button><i class="tc-bar" id="tipBar"></i></div>
 <div class="tipbox" id="tipBox" hidden role="dialog" aria-labelledby="tipBoxT"><button type="button" class="tb-x" id="tipBoxX" aria-label="Close">&times;</button><span class="eyebrow">Good to know</span><b id="tipBoxT"></b><p id="tipBoxP"></p></div>
+<div class="mback" id="spDlg" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="spT" style="width:min(640px,100%);max-height:85vh;overflow:auto"><button type="button" class="icon-btn" id="spX" aria-label="Close" style="position:absolute;top:12px;right:12px">\u00d7</button><h3 id="spT">Special requests</h3><div id="spBody"></div></div></div>
 <div class="mback" id="bookModal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="bkT"><button type="button" class="tb-x" id="bkX" aria-label="Close">&times;</button><span class="eyebrow">Arrange a demo</span><h3 id="bkT">See it run on your own carriers and templates</h3><p>A 20-minute walkthrough on your real requests. No slides. Tell us a time that suits you and we will confirm it.</p><button class="btn btn-primary" id="bkGo" type="button">Choose a time</button></div></div>
 </div><!-- leadView -->
 
@@ -796,4 +820,5 @@ section.step.enter{animation:stepIn .7s cubic-bezier(.2,.8,.2,1) both}
 
 </div>
 <div class="toast" id="toast" role="status"></div>
+<div class="notices" id="notices" aria-live="polite"></div>
 
