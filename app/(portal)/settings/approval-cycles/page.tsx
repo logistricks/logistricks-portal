@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Bell } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Bell, BellRing, Mail } from "lucide-react";
+import { NotificationTemplatesPanel } from "@/components/portal/notification-templates-panel";
+import { DEFAULT_CYCLE_NOTIFY, type CycleNotify } from "@/lib/approval-notify";
 
 type StepMember = { username: string };
 
@@ -47,6 +49,7 @@ type FormState = {
   trigger_carrier: boolean;
   trigger_reply: boolean;
   steps: FormStep[];
+  members_notify: CycleNotify["members"];
 };
 
 const defaultForm = (): FormState => ({
@@ -56,6 +59,7 @@ const defaultForm = (): FormState => ({
   trigger_carrier: false,
   trigger_reply: false,
   steps: [],
+  members_notify: {},
 });
 
 const triggerLabel = (t: string | null) => {
@@ -127,7 +131,11 @@ function StepCard({
   onRemove,
   onMoveUp,
   onMoveDown,
+  membersNotify,
+  onMemberNotify,
 }: {
+  membersNotify: CycleNotify["members"];
+  onMemberNotify: (username: string, key: "approved" | "rejected", on: boolean) => void;
   step: FormStep;
   index: number;
   total: number;
@@ -174,6 +182,25 @@ function StepCard({
         users={users}
         onChange={(next) => onChange({ ...step, member_usernames: next })}
       />
+
+      {step.member_usernames.length > 0 && (
+        <div className="space-y-1.5 rounded-lg border border-[var(--card-border)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Email each approver about the final outcome</p>
+          {step.member_usernames.map((u) => (
+            <div key={u} className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--text-primary)]">
+              <span className="font-medium">{u}</span>
+              <span className="flex items-center gap-4 text-xs">
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input type="checkbox" className="lt-check" checked={!!membersNotify[u]?.approved} onChange={(e) => onMemberNotify(u, "approved", e.target.checked)} /> Final approval
+                </label>
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input type="checkbox" className="lt-check" checked={!!membersNotify[u]?.rejected} onChange={(e) => onMemberNotify(u, "rejected", e.target.checked)} /> Final rejection
+                </label>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-[var(--text-primary)]">Committee mode</label>
@@ -235,14 +262,29 @@ export default function ApprovalCyclesPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [notifyMap, setNotifyMap] = useState<Record<string, CycleNotify>>({});
+  const [setupFor, setSetupFor] = useState<Cycle | null>(null);
+  const [setupForm, setSetupForm] = useState<CycleNotify>(DEFAULT_CYCLE_NOTIFY);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const [showEmails, setShowEmails] = useState(false);
+  const notifyOf = (id: string): CycleNotify => notifyMap[id] ?? { ...DEFAULT_CYCLE_NOTIFY, members: {} };
+  const saveNotify = async (id: string, value: CycleNotify) => {
+    const res = await fetch(`/api/approval-cycles/${id}/notifications`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "Could not save the notification settings.");
+    const saved = await res.json();
+    setNotifyMap((m) => ({ ...m, [id]: saved }));
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [cRes, uRes] = await Promise.all([
+      const [cRes, uRes, nRes] = await Promise.all([
         fetch("/api/approval-cycles"),
         fetch("/api/users"),
+        fetch("/api/approval-cycles/notifications"),
       ]);
+      if (nRes.ok) setNotifyMap(await nRes.json());
       if (cRes.ok) setCycles(await cRes.json());
       if (uRes.ok) setUsers(await uRes.json());
     } finally {
@@ -263,6 +305,7 @@ export default function ApprovalCyclesPage() {
     setEditing(cycle);
     const trigger = cycle.automated_trigger;
     setForm({
+      members_notify: notifyOf(cycle.id).members,
       name: cycle.name,
       initiator_usernames: cycle.initiator_usernames,
       applies_to_automated_emails: cycle.applies_to_automated_emails,
@@ -362,11 +405,25 @@ export default function ApprovalCyclesPage() {
         setError(data?.message || "Failed to save. Please try again.");
         return;
       }
+      const savedCycle = await res.json().catch(() => ({}));
+      const cid: string | undefined = editing?.id ?? savedCycle?.id;
+      if (cid) {
+        const everyone = new Set(form.steps.flatMap((s) => s.member_usernames));
+        const members = Object.fromEntries(Object.entries(form.members_notify).filter(([u, m]) => everyone.has(u) && (m.approved || m.rejected)));
+        try { await saveNotify(cid, { ...notifyOf(cid), members }); } catch (e) { setError((e as Error).message); await loadData(); return; }
+      }
       await loadData();
       closeForm();
     } finally {
       setBusy(false);
     }
+  };
+
+  const openSetup = (cycle: Cycle) => { setSetupFor(cycle); setSetupForm({ ...notifyOf(cycle.id), members: { ...notifyOf(cycle.id).members } }); setSetupError(""); };
+  const saveSetup = async () => {
+    if (!setupFor) return;
+    setSetupBusy(true); setSetupError("");
+    try { await saveNotify(setupFor.id, setupForm); setSetupFor(null); } catch (e) { setSetupError((e as Error).message); } finally { setSetupBusy(false); }
   };
 
   const handleDelete = async (id: string) => {
@@ -385,9 +442,14 @@ export default function ApprovalCyclesPage() {
           <div>
             <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Approval Cycles</h1>
           </div>
-          <button onClick={openCreate} className="flex items-center gap-2 bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500 shrink-0">
-            <Plus size={16} /> New Cycle
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => setShowEmails(true)} className="flex items-center gap-2 rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
+              <Mail size={16} /> Approval emails
+            </button>
+            <button onClick={openCreate} className="flex items-center gap-2 bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500">
+              <Plus size={16} /> New Cycle
+            </button>
+          </div>
         </div>
 
         {/* List */}
@@ -414,6 +476,9 @@ export default function ApprovalCyclesPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => openSetup(cycle)} title="Reminders and who is told about the outcome" className="flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--brand-accent)] hover:border-[var(--brand-accent)]">
+                      <BellRing size={14} /> Notifications{notifyOf(cycle.id).remind_enabled ? " · reminders on" : ""}
+                    </button>
                     <button onClick={() => openEdit(cycle)} className="p-1.5 rounded-lg border border-[var(--card-border)] text-[var(--text-secondary)] hover:text-[var(--brand-accent)] hover:border-[var(--brand-accent)]">
                       <Pencil size={15} />
                     </button>
@@ -472,6 +537,64 @@ export default function ApprovalCyclesPage() {
           </div>
         )}
       </div>
+
+      {setupFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setSetupFor(null); }}>
+          <div className="w-full max-w-md space-y-5 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">Notifications · {setupFor.name}</h3>
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Reminders while a request is waiting, and who is told the final outcome.</p>
+              </div>
+              <button onClick={() => setSetupFor(null)} className="rounded p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X size={18} /></button>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-[var(--card-border)] p-4">
+              <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-[var(--text-primary)]">
+                Keep reminding the approvers
+                <input type="checkbox" className="lt-check" checked={setupForm.remind_enabled} onChange={(e) => setSetupForm((f) => ({ ...f, remind_enabled: e.target.checked }))} />
+              </label>
+              <p className="text-xs text-[var(--text-secondary)]">While a request waits at a step, the people on that step get an email again and again until it is decided.</p>
+              <div className={`flex items-center gap-2 text-sm text-[var(--text-primary)] ${setupForm.remind_enabled ? "" : "opacity-50"}`}>
+                Remind every
+                <input type="number" min={1} max={720} step={1} disabled={!setupForm.remind_enabled} value={setupForm.remind_every_h}
+                  onChange={(e) => setSetupForm((f) => ({ ...f, remind_every_h: Number(e.target.value) || 1 }))}
+                  className="h-9 w-20 rounded-md border border-[var(--card-border)] bg-transparent px-2 text-center text-sm outline-none" />
+                hours
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-[var(--card-border)] p-4">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Tell the requester when there is a</p>
+              <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--text-primary)]">
+                <input type="checkbox" className="lt-check" checked={setupForm.requester_approved} onChange={(e) => setSetupForm((f) => ({ ...f, requester_approved: e.target.checked }))} /> Final approval
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--text-primary)]">
+                <input type="checkbox" className="lt-check" checked={setupForm.requester_rejected} onChange={(e) => setSetupForm((f) => ({ ...f, requester_rejected: e.target.checked }))} /> Final rejection
+              </label>
+              <p className="text-xs text-[var(--text-secondary)]">The requester is the person who sent the request for approval. To email an approver about the outcome, tick it under that approver when editing the cycle.</p>
+            </div>
+
+            {setupError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{setupError}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setSetupFor(null)} className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm">Cancel</button>
+              <button onClick={saveSetup} disabled={setupBusy} className="rounded-lg bg-[var(--brand-accent)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{setupBusy ? "Saving…" : "Save"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmails && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowEmails(false); }}>
+          <div className="w-full max-w-6xl rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-bold text-[var(--text-primary)]">Approval emails</h3>
+              <button onClick={() => setShowEmails(false)} className="rounded p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X size={18} /></button>
+            </div>
+            <NotificationTemplatesPanel groups={["Approvals"]} />
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {showForm && (
@@ -552,6 +675,8 @@ export default function ApprovalCyclesPage() {
                     onRemove={() => removeStep(i)}
                     onMoveUp={() => moveStep(i, -1)}
                     onMoveDown={() => moveStep(i, 1)}
+                    membersNotify={form.members_notify}
+                    onMemberNotify={(u, k, on) => setForm((f) => ({ ...f, members_notify: { ...f.members_notify, [u]: { ...({ approved: false, rejected: false } as { approved: boolean; rejected: boolean }), ...(f.members_notify[u] ?? {}), [k]: on } } }))}
                   />
                 ))}
                 <button

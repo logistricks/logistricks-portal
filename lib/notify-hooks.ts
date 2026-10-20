@@ -1,6 +1,7 @@
 /** Server-only: builds the variables for the portal's own notification events and fires them. */
 import { fmtDate } from "@/lib/quotation-render"
 import { listBlock, money, notify, portalBaseUrl, requestValues, emailsForUsernames } from "@/lib/notify"
+import { loadCycleNotify } from "@/lib/approval-notify"
 
 const REASONS: Record<string, [string, string]> = {
   carrier_not_recognised: ["Quote from an unknown sender", "The sender isn't one of your saved carriers, so the quote couldn't be linked to a request."],
@@ -50,9 +51,14 @@ export async function notifyApprovalRequested(admin: any, a: { clientCode: strin
   } catch (e) { console.error("[notify] approval requested:", (e as Error).message) }
 }
 
-export async function notifyApprovalDecided(admin: any, a: { clientCode: string; requestId: string; submitter: string; decision: "approved" | "rejected"; decidedBy: string; notes?: string | null }) {
+export async function notifyApprovalDecided(admin: any, a: { clientCode: string; requestId: string; submitter: string; decision: "approved" | "rejected"; decidedBy: string; notes?: string | null; cycleId?: string | null }) {
   try {
-    const to = await emailsForUsernames(admin, a.clientCode, [a.submitter])
+    // who hears about the final outcome is set per workflow: the requester (on by default) and any approver ticked in the builder
+    const cfg = await loadCycleNotify(admin, a.clientCode, a.cycleId)
+    const names: string[] = []
+    if (a.decision === "approved" ? cfg.requester_approved : cfg.requester_rejected) names.push(a.submitter)
+    for (const [k, m] of Object.entries(cfg.members)) if (a.decision === "approved" ? m.approved : m.rejected) names.push(k)
+    const to = await emailsForUsernames(admin, a.clientCode, names)
     const vals = await requestValues(admin, a.clientCode, a.requestId)
     await notify(admin, a.clientCode, "approval_decided", { ...vals, decision: a.decision, decided_by: a.decidedBy, decision_notes: a.notes ?? "", submitted_by: a.submitter }, { to, requestId: a.requestId })
   } catch (e) { console.error("[notify] approval decided:", (e as Error).message) }

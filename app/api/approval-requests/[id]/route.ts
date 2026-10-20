@@ -355,7 +355,7 @@ export async function PATCH(
         request_id:  requestId,
       })
 
-      after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "approved", decidedBy: session.username, notes }))
+      after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "approved", decidedBy: session.username, notes, cycleId: (ar as any).cycle_id }))
 
       // A carrier send that was held for this approval: automatic sends go out now, with any approver edits to the email
       if (emailType !== "reply") {
@@ -433,7 +433,7 @@ export async function PATCH(
       request_id:  requestId,
     })
 
-    after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "rejected", decidedBy: session.username, notes }))
+    after(() => notifyApprovalDecided(admin, { clientCode: session.clientCode, requestId, submitter: (ar as any).submitted_by, decision: "rejected", decidedBy: session.username, notes, cycleId: (ar as any).cycle_id }))
 
     void logActivity({
       clientCode:  session.clientCode,

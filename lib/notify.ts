@@ -170,7 +170,7 @@ export async function notify(
     if (!cfg || !cfg.enabled) { await log("skipped", [], null, "Email server not set up or switched off"); return { status: "skipped", reason: "smtp_not_configured", recipients: [] } }
 
     const rec = normalizeRecipients(row?.recipients, ev.defaultRecipients)
-    const to = Array.from(new Set([...(opts.to ?? []), ...(await emailsForRoles(admin, clientCode, rec.roles)), ...rec.extra].map((e) => e.trim().toLowerCase()).filter(usable)))
+    const to = Array.from(new Set([...(opts.to ?? []), ...(await emailsForRoles(admin, clientCode, rec.roles)), ...(await emailsForUsernames(admin, clientCode, rec.users ?? [])), ...rec.extra].map((e) => e.trim().toLowerCase()).filter(usable)))
     if (!to.length) { await log("skipped", [], null, "No recipients"); return { status: "skipped", reason: "no_recipients", recipients: [] } }
 
     const { data: company } = await admin.from("clients").select("company_name").ilike("client_code", clientCode).maybeSingle()

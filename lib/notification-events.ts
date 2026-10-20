@@ -9,7 +9,7 @@
 export type NotificationGroup = "Requests" | "Carriers" | "Approvals"
 export interface NVar { key: string; label: string; example: string; kind?: "text" | "block" }
 export interface NVarGroup { id: string; label: string; vars: NVar[] }
-export interface Recipients { roles: string[]; extra: string[] }
+export interface Recipients { roles: string[]; extra: string[]; users?: string[] }
 
 export interface NotificationEvent {
   key: string
@@ -93,6 +93,7 @@ const APPROVAL: NVarGroup = {
     { key: "decision", label: "Decision", example: "Approved" },
     { key: "decided_by", label: "Decided by", example: "abdulaziz" },
     { key: "decision_notes", label: "Notes / rejection reason", example: "Price too high, please re-quote." },
+    { key: "waiting_for", label: "How long it has waited", example: "2 days" },
   ],
 }
 
@@ -210,6 +211,21 @@ export const NOTIFICATION_EVENTS: NotificationEvent[] = [
     groups: [REQUEST, APPROVAL],
   },
   {
+    key: "approval_reminder", label: "Approval reminder", short: "A request is still waiting for a decision", group: "Approvals", icon: "approval",
+    description: "Reminds the people on the current approval step that a request is still waiting for them.",
+    when: "Repeatedly, at the interval set for the approval workflow, until the step is decided.",
+    dynamicRecipients: "The members of the step that is waiting are always included.",
+    defaultSubject: "Reminder: {{request_ref}} is still waiting for your approval",
+    defaultHtml: design({
+      eyebrow: "Reminder", title: "{{request_ref}} is still waiting for you",
+      intro: "This request has been waiting at step {{approval_step}} for {{waiting_for}}.",
+      rows: [row("Requester", "{{sender_name}}"), row("Route", "{{origin}} → {{destination}}"), row("Cargo", "{{cargo_type}}"), row("Submitted by", "{{submitted_by}}")],
+      button: { label: "Review now", url: "{{approval_url}}" },
+    }),
+    defaultRecipients: { roles: [], extra: [] },
+    groups: [REQUEST, APPROVAL],
+  },
+  {
     key: "approval_decided", label: "Approval decision", short: "A request was approved or rejected", group: "Approvals", icon: "decision",
     description: "Tells the person who submitted a request that it was approved or rejected.",
     when: "When the last approval step is approved, or any step rejects the request.",
@@ -264,5 +280,6 @@ export function normalizeRecipients(raw: unknown, fallback: Recipients): Recipie
   const extra = Array.isArray(r.extra)
     ? Array.from(new Set(r.extra.map((x) => String(x).trim().toLowerCase()).filter((x) => /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(x)))).slice(0, 20)
     : []
-  return { roles, extra }
+  const users = Array.isArray(r.users) ? Array.from(new Set(r.users.map((x) => String(x).trim()).filter((x) => /^[\w.@-]{1,80}$/.test(x)))).slice(0, 100) : []
+  return { roles, extra, users }
 }

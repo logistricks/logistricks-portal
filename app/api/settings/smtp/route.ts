@@ -114,6 +114,21 @@ export async function POST(req: NextRequest) {
     })
   } catch (e) { ok = false; err = smtpError(e) }
 
-  await admin.from("smtp_settings").update({ last_test_at: new Date().toISOString(), last_test_ok: ok, last_test_error: err }).ilike("client_code", s.session.clientCode)
-  return NextResponse.json(ok ? { ok: true, to } : { ok: false, error: err })
+  // A test that works keeps what was tested: the portal sends notifications with the SAVED settings and password, so a
+  // password typed for the test but never saved would leave every notification unable to sign in.
+  let kept = false
+  if (ok) {
+    const keep: Record<string, unknown> = { client_code: s.session.clientCode, ...c, reply_to: c.reply_to || null, updated_at: new Date().toISOString(), last_test_at: new Date().toISOString(), last_test_ok: true, last_test_error: null }
+    if (typeof body.password === "string" && body.password !== "") keep.password_enc = encryptSecret(body.password)
+    if (typeof body.ms_client_secret === "string" && body.ms_client_secret !== "") keep.ms_client_secret_enc = encryptSecret(body.ms_client_secret)
+    let r = await admin.from("smtp_settings").upsert(keep, { onConflict: "client_code" })
+    if (r.error && (r.error.code === "42703" || r.error.code === "PGRST204")) {
+      for (const k of ["auth_method", "ms_tenant_id", "ms_client_id", "ms_client_secret_enc"]) delete keep[k]
+      r = await admin.from("smtp_settings").upsert(keep, { onConflict: "client_code" })
+    }
+    kept = !r.error
+  } else {
+    await admin.from("smtp_settings").update({ last_test_at: new Date().toISOString(), last_test_ok: false, last_test_error: err }).ilike("client_code", s.session.clientCode)
+  }
+  return NextResponse.json(ok ? { ok: true, to, saved: kept } : { ok: false, error: err })
 }
