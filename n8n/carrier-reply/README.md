@@ -36,3 +36,6 @@ The portal's response: `{ ok, linked, link_method | reason, carrier_quote_id, re
 
 ## Not covered yet
 Excel / Word attachments (pass their extracted text in `attachments[].text`). PDFs and images (png/jpg/webp, up to 4 per email) are sent as base64 and read by the model directly, a second-model cross-check, and mail intake (on hold).
+
+## v1.1 additions
+New schema fields `transit_text`, `cutoff_cargo`, `cutoff_docs` (mapped in `build-body.js` to `mode_details.transit_text` and `cutoffs`), and prompt rules 11a–11c (ranges, combined free time, conditions vs exclusions). Update the prompt, schema and "Build portal body" node in the n8n workflow to match.

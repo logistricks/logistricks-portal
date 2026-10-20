@@ -46,6 +46,9 @@ function buildBody(ai, prep, modelVersion) {
   for (const k of PASS) if (ai[k] !== undefined) b[k] = ai[k]
   // validity: explicit date wins; otherwise count the days from the quote date (or the day we received it).
   b.validity_date = ai.validity_date || (ai.validity_days ? addDays(ai.quote_date || prep.received_at, ai.validity_days) : null)
+  // Transit as the carrier wrote it ("28 to 32 days") and the cut-offs (ISO dates) go into the extended JSON fields.
+  if (ai.transit_text) b.mode_details = { ...(b.mode_details || {}), transit_text: String(ai.transit_text) }
+  if (ai.cutoff_cargo || ai.cutoff_docs) b.cutoffs = { ...(ai.cutoff_cargo ? { cargo: ai.cutoff_cargo } : {}), ...(ai.cutoff_docs ? { docs: ai.cutoff_docs } : {}) }
   if (Array.isArray(ai.charges))
     b.charges = ai.charges.map((c) => ({ ...c, currency: c.currency || b.rate_currency }))
   if (ai.response_type === "quote" || ai.response_type === "update")

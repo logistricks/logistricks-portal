@@ -87,6 +87,18 @@
       "type": "INTEGER",
       "nullable": true
     },
+    "transit_text": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "cutoff_cargo": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "cutoff_docs": {
+      "type": "STRING",
+      "nullable": true
+    },
     "free_days": {
       "type": "INTEGER",
       "nullable": true

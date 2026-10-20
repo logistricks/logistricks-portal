@@ -13,8 +13,8 @@ export const STARTER_HTML = `<h2 style="color:#0D1B2A;margin:0 0 4px">Quotation{
 
 <h3 style="color:#0D1B2A">Shipment details</h3>
 <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
-{{#if pol}}<tr><td style="width:34%;padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Port of loading</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pol}}</td></tr>
-<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Port of discharge</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pod}}</td></tr>{{/if}}
+{{#if pol}}<tr><td style="width:34%;padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Port of loading</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pol}}{{#if origin_country}}, {{origin_country}}{{/if}}</td></tr>
+<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Port of discharge</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pod}}{{#if destination_country}}, {{destination_country}}{{/if}}</td></tr>{{/if}}
 {{#if route}}<tr><td style="width:34%;padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Route</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{route}}</td></tr>{{/if}}
 {{#if routing}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Routing</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{routing}}</td></tr>{{/if}}
 <tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Commodity</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{cargo_type}}</td></tr>
@@ -22,6 +22,8 @@ export const STARTER_HTML = `<h2 style="color:#0D1B2A;margin:0 0 4px">Quotation{
 {{#if weight}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Weight</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{weight}}</td></tr>{{/if}}
 {{#if cbm}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Volume</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{cbm}}</td></tr>{{/if}}
 <tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Incoterm</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{incoterm}}</td></tr>
+{{#if cargo_ready_date}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Cargo ready date</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{cargo_ready_date}}</td></tr>{{/if}}
+{{#if bl_type}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">B/L type</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{bl_type}}</td></tr>{{/if}}
 {{#if pickup_address}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Pickup address</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{pickup_address}}</td></tr>{{/if}}
 {{#if sailing_period}}{{#unless etd}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Sailing</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{sailing_period}}</td></tr>{{/unless}}{{/if}}
 {{#if etd}}<tr><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">Estimated departure</td><td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">{{etd}}</td></tr>{{/if}}

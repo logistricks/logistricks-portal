@@ -256,6 +256,12 @@ function cutoffsOf(c: unknown): { cargo: string; docs: string } {
   return { cargo: "", docs: "" }
 }
 
+/** True when the carrier's cargo cut-off falls before the date the cargo is ready, so the quoted sailing cannot be used. */
+export function cutoffBeforeReady(cutoffs: unknown, ready: unknown): boolean {
+  const c = Date.parse(cutoffsOf(cutoffs).cargo), r = Date.parse(String(ready ?? ""))
+  return !isNaN(c) && !isNaN(r) && c < r
+}
+
 /** "via Port Said" from the quote's legs / mode_details, if the carrier stated a routing. */
 function routingOf(q: Record<string, any>): string {
   const via = new Set<string>()
@@ -378,6 +384,10 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
   const sailing = sailMatch ? sailMatch[1].trim() : ""
   const notesNoSail = sailMatch ? String(q.notes).replace(sailMatch[0], " ").trim() : q.notes
   const freeDays = q.free_days != null ? String(q.free_days) : ""
+  // A sailing whose cut-off is before the cargo is ready cannot be used: show no dates rather than a contradiction (the sailing stays in the notes).
+  const sailUnusable = cutoffBeforeReady(q.cutoffs, r.cargoReadyDate)
+  const mdTransit = q.mode_details && typeof q.mode_details === "object" ? String((q.mode_details as Record<string, unknown>).transit_text ?? "").trim() : ""
+  const transitShown = mdTransit ? mdTransit.replace(/\s*days?\s*$/i, "") : q.transit_days != null ? String(q.transit_days) : ""
 
   // What the carrier actually quoted wins over what was asked (a request can say "Air" while the carrier quotes a 40GP container).
   const sl = String(q.service_level || "")
@@ -427,8 +437,8 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     service_level: q.service_level ?? "", quote_status: status,
     route: !seaShip && op && dp ? `${op} → ${dp}` : "", origin_port: op, destination_port: dp,
     direct_or_connecting: q.direct_or_connecting ? String(q.direct_or_connecting).replace(/^./, (c: string) => c.toUpperCase()) : "",
-    etd: fmtDate(q.etd), eta: fmtDate(q.eta), cut_off_date: cutoffsOf(q.cutoffs).cargo, doc_cut_off: cutoffsOf(q.cutoffs).docs, routing: routingOf(q),
-    transit_days: q.transit_days != null ? String(q.transit_days) : "", frequency: q.frequency ?? "",
+    etd: sailUnusable ? "" : fmtDate(q.etd), eta: sailUnusable ? "" : fmtDate(q.eta), cut_off_date: sailUnusable ? "" : cutoffsOf(q.cutoffs).cargo, doc_cut_off: sailUnusable ? "" : cutoffsOf(q.cutoffs).docs, routing: routingOf(q),
+    transit_days: transitShown, frequency: q.frequency ?? "",
     space_status: space, incoterm_quoted: q.incoterm ?? "",
     container: q.container_type ? `${q.container_count ?? 1} x ${q.container_type}` : "",
     container_type: q.container_type ?? "", container_count: q.container_count != null ? String(q.container_count) : "",
@@ -513,7 +523,12 @@ export function buildContext(input: BuildInput): { ctx: RenderCtx; validUntil: s
     return null
   })()
   const freeAsked = askedFree !== null && freeDays && Number(freeDays) < askedFree ? ` (you asked for ${askedFree} days; an extension can be requested)` : ""
-  const free = [freeDays && `${freeDays} free days${freeAsked}`, v.free_days_demurrage && `${v.free_days_demurrage} days demurrage`, v.free_days_detention && `${v.free_days_detention} days detention`, v.per_diem_note].filter(Boolean).join(", ")
+  const fd = v.free_days_demurrage, ft = v.free_days_detention
+  const place = String(v.per_diem_note || "").trim()
+  const freeParts = fd && ft && String(fd) === String(ft) && (!freeDays || String(freeDays) === String(fd))
+    ? [`${fd} free days (demurrage and detention combined)${freeAsked}`, place]
+    : [freeDays && `${freeDays} free days${freeAsked}`, fd && `${fd} days demurrage`, ft && `${ft} days detention`, place]
+  const free = freeParts.filter(Boolean).join(", ")
   const tnorm = (x: string) => x.toLowerCase().replace(/[^a-z]+/g, " ").trim()
   const sameAs = (a: string, b: string) => !!a && !!b && (tnorm(a).includes(tnorm(b)) || tnorm(b).includes(tnorm(a)) || (/space/.test(tnorm(a)) && /space/.test(tnorm(b)) && /equipment/.test(tnorm(a)) === /equipment/.test(tnorm(b))))
   const spaceRow = sameAs(v.space_status, v.subject_to_conditions) || (/^subject to\b/i.test(v.space_status) && /\b(space|equipment)\b/i.test(v.subject_to_conditions)) ? "" : v.space_status

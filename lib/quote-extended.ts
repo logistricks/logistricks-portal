@@ -5,6 +5,7 @@
  * everything numeric in code (weights, totals, validation flags, review status).
  * Kept out of the route file so it can be unit-tested without Next.js.
  */
+import { cutoffBeforeReady } from "@/lib/quotation-render"
 import { exwNeedsAddress } from "@/lib/shipment-labels"
 import { checkDates, computePricing, computeWeights, type Flag } from "@/lib/quote-math"
 
@@ -32,7 +33,7 @@ const clean = (v: unknown) => (v === undefined || v === "" ? null : v)
 /** Whitelists the extended fields, then computes weights / totals / flags in code. */
 export function buildExtendedFields(
   body: Record<string, unknown>,
-  reqCtx?: { incoterm?: string | null; pickup_address?: string | null },
+  reqCtx?: { incoterm?: string | null; pickup_address?: string | null; cargo_ready_date?: string | null },
 ) {
   const row: Record<string, unknown> = {}
   for (const k of EXT_SCALAR) if (k in body) row[k] = clean(body[k])
@@ -71,6 +72,10 @@ export function buildExtendedFields(
   const incoterm = (row.incoterm as string | null) ?? reqCtx?.incoterm ?? null
   if (exwNeedsAddress(incoterm, row.pickup_address, reqCtx?.pickup_address))
     flags.push({ code: "exw_no_address", field: "pickup_address", severity: "warn", message: "EXW shipment: no pickup address from the requester or the carrier." })
+
+  // A cargo cut-off before the cargo is ready means the quoted sailing is unusable.
+  if (cutoffBeforeReady(row.cutoffs ?? body.cutoffs, reqCtx?.cargo_ready_date))
+    flags.push({ code: "cutoff_before_ready", field: "cutoffs", severity: "warn", message: "The carrier's cargo cut-off is before the cargo ready date: ask for a later sailing." })
 
   // AI self-report: low confidence or values it had to infer always go to a person.
   const conf = typeof body.ai_confidence === "number" ? body.ai_confidence : null

@@ -269,7 +269,7 @@ export async function POST(req: NextRequest) {
   }
 
   // A reply may only link to a request of the client whose mailbox received it.
-  let reqCtx: { incoterm?: string | null; pickup_address?: string | null } | undefined
+  let reqCtx: { incoterm?: string | null; pickup_address?: string | null; cargo_ready_date?: string | null } | undefined
   if (match) {
     const { data: fr } = await admin
       .from("freight_requests")
@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
       match = null
       method = null
     } else {
-      reqCtx = { incoterm: (fr as any).incoterm ?? null, pickup_address: (fr as any).pickup_address ?? null }
+      reqCtx = { incoterm: (fr as any).incoterm ?? null, pickup_address: (fr as any).pickup_address ?? null, cargo_ready_date: (fr as any).cargo_ready_date ?? null }
     }
   }
 
