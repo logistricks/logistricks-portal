@@ -1,12 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { randomInt } from "crypto"
 import { adminClient } from "@/lib/api-session"
 import { adminSession } from "@/lib/trial-admin"
-import { RETENTION_DAYS, hashPassword } from "@/lib/trial-server"
+import { RETENTION_DAYS, hashPassword, newAccessCode } from "@/lib/trial-server"
 
 export const runtime = "nodejs"
-const CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-const rnd = (n: number) => Array.from({ length: n }, () => CH[randomInt(CH.length)]).join("")
 const trialUrl = () => (process.env.TRIAL_URL || "https://try.logistricks.net").replace(/\/+$/, "")
 
 
@@ -92,24 +89,18 @@ export async function POST(req: NextRequest) {
   const tries = Math.min(Math.max(Number(b.tries) || 2, 1), 10)
   const days = Math.min(Math.max(Number(b.days) || 5, 1), 90)
   const genLimit = b.gen_limit === "" || b.gen_limit == null || !Number.isFinite(Number(b.gen_limit)) ? 12 : Math.min(Math.max(Math.floor(Number(b.gen_limit)), 0), 500)
-  const wantCode = String(b.code ?? "").trim().toUpperCase()
-  if (wantCode && !/^[A-Z0-9-]{4,20}$/.test(wantCode)) return NextResponse.json({ error: "The code can use letters, numbers and dashes, 4 to 20 characters." }, { status: 400 })
-  const wantPw = String(b.password ?? "")
-  if (wantPw && (wantPw.length < 6 || wantPw.length > 64)) return NextResponse.json({ error: "The password needs 6 to 64 characters." }, { status: 400 })
-  const ini = company.split(/\s+/).map((w) => w[0] ?? "").join("").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3).padEnd(3, "X")
   const admin = adminClient()
-  const password = wantPw || rnd(10)
   for (let i = 0; i < 5; i++) {
-    const code = wantCode || `${ini}-${rnd(4)}`
-    const row: Record<string, unknown> = { company, contact_name: contact, code, password_hash: hashPassword(password), tries_total: tries, gen_limit: genLimit, expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: g.by }
+    const code = newAccessCode()
+    const row: Record<string, unknown> = { company, contact_name: contact, code, password_hash: hashPassword(code), tries_total: tries, gen_limit: genLimit, expires_at: new Date(Date.now() + days * 86400000).toISOString(), created_by: g.by }
     let { data, error } = await admin.from("trial_leads").insert(row).select("id").single()
     // Migration 069 not run yet: create the lead without the AI limit rather than failing.
     if (error && /gen_limit/.test(error.message)) { delete row.gen_limit; ;({ data, error } = await admin.from("trial_leads").insert(row).select("id").single()) }
-    if (error?.code === "23505") { if (wantCode) return NextResponse.json({ error: "That code is already in use. Choose another." }, { status: 409 }); continue }
+    if (error?.code === "23505") continue
     if (error || !data) return NextResponse.json({ error: error?.message ?? "Could not create the lead." }, { status: 500 })
     const link = `${trialUrl()}/?code=${code}`
-    const message = `Subject: A short test of your own request flow\n\nHello ${contact || "there"},\n\nI set up a short trial for ${company}. Drop in a real client email and watch it become a priced quotation.\n\nLink: ${link}\nPassword: ${password}\n\nYou have ${tries} full ${tries === 1 ? "try" : "tries"} and the login is open for ${days} days. Everything you add is deleted ${RETENTION_DAYS} days after your last activity.`
-    return NextResponse.json({ id: data.id, code, password, link, message })
+    const message = `Subject: A short test of your own request flow\n\nHello ${contact || "there"},\n\nI set up a short trial for ${company}. Drop in a real client email and watch it become a priced quotation.\n\nYour link (it signs you straight in): ${link}\nAccess code, if asked: ${code}\n\nYou have ${tries} full ${tries === 1 ? "try" : "tries"} and the login is open for ${days} days. Everything you add is deleted ${RETENTION_DAYS} days after your last activity.`
+    return NextResponse.json({ id: data.id, code, link, message })
   }
   return NextResponse.json({ error: "Could not generate a unique code. Try again." }, { status: 500 })
 }

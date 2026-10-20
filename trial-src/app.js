@@ -91,14 +91,15 @@ $("#themeBtn").addEventListener("click",function(){logEv("theme_switched");docum
 paintTheme();
 
 /* ---------- login ---------- */
-(function(){var m=/[?&]code=([^&]+)/.exec(location.search);if(m)$("#lgCode").value=decodeURIComponent(m[1]).toUpperCase();if(history.replaceState&&m)history.replaceState(null,"",location.pathname)})();
+var linkCode=null;
+(function(){var m=/[?&]code=([^&]+)/.exec(location.search);if(m){linkCode=decodeURIComponent(m[1]).toUpperCase();$("#lgCode").value=linkCode}if(history.replaceState&&m)history.replaceState(null,"",location.pathname)})();
 $("#loginForm").addEventListener("submit",function(e){
   e.preventDefault();$("#lgErr").textContent="";
   var btn=$("#lgBtn"),ins=$$("#loginForm input");
   busyBtn(btn,true,"Signing in...");ins.forEach(function(i){i.disabled=true});
   function done(){busyBtn(btn,false);ins.forEach(function(i){i.disabled=false})}
   post("/api/trial/login",{code:$("#lgCode").value,password:$("#lgPw").value}).then(function(r){
-    if(!r.ok){done();$("#lgErr").textContent=r.json.error||"Could not sign in.";return}
+    if(!r.ok){done();if(r.json.needPassword){$("#lgPwRow").hidden=false;$("#lgPw").focus()}$("#lgErr").textContent=r.json.error||"Could not sign in.";return}
     boot().then(function(){$("#lgPw").value="";done()});
   });
 });
@@ -107,7 +108,7 @@ $("#logoutBtn").addEventListener("click",function(){post("/api/trial/logout",{})
 /* ---------- boot ---------- */
 function boot(){
   return api("/api/trial/me").then(function(r){
-    if(!r.ok){$("#loginBox").hidden=false;document.body.classList.add("locked-app");if(r.json&&r.json.error&&r.status!==401)$("#lgErr").textContent=r.json.error;return}
+    if(!r.ok){$("#loginBox").hidden=false;document.body.classList.add("locked-app");if(r.json&&r.json.error&&r.status!==401)$("#lgErr").textContent=r.json.error;if(linkCode){var lc=linkCode;linkCode=null;$("#loginForm").requestSubmit?$("#loginForm").requestSubmit():$("#lgBtn").click()}return}
     var l=r.json.lead;st.lead=l;st.usedTries=l.triesUsed;st.total=l.triesTotal;
     $("#coName").textContent=l.company;paintAccess(l);
     $("#loginBox").hidden=true;document.body.classList.remove("locked-app");

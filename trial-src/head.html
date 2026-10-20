@@ -436,7 +436,7 @@ table.xl td.r{text-align:right;font-variant-numeric:tabular-nums}
 .login .card{width:min(420px,100%);display:grid;gap:4px}
 .login h1{font-size:26px;margin:14px 0 4px}
 .login .err{color:var(--crit);font-size:14px;min-height:20px;margin:2px 0 8px}
-.login[hidden]{display:none}
+.login[hidden],.f[hidden]{display:none}
 body.locked-app>#appRoot{display:none}
 .errcard{border:1.5px solid color-mix(in srgb,var(--crit) 50%,transparent);background:var(--crit-soft);border-radius:18px;padding:22px;display:grid;gap:8px}
 .errcard b{font:700 18px/1.2 var(--font-display);color:var(--crit)}
@@ -522,12 +522,12 @@ section.step.enter{animation:stepIn .7s cubic-bezier(.2,.8,.2,1) both}
   <div class="card">
     <svg width="40" height="40" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#E8821A"/><path d="M6 19c4 0 4-10 8-10s4 10 8 10" stroke="#0F1E36" stroke-width="2.4" stroke-linecap="round"/><circle cx="6" cy="19" r="2" fill="#0F1E36"/><circle cx="22" cy="19" r="2" fill="#0F1E36"/></svg>
     <h1>Your Logistricks trial</h1>
-    <p class="hint" style="margin-bottom:14px">Sign in with the code and password we sent you.</p>
+    <p class="hint" style="margin-bottom:14px">Open the link we sent you, or type your access code.</p>
     <form id="loginForm">
-      <label class="f" for="lgCode">Code<input id="lgCode" type="text" autocomplete="username" autocapitalize="characters" spellcheck="false" required></label>
-      <label class="f" for="lgPw">Password<input id="lgPw" type="password" autocomplete="current-password" required></label>
+      <label class="f" for="lgCode">Access code<input id="lgCode" type="text" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label>
+      <label class="f" for="lgPw" id="lgPwRow" hidden>Password<input id="lgPw" type="password" autocomplete="current-password"></label>
       <div class="err" id="lgErr" role="alert"></div>
-      <button class="btn btn-primary" id="lgBtn" type="submit" style="width:100%">Sign in</button>
+      <button class="btn btn-primary" id="lgBtn" type="submit" style="width:100%">Start the trial</button>
     </form>
   </div>
 </div>

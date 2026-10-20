@@ -1,5 +1,5 @@
 /** Server-only helpers for the lead trial portal (try.logistricks.net). */
-import { createHash, createHmac, timingSafeEqual } from "crypto"
+import { createHash, createHmac, randomInt, timingSafeEqual } from "crypto"
 import type { NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { TYPE_LABEL, isShipmentType, quotableCheck, type ShipmentType } from "@/lib/shipment-types"
@@ -28,6 +28,18 @@ export function trialSession(req: NextRequest): { leadId: string } | null {
     if (!d.leadId || Date.now() > d.exp) return null
     return { leadId: String(d.leadId) }
   } catch { return null }
+}
+/** A 12-character access code like K7MQ-4XPD-R9TB (about 59 bits, no look-alike characters). It is the whole login. */
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+export function newAccessCode(): string {
+  const g = () => Array.from({ length: 4 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join("")
+  return `${g()}-${g()}-${g()}`
+}
+/** What the lead typed, tidied: upper case, and dashes put back into a 12-character code typed without them. */
+export function cleanCode(raw: unknown): string {
+  const t = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "")
+  const flat = t.replace(/-/g, "")
+  return /^[A-Z0-9]{12}$/.test(flat) ? `${flat.slice(0, 4)}-${flat.slice(4, 8)}-${flat.slice(8)}` : t
 }
 export const hashPassword = (p: string) => createHash("sha256").update(p).digest("hex")
 
