@@ -585,7 +585,7 @@ function UsersInner() {
                     >
                       {/* Avatar + name */}
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
+                        <div className="mx-auto flex w-60 items-center justify-start gap-3 text-left">
                           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${ROLE_META[user.role].bg} ${ROLE_META[user.role].color}`}>
                             {initials(user.display_name || user.username)}
                           </div>
