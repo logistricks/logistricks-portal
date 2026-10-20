@@ -17,7 +17,7 @@
  *    the automatic mailbox flows, only the trigger differs. Everything is stamped intake_source = "manual".
  */
 import { flatDefaults, loadDefaults } from "@/lib/default-locations"
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, after, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { parseEmailFile, type ParsedEmail } from "@/lib/email-parse"
@@ -170,13 +170,30 @@ export async function POST(req: NextRequest) {
     await admin.from("intake_logs").update({ status, finished_at: new Date().toISOString(), duration_ms: Date.now() - started, ...patch }).eq("id", logId)
   }
 
-  let res: Response
-  try {
-    res = await fetch(url, {
-      method: "POST", headers: { "Content-Type": "application/json", "X-Portal-Secret": secret },
-      body: JSON.stringify(payload), signal: AbortSignal.timeout(100_000),
-    })
-  } catch (e) {
+  // The workflow only answers once EVERYTHING is done (auto-reply, notifications, RFQ emails). The person is waiting for
+  // the request itself, so watch for its record in parallel and answer the moment it exists; the rest keeps running.
+  const call = fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Portal-Secret": secret },
+    body: JSON.stringify(payload), signal: AbortSignal.timeout(100_000),
+  }).then((r) => ({ res: r as Response | null, err: null as unknown }), (err) => ({ res: null as Response | null, err }))
+  let callDone = false
+  void call.then(() => { callDone = true })
+  const lookup = { clientCode, kind, messageId: merged.message_id ? normId(merged.message_id) : null, filename, fromEmail: merged.from_email ?? null, since: started - 2000 }
+  let early: { found: boolean; result: Record<string, any> } | null = null
+  if (kind === "request" && lookup.messageId) {
+    const watcher = waitForOutcome(admin, { ...lookup, patient: true, deadline: started + 100_000, needRec: true, cancelled: () => callDone }).then((o) => (o.found ? o : new Promise<never>(() => {})))
+    early = await Promise.race([call.then(() => null), watcher])
+  }
+  if (early?.found) {
+    after(async () => { await call })
+    const result = early.result
+    await finish("success", { stage: "done", http_status: 200, result, freight_request_id: result.request_id ?? freightRequestId })
+    return NextResponse.json({ ok: true, kind, mailbox: matched, subject: merged.subject, from: merged.from_email, attachments: atts.length, result, log_id: logId })
+  }
+  const { res: gotRes, err: callErr } = await call
+  const res = gotRes as Response
+  if (!gotRes) {
+    const e = callErr
     const msg = e instanceof Error && e.name === "TimeoutError"
       ? "Processing is taking longer than expected. It may still be running — check the Intake log in a minute."
       : `Email processing could not be reached: ${e instanceof Error ? e.message : e}`
@@ -233,7 +250,7 @@ export async function POST(req: NextRequest) {
 /** Looks for what the workflow wrote for this email; polls for it when n8n answered before finishing. */
 async function waitForOutcome(
   admin: any,
-  a: { clientCode: string; kind: string; messageId: string | null; filename: string; fromEmail?: string | null; since: number; patient: boolean; deadline: number },
+  a: { clientCode: string; kind: string; messageId: string | null; filename: string; fromEmail?: string | null; since: number; patient: boolean; deadline: number; needRec?: boolean; cancelled?: () => boolean },
 ): Promise<{ found: boolean; result: Record<string, any> }> {
   const sinceIso = new Date(a.since).toISOString()
   const look = async (): Promise<Record<string, any> | null> => {
@@ -272,6 +289,8 @@ async function waitForOutcome(
       req = data?.[0] ?? null
     }
     if (!req && !rec?.freight_request_id) return null
+    // the fast watcher only answers once the inbound_emails record (how it was matched) is there too
+    if (a.needRec && !rec) return null
     let ref: string | null = req?.request_ref ?? null
     const reqId = req?.id ?? rec?.freight_request_id ?? null
     if (!ref && reqId) {
@@ -289,8 +308,8 @@ async function waitForOutcome(
   const first = await look()
   if (first) return { found: true, result: first }
   if (!a.patient) return { found: false, result: {} }
-  while (Date.now() < a.deadline) {
-    await new Promise((r) => setTimeout(r, 1000))
+  while (Date.now() < a.deadline && !a.cancelled?.()) {
+    await new Promise((r) => setTimeout(r, a.needRec ? 600 : 1000))
     const r = await look()
     if (r) return { found: true, result: r }
   }
