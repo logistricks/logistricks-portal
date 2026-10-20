@@ -290,7 +290,7 @@ async function waitForOutcome(
   if (first) return { found: true, result: first }
   if (!a.patient) return { found: false, result: {} }
   while (Date.now() < a.deadline) {
-    await new Promise((r) => setTimeout(r, 2500))
+    await new Promise((r) => setTimeout(r, 1000))
     const r = await look()
     if (r) return { found: true, result: r }
   }

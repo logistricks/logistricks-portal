@@ -36,17 +36,17 @@ type Staged = {
 const STEPS: Record<"request" | "carrier_reply", { at: number; text: string }[]> = {
   request: [
     { at: 0, text: "Email sent for processing" },
-    { at: 4, text: "Reading the email and its attachments" },
-    { at: 12, text: "Extracting route, cargo, dates and requirements" },
-    { at: 28, text: "Checking for missing information and matching earlier requests" },
-    { at: 42, text: "Saving the request" },
+    { at: 2, text: "Reading the email and its attachments" },
+    { at: 5, text: "Extracting route, cargo, dates and requirements" },
+    { at: 9, text: "Checking for missing information and matching earlier requests" },
+    { at: 12, text: "Saving the request" },
   ],
   carrier_reply: [
     { at: 0, text: "Quote email sent for processing" },
-    { at: 4, text: "Reading the email and the attached quote" },
-    { at: 12, text: "Extracting rates, charges, validity and terms" },
-    { at: 28, text: "Matching it to the request and carrier" },
-    { at: 42, text: "Saving the quote" },
+    { at: 2, text: "Reading the email and the attached quote" },
+    { at: 5, text: "Extracting rates, charges, validity and terms" },
+    { at: 9, text: "Matching it to the request and carrier" },
+    { at: 12, text: "Saving the quote" },
   ],
 }
 
@@ -57,7 +57,7 @@ function ProcessingProgress({ kind }: { kind: "request" | "carrier_reply" }) {
   const steps = STEPS[kind]
   let cur = 0
   steps.forEach((st, i) => { if (sec >= st.at) cur = i })
-  const pct = Math.min(95, Math.round((1 - Math.exp(-sec / 28)) * 100))
+  const pct = Math.min(95, Math.round((1 - Math.exp(-sec / 9)) * 100))
   return (
     <div role="status" aria-live="polite" className="space-y-3 rounded-xl p-4 text-center" style={{ background: "var(--table-header-bg)", border: "1px solid var(--card-border)" }}>
       <div className="flex items-center justify-center gap-2 text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
