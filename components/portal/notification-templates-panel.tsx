@@ -6,6 +6,7 @@ import {
   Inbox, Italic, Link2, List, ListOrdered, Loader2, Minus, Palette, Pencil, Redo2, Reply, RotateCcw, Search, Send, Server, Table2, Underline, Undo2, Users,
 } from "lucide-react"
 import { findVariables, renderTemplate } from "@/lib/quotation-render"
+import { SHIPMENT_TYPES, TYPE_LABEL } from "@/lib/shipment-types"
 import {
   NOTIFICATION_EVENTS, ROLE_OPTIONS, emailDocument, eventGroups, eventVarKeys, normalizeRecipients, sampleBlocks, sampleValues,
   type NotificationEvent, type Recipients,
@@ -48,52 +49,77 @@ function ago(iso: string) {
 type PortalUser = { username: string; display_name: string | null; auth_email: string; role: string; is_active: boolean }
 const realEmail = (e: string) => EMAIL_RE.test(e || "") && !/\.portal$/i.test(e)
 
-/** Small button on each notification: who gets it. Saves straight away. */
+/** Small button on each notification: who gets it, picked per request type. Saves straight away. */
 function RecipientsButton({ ev, recipients, users, canEdit, onChange }: { ev: NotificationEvent; recipients: Recipients; users: PortalUser[]; canEdit: boolean; onChange: (r: Recipients) => void }) {
   const [open, setOpen] = useState(false)
+  const [type, setType] = useState<string | null>(null) // null = the list of types
   const ref = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setType(null) } }
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h)
   }, [open])
-  const chosen = new Set(recipients.users ?? [])
-  const toggle = (u: string) => { const n = new Set(chosen); n.has(u) ? n.delete(u) : n.add(u); onChange({ ...recipients, users: Array.from(n) }) }
-  const count = chosen.size + recipients.roles.length + recipients.extra.length
+  const listFor = (t: string): string[] => (t === "all" ? recipients.users ?? [] : recipients.by_type?.[t] ?? [])
+  const setList = (t: string, list: string[]) => onChange(t === "all" ? { ...recipients, users: list } : { ...recipients, by_type: { ...(recipients.by_type ?? {}), [t]: list } })
+  const toggle = (t: string, u: string) => { const cur = listFor(t); setList(t, cur.includes(u) ? cur.filter((x) => x !== u) : [...cur, u]) }
+  const total = ["all", ...SHIPMENT_TYPES].reduce((n, t) => n + listFor(t).length, 0) + recipients.roles.length + recipients.extra.length
+  const rows: [string, string][] = [["all", "All request types"], ...SHIPMENT_TYPES.map((t) => [t, TYPE_LABEL[t]] as [string, string])]
+  const label = type ? rows.find(([k]) => k === type)?.[1] ?? "" : ""
   return (
     <span ref={ref} className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
-      <button type="button" title="Who gets this email" aria-label="Choose who gets this email" onClick={() => setOpen((o) => !o)}
+      <button type="button" title="Who gets this email" aria-label="Choose who gets this email" onClick={() => { setOpen((o) => !o); setType(null) }}
         className="inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition-colors hover:bg-[var(--table-header-bg)]"
         style={{ borderColor: "var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>
-        <Users className="h-3.5 w-3.5" />{count > 0 ? count : ""}
+        <Users className="h-3.5 w-3.5" />{total > 0 ? total : ""}
       </button>
       {open && (
         <div className="absolute right-0 top-full z-30 mt-1.5 w-64 rounded-xl border p-3 text-left shadow-xl" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
-          <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>Who gets “{ev.label}”</p>
-          {ev.dynamicRecipients && <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>{ev.dynamicRecipients}</p>}
-          <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
-            {users.filter((u) => u.is_active).map((u) => {
-              const ok = realEmail(u.auth_email)
-              return (
-                <label key={u.username} className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${ok ? "cursor-pointer hover:bg-[var(--table-header-bg)]" : "opacity-50"}`} title={ok ? u.auth_email : "This user has no real email address (set it on the Users page)"}>
-                  <input type="checkbox" className="h-4 w-4" disabled={!canEdit || !ok} checked={chosen.has(u.username)} onChange={() => toggle(u.username)} style={{ accentColor: "var(--brand-accent)" }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold" style={{ color: "var(--text-primary)" }}>{u.display_name || u.username}</span>
-                    <span className="block truncate text-[10.5px]" style={{ color: "var(--text-muted)" }}>{ok ? `${u.role} · ${u.auth_email}` : `${u.role} · no email address`}</span>
-                  </span>
-                </label>
-              )
-            })}
-            {users.length === 0 && <p className="text-xs" style={{ color: "var(--text-muted)" }}>No users found.</p>}
-          </div>
-          {(recipients.roles.length > 0 || recipients.extra.length > 0) && <p className="mt-2 text-[10.5px]" style={{ color: "var(--text-muted)" }}>Also sent to {[...recipients.roles.map((r) => `all ${r}s`), ...recipients.extra].join(", ")} (see Recipients on the right).</p>}
+          {type === null ? (
+            <>
+              <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>Who gets “{ev.label}”</p>
+              <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>Pick a request type, then choose its people. Someone chosen under “All request types” gets it for every request.</p>
+              {ev.dynamicRecipients && <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>{ev.dynamicRecipients}</p>}
+              <div className="mt-2 space-y-1">
+                {rows.map(([k, name]) => {
+                  const n = listFor(k).length
+                  return (
+                    <button key={k} type="button" onClick={() => setType(k)} className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--table-header-bg)]" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                      <span>{name}</span>
+                      <span style={{ color: n ? "var(--brand-accent)" : "var(--text-muted)" }}>{n ? `${n} selected` : "none"} ›</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {(recipients.roles.length > 0 || recipients.extra.length > 0) && <p className="mt-2 text-[10.5px]" style={{ color: "var(--text-muted)" }}>Also sent to {[...recipients.roles.map((r) => `all ${r}s`), ...recipients.extra].join(", ")} (see Recipients on the right).</p>}
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => setType(null)} className="text-[11px] font-semibold" style={{ color: "var(--brand-accent)" }}>‹ Request types</button>
+              <p className="mt-1 text-xs font-bold" style={{ color: "var(--text-primary)" }}>{label}: who gets it</p>
+              <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+                {users.filter((u) => u.is_active).map((u) => {
+                  const ok = realEmail(u.auth_email)
+                  return (
+                    <label key={u.username} className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${ok ? "cursor-pointer hover:bg-[var(--table-header-bg)]" : "opacity-50"}`} title={ok ? u.auth_email : "This user has no real email address (set it on the Users page)"}>
+                      <input type="checkbox" className="h-4 w-4" disabled={!canEdit || !ok} checked={listFor(type).includes(u.username)} onChange={() => toggle(type, u.username)} style={{ accentColor: "var(--brand-accent)" }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold" style={{ color: "var(--text-primary)" }}>{u.display_name || u.username}</span>
+                        <span className="block truncate text-[10.5px]" style={{ color: "var(--text-muted)" }}>{ok ? `${u.role} · ${u.auth_email}` : `${u.role} · no email address`}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+                {users.length === 0 && <p className="text-xs" style={{ color: "var(--text-muted)" }}>No users found.</p>}
+              </div>
+            </>
+          )}
         </div>
       )}
     </span>
   )
 }
 
-const DEFAULT_GROUPS: ("Requests" | "Carriers" | "Approvals")[] = ["Requests", "Carriers"]
+const DEFAULT_GROUPS: ("Requests" | "Carriers" | "Approvals")[] = ["Requests", "Carriers", "Approvals"]
 export function NotificationTemplatesPanel({ onOpenSmtp, groups: showGroups = DEFAULT_GROUPS }: { onOpenSmtp?: () => void; groups?: ("Requests" | "Carriers" | "Approvals")[] }) {
   const EVENTS = useMemo(() => NOTIFICATION_EVENTS.filter((e) => showGroups.includes(e.group)), [showGroups])
   const [users, setUsers] = useState<PortalUser[]>([])

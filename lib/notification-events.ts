@@ -9,7 +9,8 @@
 export type NotificationGroup = "Requests" | "Carriers" | "Approvals"
 export interface NVar { key: string; label: string; example: string; kind?: "text" | "block" }
 export interface NVarGroup { id: string; label: string; vars: NVar[] }
-export interface Recipients { roles: string[]; extra: string[]; users?: string[] }
+import { SHIPMENT_TYPES } from "@/lib/shipment-types"
+export interface Recipients { roles: string[]; extra: string[]; users?: string[]; by_type?: Record<string, string[]> }
 
 export interface NotificationEvent {
   key: string
@@ -280,6 +281,9 @@ export function normalizeRecipients(raw: unknown, fallback: Recipients): Recipie
   const extra = Array.isArray(r.extra)
     ? Array.from(new Set(r.extra.map((x) => String(x).trim().toLowerCase()).filter((x) => /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(x)))).slice(0, 20)
     : []
-  const users = Array.isArray(r.users) ? Array.from(new Set(r.users.map((x) => String(x).trim()).filter((x) => /^[\w.@-]{1,80}$/.test(x)))).slice(0, 100) : []
-  return { roles, extra, users }
+  const clean = (a: unknown) => (Array.isArray(a) ? Array.from(new Set(a.map((x) => String(x).trim()).filter((x) => /^[\w.@-]{1,80}$/.test(x)))).slice(0, 100) : [])
+  const by_type: Record<string, string[]> = {}
+  const bt = (r as any).by_type
+  if (bt && typeof bt === "object") for (const t of SHIPMENT_TYPES) { const l = clean(bt[t]); if (l.length) by_type[t] = l }
+  return { roles, extra, users: clean(r.users), by_type }
 }

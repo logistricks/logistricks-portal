@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Bell, BellRing, Mail } from "lucide-react";
-import { NotificationTemplatesPanel } from "@/components/portal/notification-templates-panel";
+import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Bell, BellRing } from "lucide-react";
 import { DEFAULT_CYCLE_NOTIFY, type CycleNotify } from "@/lib/approval-notify";
 
 type StepMember = { username: string };
@@ -267,7 +266,6 @@ export default function ApprovalCyclesPage() {
   const [setupForm, setSetupForm] = useState<CycleNotify>(DEFAULT_CYCLE_NOTIFY);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupError, setSetupError] = useState("");
-  const [showEmails, setShowEmails] = useState(false);
   const notifyOf = (id: string): CycleNotify => notifyMap[id] ?? { ...DEFAULT_CYCLE_NOTIFY, members: {} };
   const saveNotify = async (id: string, value: CycleNotify) => {
     const res = await fetch(`/api/approval-cycles/${id}/notifications`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
@@ -443,9 +441,6 @@ export default function ApprovalCyclesPage() {
             <h1 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Approval Cycles</h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={() => setShowEmails(true)} className="flex items-center gap-2 rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--brand-accent)]">
-              <Mail size={16} /> Approval emails
-            </button>
             <button onClick={openCreate} className="flex items-center gap-2 bg-[var(--brand-accent)] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-500">
               <Plus size={16} /> New Cycle
             </button>
@@ -580,18 +575,6 @@ export default function ApprovalCyclesPage() {
               <button onClick={() => setSetupFor(null)} className="rounded-lg border border-[var(--card-border)] px-4 py-2 text-sm">Cancel</button>
               <button onClick={saveSetup} disabled={setupBusy} className="rounded-lg bg-[var(--brand-accent)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{setupBusy ? "Saving…" : "Save"}</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showEmails && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowEmails(false); }}>
-          <div className="w-full max-w-6xl rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">Approval emails</h3>
-              <button onClick={() => setShowEmails(false)} className="rounded p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X size={18} /></button>
-            </div>
-            <NotificationTemplatesPanel groups={["Approvals"]} />
           </div>
         </div>
       )}
