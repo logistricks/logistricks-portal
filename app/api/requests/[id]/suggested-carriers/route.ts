@@ -13,8 +13,9 @@
  * Response: { origin, destination, carriers: [{ carrier_id, carrier_name, email, fit, suggested, auto_send, reason }],
  *             suggested_ids: number[], auto_send_ids: number[] }
  *   suggested_ids  – carriers covering the origin and/or destination
- *   auto_send_ids  – the ones the automated send should use: "Include in Auto-Send RFQ" is on AND the country fit is
- *                    suggested (or the carrier has no countries set yet, so existing setups keep working)
+ *   auto_send_ids  – the ones the automated send should use: "Include in Auto-Send RFQ" is on AND the carrier covers the
+ *                    origin or destination country (a carrier with no countries set is never sent automatically; the
+ *                    request having no recognisable country is the only case where the mode alone decides)
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient, getSession } from "@/lib/api-session"
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const carriers = ranked.map(({ carrier: c, match }) => ({
     carrier_id: c.carrier_id, carrier_name: c.carrier_name, email: c.email, fit: match.fit, suggested: match.suggested, reason: match.reason,
-    auto_send: !!c.auto_send_rfq && (match.suggested || match.fit === "unset" || match.fit === "unknown"),
+    auto_send: !!c.auto_send_rfq && (match.suggested || match.fit === "unknown"),
   }))
   const autoIds = carriers.filter((c) => c.auto_send).map((c) => c.carrier_id)
 
