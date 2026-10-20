@@ -14,6 +14,7 @@ export const DEFAULT_PROMPTS: Record<PromptKey, string> = {
 
 Rules:
 - Invent a fictional company and person. Never use real company names.
+- If Jordan is part of the lane, use only Aqaba or Amman as the place in Jordan.
 - Pick a realistic lane, cargo and quantities. Weights, dimensions and incoterms must be consistent with each other.
 - The request must clearly be ONE of these shipment types, and say so by how it is written: by air (airports, weight, dimensions, packages); sea in full containers (container size and number, ports); sea LCL (loose cargo given in CBM, pallets or cartons, no container named); or by road (truck type such as flatbed, curtain-side or reefer, pickup and delivery places). Vary the type from one email to the next unless the keywords decide it.
 - Mention the date the goods are ready (for example "ready on 12 November" or "ready next week") in most emails.
