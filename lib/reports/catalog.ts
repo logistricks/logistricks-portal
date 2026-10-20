@@ -49,6 +49,10 @@ export const REPORTS: ReportDef[] = [
     filters: [{ key: "issue", label: "Issue", type: "select", options: [
       { value: "", label: "All issues" }, { value: "stale", label: "Stale (no progress)" }, { value: "missing", label: "Missing information" }, { value: "exw", label: "EXW without pickup address" }] },
       { key: "minAge", label: "Older than (days)", type: "number", placeholder: "0" }] },
+  { id: "approvals", title: "Approval History", category: "Operations", icon: "clock",
+    description: "Every approval step of every request sent for approval: who submitted it, the workflow, who decided, the outcome, how long it waited and the note.",
+    filters: [{ key: "outcome", label: "Outcome", type: "select", options: [{ value: "", label: "All outcomes" }, { value: "approved", label: "Approved" }, { value: "rejected", label: "Rejected" }, { value: "pending", label: "Still waiting" }] },
+      { key: "by", label: "Submitted by", type: "text", placeholder: "Username" }, TEXT("Request", "Reference or requester")] },
   { id: "carrier_quotes", title: "Carrier Quotes Comparison", category: "Carriers", icon: "scale",
     description: "All carrier quotes received, per request, with rate, transit time, free days and validity. The lowest rate for each request is flagged.",
     filters: [CARRIER, { key: "q", label: "Request reference", type: "text", placeholder: "e.g. LT-0017" }] },

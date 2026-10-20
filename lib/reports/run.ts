@@ -284,6 +284,47 @@ export async function runReport(admin: any, code: string, id: string, p: Params)
       summary = [{ label: "Requests", value: rows.length, type: "num" }, { label: "Median to RFQ", value: median(rows.map((r) => r.rfq)), type: "hours" }, { label: "Median to carrier quote", value: median(rows.map((r) => r.quote)), type: "hours" }, { label: "Median to quotation", value: median(rows.map((r) => r.quotation)), type: "hours" }]
       break
     }
+    case "approvals": {
+      const rowsRaw = await all<any>((a, b) => admin.from("approval_requests")
+        .select("id, request_id, sort_order, step_status, status, submitted_by, assigned_to, assigned_usernames, created_at, decided_at, notes, email_type, approval_cycles ( name ), approval_step_responses ( username, response, notes, created_at ), freight_requests!inner ( client_code, request_ref, sender_name, sender_email )")
+        .eq("freight_requests.client_code", code).gte("created_at", fromIso).lt("created_at", toIso).order("created_at", { ascending: false }).range(a, b)).catch(() => [] as any[])
+      // when each step became active: the previous step's decision (or the submission for the first step)
+      const chainOf = new Map<string, any[]>()
+      for (const r of rowsRaw) { const l = chainOf.get(r.request_id); l ? l.push(r) : chainOf.set(r.request_id, [r]) }
+      for (const l of chainOf.values()) l.sort((x, y) => x.sort_order - y.sort_order)
+      const ms = (v: unknown) => { const n = v ? Date.parse(String(v)) : NaN; return Number.isNaN(n) ? null : n }
+      let list = rowsRaw.map((r) => {
+        const chain = chainOf.get(r.request_id) ?? []
+        const prev = chain.filter((x) => x.sort_order < r.sort_order).map((x) => ms(x.decided_at) ?? 0)
+        const since = Math.max(ms(r.created_at) ?? 0, ...prev)
+        const resp = (r.approval_step_responses ?? []) as any[]
+        const rejected = resp.find((x) => x.response === "rejected")
+        const approved = resp.find((x) => x.response === "approved")
+        const outcome = r.step_status === "rejected" || rejected ? "Rejected" : r.step_status === "approved" || r.step_status === "skipped" ? "Approved" : r.step_status === "active" ? "Waiting" : "Not reached"
+        const who = (rejected ?? approved)?.username ?? ""
+        const decidedAt = ms(r.decided_at) ?? ms((rejected ?? approved)?.created_at)
+        const names = (r.assigned_usernames?.length ? r.assigned_usernames : [r.assigned_to]).filter(Boolean)
+        return {
+          at: r.created_at, ref: r.freight_requests?.request_ref ?? "", requester: r.freight_requests?.sender_name || r.freight_requests?.sender_email || "",
+          by: r.submitted_by ?? "", workflow: r.approval_cycles?.name ?? "", kind: r.email_type === "reply" ? "Reply" : "Carrier email", step: `Step ${r.sort_order + 1} of ${chain.length}`,
+          approvers: names.join(", "), outcome, who, decided: decidedAt ? new Date(decidedAt).toISOString() : null,
+          hours: decidedAt && since ? Math.round(((decidedAt - since) / 3600_000) * 10) / 10 : null, note: rejected?.notes ?? approved?.notes ?? r.notes ?? "",
+        }
+      })
+      if (f.outcome === "approved") list = list.filter((r) => r.outcome === "Approved")
+      else if (f.outcome === "rejected") list = list.filter((r) => r.outcome === "Rejected")
+      else if (f.outcome === "pending") list = list.filter((r) => r.outcome === "Waiting")
+      if (f.by) list = list.filter((r) => r.by.toLowerCase().includes(f.by.toLowerCase()))
+      if (f.q) list = list.filter((r) => has([r.ref, r.requester], f.q))
+      columns = [{ key: "at", label: "Submitted", type: "datetime" }, { key: "ref", label: "Request" }, { key: "requester", label: "Requester" }, { key: "kind", label: "Email" }, { key: "by", label: "Submitted by" }, { key: "workflow", label: "Workflow" },
+        { key: "step", label: "Step" }, { key: "approvers", label: "Approvers" }, { key: "outcome", label: "Outcome" }, { key: "who", label: "Decided by" }, { key: "decided", label: "Decided", type: "datetime" }, { key: "hours", label: "Waited (h)", type: "hours" }, { key: "note", label: "Note" }]
+      rows = list
+      const done = list.filter((r) => r.hours != null).map((r) => r.hours as number).sort((a, b) => a - b)
+      summary = [{ label: "Steps", value: list.length, type: "num" }, { label: "Approved", value: list.filter((r) => r.outcome === "Approved").length, type: "num" },
+        { label: "Rejected", value: list.filter((r) => r.outcome === "Rejected").length, type: "num" }, { label: "Waiting", value: list.filter((r) => r.outcome === "Waiting").length, type: "num" },
+        { label: "Median wait (h)", value: done.length ? done[Math.floor(done.length / 2)] : null, type: "hours" }]
+      break
+    }
     case "auto_reply": {
       let ls = await all<any>((a, b) => admin.from("auto_reply_logs").select("*").eq("client_code", code).gte("created_at", fromIso).lt("created_at", toIso).order("created_at", { ascending: false }).range(a, b)).catch(() => [])
       if (f.type) ls = ls.filter((l) => l.log_type === f.type)
