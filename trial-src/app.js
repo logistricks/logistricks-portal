@@ -19,20 +19,20 @@ var ICON={
 
 /* ---------- sample emails (starting points only; the AI reads whatever is in the box) ---------- */
 var S={
-A:{label:"Sea, Suzhou to Dallas",tag:"Sea FCL",blurb:"Inland to inland. Ports are chosen for you.",
+A:{label:"Sea, Suzhou to Dallas",tag:"Sea FCL",blurb:"Inland to inland. Ports are chosen for you. No ready date, so the AI asks for it.",warn:1,
  email:"Hi team,\n\nPlease quote 2 x 40HC of LED lighting fixtures. We buy from a supplier in Suzhou, China (EXW, their factory) and the goods go to our distribution centre in Dallas, Texas. Total weight about 24 tons.\n\nWe would like 21 days of free time at destination. Please confirm transit time and the earliest sailing.\n\nThanks,\nDaniel",
  carrier:"Dear partner,\n\nRef PM-40418. Shanghai to Houston, 2 x 40HC:\n- Ocean freight USD 3,350 per 40HC\n- Origin THC USD 120 per 40HC\n- Inland haulage Suzhou to Shanghai USD 260 per 40HC\n- BL fee USD 55\n- Documentation USD 40\n\nTransit 28 to 32 days. Free time 14 days demurrage and detention. Valid 10 days. Subject to equipment availability.\n\nBest regards,\nPacific Meridian"},
 B:{label:"Air, Toulouse to Singapore",tag:"Air AOG",blurb:"Urgent and complete. Nothing to ask, so no reply.",
  email:"Dear team,\n\nURGENT, AOG. We need air freight for 1 wooden crate with a replacement landing gear actuator, 210 kg gross, 120 x 80 x 90 cm, from Toulouse Blagnac (TLS) to Singapore Changi (SIN). Incoterm FCA. The cargo is ready now at our Toulouse warehouse and the aircraft is waiting.\n\nPlease quote the first available flight and confirm the transit time. No dangerous goods.\n\nRegards,\nPierre",
  carrier:"Hello,\n\nRef MA-9915. TLS to SIN, 1 crate, 210 kg gross, 0.86 CBM, AOG.\nChargeable weight 210 kg.\n- Air freight USD 4.20 per kg\n- Fuel surcharge USD 0.55 per kg\n- Security surcharge USD 0.15 per kg\n- AWB fee USD 40\n- AOG handling USD 120\n\nFirst available flight via Doha, transit 2 days. Valid 2 days.\n\nRegards,\nMeridian Air Cargo"},
-C:{label:"Sea, Guadalajara to Hamburg",tag:"Spanish",blurb:"Written in Spanish. Returned in English, with a Spanish reply.",
- email:"Hola equipo,\n\nNecesitamos cotizar 1 contenedor de 20 pies con tequila embotellado, unas 14 toneladas, desde nuestra bodega en Guadalajara hasta el puerto de Hamburgo, Alemania. Incoterm FCA.\n\nPor favor indiquen el tiempo de tránsito y las condiciones de tiempo libre en destino.\n\nSaludos,\nLucía",
+C:{label:"Sea, Guadalajara to Hamburg",tag:"Spanish",blurb:"Written in Spanish. The weight and ready date are missing, so the reply asks for them in Spanish.",warn:1,
+ email:"Hola equipo,\n\nNecesitamos cotizar 1 contenedor de 20 pies con tequila embotellado, desde nuestra bodega en Guadalajara hasta el puerto de Hamburgo, Alemania. Incoterm FCA.\n\nPor favor indiquen el tiempo de tránsito y las condiciones de tiempo libre en destino.\n\nSaludos,\nLucía",
  carrier:"Dear team,\n\nRef AT-7302. Manzanillo to Hamburg, 1 x 20GP:\n- Ocean freight USD 2,150\n- Bunker surcharge USD 540\n- Origin THC USD 130\n- BL fee USD 60\n- Documentation USD 40\n\nTransit 24 to 28 days. Free time 10 days. Valid 9 days.\n\nRegards,\nAtlántica Line"},
-D:{label:"Road, Rotterdam to Milan",tag:"Road FTL",blurb:"A full truck, urgent, with details missing.",
+D:{label:"Road, Rotterdam to Milan",tag:"Road FTL",blurb:"A full truck, urgent, with details missing: pickup address and pallet size.",warn:1,
  email:"Hi,\n\nWe urgently need a truck from Rotterdam to Milan. 22 pallets of packaged consumer goods, about 16,500 kg in total, delivered DAP to our warehouse in Milan. Pickup tomorrow if possible.\n\nPlease quote a full truck and confirm the transit time.\n\nThanks,\nMarco",
  carrier:"Hello,\n\nRef ET-5521. Rotterdam to Milan, full truck, 22 pallets, about 16,500 kg.\n- Road freight FTL USD 1,780\n- Fuel surcharge USD 110\n- Alpine tolls and road fees USD 190\n\nTransit 2 days. Loading and unloading 24 h included. Valid 5 days. Pickup tomorrow is subject to confirmed addresses and pallet dimensions.\n\nRegards,\nEuroTrans"},
-E:{label:"Sea, Foshan to Amman",tag:"Arabic",blurb:"Written in Arabic. Returned in English, with an Arabic reply.",
- email:"مرحباً،\n\nنحتاج إلى عرض سعر لشحن حاوية واحدة 40 قدم (40HC) من الأثاث المكتبي، حوالي 11 طناً، من مصنع المورّد في مدينة فوشان بالصين إلى مستودعنا في عمّان، الأردن. الشحن بنظام EXW.\n\nنرجو تأكيد مدة الرحلة وفترة السماح (الوقت المجاني) في ميناء العقبة. نفضّل 14 يوماً على الأقل.\n\nشكراً،\nخالد",
+E:{label:"Sea, Foshan to Amman",tag:"Arabic",blurb:"Written in Arabic. The weight and ready date are missing, so the reply asks for them in Arabic.",warn:1,
+ email:"مرحباً،\n\nنحتاج إلى عرض سعر لشحن حاوية واحدة 40 قدم (40HC) من الأثاث المكتبي، من مصنع المورّد في مدينة فوشان بالصين إلى مستودعنا في عمّان، الأردن. الشحن بنظام EXW.\n\nنرجو تأكيد مدة الرحلة وفترة السماح (الوقت المجاني) في ميناء العقبة. نفضّل 14 يوماً على الأقل.\n\nشكراً،\nخالد",
  carrier:"Dear partner,\n\nRef RG-6108. Nansha to Aqaba, 1 x 40HC:\n- Ocean freight USD 2,980\n- Origin THC USD 125\n- Inland haulage Foshan to Nansha USD 240\n- BL fee USD 55\n- Documentation USD 40\n\nTransit 30 to 34 days. Free time 14 days demurrage and detention. Valid 8 days. Trucking from Aqaba to Amman is not included.\n\nBest regards,\nRed Sea Gulf"},
 F:{label:"Sea, Shanghai to Umm Qasr or Aqaba",tag:"Options",blurb:"One shipment, two possible destinations. The carrier prices both.",
  email:"Hi team,\n\nPlease quote 1 x 40HC of ceramic floor tiles, about 26 tons, FOB Shanghai. We have not decided yet whether the goods go to Umm Qasr, Iraq or to Aqaba, Jordan, so please price both ports.\n\nThe cargo is ready on 25 November. We need at least 14 days of free time at destination, and please confirm the transit time to each port.\n\nThanks,\nHassan",
@@ -157,7 +157,7 @@ $$("#lv2 button").forEach(function(b){b.addEventListener("click",function(){pick
 /* ---------- step 1: start with the request ---------- */
 var DROP_DEFAULT="Drop an email file here, or click to choose";
 function renderSamples(){
-  $("#sampbar").innerHTML=ORDER.map(function(k){var s=S[k];return '<button type="button" class="sample" data-k="'+k+'" aria-pressed="'+(st.pick===k)+'"><b>'+s.label+'</b><span class="tag">'+s.tag+'</span><small>'+s.blurb+'</small></button>'}).join("");
+  $("#sampbar").innerHTML=ORDER.map(function(k){var s=S[k];return '<button type="button" class="sample" data-k="'+k+'" aria-pressed="'+(st.pick===k)+'"><b>'+s.label+'</b><span class="tag">'+s.tag+'</span>'+(s.warn?'<span class="tag warn">Missing info</span>':'')+'<small>'+s.blurb+'</small></button>'}).join("");
   $$(".sample").forEach(function(b){b.addEventListener("click",function(){
     st.pick=b.dataset.k;logEv("sample_picked",{feature:S[st.pick].label});
     $("#bodyIn").value=S[st.pick].email;renderSamples();showEmail1();
