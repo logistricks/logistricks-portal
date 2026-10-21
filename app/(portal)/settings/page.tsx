@@ -17,6 +17,7 @@ import { SmtpPanel } from "@/components/portal/smtp-panel"
 import { EmailSourcesPanel } from "@/components/portal/email-sources-panel"
 import { QuoteRulesPanel } from "@/components/portal/quote-rules-panel"
 import { CarrierRemindersPanel } from "@/components/portal/carrier-reminders-panel"
+import { QuotationCheckSettingsPanel } from "@/components/portal/quotation-check-settings-panel"
 import { NotificationTemplatesPanel } from "@/components/portal/notification-templates-panel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -835,6 +836,7 @@ function SettingsInner() {
         }
         {!flagsLoading && <QuoteRulesPanel />}
         {!flagsLoading && <CarrierRemindersPanel />}
+        {!flagsLoading && <QuotationCheckSettingsPanel />}
       </div>
     )
 

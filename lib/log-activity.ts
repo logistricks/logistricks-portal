@@ -25,6 +25,7 @@ export type ActivityEventType =
   | "quotation_template_updated"
   | "quotation_template_deleted"
   | "quotation_created"
+  | "quotation_check_fix"
   | "quotation_sent"
   | "carrier_quote_linked"
   | "carrier_quote_unlinked"

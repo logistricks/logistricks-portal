@@ -5,6 +5,7 @@ import { CheckCircle2, FileText, Loader2, Mail, Send, X, XCircle, Zap } from "lu
 import type { CarrierQuote } from "@/lib/carrier-quotes-queries"
 import { ConfirmStepsDialog } from "@/components/portal/confirm-steps-dialog"
 import { isExpiredDate } from "@/lib/validity"
+import { QuotationCheckPanel } from "@/components/portal/quotation-check-panel"
 import { SendQuotationModal, type Quotation } from "@/components/portal/quotation-builder"
 
 const btn = "inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-4 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
@@ -34,6 +35,8 @@ export function ForwardQuotationDialog({
   const [step, setStep] = useState<"select" | "review" | "manual" | "done">("select")
   const [doneInfo, setDoneInfo] = useState<string | null>(null)
   const [expiredMsg, setExpiredMsg] = useState<string | null>(null)   // prompt shown when the quote or quotation validity has passed
+  const [needChecks, setNeedChecks] = useState(false)               // the check found problems: sending needs a confirmation
+  const [ackChecks, setAckChecks] = useState(false)
   const [ack, setAck] = useState(false)                                // user confirmed sending an expired quote
 
   useEffect(() => {
@@ -80,10 +83,10 @@ export function ForwardQuotationDialog({
     try {
       const res = await fetch("/api/quotations/forward", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quotation_id: quotation.id, manual, confirm_expired: ack }),
+        body: JSON.stringify({ quotation_id: quotation.id, manual, confirm_expired: ack, confirm_checks: ackChecks }),
       })
       const d = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(d.error ?? `Server error ${res.status}`)
+      if (!res.ok) { if (d.check_problems) setNeedChecks(true); throw new Error(d.error ?? `Server error ${res.status}`) }
       setDoneInfo(manual ? "Logged as sent manually." : `Sent to ${d.to}.`)
       setStep("done"); onDone()
       return true
@@ -161,6 +164,8 @@ export function ForwardQuotationDialog({
               <p><span style={{ color: "var(--text-muted)" }}>To:</span> {senderEmail}</p>
               <p><span style={{ color: "var(--text-muted)" }}>Subject:</span> {quotation.generated_subject}</p>
               <p><span style={{ color: "var(--text-muted)" }}>Format:</span> {fmt === "pdf" ? "Email text + PDF attachment" : fmt === "html" ? "Formatted email" : "Plain text email"}</p>
+              <QuotationCheckPanel quotationId={quotation.id} locked={quotation.status === "sent"}
+                onFixed={(n) => setQuotation((q) => (q ? { ...q, generated_subject: n.generated_subject, generated_body: n.generated_body, generated_html: n.generated_html ?? q.generated_html } : q))} />
               {quotation.status === "sent" && <p className="rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-400" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>This quotation was already marked as sent. Sending again will send it a second time.</p>}
             </div>
           )}
@@ -179,7 +184,10 @@ export function ForwardQuotationDialog({
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Continue
             </button>
           )}
-          {step === "review" && (
+          {step === "review" && needChecks && !ackChecks && (
+            <button type="button" disabled={busy} onClick={() => setAckChecks(true)} className={`${btn} border`} style={{ borderColor: "#dc2626", color: "#dc2626" }}>I reviewed the problems</button>
+          )}
+          {step === "review" && (!needChecks || ackChecks) && (
             <button type="button" disabled={busy} onClick={() => void post(false)} className={`${btn} text-white`} style={{ background: "var(--brand-accent)" }}>
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Send now
             </button>

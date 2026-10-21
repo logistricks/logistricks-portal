@@ -17,6 +17,7 @@ import { htmlDocument } from "@/lib/quotation-render"
 import { normalizeOptions } from "@/lib/quotation-variables"
 import { isExpiredDate } from "@/lib/validity"
 import { logActivity } from "@/lib/log-activity"
+import { contentHash, loadCheckSettings } from "@/lib/quotation-check"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -54,6 +55,16 @@ export async function POST(req: NextRequest) {
   const expiredQuotation = isExpiredDate((q as { valid_until?: string | null }).valid_until)
   if ((expiredCarrier || expiredQuotation) && body?.confirm_expired !== true)
     return NextResponse.json({ error: expiredCarrier ? "The carrier quote validity date has passed." : "The quotation validity date has passed.", expired: true }, { status: 409 })
+
+  // Automatic sending: a quotation whose check found problems is only sent after the person confirmed them.
+  if (!manual && body?.confirm_checks !== true) {
+    const set = await loadCheckSettings(admin, code)
+    if (set.enabled) {
+      const { data: chk } = await admin.from("quotation_checks").select("verdict, content_hash").eq("quotation_id", q.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      if (chk && chk.content_hash === contentHash(q) && chk.verdict === "problems")
+        return NextResponse.json({ error: "The quotation check found problems. Review them, or confirm to send anyway.", check_problems: true }, { status: 409 })
+    }
+  }
 
   const subject = String(q.generated_subject || `Quotation ${q.quotation_number ?? q.id}`)
   const text = String(q.generated_body || "")

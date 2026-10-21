@@ -76,7 +76,7 @@ const fill = (t: string, vars: Record<string, string>) => t.replace(/\{\{(\w+)\}
  * Without N8N_TRIAL_GENERATE_WEBHOOK_URL it falls back to GEMINI_API_KEY directly.
  */
 export const aiConfigured = () => !!(process.env.N8N_TRIAL_GENERATE_WEBHOOK_URL || process.env.GEMINI_API_KEY)
-async function gemini(prompt: string, schema: unknown, temperature: number): Promise<any> {
+export async function gemini(prompt: string, schema: unknown, temperature: number): Promise<any> {
   const hook = process.env.N8N_TRIAL_GENERATE_WEBHOOK_URL
   if (hook) {
     const r = await fetch(hook, {

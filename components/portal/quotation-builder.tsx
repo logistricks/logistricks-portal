@@ -1,5 +1,6 @@
 "use client"
 
+import { QuotationCheckPanel } from "@/components/portal/quotation-check-panel"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { optionLabels } from "@/components/portal/quote-comparison-panel"
 import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FileText, Loader2, Mail, Printer, Send, Sparkles, X } from "lucide-react"
@@ -874,6 +875,8 @@ export function QuotationBuilder({
                 </span>
                 </div>
               </div>
+              <QuotationCheckPanel quotationId={q.id} locked={q.status === "sent"}
+                onFixed={(n) => setQuotations((list) => list.map((x) => (x.id === q.id ? { ...x, generated_subject: n.generated_subject, generated_body: n.generated_body, generated_html: n.generated_html ?? x.generated_html } : x)))} />
               {q.generated_format === "pdf" && q.generated_html ? (
                 <div className="mb-3 space-y-2">
                   <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>PDF attachment</p>

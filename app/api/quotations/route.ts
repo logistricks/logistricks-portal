@@ -10,7 +10,8 @@
  * PATCH  { id, status: "sent" }     -> mark a quotation as sent
  */
 import { cleanFx } from "@/lib/fx"
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
+import { checkAndStore, loadCheckSettings } from "@/lib/quotation-check"
 import { getSession, adminClient } from "@/lib/api-session"
 import { mapDbToRequest, type DbFreightRequest } from "@/lib/supabase-queries"
 import { optionMode, rowForLeg } from "@/lib/shipment-types"
@@ -42,6 +43,8 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])
 }
+
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const session = auth(req)
@@ -215,6 +218,14 @@ export async function POST(req: NextRequest) {
     description: `Built quotation for request (final price $${finalPrice.toLocaleString()})`,
     meta: { freight_request_id: freightRequestId, quotation_id: inserted!.id, final_price_usd: finalPrice },
   })
+
+  // the quality check runs by itself in the background (if the company has it on); the panel shows the result when it is ready
+  if (inserted?.id) {
+    const qid = Number(inserted.id), code = session.clientCode, by = session.username
+    after(async () => {
+      try { if ((await loadCheckSettings(admin, code)).auto) await checkAndStore(admin, code, qid, "auto", by) } catch (e) { console.error("[quotation-check] auto", (e as Error).message) }
+    })
+  }
 
   const richStored = !!inserted && ("generated_html" in (inserted as object))
   return NextResponse.json({ ...inserted, rich_saved: richStored }, { status: 201 })
