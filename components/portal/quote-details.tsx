@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Send } from "lucide-react"
+import { Send, ShieldCheck } from "lucide-react"
 import { AskCarrierModal } from "@/components/portal/ask-carrier-modal"
 import { RULE_BY_CODE } from "@/lib/quote-rules"
 import { isExw } from "@/lib/shipment-labels"
@@ -79,9 +79,23 @@ export function hasExtendedData(ext: CarrierQuoteExt): boolean {
 /** The problems found on a quote when it arrived (Settings → Rules), shown right on the quote with a one-click reply to the carrier. */
 export function QuoteFlags({ ext, quoteId }: { ext: CarrierQuoteExt; quoteId?: string | number }) {
   const [asking, setAsking] = useState(false)
-  const flags = ext.validationFlags ?? []
-  if (flags.length === 0) return null
+  const [busy, setBusy] = useState(false)
+  const [fresh, setFresh] = useState<QuoteFlag[] | null>(null)
+  const [msg, setMsg] = useState("")
+  const flags = fresh ?? ext.validationFlags ?? []
   const askable = flags.some((f) => RULE_BY_CODE[f.code]?.askable)
+  async function recheck() {
+    if (quoteId === undefined) return
+    setBusy(true); setMsg("")
+    try {
+      const r = await fetch("/api/carrier-quotes/recheck", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: quoteId }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setMsg(j.error ?? "Could not re-check"); return }
+      setFresh(j.flags); setMsg(j.flags.length ? "" : "Checked: no problems found.")
+    } finally { setBusy(false) }
+  }
+  if (flags.length === 0 && quoteId === undefined) return null
+  const btn = { borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" } as const
   return (
     <div className="space-y-1">
       {flags.map((f, i) => (
@@ -89,11 +103,18 @@ export function QuoteFlags({ ext, quoteId }: { ext: CarrierQuoteExt; quoteId?: s
           {f.message}
         </p>
       ))}
-      {quoteId !== undefined && askable && (
-        <button type="button" onClick={() => setAsking(true)} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold"
-          style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
-          <Send className="h-3 w-3" /> Ask the carrier to fix this
-        </button>
+      {msg && <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{msg}</p>}
+      {quoteId !== undefined && (
+        <div className="flex flex-wrap gap-1.5">
+          {askable && (
+            <button type="button" onClick={() => setAsking(true)} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold" style={btn}>
+              <Send className="h-3 w-3" /> Ask the carrier to fix this
+            </button>
+          )}
+          <button type="button" onClick={() => void recheck()} disabled={busy} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-60" style={btn}>
+            <ShieldCheck className="h-3 w-3" /> {busy ? "Checking…" : "Re-check"}
+          </button>
+        </div>
       )}
       {asking && quoteId !== undefined && <AskCarrierModal quoteId={quoteId} onClose={() => setAsking(false)} />}
     </div>
