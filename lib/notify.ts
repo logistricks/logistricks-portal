@@ -76,10 +76,11 @@ export async function transport(cfg: SmtpConfig) {
   })
 }
 
-export async function sendMail(cfg: SmtpConfig, m: { to: string[]; subject: string; html: string; text: string }) {
+export async function sendMail(cfg: SmtpConfig, m: { to: string[]; subject: string; html: string; text: string; cc?: string[]; inReplyTo?: string; references?: string }) {
   await (await transport(cfg)).sendMail({
     from: cfg.from_name ? { name: cfg.from_name, address: cfg.from_email } : cfg.from_email,
-    to: m.to, replyTo: cfg.reply_to || undefined, subject: m.subject, html: m.html, text: m.text,
+    to: m.to, cc: m.cc?.length ? m.cc : undefined, replyTo: cfg.reply_to || undefined, subject: m.subject, html: m.html, text: m.text,
+    ...(m.inReplyTo ? { inReplyTo: m.inReplyTo, references: m.references || m.inReplyTo } : {}),
   })
 }
 

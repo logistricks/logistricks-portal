@@ -410,7 +410,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                           ? <><ChevronUp className="h-3 w-3" /> Hide full details</>
                           : <><ChevronDown className="h-3 w-3" /> Show full details</>}
                       </button>
-                      {expanded.has(row.quote.id) && <QuoteDetails ext={row.quote.ext} />}
+                      {expanded.has(row.quote.id) && <QuoteDetails ext={row.quote.ext} quoteId={row.quote.id} />}
                     </>
                   )}
 

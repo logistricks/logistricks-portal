@@ -6,6 +6,7 @@
  * Kept out of the route file so it can be unit-tested without Next.js.
  */
 import { cutoffBeforeReady } from "@/lib/quotation-render"
+import { requestChecks, type RequestCtx } from "@/lib/quote-rules"
 import { exwNeedsAddress } from "@/lib/shipment-labels"
 import { checkDates, computePricing, computeWeights, type Flag } from "@/lib/quote-math"
 
@@ -33,7 +34,8 @@ const clean = (v: unknown) => (v === undefined || v === "" ? null : v)
 /** Whitelists the extended fields, then computes weights / totals / flags in code. */
 export function buildExtendedFields(
   body: Record<string, unknown>,
-  reqCtx?: { incoterm?: string | null; pickup_address?: string | null; cargo_ready_date?: string | null },
+  reqCtx?: RequestCtx,
+  ignore?: ReadonlySet<string>,
 ) {
   const row: Record<string, unknown> = {}
   for (const k of EXT_SCALAR) if (k in body) row[k] = clean(body[k])
@@ -93,6 +95,10 @@ export function buildExtendedFields(
   row.chargeable_basis      = w.chargeable_basis
   if (p.charges)            row.charges = p.charges
   row.total_amount          = p.total_amount
+  flags.push(...requestChecks(row, body, reqCtx))
+  // Problems the company switched off (Settings → Rules) are not raised at all.
+  if (ignore && ignore.size) for (let i = flags.length - 1; i >= 0; i--) if (ignore.has(flags[i].code)) flags.splice(i, 1)
+
   row.validation_flags      = flags
   // Auto-accept only a clean, firm, real quote; anything else is reviewed by a person.
   row.review_status = flags.length === 0 && (rt === "quote" || rt === "update") && row.quote_status === "firm"

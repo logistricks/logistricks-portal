@@ -1,5 +1,9 @@
 "use client"
 
+import { useState } from "react"
+import { Send } from "lucide-react"
+import { AskCarrierModal } from "@/components/portal/ask-carrier-modal"
+import { RULE_BY_CODE } from "@/lib/quote-rules"
 import { isExw } from "@/lib/shipment-labels"
 import type { ChargeLineView, CarrierQuoteExt, QuoteFlag } from "@/lib/carrier-quotes-queries"
 
@@ -72,7 +76,9 @@ export function hasExtendedData(ext: CarrierQuoteExt): boolean {
   })
 }
 
-export function QuoteDetails({ ext }: { ext: CarrierQuoteExt }) {
+export function QuoteDetails({ ext, quoteId }: { ext: CarrierQuoteExt; quoteId?: string | number }) {
+  const [asking, setAsking] = useState(false)
+  const askable = (ext.validationFlags ?? []).some((f) => RULE_BY_CODE[f.code]?.askable)
   const weightUnit = ext.weightUnit ?? "kg"
   const isSea = /sea|ocean|fcl|lcl/i.test(ext.mode ?? "")
   const chargeableUnit = ext.chargeableUnit === "rt" ? "RT (W/M)" : "kg"
@@ -88,6 +94,13 @@ export function QuoteDetails({ ext }: { ext: CarrierQuoteExt }) {
               {f.message}
             </p>
           ))}
+          {quoteId !== undefined && askable && (
+            <button type="button" onClick={() => setAsking(true)} className="mt-1 inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold"
+              style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
+              <Send className="h-3 w-3" /> Ask the carrier to fix this
+            </button>
+          )}
+          {asking && quoteId !== undefined && <AskCarrierModal quoteId={quoteId} onClose={() => setAsking(false)} />}
         </div>
       )}
 

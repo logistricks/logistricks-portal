@@ -67,6 +67,7 @@ import { NextResponse, after, type NextRequest } from "next/server"
 import { notifyCarrierQuote } from "@/lib/notify-hooks"
 import { adminClient } from "@/lib/api-session"
 import { buildExtendedFields } from "@/lib/quote-extended"
+import { autoAsk, loadQuoteRules } from "@/lib/carrier-ask"
 import { syncRequestStatus } from "@/lib/request-status"
 import { normId } from "@/lib/inbound-match"
 import { resolveCarrierPk } from "@/lib/quote-suggest"
@@ -269,7 +270,7 @@ export async function POST(req: NextRequest) {
   }
 
   // A reply may only link to a request of the client whose mailbox received it.
-  let reqCtx: { incoterm?: string | null; pickup_address?: string | null; cargo_ready_date?: string | null } | undefined
+  let reqCtx: import("@/lib/quote-rules").RequestCtx | undefined
   if (match) {
     const { data: fr } = await admin
       .from("freight_requests")
@@ -280,7 +281,8 @@ export async function POST(req: NextRequest) {
       match = null
       method = null
     } else {
-      reqCtx = { incoterm: (fr as any).incoterm ?? null, pickup_address: (fr as any).pickup_address ?? null, cargo_ready_date: (fr as any).cargo_ready_date ?? null }
+      reqCtx = { incoterm: (fr as any).incoterm ?? null, pickup_address: (fr as any).pickup_address ?? null, cargo_ready_date: (fr as any).cargo_ready_date ?? null,
+        equipment: (fr as any).equipment ?? null, is_sea: (fr as any).is_sea ?? null, is_air: (fr as any).is_air ?? null, is_land: (fr as any).is_land ?? null }
     }
   }
 
@@ -314,7 +316,9 @@ export async function POST(req: NextRequest) {
     email_message_id: body.email_message_id ?? null,
   }
 
-  const { row: ext, flags: validationFlags } = buildExtendedFields(body, reqCtx)
+  const quoteRules = await loadQuoteRules(admin, client_code)
+  const ignored = new Set(Object.entries(quoteRules.actions).filter(([, a]) => a === "ignore").map(([c]) => c))
+  const { row: ext, flags: validationFlags } = buildExtendedFields(body, reqCtx, ignored)
 
   // Headline rate = the computed total when the AI gave none and the quote is in USD.
   if (quoteFields.rate_usd == null && ext.total_amount != null && String(quoteFields.rate_currency).toUpperCase() === "USD") {
@@ -383,6 +387,10 @@ export async function POST(req: NextRequest) {
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
   const requestStatus = await syncRequestStatus(admin, match.freight_request_id)
+
+  // A rule set to "ask the carrier" sends the ready-made email now (never for hand-entered quotes, declines or questions).
+  if (quoteRow?.id && validationFlags.length && ext.intake_source !== "manual" && !isDecline && body.response_type !== "info_request")
+    after(() => autoAsk(admin, client_code, quoteRow.id, validationFlags, quoteRules).then(() => undefined))
 
   // Email the team: a clean quote is good news; a decline, a question or a failed check needs a person.
   const rt = String(body.response_type ?? "quote")
