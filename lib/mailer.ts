@@ -29,6 +29,9 @@ export interface SendArgs {
   html?: string                    // trusted, portal-generated HTML only (auto-replies). Never taken from n8n.
   idempotencyKey?: string | null
   rfqReference?: string | null
+  /** purpose "rfq" only: the Message-ID (no brackets) this email answers, and the earlier ones of the thread (oldest first), so it threads under the original email */
+  inReplyTo?: string | null
+  references?: string[]
   attachments?: { filename: string; content: Buffer; contentType?: string }[]   // portal-generated files only (quotation PDF)
 }
 export interface SendOutcome {
@@ -158,6 +161,13 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
       inReplyTo = `<${ids[ids.length - 1]}>`
       references = uniq.map((i) => `<${i}>`).join(" ")
     }
+  }
+
+  if (a.purpose === "rfq" && a.inReplyTo) {
+    const clean = (x: string) => String(x).trim().replace(/^<|>$/g, "")
+    const chain = Array.from(new Set([...(a.references ?? []), a.inReplyTo].map(clean).filter(Boolean)))
+    inReplyTo = `<${clean(a.inReplyTo)}>`
+    references = chain.map((i) => `<${i}>`).join(" ")
   }
 
   try {

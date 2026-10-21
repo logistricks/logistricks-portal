@@ -8,7 +8,9 @@
  * The subject carries the RFQ reference, so the corrected quote links back to the same request.
  */
 import { applyTemplate } from "@/lib/template-render"
-import { loadSmtp, sendMail, smtpError } from "@/lib/notify"
+import { loadSmtp } from "@/lib/notify"
+import { sendClientMail } from "@/lib/mailer"
+import { mailProblem, rfqThread } from "@/lib/carrier-reminders"
 import { cleanCarrierEmails } from "@/lib/carrier-emails"
 import { DEFAULT_RULES, applyRules, cleanRules, issuesText, type QuoteRules } from "@/lib/quote-rules"
 import type { Flag } from "@/lib/quote-math"
@@ -28,6 +30,8 @@ export interface AskDraft {
   codes: string[]; asked: number; max: number
   carrier_name: string; freight_request_id: string; carrier_id: number | null
   in_reply_to: string | null
+  references: string[]
+  rfq_reference: string | null
 }
 
 const email = (v: unknown) => String(v ?? "").trim()
@@ -49,7 +53,7 @@ export async function draftAsk(admin: any, clientCode: string, quoteId: string |
     admin.from("freight_requests").select("request_ref").eq("id", q.freight_request_id).ilike("client_code", clientCode).maybeSingle(),
     q.carrier_quote_request_id ? admin.from("carrier_quote_requests").select("rfq_reference").eq("id", q.carrier_quote_request_id).maybeSingle() : Promise.resolve({ data: null }),
   ])
-  const to = email(q.from_email) || email(car?.email)
+  const to = email(car?.email) || email(q.from_email)
   if (!to) return { error: "The carrier has no email address on file." }
   const cc: string[] = []
   if (car?.carrier_id != null) {
@@ -67,16 +71,17 @@ export async function draftAsk(admin: any, clientCode: string, quoteId: string |
     request_ref: email(fr?.request_ref), rfq_reference: ref, issues: body, sender_name: signer,
   }).replace(/\n{3,}/g, "\n\n").trim()
 
+  const thread = await rfqThread(admin, clientCode, { freight_request_id: String(q.freight_request_id), rfq_reference: ref, email: to })
   const { count } = await admin.from("carrier_quote_asks").select("id", { count: "exact", head: true })
     .ilike("client_code", clientCode).eq("freight_request_id", q.freight_request_id).eq("carrier_id", q.carrier_id).eq("status", "sent")
   return {
     to, cc, subject, body: text, codes: flags.map((f) => f.code), asked: count ?? 0, max: rules.max_asks,
     carrier_name: email(car?.carrier_name), freight_request_id: String(q.freight_request_id), carrier_id: Number(q.carrier_id),
-    in_reply_to: email(q.email_message_id) || null,
+    in_reply_to: email(q.email_message_id) || null, references: thread.ids.slice(0, 1), rfq_reference: ref || null,
   }
 }
 
-/** Sends the email and records it. Never throws. */
+/** Sends the email through the portal's mail gateway and records it. Never throws. */
 export async function sendAsk(admin: any, clientCode: string, quoteId: string | number, d: AskDraft, mode: "auto" | "manual", by: string | null, edited?: { subject?: string; body?: string }): Promise<{ ok: true } | { ok: false; error: string }> {
   const subject = edited?.subject?.trim() || d.subject, text = edited?.body?.trim() || d.body
   const log = (status: "sent" | "failed", error?: string) => admin.from("carrier_quote_asks").insert({
@@ -84,17 +89,17 @@ export async function sendAsk(admin: any, clientCode: string, quoteId: string | 
     codes: d.codes, mode, status, to_email: d.to, subject, body: text, error: error ?? null, created_by: by,
   })
   try {
-    const cfg = await loadSmtp(admin, clientCode)
-    if (!cfg || !cfg.enabled) { await log("failed", "Email server isn't set up or is switched off"); return { ok: false, error: "The email server isn't set up (Settings → Emails) or is switched off." } }
-    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    await sendMail(cfg, {
-      to: [d.to], cc: d.cc, subject, text, html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(text)}</div>`,
-      ...(d.in_reply_to ? { inReplyTo: d.in_reply_to } : {}),
+    const out = await sendClientMail(admin, {
+      clientCode, purpose: "rfq", freightRequestId: d.freight_request_id, to: [d.to], cc: d.cc, subject, text, rfqReference: d.rfq_reference,
+      idempotencyKey: `quote-ask-${quoteId}-${d.asked + 1}`,
+      inReplyTo: d.in_reply_to, references: d.references,
     })
-    await log("sent")
-    return { ok: true }
+    if (out.status === "sent" || out.status === "duplicate") { await log("sent"); return { ok: true } }
+    const msg = mailProblem(out)
+    await log("failed", msg)
+    return { ok: false, error: msg }
   } catch (e) {
-    const msg = smtpError(e)
+    const msg = (e as Error).message || "The email could not be sent."
     await log("failed", msg).catch(() => {})
     return { ok: false, error: msg }
   }

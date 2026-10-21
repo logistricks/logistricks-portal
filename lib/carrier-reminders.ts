@@ -8,7 +8,7 @@
  *  - runCarrierReminders: the scheduled run (every ~15 minutes): sends what is due for the companies that switched it on
  * The subject carries the RFQ reference, so whatever the carrier answers links back to the same request.
  */
-import { loadSmtp, sendMail, smtpError } from "@/lib/notify"
+import { sendClientMail, type SendOutcome } from "@/lib/mailer"
 import { applyTemplate } from "@/lib/template-render"
 import { rfqVars } from "@/lib/rfq-send"
 import { cleanCarrierEmails } from "@/lib/carrier-emails"
@@ -103,9 +103,26 @@ export async function findWaiting(admin: any, clientCode: string, s: ReminderSet
   return out.sort((a, b) => t(a.sent_at) - t(b.sent_at))
 }
 
-const rfcId = (v: string | null) => (v && /^<?[^@\s<>]+@[^@\s<>]+>?$/.test(v) ? (v.startsWith("<") ? v : `<${v}>`) : undefined)
+/** What the portal reports for a send that didn't go out, in words a person can act on. */
+export function mailProblem(o: SendOutcome): string {
+  if (o.status === "skipped") return "The email server isn't set up (Settings → Emails) or is switched off."
+  if (o.status === "rejected") return `The email was refused: ${String(o.reason ?? "").replace(/_/g, " ")}`
+  return o.reason || "The email could not be sent."
+}
 
-/** Writes and sends one reminder, and records it. Never throws. */
+/** The email the RFQ went out in (and anything sent in its thread since): its subject, and the Message-IDs to thread under. */
+export async function rfqThread(admin: any, clientCode: string, w: { freight_request_id: string; rfq_reference: string; email: string }) {
+  const { data } = await admin.from("outbound_emails").select("subject, message_id, rfq_reference, to_emails, created_at")
+    .ilike("client_code", clientCode).eq("freight_request_id", w.freight_request_id).eq("purpose", "rfq").eq("status", "sent").order("created_at", { ascending: true })
+  const rows = (data ?? []) as any[]
+  const mine = rows.filter((r) => (w.rfq_reference && r.rfq_reference === w.rfq_reference)
+    || (!rows.some((x) => x.rfq_reference === w.rfq_reference) && (r.to_emails ?? []).map((e: string) => String(e).toLowerCase()).includes(w.email.toLowerCase())))
+  const root = mine[0]
+  const ids = mine.map((r) => String(r.message_id ?? "").trim()).filter(Boolean)
+  return { subject: String(root?.subject ?? "").replace(/^((re|fw|fwd)\s*:\s*)+/i, "").trim(), ids }
+}
+
+/** Writes and sends one reminder through the portal's mail gateway, in the original RFQ's thread, and records it. Never throws. */
 export async function sendReminder(admin: any, clientCode: string, w: Waiting, mode: "auto" | "manual", by: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
   let subject = "", text = ""
   const log = (status: "sent" | "failed", error?: string) => admin.from("carrier_reminders").insert({
@@ -113,31 +130,33 @@ export async function sendReminder(admin: any, clientCode: string, w: Waiting, m
     mode, status, to_email: w.email, subject, body: text, error: error ?? null, created_by: by,
   })
   try {
-    const cfg = await loadSmtp(admin, clientCode)
-    if (!cfg || !cfg.enabled) return { ok: false, error: "The email server isn't set up (Settings → Emails) or is switched off." }
-    const [{ data: fr }, { data: set }] = await Promise.all([
+    const [{ data: fr }, { data: set }, smtp] = await Promise.all([
       admin.from("freight_requests").select("*").eq("id", w.freight_request_id).ilike("client_code", clientCode).maybeSingle(),
       admin.from("client_settings").select("value").eq("client_code", clientCode).eq("key", "carrier_emails").maybeSingle(),
+      admin.from("smtp_settings").select("from_name").ilike("client_code", clientCode).maybeSingle(),
     ])
     if (!fr) return { ok: false, error: "Request not found" }
     const vars: Record<string, string> = {
       ...rfqVars(fr, { carrier_name: w.carrier_name, person_name: w.person_name, email: w.email }),
       sent_date: new Date(w.sent_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-      sender_name: by || cfg.from_name || "",
+      sender_name: by || String(smtp?.data?.from_name ?? ""),
     }
     text = applyTemplate(cleanCarrierEmails(set?.value).reminder, vars).replace(/\n{3,}/g, "\n\n").trim()
+    const thread = await rfqThread(admin, clientCode, w)
     const route = [vars.origin_city, vars.destination_city].filter(Boolean).join(" to ")
-    subject = `Reminder: Rate request ${vars.request_ref}${route ? ` - ${route}` : ""}${w.rfq_reference ? ` [${w.rfq_reference}]` : ""}`.trim()
-    const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    const reply = rfcId(w.message_id)
-    await sendMail(cfg, {
-      to: [w.email], cc: w.cc, subject, text, html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(text)}</div>`,
-      ...(reply ? { inReplyTo: reply } : {}),
+    // a reply to the original email keeps its subject exactly (that is what makes mail programs group it into the same conversation)
+    subject = thread.subject ? `Re: ${thread.subject}` : `Reminder: Rate request ${vars.request_ref}${route ? ` - ${route}` : ""}`.trim()
+    const out = await sendClientMail(admin, {
+      clientCode, purpose: "rfq", freightRequestId: w.freight_request_id, to: [w.email], cc: w.cc, subject, text,
+      rfqReference: w.rfq_reference || null, idempotencyKey: `carrier-reminder-${w.rfq_id}-${w.sent_count + 1}`,
+      inReplyTo: thread.ids.length ? thread.ids[thread.ids.length - 1] : null, references: thread.ids.slice(0, 1),
     })
-    await log("sent")
-    return { ok: true }
+    if (out.status === "sent" || out.status === "duplicate") { await log("sent"); return { ok: true } }
+    const msg = mailProblem(out)
+    await log("failed", msg)
+    return { ok: false, error: msg }
   } catch (e) {
-    const msg = smtpError(e)
+    const msg = (e as Error).message || "The email could not be sent."
     await log("failed", msg).catch(() => {})
     return { ok: false, error: msg }
   }
