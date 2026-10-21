@@ -388,6 +388,21 @@ export async function POST(req: NextRequest) {
 
   const requestStatus = await syncRequestStatus(admin, match.freight_request_id)
 
+  // A newer quote or update from the same carrier on the same RFQ and destination replaces the earlier one (it stays on file, greyed out,
+  // and can be reactivated). Quotes that came in the same email (one per destination) and hand-entered quotes are never replaced.
+  try {
+    const newType = String(body.response_type ?? "quote")
+    if (quoteRow?.id && (newType === "quote" || newType === "update") && ext.intake_source !== "manual" && body.email_message_id) {
+      const { data: older } = await admin.from("carrier_quotes").select("id, response_type, leg_index, email_message_id, intake_source")
+        .eq("carrier_quote_request_id", match.id).eq("disregarded", false).lt("id", quoteRow.id)
+      const mine = (ext.leg_index ?? null) as number | null
+      const ids = ((older ?? []) as any[]).filter((o) =>
+        (o.response_type == null || ["quote", "update", "counter_offer"].includes(o.response_type)) && o.intake_source !== "manual" &&
+        (o.leg_index ?? null) === mine && o.email_message_id && o.email_message_id !== body.email_message_id).map((o) => o.id)
+      if (ids.length) await admin.from("carrier_quotes").update({ disregarded: true, disregarded_at: new Date().toISOString(), disregarded_by: "newer quote" }).in("id", ids)
+    }
+  } catch { /* a column that isn't there yet must never lose the quote */ }
+
   // A rule set to "ask the carrier" sends the ready-made email now (never for hand-entered quotes, declines or questions).
   if (quoteRow?.id && validationFlags.length && ext.intake_source !== "manual" && !isDecline && body.response_type !== "info_request")
     after(() => autoAsk(admin, client_code, quoteRow.id, validationFlags, quoteRules).then(() => undefined))

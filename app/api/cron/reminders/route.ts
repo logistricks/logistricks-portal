@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { runReminders } from "@/lib/task-emails"
 import { runApprovalReminders } from "@/lib/approval-reminders"
+import { runCarrierReminders } from "@/lib/carrier-reminders"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -15,7 +16,7 @@ async function handle(req: NextRequest) {
   const portal = process.env.PORTAL_WEBHOOK_SECRET, cron = process.env.CRON_SECRET
   const ok = (portal && req.headers.get("x-portal-secret") === portal) || (cron && req.headers.get("authorization") === `Bearer ${cron}`)
   if (!ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  try { const admin = adminClient(); const report = await runReminders(admin); const approvals = await runApprovalReminders(admin).catch(() => []); return NextResponse.json({ ok: true, report, approvals }) }
+  try { const admin = adminClient(); const report = await runReminders(admin); const approvals = await runApprovalReminders(admin).catch(() => []); const carriers = await runCarrierReminders(admin).catch((e: any) => [{ error: String(e?.message ?? e) }]); return NextResponse.json({ ok: true, report, approvals, carriers }) }
   catch (e: any) { return NextResponse.json({ ok: false, error: e?.message ?? "failed" }, { status: 500 }) }
 }
 export const GET = handle

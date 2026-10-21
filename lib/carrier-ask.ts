@@ -61,9 +61,10 @@ export async function draftAsk(admin: any, clientCode: string, quoteId: string |
   const orig = email(q.email_subject).replace(/^((re|fw|fwd)\s*:\s*)+/i, "")
   let subject = `Re: ${orig || `Rate request ${fr?.request_ref ?? ""}`}`.trim()
   if (ref && !subject.includes(ref)) subject += ` [${ref}]`
+  const signer = opts.sender || (await loadSmtp(admin, clientCode).catch(() => null))?.from_name || ""
   const text = applyTemplate(rules.ask_body, {
     contact_name: email(car?.person_name) || "there", carrier_name: email(car?.carrier_name),
-    request_ref: email(fr?.request_ref), rfq_reference: ref, issues: body, sender_name: opts.sender ?? "",
+    request_ref: email(fr?.request_ref), rfq_reference: ref, issues: body, sender_name: signer,
   }).replace(/\n{3,}/g, "\n\n").trim()
 
   const { count } = await admin.from("carrier_quote_asks").select("id", { count: "exact", head: true })

@@ -17,6 +17,7 @@ import {
   User,
   EyeOff,
   RotateCcw,
+  Bell,
 } from "lucide-react"
 import type { CarrierQuote, CarrierQuoteRequest } from "@/lib/carrier-quotes-queries"
 import { fetchQuotesForRequest, isActiveQuote } from "@/lib/carrier-quotes-queries"
@@ -135,11 +136,35 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
   const [actionBusy, setActionBusy]   = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [waiting, setWaiting] = useState<Record<number, { hours_waiting: number; sent_count: number; last_sent_at: string | null; due: boolean }>>({})
+  const [remindBusy, setRemindBusy] = useState<number | "all" | null>(null)
+  const [remindMsg, setRemindMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  async function loadWaiting() {
+    try {
+      const r = await fetch(`/api/carrier-reminders?request_id=${encodeURIComponent(freightRequestId)}`, { cache: "no-store" })
+      const j = await r.json().catch(() => ({}))
+      if (r.ok && Array.isArray(j.waiting)) setWaiting(Object.fromEntries(j.waiting.map((w: any) => [w.rfq_id, w])))
+    } catch { /* reminders are optional: the panel works without them */ }
+  }
+
+  async function remind(rfqId?: number) {
+    setRemindBusy(rfqId ?? "all"); setRemindMsg(null)
+    try {
+      const r = await fetch("/api/carrier-reminders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: freightRequestId, rfq_id: rfqId }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setRemindMsg({ ok: false, text: j.error ?? `Server error ${r.status}` }); return }
+      const parts = [j.sent ? `Reminder sent to ${j.sent} carrier${j.sent === 1 ? "" : "s"}.` : "", ...(j.skipped ?? []).map((x: string) => `Skipped: ${x}.`), ...(j.failed ?? [])]
+      setRemindMsg({ ok: !(j.failed ?? []).length, text: parts.join(" ") || "Nobody is waiting." })
+      await loadWaiting()
+    } finally { setRemindBusy(null) }
+  }
 
   async function load() {
     const data = await fetchQuotesForRequest(createClient(), freightRequestId)
     setRows(data)
     setLoading(false)
+    void loadWaiting()
     onActiveQuotes?.(data.flatMap((r) => (r.quotes?.length ? r.quotes : r.quote ? [r.quote] : [])).filter((q): q is CarrierQuote => isActiveQuote(q)))
   }
 
@@ -273,7 +298,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
             >
               {off && (
                 <div className="absolute right-0 top-0 rounded-bl bg-slate-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                  Disregarded
+                  {row.quote?.disregardedBy === "newer quote" ? "Replaced by newer quote" : "Disregarded"}
                 </div>
               )}
               {expired && (
@@ -474,6 +499,20 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                   ) : (
                     <><Clock className="h-3.5 w-3.5" /> Awaiting response</>
                   )}
+                  {row.status === "sent" && waiting[row.id] && (
+                    <span className="ml-auto flex items-center gap-2">
+                      <span className="text-[11px]">
+                        {waiting[row.id].sent_count > 0
+                          ? `Reminded ${waiting[row.id].sent_count}× · last ${fmtDuration(Date.now() - Date.parse(waiting[row.id].last_sent_at ?? ""))} ago`
+                          : `Waiting ${fmtDuration(waiting[row.id].hours_waiting * 3600_000)}`}
+                      </span>
+                      <button type="button" disabled={locked || remindBusy !== null} onClick={() => void remind(row.id)}
+                        className="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+                        {remindBusy === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bell className="h-3 w-3" />} Remind
+                      </button>
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -503,7 +542,14 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
         {disregardedCount > 0 && (<><span className="text-[#CBD5E1]">·</span><span>{disregardedCount} disregarded</span></>)}
         <span className="text-[#CBD5E1]">·</span>
         <span>{rows.filter((r) => r.status === "sent").length} pending</span>
+        {!locked && Object.keys(waiting).length > 0 && (
+          <button type="button" disabled={remindBusy !== null} onClick={() => void remind()}
+            className="ml-auto inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-semibold disabled:opacity-40" style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}>
+            {remindBusy === "all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bell className="h-3 w-3" />} Remind all waiting ({Object.keys(waiting).length})
+          </button>
+        )}
       </div>
+      {remindMsg && <p className={`text-xs font-semibold ${remindMsg.ok ? "text-emerald-600" : "text-red-600"}`}>{remindMsg.text}</p>}
 
       {moveError && <p className="text-xs font-semibold text-red-600">{moveError}</p>}
 
