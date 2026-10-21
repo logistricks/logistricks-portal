@@ -19,6 +19,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminOnly } from "@/lib/api-admin"
 import { adminClient, getSession } from "@/lib/api-session"
+import { quotationOpts } from "@/lib/cycle-quotation-opts"
 import { saveUndo, snapshotInitiators } from "@/lib/undo"
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await admin
     .from("approval_cycles")
     .select(`
-      id, name, is_default, applies_to_automated_emails, automated_trigger, created_at,
+      *,
       approval_cycle_steps (
         id, sort_order, committee_mode, can_edit_template, can_edit_cc, required,
         approval_cycle_step_members ( id, username )
@@ -98,8 +99,9 @@ export async function POST(req: NextRequest) {
       name,
       applies_to_automated_emails,
       automated_trigger: automated_trigger || null,
+      ...quotationOpts(body),
     })
-    .select("id, name, is_default, applies_to_automated_emails, automated_trigger, created_at")
+    .select("*")
     .single()
 
   if (cycleErr) return NextResponse.json({ error: cycleErr.message }, { status: 500 })

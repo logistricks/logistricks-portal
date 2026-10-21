@@ -43,11 +43,11 @@ export async function notifyCarrierQuote(admin: any, a: {
   } catch (e) { console.error("[notify] carrier quote:", (e as Error).message) }
 }
 
-export async function notifyApprovalRequested(admin: any, a: { clientCode: string; requestId: string; usernames: string[]; step: number; submittedBy: string; mode?: string }) {
+export async function notifyApprovalRequested(admin: any, a: { clientCode: string; requestId: string; usernames: string[]; step: number; submittedBy: string; mode?: string; label?: string }) {
   try {
     const to = await emailsForUsernames(admin, a.clientCode, a.usernames)
     const vals = await requestValues(admin, a.clientCode, a.requestId)
-    await notify(admin, a.clientCode, "approval_requested", { ...vals, approval_step: String(a.step), submitted_by: a.submittedBy, approval_mode: a.mode === "notify_only" ? "For your information" : "Approval required" }, { to, requestId: a.requestId })
+    await notify(admin, a.clientCode, "approval_requested", { ...vals, approval_step: String(a.step), submitted_by: a.submittedBy, approval_mode: a.label ?? (a.mode === "notify_only" ? "For your information" : "Approval required") }, { to, requestId: a.requestId })
   } catch (e) { console.error("[notify] approval requested:", (e as Error).message) }
 }
 

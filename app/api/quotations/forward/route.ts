@@ -1,23 +1,14 @@
 /**
  * POST /api/quotations/forward   { quotation_id }
- *   Sends a built quotation to the ORIGINAL SENDER of the request through the client's own SMTP server
- *   (automatic send). Format follows the quotation template: text, formatted HTML, or email text + PDF attachment.
- *   Refuses disregarded carrier quotes. Logged in outbound_emails, auto_reply_logs ("quotation") and activity_log;
- *   the quotation is marked sent.
- *
- *   POST /api/quotations/forward   { quotation_id, manual: true }
- *   Logs a quotation the user sent themselves from their own mailbox (same logs, method "manual").
+ *   Sends a built quotation to the ORIGINAL SENDER of the request through the client's own SMTP server (automatic send).
+ *   POST { quotation_id, manual: true } logs a quotation the user sent themselves from their own mailbox.
+ *   The work is in lib/quotation-send.ts (also used for the automatic send after a quotation approval).
+ *   A quotation that needs approval (Settings → Approval Workflow) is refused until it is approved.
  */
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
-import { sendClientMail } from "@/lib/mailer"
-import { renderPdf } from "@/lib/quotation-pdf-server"
-import { htmlDocument } from "@/lib/quotation-render"
-import { normalizeOptions } from "@/lib/quotation-variables"
-import { isExpiredDate } from "@/lib/validity"
-import { logActivity } from "@/lib/log-activity"
-import { contentHash, loadCheckSettings } from "@/lib/quotation-check"
+import { sendQuotationToRequester } from "@/lib/quotation-send"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -25,95 +16,12 @@ export const maxDuration = 60
 export async function POST(req: NextRequest) {
   const sr = await sessionWithRole(req)
   if (!sr) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const session = sr.session
   if (sr.role === "viewer") return NextResponse.json({ error: "Viewers can't send quotations" }, { status: 403 })
-
   const body = await req.json().catch(() => null)
   const qid = Number(body?.quotation_id)
-  const manual = body?.manual === true
   if (!qid) return NextResponse.json({ error: "quotation_id required" }, { status: 400 })
-
-  const admin = adminClient()
-  const code = session.clientCode
-  const { data: q } = await admin.from("quotations").select("*").eq("id", qid).ilike("client_code", code).maybeSingle()
-  if (!q) return NextResponse.json({ error: "Quotation not found" }, { status: 404 })
-
-  const { data: fr } = await admin.from("freight_requests").select("id, request_ref, sender_email, sender_name, status").eq("id", q.freight_request_id).ilike("client_code", code).maybeSingle()
-  if (!fr) return NextResponse.json({ error: "Request not found" }, { status: 404 })
-  if (!fr.sender_email) return NextResponse.json({ error: "This request has no sender email on file" }, { status: 400 })
-  if (["Closed", "Rejected"].includes(String(fr.status))) return NextResponse.json({ error: `The request is ${fr.status}` }, { status: 400 })
-
-  let expiredOn: string | null = null
-  if (q.carrier_quote_id) {
-    const { data: cq } = await admin.from("carrier_quotes").select("disregarded, validity_date").eq("id", q.carrier_quote_id).maybeSingle()
-    if ((cq as { disregarded?: boolean } | null)?.disregarded === true)
-      return NextResponse.json({ error: "The carrier quote behind this quotation was disregarded. Reactivate it first." }, { status: 400 })
-    expiredOn = (cq as { validity_date?: string | null } | null)?.validity_date ?? null
-  }
-  // Flag only: an expired carrier quote or quotation may still be sent, but only after the user confirmed the prompt.
-  const expiredCarrier = isExpiredDate(expiredOn)
-  const expiredQuotation = isExpiredDate((q as { valid_until?: string | null }).valid_until)
-  if ((expiredCarrier || expiredQuotation) && body?.confirm_expired !== true)
-    return NextResponse.json({ error: expiredCarrier ? "The carrier quote validity date has passed." : "The quotation validity date has passed.", expired: true }, { status: 409 })
-
-  // Automatic sending: a quotation whose check found problems is only sent after the person confirmed them.
-  if (!manual && body?.confirm_checks !== true) {
-    const set = await loadCheckSettings(admin, code)
-    if (set.enabled) {
-      const { data: chk } = await admin.from("quotation_checks").select("verdict, content_hash").eq("quotation_id", q.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
-      if (chk && chk.content_hash === contentHash(q) && chk.verdict === "problems")
-        return NextResponse.json({ error: "The quotation check found problems. Review them, or confirm to send anyway.", check_problems: true }, { status: 409 })
-    }
-  }
-
-  const subject = String(q.generated_subject || `Quotation ${q.quotation_number ?? q.id}`)
-  const text = String(q.generated_body || "")
-  const format = String(q.generated_format || "text")
-  const method = manual ? "manual" : "automatic"
-  let result: { status: string; reason?: string; message_id?: string | null } = { status: "sent" }
-
-  if (!manual) {
-    let attachments: { filename: string; content: Buffer; contentType: string }[] | undefined
-    let html: string | undefined
-    if (format === "pdf" && q.generated_html) {
-      try {
-        const { data: t } = await admin.from("quotation_templates").select("options").ilike("client_code", code).eq("template_id", q.quotation_template_id).maybeSingle()
-        const options = normalizeOptions((t as { options?: unknown } | null)?.options)
-        const pdf = await renderPdf(htmlDocument(String(q.generated_html), options).replace("padding:28px", "padding:0"), options.page_size === "letter" ? "letter" : "a4")
-        attachments = [{ filename: `Quotation ${q.quotation_number ?? q.id}.pdf`.replace(/[^\w .-]+/g, "-"), content: Buffer.from(pdf), contentType: "application/pdf" }]
-      } catch (e) {
-        return NextResponse.json({ sent: false, error: `PDF generation failed: ${(e as Error).message}` }, { status: 500 })
-      }
-    } else if (format === "html" && q.generated_html) {
-      html = String(q.generated_html)
-    }
-    const out = await sendClientMail(admin, {
-      clientCode: code, purpose: "reply", freightRequestId: fr.id, to: [fr.sender_email],
-      subject, text: text || subject, html, attachments, idempotencyKey: `quotation:${q.id}`,
-    })
-    result = out
-    if (out.status === "skipped") return NextResponse.json({ sent: false, error: "Email server (SMTP) is not set up or is switched off. Use manual sending, or set it up in Settings." }, { status: 409 })
-    if (out.status !== "sent" && out.status !== "duplicate") {
-      await logQuotation(admin, code, fr, subject, method, "failed", out.reason ?? out.status, session.username)
-      return NextResponse.json({ sent: false, status: out.status, error: out.reason ?? "The quotation could not be sent" }, { status: out.status === "rejected" ? 422 : 502 })
-    }
-  }
-
-  await admin.from("quotations").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", q.id).ilike("client_code", code)
-  await logQuotation(admin, code, fr, subject, method, "sent", null, session.username)
-  await logActivity({
-    clientCode: code, eventType: "quotation_forwarded", actor: session.username, requestId: fr.id,
-    description: `Quotation ${q.quotation_number ?? q.id} forwarded to ${fr.sender_email} (${method})`,
-    meta: { quotation_id: q.id, method, format, message_id: result.message_id ?? null },
+  const r = await sendQuotationToRequester(adminClient(), sr.session.clientCode, sr.session.username, qid, {
+    manual: body?.manual === true, confirmExpired: body?.confirm_expired === true, confirmChecks: body?.confirm_checks === true,
   })
-  return NextResponse.json({ ok: true, sent: true, method, to: fr.sender_email, message_id: result.message_id ?? null })
-}
-
-async function logQuotation(admin: any, code: string, fr: any, subject: string, method: string, status: string, error: string | null, actor: string) {
-  try {
-    await admin.from("auto_reply_logs").insert({
-      client_code: code, log_type: "quotation", sender_email: fr.sender_email, sender_name: fr.sender_name ?? null, subject, request_id: fr.id,
-      meta: { method, status, error, request_ref: fr.request_ref ?? null, sent_by: actor },
-    })
-  } catch { /* logging is best effort */ }
+  return NextResponse.json(r.json, { status: r.status })
 }

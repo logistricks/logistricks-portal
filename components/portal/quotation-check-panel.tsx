@@ -18,10 +18,12 @@ const SEV = {
  * The quality check of one quotation: what looks wrong, and fixes that can be accepted one by one.
  * Runs by itself when the quotation is built (if switched on in Settings → Rules); "Check again" runs it once more.
  */
-export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }: {
+export function QuotationCheckPanel({ quotationId, locked, canRun, onFixed, onVerdict }: {
   quotationId: number
   /** already sent: shown, but fixes cannot be applied */
   locked?: boolean
+  /** with locked: still allow running the review (an approver can ask for a fresh review but cannot change the quotation) */
+  canRun?: boolean
   /** called after fixes were applied, with the corrected text */
   onFixed?: (q: { generated_subject: string | null; generated_body: string | null; generated_html?: string | null }) => void
   onVerdict?: (v: "ok" | "warnings" | "problems" | null, stale: boolean) => void
@@ -103,7 +105,7 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
           {c ? `AI review: ${verdictText}` : "AI review"}
           {stale && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-800">Edited since</span>}
         </p>
-        {!locked && (
+        {(!locked || canRun) && (
           <button type="button" disabled={busy || capReached} onClick={() => void run(!!c)} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50" style={{ borderColor: border, color: "var(--text-primary)" }}>
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} {busy ? "Reviewing…" : c ? "Review again with AI" : "Review the Quotation with AI"}
           </button>

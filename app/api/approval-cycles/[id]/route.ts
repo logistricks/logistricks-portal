@@ -7,6 +7,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminOnly } from "@/lib/api-admin"
 import { adminClient, getSession } from "@/lib/api-session"
+import { quotationOpts } from "@/lib/cycle-quotation-opts"
 import { saveUndo, snapshotCycle, snapshotInitiators } from "@/lib/undo"
 
 function unauth()           { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
@@ -65,6 +66,7 @@ export async function PUT(
     name,
     applies_to_automated_emails,
     automated_trigger: automated_trigger || null,
+    ...quotationOpts(body),
   }).eq("id", id)
 
   // Replace steps: delete all existing steps (cascades to members)

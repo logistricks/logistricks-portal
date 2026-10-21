@@ -20,6 +20,7 @@ import {
   Edit3,
 } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
+import { QuotationApprovalCard, type QuotationApprovalItem } from "@/components/portal/quotation-approval-card"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -846,6 +847,7 @@ function ApprovalCard({
 
 export default function ApprovalsPage() {
   const [items, setItems] = useState<ApprovalDetail[]>([])
+  const [qItems, setQItems] = useState<QuotationApprovalItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
@@ -870,6 +872,7 @@ export default function ApprovalsPage() {
           )
         )
         setItems(details.filter(Boolean))
+        try { const q = await fetch("/api/quotation-approvals?view=mine"); setQItems(q.ok ? await q.json() : []) } catch { setQItems([]) }
       } catch (e) {
         console.error(e)
       } finally {
@@ -894,7 +897,7 @@ export default function ApprovalsPage() {
           <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
             {loading
               ? "Loading…"
-              : `${items.length} item${items.length !== 1 ? "s" : ""} awaiting your review`}
+              : `${items.length + qItems.length} item${items.length + qItems.length !== 1 ? "s" : ""} awaiting your review`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -915,14 +918,14 @@ export default function ApprovalsPage() {
         </div>
       </div>
 
-      {!loading && items.length > 0 && (
+      {!loading && items.length + qItems.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="ds-card flex items-center gap-3.5 p-4">
             <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px]" style={{ background: "rgba(15,30,54,0.08)" }}>
               <Clock className="h-5 w-5" style={{ color: "var(--text-primary)" }} />
             </div>
             <div>
-              <p className="text-[26px] font-bold leading-none tabular-nums" style={{ color: "var(--text-primary)" }}>{items.length}</p>
+              <p className="text-[26px] font-bold leading-none tabular-nums" style={{ color: "var(--text-primary)" }}>{items.length + qItems.length}</p>
               <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Awaiting Review</p>
             </div>
           </div>
@@ -956,7 +959,7 @@ export default function ApprovalsPage() {
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
           Loading approvals…
         </div>
-      ) : items.length === 0 ? (
+      ) : items.length + qItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="h-14 w-14 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
             <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
@@ -970,6 +973,9 @@ export default function ApprovalsPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {qItems.map((it) => (
+            <QuotationApprovalCard key={it.step.id} item={it} onDone={() => load(true)} />
+          ))}
           {items.map((item) => (
             <ApprovalCard
               key={item.id}

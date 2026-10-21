@@ -20,6 +20,8 @@ type Cycle = {
   is_default: boolean;
   applies_to_automated_emails: boolean;
   automated_trigger: "carrier_email" | "reply_email" | "both" | null;
+  quotation_approval?: "off" | "always" | "warnings";
+  quotation_after_approval?: "manual" | "auto";
   initiator_usernames: string[];
   approval_cycle_steps: Array<{
     id: string;
@@ -47,6 +49,8 @@ type FormState = {
   applies_to_automated_emails: boolean;
   trigger_carrier: boolean;
   trigger_reply: boolean;
+  quotation_approval: "off" | "always" | "warnings";
+  quotation_after_approval: "manual" | "auto";
   steps: FormStep[];
   members_notify: CycleNotify["members"];
 };
@@ -57,6 +61,8 @@ const defaultForm = (): FormState => ({
   applies_to_automated_emails: false,
   trigger_carrier: false,
   trigger_reply: false,
+  quotation_approval: "off",
+  quotation_after_approval: "manual",
   steps: [],
   members_notify: {},
 });
@@ -309,6 +315,8 @@ export default function ApprovalCyclesPage() {
       applies_to_automated_emails: cycle.applies_to_automated_emails,
       trigger_carrier: trigger === "carrier_email" || trigger === "both",
       trigger_reply: trigger === "reply_email" || trigger === "both",
+      quotation_approval: cycle.quotation_approval ?? "off",
+      quotation_after_approval: cycle.quotation_after_approval ?? "manual",
       steps: cycle.approval_cycle_steps
         .slice()
         .sort((a, b) => a.sort_order - b.sort_order)
@@ -385,6 +393,8 @@ export default function ApprovalCyclesPage() {
       name: form.name.trim(),
       applies_to_automated_emails: form.applies_to_automated_emails,
       automated_trigger,
+      quotation_approval: form.quotation_approval,
+      quotation_after_approval: form.quotation_after_approval,
       initiator_usernames: form.initiator_usernames,
       steps: form.steps.map((s, i) => ({ ...s, sort_order: i + 1 })),
     };
@@ -464,6 +474,9 @@ export default function ApprovalCyclesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-[var(--text-primary)]">{cycle.name}</span>
+                    {cycle.quotation_approval && cycle.quotation_approval !== "off" && (
+                      <span className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]">Quotations: {cycle.quotation_approval === "warnings" ? "when flagged" : "always"}{cycle.quotation_after_approval === "auto" ? ", auto-send" : ""}</span>
+                    )}
                     {cycle.applies_to_automated_emails && cycle.automated_trigger && (
                       <span className="inline-flex items-center rounded-full bg-[var(--brand-accent)]/10 border border-[var(--brand-accent)] px-2 py-0.5 text-xs text-[var(--brand-accent)] font-medium">
                         Auto: {triggerLabel(cycle.automated_trigger)}
@@ -641,6 +654,33 @@ export default function ApprovalCyclesPage() {
                       <input type="checkbox" className="lt-check" checked={form.trigger_reply} onChange={(e) => setForm((f) => ({ ...f, trigger_reply: e.target.checked }))} />
                       Reply email
                     </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input type="checkbox" className="lt-check" checked={form.quotation_approval !== "off"}
+                    onChange={(e) => setForm((f) => ({ ...f, quotation_approval: e.target.checked ? "always" : "off" }))} />
+                  <span className="text-sm font-medium text-[var(--text-primary)]">Also approve quotations before they are sent to the requester</span>
+                </label>
+                {form.quotation_approval !== "off" && (
+                  <div className="ml-6 space-y-3 border-l-2 border-[var(--brand-accent)] pl-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-[var(--text-secondary)]">When is approval needed?</p>
+                      <select className="lt-select w-full" value={form.quotation_approval} onChange={(e) => setForm((f) => ({ ...f, quotation_approval: e.target.value as FormState["quotation_approval"] }))}>
+                        <option value="always">Every quotation</option>
+                        <option value="warnings">Only when the AI review found something (or it was not reviewed)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-[var(--text-secondary)]">After the last approval</p>
+                      <select className="lt-select w-full" value={form.quotation_after_approval} onChange={(e) => setForm((f) => ({ ...f, quotation_after_approval: e.target.value as FormState["quotation_after_approval"] }))}>
+                        <option value="manual">The person who built it sends it from the system</option>
+                        <option value="auto">The system sends it to the requester automatically</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)]">The same approvers and steps below review the quotation, with the AI review next to it. Editing a quotation after it was approved cancels the approval.</p>
                   </div>
                 )}
               </div>

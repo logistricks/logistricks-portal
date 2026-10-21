@@ -1,5 +1,6 @@
 "use client"
 
+import { QuotationApprovalBar } from "@/components/portal/quotation-approval-bar"
 import { QuotationCheckPanel } from "@/components/portal/quotation-check-panel"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { optionLabels } from "@/components/portal/quote-comparison-panel"
@@ -327,6 +328,7 @@ export function QuotationBuilder({
   const [rows, setRows]           = useState<CarrierQuoteRequest[]>([])
   const [templates, setTemplates] = useState<QuotationTemplate[]>([])
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [approvalBlocked, setApprovalBlocked] = useState<Record<number, boolean>>({})
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
 
@@ -875,6 +877,8 @@ export function QuotationBuilder({
                 </span>
                 </div>
               </div>
+              <QuotationApprovalBar quotationId={q.id} refreshKey={`${q.generated_body}|${q.generated_subject}`} locked={q.status === "sent"}
+                onBlocked={(b) => setApprovalBlocked((m) => (m[q.id] === b ? m : { ...m, [q.id]: b }))} />
               <QuotationCheckPanel quotationId={q.id} locked={q.status === "sent"}
                 onFixed={(n) => setQuotations((list) => list.map((x) => (x.id === q.id ? { ...x, generated_subject: n.generated_subject, generated_body: n.generated_body, generated_html: n.generated_html ?? x.generated_html } : x)))} />
               {q.generated_format === "pdf" && q.generated_html ? (
@@ -901,7 +905,9 @@ export function QuotationBuilder({
                 {q.status === "draft" && (
                   <button
                     onClick={() => handleSendToRequester(q)}
-                    className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold"
+                    disabled={!!approvalBlocked[q.id]}
+                    title={approvalBlocked[q.id] ? "Needs approval first" : undefined}
+                    className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ borderColor: "var(--card-border)", color: "var(--text-primary)" }}
                   >
                     <Send className="h-3.5 w-3.5" />
