@@ -76,9 +76,31 @@ export function hasExtendedData(ext: CarrierQuoteExt): boolean {
   })
 }
 
-export function QuoteDetails({ ext, quoteId }: { ext: CarrierQuoteExt; quoteId?: string | number }) {
+/** The problems found on a quote when it arrived (Settings → Rules), shown right on the quote with a one-click reply to the carrier. */
+export function QuoteFlags({ ext, quoteId }: { ext: CarrierQuoteExt; quoteId?: string | number }) {
   const [asking, setAsking] = useState(false)
-  const askable = (ext.validationFlags ?? []).some((f) => RULE_BY_CODE[f.code]?.askable)
+  const flags = ext.validationFlags ?? []
+  if (flags.length === 0) return null
+  const askable = flags.some((f) => RULE_BY_CODE[f.code]?.askable)
+  return (
+    <div className="space-y-1">
+      {flags.map((f, i) => (
+        <p key={i} className="rounded px-2 py-1 text-[11px] font-medium" style={{ background: FLAG_COLORS[f.severity]?.bg, color: FLAG_COLORS[f.severity]?.fg }}>
+          {f.message}
+        </p>
+      ))}
+      {quoteId !== undefined && askable && (
+        <button type="button" onClick={() => setAsking(true)} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold"
+          style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
+          <Send className="h-3 w-3" /> Ask the carrier to fix this
+        </button>
+      )}
+      {asking && quoteId !== undefined && <AskCarrierModal quoteId={quoteId} onClose={() => setAsking(false)} />}
+    </div>
+  )
+}
+
+export function QuoteDetails({ ext }: { ext: CarrierQuoteExt }) {
   const weightUnit = ext.weightUnit ?? "kg"
   const isSea = /sea|ocean|fcl|lcl/i.test(ext.mode ?? "")
   const chargeableUnit = ext.chargeableUnit === "rt" ? "RT (W/M)" : "kg"
@@ -86,24 +108,6 @@ export function QuoteDetails({ ext, quoteId }: { ext: CarrierQuoteExt; quoteId?:
 
   return (
     <div className="space-y-3 rounded border p-3" style={{ borderColor: "var(--card-border)", background: "var(--table-header-bg)" }}>
-      {(ext.validationFlags?.length ?? 0) > 0 && (
-        <div className="space-y-1">
-          {ext.validationFlags!.map((f, i) => (
-            <p key={i} className="rounded px-2 py-1 text-[11px] font-medium"
-              style={{ background: FLAG_COLORS[f.severity]?.bg, color: FLAG_COLORS[f.severity]?.fg }}>
-              {f.message}
-            </p>
-          ))}
-          {quoteId !== undefined && askable && (
-            <button type="button" onClick={() => setAsking(true)} className="mt-1 inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold"
-              style={{ borderColor: "var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
-              <Send className="h-3 w-3" /> Ask the carrier to fix this
-            </button>
-          )}
-          {asking && quoteId !== undefined && <AskCarrierModal quoteId={quoteId} onClose={() => setAsking(false)} />}
-        </div>
-      )}
-
       <Section title="Quote" rows={[
         ["Carrier reference", ext.carrierQuoteRef],
         ["Service", ext.serviceLevel],

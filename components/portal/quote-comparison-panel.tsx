@@ -23,7 +23,7 @@ import { fetchQuotesForRequest, isActiveQuote } from "@/lib/carrier-quotes-queri
 import { createClient } from "@/lib/supabase"
 import { isExpiredDate } from "@/lib/validity"
 import { fmtDateTimeSec, fmtDuration } from "@/lib/duration"
-import { QuoteChips, QuoteDetails, hasExtendedData } from "@/components/portal/quote-details"
+import { QuoteChips, QuoteDetails, QuoteFlags, hasExtendedData } from "@/components/portal/quote-details"
 import { ConfirmStepsDialog, type ConfirmStep } from "@/components/portal/confirm-steps-dialog"
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -376,6 +376,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                   )}
 
                   <div className="pt-1"><QuoteChips ext={row.quote.ext} /></div>
+                  <QuoteFlags ext={row.quote.ext} quoteId={row.quote.id} />
 
                   {/* Chargeable weight headline */}
                   {row.quote.ext.chargeableWeight != null && (
@@ -410,7 +411,7 @@ export function QuoteComparisonPanel({ freightRequestId, locked = false, onChang
                           ? <><ChevronUp className="h-3 w-3" /> Hide full details</>
                           : <><ChevronDown className="h-3 w-3" /> Show full details</>}
                       </button>
-                      {expanded.has(row.quote.id) && <QuoteDetails ext={row.quote.ext} quoteId={row.quote.id} />}
+                      {expanded.has(row.quote.id) && <QuoteDetails ext={row.quote.ext} />}
                     </>
                   )}
 
