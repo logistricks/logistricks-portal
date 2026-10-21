@@ -26,7 +26,6 @@ export async function PUT(req: NextRequest) {
   if (!b || typeof b !== "object") return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   const n = Number(b.max_asks)
   if (b.max_asks !== undefined && !(Number.isFinite(n) && n >= 1 && n <= 5)) return NextResponse.json({ error: "Maximum asks must be between 1 and 5." }, { status: 400 })
-  if (b.ask_body !== undefined && !String(b.ask_body).includes("{{issues}}")) return NextResponse.json({ error: "The email must contain {{issues}}, where the list of problems goes." }, { status: 400 })
 
   const admin = adminClient(), cc = s.session.clientCode
   const current = await loadQuoteRules(admin, cc)

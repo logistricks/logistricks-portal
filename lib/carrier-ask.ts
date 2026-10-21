@@ -9,13 +9,17 @@
  */
 import { applyTemplate } from "@/lib/template-render"
 import { loadSmtp, sendMail, smtpError } from "@/lib/notify"
+import { cleanCarrierEmails } from "@/lib/carrier-emails"
 import { DEFAULT_RULES, applyRules, cleanRules, issuesText, type QuoteRules } from "@/lib/quote-rules"
 import type { Flag } from "@/lib/quote-math"
 
 export async function loadQuoteRules(admin: any, clientCode: string): Promise<QuoteRules> {
   try {
-    const { data } = await admin.from("client_settings").select("value").eq("client_code", clientCode).eq("key", "quote_rules").maybeSingle()
-    return cleanRules(data?.value)
+    const { data } = await admin.from("client_settings").select("key, value").eq("client_code", clientCode).in("key", ["quote_rules", "carrier_emails"])
+    const by = Object.fromEntries(((data ?? []) as any[]).map((r) => [r.key, r.value]))
+    const rules = cleanRules(by.quote_rules)
+    const mail = cleanCarrierEmails(by.carrier_emails)
+    return { ...rules, ask_body: mail.quote_fix }
   } catch { return { ...DEFAULT_RULES } }
 }
 

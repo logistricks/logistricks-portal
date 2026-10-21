@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Check, CheckCheck, Copy, Loader2, Mail, MessageCircle, MessageSquareReply, Pencil, Plus, Star, Trash2 } from "lucide-react"
 import { TemplateEditor } from "@/components/portal/template-editor"
+import { CarrierEmailsPanel } from "@/components/portal/carrier-emails-panel"
 import { QuotationTemplatesPanel } from "@/components/portal/quotation-templates-panel"
 import { type Template, type TemplateRow } from "@/lib/portal-data"
 import { templateHasRef } from "@/lib/template-render"
 import { TemplatePreview } from "@/components/portal/template-preview"
 import { QuoteDefaultDialog, modeNames, type ModeSet } from "@/components/portal/quote-default-dialog"
 
-type Tab = "All" | "Email" | "WhatsApp" | "Quotation"
-const tabs: Tab[] = ["All", "Email", "WhatsApp", "Quotation"]
+type Tab = "All" | "Email" | "WhatsApp" | "Quotation" | "Carrier emails"
+const tabs: Tab[] = ["All", "Email", "WhatsApp", "Quotation", "Carrier emails"]
 
 function rowToTemplate(row: TemplateRow): Template {
   return {
@@ -272,6 +273,15 @@ export function TemplatesPanel() {
       ))}
     </div>
   )
+
+  if (tab === "Carrier emails") {
+    return (
+      <div className="space-y-5">
+        <div className="flex">{tabBar}</div>
+        <CarrierEmailsPanel />
+      </div>
+    )
+  }
 
   if (tab === "Quotation") {
     return (
