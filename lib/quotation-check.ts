@@ -52,7 +52,7 @@ export async function usageThisMonth(admin: any, clientCode: string): Promise<nu
 const plain = (html: string) => html.replace(/<(style|script)[\s\S]*?<\/\1>/gi, " ").replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n").replace(/<[^>]+>/g, " ")
   .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim()
 const digits = (s: string) => s.replace(/[, ]/g, "")
-const nums = (s: string): string[] => (s.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((n) => digits(n).replace(/\.0+$/, "")).filter((n) => n.replace(/\D/g, "").length > 0)
+export const nums = (s: string): string[] => (s.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((n) => digits(n).replace(/\.0+$/, "")).filter((n) => n.replace(/\D/g, "").length > 0)
 
 const SKIP = /(^|_)(id|uuid|client_code|thread|message|gmail|raw|html|token|hash|created|updated|embedding|validation|review|intake|source_|meta|email_)/i
 function compact(row: Record<string, any>): Record<string, unknown> {
@@ -84,7 +84,7 @@ Return JSON {"findings":[{"severity","topic","message","quoted","replacement"}]}
 const SCHEMA = { type: "OBJECT", properties: { findings: { type: "ARRAY", items: { type: "OBJECT", properties: {
   severity: { type: "STRING" }, topic: { type: "STRING" }, message: { type: "STRING" }, quoted: { type: "STRING" }, replacement: { type: "STRING" } }, required: ["severity", "topic", "message"] } } }, required: ["findings"] }
 
-interface Inputs { quotation: Record<string, any>; request: Record<string, any>; quotes: Record<string, any>[] }
+export interface Inputs { quotation: Record<string, any>; request: Record<string, any>; quotes: Record<string, any>[] }
 
 /** The fixed checks. Cheap and certain; they run even when the AI is off or unavailable. */
 export function ruleFindings({ quotation: q, request: r, quotes }: Inputs): Finding[] {
@@ -111,6 +111,8 @@ export function ruleFindings({ quotation: q, request: r, quotes }: Inputs): Find
   if (places.length && !places.some((p) => lc.includes(p.toLowerCase()))) add("warning", "Route", `Neither ${places.join(" nor ")} appears in the quotation. Check the route.`)
   return out
 }
+
+export function numbersInInputs(inputs: Inputs): Set<string> { return numbersAllowed(inputs, cleanFx(inputs.quotation.fx_rates)) }
 
 function numbersAllowed(inputs: Inputs, fx: any): Set<string> {
   const pool = [JSON.stringify(compact(inputs.request)), ...inputs.quotes.map((x) => JSON.stringify(compact(x))), String(inputs.quotation.final_price_usd ?? ""), String(inputs.quotation.base_rate_usd ?? "")]
@@ -144,7 +146,8 @@ export async function runQuotationCheck(inputs: Inputs, opts: { useAi: boolean }
         findings.push({ id, severity, topic: String(f?.topic ?? "Check").trim().slice(0, 40) || "Check", message, source: "ai" })
         const find = String(f?.quoted ?? ""), replace = String(f?.replacement ?? "")
         const okNums = nums(replace).every((n) => allowed.has(n) || nums(find).includes(n))
-        const unique = find.length >= 3 && src.split(find).length === 2
+        const htmlSrc = String(q.generated_html ?? "")
+        const unique = find.length >= 3 && (src.split(find).length === 2 || (!src.includes(find) && htmlSrc.split(find).length === 2))
         if (find && replace && find !== replace && unique && okNums) suggestions.push({ id: `s${suggestions.length + 1}`, finding_id: id, find, replace, reason: message })
       }
       ai_ok = true

@@ -30,6 +30,7 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState("")
   const [pick, setPick] = useState<Set<string>>(new Set())
+  const [fixing, setFixing] = useState<string | null>(null)
   const tries = useRef(0)
 
   const load = useCallback(async () => {
@@ -58,6 +59,17 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
     } finally { setBusy(false) }
   }
 
+  async function aiFix(findingId: string) {
+    if (!st?.check) return
+    setFixing(findingId); setMsg("")
+    try {
+      const r = await fetch("/api/quotation-checks/fix", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ check_id: st.check.id, finding_id: findingId }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setMsg(j.error ?? "The AI could not fix this"); return }
+      await load()
+    } finally { setFixing(null) }
+  }
+
   async function apply(ids: string[]) {
     if (!st?.check || !ids.length) return
     setBusy(true); setMsg("")
@@ -79,7 +91,7 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
   const pending = (c?.suggestions ?? []).filter((s) => !s.applied)
   const border = "var(--card-border)"
   
-  const verdictText = !c ? "" : c.verdict === "ok" ? "No problems found" : c.verdict === "problems" ? "Problems found" : "Please look at these"
+  const verdictText = !c ? "" : c.verdict === "ok" ? (open.length ? "No problems, minor notes" : "No problems found") : c.verdict === "problems" ? "Problems found" : "Please look at these"
   const verdictColor = !c ? "var(--text-muted)" : c.verdict === "ok" ? "#059669" : c.verdict === "problems" ? "#dc2626" : "#b45309"
   const capReached = usage.cap > 0 && usage.used >= usage.cap
 
@@ -110,6 +122,11 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
             return (
               <li key={f.id} className="rounded px-2 py-1.5 text-[11px]" style={{ background: S.bg, color: S.fg }}>
                 <p className="flex items-start gap-1.5 font-medium"><S.Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span><strong>{f.topic}:</strong> {f.message}</span></p>
+                {!sug && !locked && f.source === "ai" && (
+                  <button type="button" disabled={busy || fixing !== null} onClick={() => void aiFix(f.id)} className="mt-1.5 inline-flex items-center gap-1.5 rounded border bg-white/70 px-2 py-0.5 font-semibold disabled:opacity-50 dark:bg-black/20" style={{ borderColor: border, color: "var(--text-primary)" }}>
+                    {fixing === f.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} {fixing === f.id ? "Writing a fix…" : "Fix with AI"}
+                  </button>
+                )}
                 {sug && (
                   <div className="mt-1.5 rounded border bg-white/70 px-2 py-1.5 dark:bg-black/20" style={{ borderColor: border, color: "var(--text-primary)" }}>
                     <p className="line-through opacity-70">{sug.find}</p>

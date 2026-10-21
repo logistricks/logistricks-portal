@@ -36,11 +36,13 @@ export async function POST(req: NextRequest) {
     if (!x || x.applied) continue
     const inBody = body.split(x.find).length === 2
     const inSubject = subject.includes(x.find)
-    if (!inBody && !inSubject) { skipped.push(id); continue }
+    const inHtml = !!html && (html.split(x.find).length === 2 || html.includes(esc(x.find)))
+    if (!inBody && !inSubject && !inHtml) { skipped.push(id); continue }
     if (inBody) body = body.replace(x.find, () => x.replace)
-    else subject = subject.replace(x.find, () => x.replace)
+    else if (inSubject) subject = subject.replace(x.find, () => x.replace)
     if (html) {
-      if (html.includes(x.find)) html = html.replace(x.find, () => x.replace)
+      if (!inBody && !inSubject && !html.includes(x.find) && !html.includes(esc(x.find))) htmlMissed = true
+      else if (html.includes(x.find)) html = html.replace(x.find, () => x.replace)
       else if (html.includes(esc(x.find))) html = html.replace(esc(x.find), () => esc(x.replace))
       else htmlMissed = true
     }
