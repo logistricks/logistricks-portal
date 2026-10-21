@@ -1,5 +1,6 @@
 // Local check (no n8n, no network): prepare → mock model output → build body → server maths → compare with expectations.
 // Run from repo root:  npx tsx n8n/carrier-reply/run-tests.ts
+import "./fake-clock"
 import fs from "node:fs"
 import path from "node:path"
 import { createRequire } from "node:module"

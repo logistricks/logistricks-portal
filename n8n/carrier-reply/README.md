@@ -39,3 +39,12 @@ Excel / Word attachments (pass their extracted text in `attachments[].text`). PD
 
 ## v1.1 additions
 New schema fields `transit_text`, `cutoff_cargo`, `cutoff_docs` (mapped in `build-body.js` to `mode_details.transit_text` and `cutoffs`), and prompt rules 11a–11c (ranges, combined free time, conditions vs exclusions). Update the prompt, schema and "Build portal body" node in the n8n workflow to match.
+
+## Extraction test set (run after every prompt, schema or model change)
+Two levels:
+1. `npm run test:extraction` — no network. Checks the portal side (mapping, maths, flags, review status) from the stored "correct extraction" of each case. Time is frozen at 2026-10-01 so it never goes stale.
+2. `GEMINI_API_KEY=... npm run eval:extraction` — runs the REAL model on every case and compares field by field with the correct extraction (`mock_ai` / `golden`), then pushes the model's output through the portal's maths and checks. Critical fields (type, currency, total, validity, mode, every charge line) must match; the rest is reported as `ok*`. Options: `--only 03`, `--runs 3` (repeat to see instability), `--dir real-cases`. Every full run is appended to `eval-history.jsonl` (model, prompt hash, pass rate), so you can see whether a change helped.
+   It uses the repo copy of the prompt (`extraction-prompt.md`) and schema (`response-schema.json`). Keep them equal to the live workflow, otherwise you test a different prompt than production.
+
+### Adding real replies (the important part)
+`GEMINI_API_KEY=... npx tsx n8n/carrier-reply/capture-case.ts reply.txt short-name` turns a real carrier email into `real-cases/NN-short-name.json` (a draft). reply.txt starts with `From:`, `Subject:`, optional `Date:`, a blank line, then the email text (attachment text under `--- Attachment: file.pdf ---`). The draft's expected values are the model's own answer and the case is marked `"reviewed": false` (skipped). Open it, **correct whatever the model got wrong**, fill `expect`, set `"reviewed": true`. Remove personal and customer details from the text first. Whenever a real reply is extracted wrongly, add it as a case: that is how the set grows to 20–30.

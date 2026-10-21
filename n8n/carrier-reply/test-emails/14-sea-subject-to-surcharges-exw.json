@@ -1,0 +1,63 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "agent@medexpress.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-12-ab12c4] Genoa-Aqaba 1x20GP EXW",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-14@carrier.example>",
+    "thread_id": "thread-14",
+    "attachments": [],
+    "body_text": "Hello,\n\n1 x 20GP EXW Genoa to Aqaba. Ocean freight USD 1,700 per container.\nPickup at: Rossi Spa, Via Roma 12, 16100 Genova, Italy.\nSubject to: AMS USD 35 per BL, telex release USD 50 per BL, seal USD 15 per container.\nTransit 19 days. Valid until 2026-10-28. Firm.\n\nMed Express\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote Genoa-Aqaba 1x20GP EXW.\n> Ref: RFQ-1a2b3c4d-12-ab12c4\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "firm",
+    "mode": "sea",
+    "service_level": "FCL",
+    "validity_date": "2026-10-28",
+    "currency": "USD",
+    "container_type": "20GP",
+    "container_count": 1,
+    "incoterm": "EXW",
+    "pickup_address": "Rossi Spa, Via Roma 12, 16100 Genova, Italy",
+    "origin_place": "Genoa",
+    "destination_place": "Aqaba",
+    "transit_days": 19,
+    "charges": [
+      {
+        "carrier_label": "Ocean freight",
+        "basis": "per_container",
+        "unit_rate": 1700,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "AMS",
+        "basis": "per_shipment",
+        "unit_rate": 35,
+        "inclusion": "subject_to"
+      },
+      {
+        "carrier_label": "Telex release",
+        "basis": "per_shipment",
+        "unit_rate": 50,
+        "inclusion": "subject_to"
+      },
+      {
+        "carrier_label": "Seal",
+        "basis": "per_container",
+        "unit_rate": 15,
+        "inclusion": "subject_to"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "total_amount": 1700,
+    "validity_date": "2026-10-28",
+    "review_status": "auto_accepted",
+    "flags": []
+  }
+}

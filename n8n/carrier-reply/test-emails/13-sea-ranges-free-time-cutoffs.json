@@ -1,0 +1,68 @@
+{
+  "input": {
+    "client_code": "DEMO",
+    "from_email": "pricing@bluewave-lines.example",
+    "subject": "RE: Rate request [RFQ-1a2b3c4d-9-ab12c3] Nansha-Aqaba 1x40HC",
+    "received_at": "2026-10-01T08:30:00Z",
+    "message_id": "<msg-13@carrier.example>",
+    "thread_id": "thread-13",
+    "attachments": [],
+    "body_text": "Dear Sir,\n\n1 x 40HC Nansha to Aqaba, FOB. Ocean freight USD 3,100 per container, BAF USD 150 per container, THC origin USD 210 per container.\nTransit time approx. 28 to 32 days. Sailing ETD 2026-10-12, cargo cut-off 2026-10-09, documents cut-off 2026-10-08.\nFree time at destination: 14 days combined demurrage and detention.\nMax cargo weight 26 tons per container. Inland haulage and destination THC are not included.\nValid until 2026-10-30. Firm.\n\nBlueWave Lines\n\nOn Wed, 30 Sep 2026 at 09:12, Logistics Desk <desk@client.example> wrote:\n> Dear partner, please quote Nansha-Aqaba 1x40HC.\n> Ref: RFQ-1a2b3c4d-9-ab12c3\n> Thanks"
+  },
+  "mock_ai": {
+    "ai_confidence": 0.95,
+    "inferred_fields": [],
+    "key_evidence": [],
+    "response_type": "quote",
+    "quote_status": "firm",
+    "mode": "sea",
+    "service_level": "FCL",
+    "validity_date": "2026-10-30",
+    "currency": "USD",
+    "container_type": "40HC",
+    "container_count": 1,
+    "incoterm": "FOB",
+    "origin_place": "Nansha",
+    "destination_place": "Aqaba",
+    "etd": "2026-10-12",
+    "transit_days": 32,
+    "transit_text": "28 to 32 days",
+    "cutoff_cargo": "2026-10-09",
+    "cutoff_docs": "2026-10-08",
+    "free_days": 14,
+    "free_days_demurrage": 14,
+    "free_days_detention": 14,
+    "per_diem_note": "at POD",
+    "subject_to_conditions": "Max cargo weight 26 tons per container",
+    "exclusions": "Inland haulage and destination THC not included",
+    "charges": [
+      {
+        "carrier_label": "Ocean freight",
+        "basis": "per_container",
+        "unit_rate": 3100,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "BAF",
+        "canonical_code": "BAF",
+        "basis": "per_container",
+        "unit_rate": 150,
+        "inclusion": "included"
+      },
+      {
+        "carrier_label": "THC origin",
+        "canonical_code": "THC_ORIGIN",
+        "basis": "per_container",
+        "unit_rate": 210,
+        "inclusion": "included"
+      }
+    ]
+  },
+  "expect": {
+    "linked": true,
+    "total_amount": 3460,
+    "validity_date": "2026-10-30",
+    "review_status": "auto_accepted",
+    "flags": []
+  }
+}
