@@ -8,6 +8,7 @@
  *  - runCarrierReminders: the scheduled run (every ~15 minutes): sends what is due for the companies that switched it on
  * The subject carries the RFQ reference, so whatever the carrier answers links back to the same request.
  */
+import { logEvent } from "@/lib/system-events"
 import { sendClientMail, type SendOutcome } from "@/lib/mailer"
 import { applyTemplate } from "@/lib/template-render"
 import { rfqVars } from "@/lib/rfq-send"
@@ -158,6 +159,7 @@ export async function sendReminder(admin: any, clientCode: string, w: Waiting, m
   } catch (e) {
     const msg = (e as Error).message || "The email could not be sent."
     await log("failed", msg).catch(() => {})
+    await logEvent(admin, { clientCode, kind: "reminder_failed", title: "A carrier reminder could not be written or sent", message: msg, requestId: w.freight_request_id })
     return { ok: false, error: msg }
   }
 }

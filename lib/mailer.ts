@@ -13,6 +13,7 @@
  *  - rate limit per client; MAIL_REDIRECT_TO sends everything to one test address instead (safe testing).
  *  - every attempt is logged in outbound_emails with the Message-ID we generated.
  */
+import { logEvent } from "@/lib/system-events"
 import { randomUUID, timingSafeEqual } from "crypto"
 import type { NextRequest } from "next/server"
 import { loadSmtp, smtpError, transport } from "@/lib/notify"
@@ -127,6 +128,7 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
   const fromAddress: string | null = cfg?.from_email ?? null
   if (!cfg || !cfg.enabled) {
     await log("skipped", { error: "Email server not set up or switched off" })
+    await logEvent(admin, { clientCode, kind: "email_failed", severity: "warning", title: "An email was not sent: the email server is not set up or is switched off", message: `Settings → Emails. First affected: ${subject}`, requestId: a.freightRequestId ?? null })
     return { status: "skipped", reason: "smtp_not_configured" }
   }
 
@@ -186,6 +188,7 @@ export async function sendClientMail(admin: any, a: SendArgs): Promise<SendOutco
   } catch (e) {
     const msg = smtpError(e)
     await log("failed", { error: msg, redirected })
+    await logEvent(admin, { clientCode, kind: "email_failed", title: `Email could not be sent (${a.purpose === "rfq" ? "to a carrier" : "to a requester"})`, message: `${msg}\nTo: ${to.join(", ")}\nSubject: ${subject}`, requestId: a.freightRequestId ?? null })
     return { status: "failed", reason: msg }
   }
 }

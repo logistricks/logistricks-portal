@@ -10,6 +10,7 @@
  */
 import { createHash } from "node:crypto"
 import { gemini, aiConfigured } from "@/lib/trial-gen"
+import { logEvent } from "@/lib/system-events"
 import { cleanFx } from "@/lib/fx"
 import { carrierBaseDetail } from "@/lib/quotation-render"
 
@@ -187,6 +188,7 @@ export async function checkAndStore(admin: any, clientCode: string, quotationId:
   const useAi = set.monthly_cap === 0 ? false : used < set.monthly_cap
   if (!useAi && mode === "manual" && set.monthly_cap > 0) return { error: "cap" }
   const res = await runQuotationCheck(inputs, { useAi })
+  if (useAi && !res.ai_ok) await logEvent(admin, { clientCode, kind: "ai_failed", title: aiConfigured() ? "The AI review of quotations is not working" : "The AI review of quotations is not set up", message: aiConfigured() ? "The AI service did not answer. Only the basic checks ran. Check the Gemini key / the n8n AI writer workflow." : "Add GEMINI_API_KEY (or N8N_TRIAL_GENERATE_WEBHOOK_URL) in the portal's environment.", requestId: inputs.quotation.freight_request_id })
   const { data: row, error } = await admin.from("quotation_checks").insert({
     client_code: clientCode, quotation_id: quotationId, content_hash: hash, verdict: res.verdict, ai_ok: res.ai_ok,
     findings: res.findings, suggestions: res.suggestions, mode, created_by: by,

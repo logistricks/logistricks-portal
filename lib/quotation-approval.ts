@@ -13,6 +13,7 @@ import { contentHash } from "@/lib/quotation-check"
 import { notifyApprovalRequested, notifyApprovalDecided } from "@/lib/notify-hooks"
 import { sendQuotationToRequester } from "@/lib/quotation-send"
 import { after } from "next/server"
+import { logEvent } from "@/lib/system-events"
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | null
 export interface CycleInfo { id: string; name: string; quotation_approval: "off" | "always" | "warnings"; quotation_after_approval: "manual" | "auto"; steps: { sort_order: number; committee_mode: string; usernames: string[] }[] }
@@ -109,6 +110,7 @@ async function complete(admin: any, code: string, q: any, cycle: CycleInfo, subm
     after(async () => {
       try {
         const r = await sendQuotationToRequester(admin, code, submitter, q.id, { manual: false, confirmExpired: true, confirmChecks: true, skipApproval: true })
+        if (r.status >= 300) await logEvent(admin, { clientCode: code, kind: "auto_send_failed", title: "An approved quotation could not be sent automatically", message: `${q.quotation_number ?? q.id}: ${String(r.json?.error ?? "unknown error")}`, requestId: q.freight_request_id })
         if (r.status >= 300) await admin.from("notifications").insert({ client_code: code, username: submitter, type: "approval_complete", title: "Approved, but the send failed", body: String(r.json?.error ?? "Open the request and send it from the quotation."), request_id: q.freight_request_id })
         else await admin.from("notifications").insert({ client_code: code, username: submitter, type: "approval_complete", title: "Quotation sent", body: `Quotation ${q.quotation_number ?? q.id} was sent to ${r.json?.to ?? "the requester"}`, request_id: q.freight_request_id })
       } catch (e) { console.error("[quotation-approval] auto send", (e as Error).message) }

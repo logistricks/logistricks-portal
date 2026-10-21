@@ -1,0 +1,92 @@
+{
+ "name": "Shared error handler (reports to the portal)",
+ "nodes": [
+  {
+   "parameters": {},
+   "id": "e1",
+   "name": "Error Trigger",
+   "type": "n8n-nodes-base.errorTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Turns n8n's error report into what the portal's Needs attention list expects.\nconst e = $json;\nconst ex = e.execution || {};\nconst err = ex.error || {};\nconst wf = e.workflow || {};\nreturn [{ json: {\n  workflow_name: wf.name || 'unknown workflow',\n  workflow_id: wf.id || null,\n  execution_id: ex.id || null,\n  execution_url: ex.url || null,\n  node: err.node?.name || ex.lastNodeExecuted || null,\n  message: String(err.message || err.description || 'The workflow stopped with an error').slice(0, 1500),\n}}];"
+   },
+   "id": "e2",
+   "name": "Build report",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    260,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://logistricks-portal.vercel.app/api/system-events",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-Portal-Secret",
+       "value": "PASTE THE SAME SECRET AS YOUR OTHER NODES"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json) }}",
+    "options": {
+     "timeout": 20000,
+     "retry": {
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+     }
+    }
+   },
+   "id": "e3",
+   "name": "Report to the portal",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    520,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  }
+ ],
+ "connections": {
+  "Error Trigger": {
+   "main": [
+    [
+     {
+      "node": "Build report",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build report": {
+   "main": [
+    [
+     {
+      "node": "Report to the portal",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ }
+}
