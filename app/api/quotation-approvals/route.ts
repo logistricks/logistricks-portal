@@ -28,6 +28,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(rows.map((r) => ({ step: r, quotation: (qs ?? []).find((q: any) => q.id === r.quotation_id) ?? null, request: (frs ?? []).find((f: any) => f.id === r.freight_request_id) ?? null })).filter((x) => x.quotation))
   }
 
+  // every quotation of one request: which ones still need approval before they can be sent
+  if (sp.get("freight_request_id")) {
+    const { data: qs } = await admin.from("quotations").select("*").eq("freight_request_id", sp.get("freight_request_id")).ilike("client_code", code)
+    const out = []
+    for (const q of (qs ?? []) as any[]) {
+      if (q.status === "sent") continue
+      const r = await approvalRequirement(admin, code, q, me)
+      out.push({ quotation_id: q.id, carrier_quote_id: q.carrier_quote_id, needed: r.needed, status: r.status })
+    }
+    return NextResponse.json(out)
+  }
+
   const id = Number(sp.get("quotation_id"))
   if (!id) return NextResponse.json({ error: "quotation_id required" }, { status: 400 })
   const { data: q } = await admin.from("quotations").select("*").eq("id", id).ilike("client_code", code).maybeSingle()

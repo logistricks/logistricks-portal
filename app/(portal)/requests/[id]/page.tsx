@@ -332,7 +332,18 @@ export default function RequestDetailPage() {
   const [sending, setSending]       = useState(false)
   const [rfqOpen, setRfqOpen]       = useState(false)
   const [fwdOpen, setFwdOpen]       = useState(false)
+  const reqId = request?.id
+  useEffect(() => {
+    if (!reqId) return
+    let stop = false
+    const read = () => fetch(`/api/quotation-approvals?freight_request_id=${reqId}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])).then((d) => { if (!stop && Array.isArray(d)) setApprovalHold(d) }).catch(() => {})
+    void read()
+    const t = setInterval(read, 20000)
+    return () => { stop = true; clearInterval(t) }
+  }, [reqId, activeQuotes, fwdOpen, rfqRefreshSignal])
   const [activeQuotes, setActiveQuotes] = useState<CarrierQuote[]>([])
+  // quotations that still need approval before they can be sent (Forward is held back when that is true for every active quote)
+  const [approvalHold, setApprovalHold] = useState<{ quotation_id: number; carrier_quote_id: number | null; needed: boolean; status: string | null }[]>([])
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({})
@@ -472,6 +483,7 @@ export default function RequestDetailPage() {
   const emailTemplates  = templates.filter((t) => t.type === "Email"    && t.active)
   const whatsappTemplates = templates.filter((t) => t.type === "WhatsApp" && t.active)
 
+  const fwdHeld = activeQuotes.length > 0 && activeQuotes.every((q) => approvalHold.some((h) => h.needed && Number(h.carrier_quote_id) === Number(q.id)))
   return (
     <div className="portal-page flex flex-col" style={{ minHeight: "100vh" }}>
 
@@ -880,8 +892,8 @@ export default function RequestDetailPage() {
         {activeTab === "quotes" ? (
           <button
             onClick={() => setFwdOpen(true)}
-            disabled={activeQuotes.length === 0 || request.status === "Closed"}
-            title={activeQuotes.length === 0 ? "Needs at least one active quote" : "Send a quotation to the original sender"}
+            disabled={activeQuotes.length === 0 || request.status === "Closed" || fwdHeld}
+            title={activeQuotes.length === 0 ? "Needs at least one active quote" : fwdHeld ? "The quotation needs approval first. Send it for approval from the quotation above." : "Send a quotation to the original sender"}
             className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold text-white transition-all enabled:.5 enabled: disabled:cursor-not-allowed disabled:opacity-45"
             style={{ background: "var(--brand-accent)", boxShadow: activeQuotes.length ? "0 0 0 1px rgb(var(--brand-accent-rgb) / 0.35), 0 6px 16px -4px rgb(var(--brand-accent-rgb) / 0.6), 0 0 22px rgb(var(--brand-accent-rgb) / 0.35)" : "none" }}>
             <Send className="h-3.5 w-3.5" /> Forward to {request.senderName}
