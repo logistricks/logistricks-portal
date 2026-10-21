@@ -45,7 +45,7 @@ export function QuotationCheckSettingsPanel() {
     <div className="mt-3 rounded-xl border p-4" style={card}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Check quotations before they go out</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>AI review of quotations before they go out</p>
           <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             Every quotation is compared with the request and the carrier&apos;s reply: route, equipment, price, validity, conditions, wording. Differences are listed with a suggested fix you can accept with one click.
             Prices in a fix always come from the request or the carrier&apos;s reply, never from the AI.
@@ -60,7 +60,7 @@ export function QuotationCheckSettingsPanel() {
           <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: "var(--divider)" }}>
             <div className="min-w-[200px] flex-1">
               <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>Check automatically when a quotation is built</p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Otherwise a person presses &ldquo;Check this quotation&rdquo;.</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Otherwise a person presses a person presses &ldquo;Check this quotation&rdquo;ldquo;Review the Quotation with AIa person presses &ldquo;Check this quotation&rdquo;rdquo;.</p>
             </div>
             {toggle(s.auto, () => setS({ ...s, auto: !s.auto }), "Check automatically")}
           </div>

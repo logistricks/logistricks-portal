@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AlertTriangle, CheckCircle2, Info, Loader2, ShieldCheck, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Info, Loader2, Sparkles, XCircle } from "lucide-react"
 
 type Finding = { id: string; severity: "error" | "warning" | "info"; topic: string; message: string; source: "rule" | "ai"; resolved?: boolean }
 type Suggestion = { id: string; finding_id: string; find: string; replace: string; reason: string; applied?: boolean }
@@ -71,34 +71,36 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
     } finally { setBusy(false) }
   }
 
-  if (!st || !st.settings.enabled) return null
-  const c = st.check
+  if (st && !st.settings.enabled) return null
+  const c = st?.check ?? null
+  const stale = !!st?.stale, usage = st?.usage ?? { used: 0, cap: 0 }, auto = !!st?.settings.auto
   const open = (c?.findings ?? []).filter((f) => !f.resolved)
   const sugFor = (fid: string) => (c?.suggestions ?? []).find((s) => s.finding_id === fid && !s.applied)
   const pending = (c?.suggestions ?? []).filter((s) => !s.applied)
   const border = "var(--card-border)"
+  
   const verdictText = !c ? "" : c.verdict === "ok" ? "No problems found" : c.verdict === "problems" ? "Problems found" : "Please look at these"
   const verdictColor = !c ? "var(--text-muted)" : c.verdict === "ok" ? "#059669" : c.verdict === "problems" ? "#dc2626" : "#b45309"
-  const capReached = st.usage.cap > 0 && st.usage.used >= st.usage.cap
+  const capReached = usage.cap > 0 && usage.used >= usage.cap
 
   return (
     <div className="mb-3 rounded-lg border p-3" style={{ borderColor: border }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-xs font-bold" style={{ color: verdictColor }}>
-          {c ? (c.verdict === "ok" ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />) : <ShieldCheck className="h-4 w-4" />}
-          {c ? `Quotation check: ${verdictText}` : "Quotation check"}
-          {st.stale && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-800">Edited since</span>}
+          {c ? (c.verdict === "ok" ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />) : <Sparkles className="h-4 w-4" />}
+          {c ? `AI review: ${verdictText}` : "AI review"}
+          {stale && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-800">Edited since</span>}
         </p>
         {!locked && (
-          <button type="button" disabled={busy || capReached} onClick={() => void run(true)} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50" style={{ borderColor: border, color: "var(--text-primary)" }}>
-            {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />} {c ? "Check again" : "Check this quotation"}
+          <button type="button" disabled={busy || capReached} onClick={() => void run(!!c)} className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50" style={{ borderColor: border, color: "var(--text-primary)" }}>
+            {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} {busy ? "Reviewing…" : c ? "Review again with AI" : "Review the Quotation with AI"}
           </button>
         )}
       </div>
 
-      {!c && st.settings.auto && tries.current < 10 && <p className="mt-2 flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}><Loader2 className="h-3 w-3 animate-spin" /> Checking against the request and the carrier&apos;s reply…</p>}
-      {!c && (!st.settings.auto || tries.current >= 10) && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>Not checked yet. The check compares this quotation with the request and the carrier&apos;s reply.</p>}
-      {st.stale && <p className="mt-2 text-[11px]" style={{ color: "#b45309" }}>The quotation was edited after this check. Check again before sending.</p>}
+      {!c && st?.settings.auto && tries.current < 10 && !busy && <p className="mt-2 flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}><Loader2 className="h-3 w-3 animate-spin" /> Reviewing in the background. You can start it yourself with the button.</p>}
+      {!c && st && (!auto || tries.current >= 10) && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>Not reviewed yet. The review compares this quotation with the request and the carrier&apos;s reply.</p>}
+      {stale && <p className="mt-2 text-[11px]" style={{ color: "#b45309" }}>The quotation was edited after this check. Check again before sending.</p>}
       {c && !c.ai_ok && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>Only the basic checks ran (the AI comparison was not available{capReached ? ": this month&apos;s limit is reached" : ""}).</p>}
 
       {c && open.length > 0 && (
@@ -132,7 +134,7 @@ export function QuotationCheckPanel({ quotationId, locked, onFixed, onVerdict }:
         </div>
       )}
       {msg && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>{msg}</p>}
-      {st.usage.cap > 0 && <p className="mt-2 text-[10px]" style={{ color: "var(--text-muted)" }}>{st.usage.used} of {st.usage.cap} AI checks used this month</p>}
+      {usage.cap > 0 && <p className="mt-2 text-[10px]" style={{ color: "var(--text-muted)" }}>{usage.used} of {usage.cap} AI checks used this month</p>}
     </div>
   )
 }
