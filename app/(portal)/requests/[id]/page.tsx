@@ -332,6 +332,9 @@ export default function RequestDetailPage() {
   const [sending, setSending]       = useState(false)
   const [rfqOpen, setRfqOpen]       = useState(false)
   const [fwdOpen, setFwdOpen]       = useState(false)
+  const [activeQuotes, setActiveQuotes] = useState<CarrierQuote[]>([])
+  // quotations that still need approval before they can be sent (Forward is held back when that is true for every active quote)
+  const [approvalHold, setApprovalHold] = useState<{ quotation_id: number; carrier_quote_id: number | null; needed: boolean; status: string | null }[]>([])
   const reqId = request?.id
   useEffect(() => {
     if (!reqId) return
@@ -341,9 +344,6 @@ export default function RequestDetailPage() {
     const t = setInterval(read, 20000)
     return () => { stop = true; clearInterval(t) }
   }, [reqId, activeQuotes, fwdOpen, rfqRefreshSignal])
-  const [activeQuotes, setActiveQuotes] = useState<CarrierQuote[]>([])
-  // quotations that still need approval before they can be sent (Forward is held back when that is true for every active quote)
-  const [approvalHold, setApprovalHold] = useState<{ quotation_id: number; carrier_quote_id: number | null; needed: boolean; status: string | null }[]>([])
   const [aog, setAog]               = useState(false)
   const [dgr, setDgr]               = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string | null>>({})
