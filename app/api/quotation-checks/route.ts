@@ -13,10 +13,10 @@ export const maxDuration = 60
 async function shape(admin: any, code: string, quotationId: number) {
   const [set, used, { data: q }, { data: last }] = await Promise.all([
     loadCheckSettings(admin, code), usageThisMonth(admin, code),
-    admin.from("quotations").select("generated_subject, generated_body, generated_html, final_price_usd").eq("id", quotationId).ilike("client_code", code).maybeSingle(),
+    admin.from("quotations").select("generated_subject, generated_body, generated_html, final_price_usd, created_at").eq("id", quotationId).ilike("client_code", code).maybeSingle(),
     admin.from("quotation_checks").select("*").eq("quotation_id", quotationId).ilike("client_code", code).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ])
-  return { check: last ?? null, stale: !!(last && q && last.content_hash !== contentHash(q)), usage: { used, cap: set.monthly_cap }, settings: set }
+  return { check: last ?? null, quotation_created_at: q?.created_at ?? null, stale: !!(last && q && last.content_hash !== contentHash(q)), usage: { used, cap: set.monthly_cap }, settings: set }
 }
 
 export async function GET(req: NextRequest) {

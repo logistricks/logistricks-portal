@@ -1,12 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { AlertTriangle, CheckCircle2, Info, Loader2, Sparkles, XCircle } from "lucide-react"
 
 type Finding = { id: string; severity: "error" | "warning" | "info"; topic: string; message: string; source: "rule" | "ai"; resolved?: boolean }
 type Suggestion = { id: string; finding_id: string; find: string; replace: string; reason: string; applied?: boolean }
 type Check = { id: string; verdict: "ok" | "warnings" | "problems"; ai_ok: boolean; findings: Finding[]; suggestions: Suggestion[]; created_at: string; mode: "auto" | "manual" }
-type State = { check: Check | null; stale: boolean; usage: { used: number; cap: number }; settings: { enabled: boolean; auto: boolean } }
+type State = { check: Check | null; quotation_created_at?: string | null; stale: boolean; usage: { used: number; cap: number }; settings: { enabled: boolean; auto: boolean } }
 
 const SEV = {
   error: { Icon: XCircle, fg: "#dc2626", bg: "rgba(220,38,38,0.08)" },
@@ -33,7 +33,7 @@ export function QuotationCheckPanel({ quotationId, locked, canRun, onFixed, onVe
   const [msg, setMsg] = useState("")
   const [pick, setPick] = useState<Set<string>>(new Set())
   const [fixing, setFixing] = useState<string | null>(null)
-  const tries = useRef(0)
+  const [tries, setTries] = useState(0)
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/quotation-checks?quotation_id=${quotationId}`, { cache: "no-store" })
@@ -43,13 +43,16 @@ export function QuotationCheckPanel({ quotationId, locked, canRun, onFixed, onVe
     return j
   }, [quotationId, onVerdict])
 
-  useEffect(() => { tries.current = 0; void load() }, [load])
+  // only quotations built in the last 90 seconds can still have an automatic review on its way
+  const freshMs = st?.quotation_created_at ? Date.now() - new Date(st.quotation_created_at).getTime() : Infinity
+  const waiting = !!st && !st.check && st.settings.enabled && st.settings.auto && tries < 10 && freshMs < 90_000
+  useEffect(() => { setTries(0); void load() }, [load])
   // the automatic check starts when the quotation is built: look for the result for up to ~40 seconds
   useEffect(() => {
-    if (!st || st.check || !st.settings.enabled || !st.settings.auto || tries.current >= 10) return
-    const t = setTimeout(() => { tries.current += 1; void load() }, 4000)
+    if (!waiting) return
+    const t = setTimeout(() => { setTries((n) => n + 1); void load() }, 3000)
     return () => clearTimeout(t)
-  }, [st, load])
+  }, [waiting, st, load])
 
   async function run(force: boolean) {
     setBusy(true); setMsg("")
@@ -112,8 +115,8 @@ export function QuotationCheckPanel({ quotationId, locked, canRun, onFixed, onVe
         )}
       </div>
 
-      {!c && st?.settings.auto && tries.current < 10 && !busy && <p className="mt-2 flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}><Loader2 className="h-3 w-3 animate-spin" /> Reviewing in the background. You can start it yourself with the button.</p>}
-      {!c && st && (!auto || tries.current >= 10) && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>Not reviewed yet. The review compares this quotation with the request and the carrier&apos;s reply.</p>}
+      {waiting && !busy && <p className="mt-2 flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}><Loader2 className="h-3 w-3 animate-spin" /> Reviewing in the background. You can start it yourself with the button.</p>}
+      {!c && st && !waiting && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>Not reviewed yet. The review compares this quotation with the request and the carrier&apos;s reply.</p>}
       {stale && <p className="mt-2 text-[11px]" style={{ color: "#b45309" }}>The quotation was edited after this check. Check again before sending.</p>}
       {c && !c.ai_ok && <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>Only the basic checks ran (the AI comparison was not available{capReached ? ": this month&apos;s limit is reached" : ""}).</p>}
 
