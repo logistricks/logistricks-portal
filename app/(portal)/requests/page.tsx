@@ -160,7 +160,7 @@ export default function RequestsPage() {
   // Remember the filters between visits; "/" jumps to search.
   const [prefsReady, setPrefsReady] = useState(false)
   const [view, setView] = useState<"cards" | "table">("cards")
-  const [sortBy, setSortBy] = useState<"priority" | "newest" | "oldest">("priority")
+  const [sortBy, setSortBy] = useState<"priority" | "newest" | "oldest">("newest")
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem(PREFS_KEY) || "null")
