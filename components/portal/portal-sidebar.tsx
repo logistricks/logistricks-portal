@@ -121,19 +121,12 @@ export function PortalSidebar({
           <>
             <Link href="/dashboard" className="flex flex-1 items-center gap-2 min-w-0">
               <img
-                src="/logistricks-mark.svg"
+                src="/logistricks-wordmark-dark.svg"
                 alt="Logistricks"
-                width={36}
-                height={36}
+                height={34}
                 className="shrink-0"
-                style={{ display: "block" }}
+                style={{ display: "block", height: 34, width: "auto" }}
               />
-              <span
-                className="whitespace-nowrap text-[18px] font-black tracking-tight text-white"
-                style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
-              >
-                Logis<span style={{ color: "var(--brand-accent)" }}>tricks</span>
-              </span>
             </Link>
             <button
               onClick={() => onPin(!pinned)}
