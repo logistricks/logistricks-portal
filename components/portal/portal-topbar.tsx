@@ -89,12 +89,11 @@ export function PortalTopbar() {
               <img src={branding.logo} alt={branding.displayName || ""} className="max-h-7 max-w-[120px] object-contain" />
             </span>
           )}
+          <img src="/logistricks-mark.svg" alt="Logistricks" className="sm:hidden" style={{ display: "block", height: 34, width: "auto" }} />
           <span className="hidden min-w-0 flex-col sm:flex">
-            <span className="text-[19px] font-extrabold leading-none tracking-[0.08em] text-white" style={{ fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif" }}>
-              LOGIS<span style={{ color: "var(--brand-accent)" }}>TRICKS</span>
-            </span>
+            <img src="/logistricks-wordmark-dark.svg" alt="Logistricks" style={{ display: "block", height: 40, width: "auto" }} />
             {branding.displayName && (
-              <span className="mt-1 max-w-[220px] truncate text-[11.5px] font-medium leading-none tracking-[0.04em]" style={{ color: "rgba(255,255,255,0.62)" }}>
+              <span className="mt-1.5 max-w-[220px] truncate text-[11.5px] font-medium leading-none tracking-[0.04em]" style={{ color: "rgba(255,255,255,0.62)" }}>
                 {branding.displayName}
               </span>
             )}
