@@ -123,9 +123,9 @@ export function PortalSidebar({
               <img
                 src="/logistricks-wordmark-dark.svg"
                 alt="Logistricks"
-                height={34}
+                height={26}
                 className="shrink-0"
-                style={{ display: "block", height: 34, width: "auto" }}
+                style={{ display: "block", height: 26, width: "auto" }}
               />
             </Link>
             <button
