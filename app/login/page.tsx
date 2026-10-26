@@ -98,7 +98,7 @@ export default function LoginPage() {
         <div className="w-full max-w-[440px] justify-self-center rounded-[24px] bg-white p-8 sm:p-10 lg:justify-self-end" style={{ boxShadow: "0 40px 80px -30px rgba(0,0,0,0.55)" }}>
           <div className="mb-7 flex items-center gap-3">
             <div>
-              <img src="/logistricks-wordmark-light-v3.svg" alt="Logistricks" style={{ display: "block", height: 40, width: "auto" }} />
+              <img src="/logistricks-wordmark-light-v4.svg" alt="Logistricks" style={{ display: "block", height: 40, width: "auto" }} />
               <div className="mt-1.5 text-[13px]" style={{ color: "#56667e" }}>Sign in to your portal</div>
             </div>
           </div>
