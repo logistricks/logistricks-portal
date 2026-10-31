@@ -121,7 +121,7 @@ export function PortalSidebar({
           <>
             <Link href="/dashboard" className="flex flex-1 items-center gap-2 min-w-0">
               <img
-                src="/logistricks-wordmark-dark-v4.svg"
+                src="/logistricks-wordmark-dark-v5.svg"
                 alt="Logistricks"
                 height={26}
                 className="shrink-0"
@@ -149,7 +149,7 @@ export function PortalSidebar({
           <div className="flex w-full items-center justify-center">
             <Link href="/dashboard">
               <img
-                src="/logistricks-mark-v3.svg"
+                src="/logistricks-mark-v4.svg"
                 alt="Logistricks"
                 width={32}
                 height={32}
