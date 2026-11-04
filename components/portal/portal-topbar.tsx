@@ -91,9 +91,9 @@ export function PortalTopbar() {
           )}
           <span className="flex sm:hidden"><img src="/logistricks-mark-v4.svg" alt="Logistricks" style={{ display: "block", height: 34, width: "auto" }} /></span>
           <span className="hidden min-w-0 flex-col sm:flex">
-            <img src="/logistricks-wordmark-dark-v6.svg" alt="Logistricks" style={{ display: "block", height: 44, width: "auto" }} />
+            <img src="/logistricks-wordmark-dark-v5.svg" alt="Logistricks" style={{ display: "block", height: 30, width: "auto" }} />
             {branding.displayName && (
-              <span className="mt-1 max-w-[220px] truncate text-[11.5px] font-medium leading-none tracking-[0.04em]" style={{ color: "rgba(255,255,255,0.62)" }}>
+              <span className="mt-1.5 max-w-[220px] truncate text-[11.5px] font-medium leading-none tracking-[0.04em]" style={{ color: "rgba(255,255,255,0.62)" }}>
                 {branding.displayName}
               </span>
             )}

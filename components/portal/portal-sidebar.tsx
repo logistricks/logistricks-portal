@@ -121,11 +121,11 @@ export function PortalSidebar({
           <>
             <Link href="/dashboard" className="flex flex-1 items-center gap-2 min-w-0">
               <img
-                src="/logistricks-wordmark-dark-v6.svg"
+                src="/logistricks-wordmark-dark-v5.svg"
                 alt="Logistricks"
-                height={38}
+                height={26}
                 className="shrink-0"
-                style={{ display: "block", height: 38, width: "auto" }}
+                style={{ display: "block", height: 26, width: "auto" }}
               />
             </Link>
             <button
