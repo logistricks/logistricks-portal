@@ -10,12 +10,15 @@ import { TaskReminders } from "@/components/portal/task-reminders"
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<"dark" | "light">("light")
+  // Hold the page back until the saved light/dark choice has been read, so dark users never see a light flash.
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("portal-theme")
       if (saved === "dark") setTheme("dark")
     } catch { /* */ }
+    setReady(true)
     // Apply brand colors: DB first (so all browsers/devices get client's theme), localStorage as instant fallback
     function applyColors(colors: Record<string, string>) {
       const root = document.documentElement
@@ -63,7 +66,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
         <UndoBridge />
         <TaskReturnPill />
         <TaskReminders />
-        <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f2f5fa]"} ${theme}`}>
+        <div className={`min-h-screen ${theme === "dark" ? "bg-[#0C1424]" : "bg-[#f2f5fa]"} ${theme}`} style={{ visibility: ready ? "visible" : "hidden" }}>
           <PortalTopbar />
           <main className="mx-auto w-full max-w-[1440px] px-4 pb-10 pt-6 md:px-8">{children}</main>
         </div>

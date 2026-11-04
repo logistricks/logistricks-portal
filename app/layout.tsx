@@ -65,6 +65,22 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Logistricks" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+              var p=location.pathname;if(p.indexOf('/login')===0||p.indexOf('/api')===0)return;
+              var d=document.documentElement,t=localStorage.getItem('portal-theme');
+              d.style.backgroundColor=t==='dark'?'#0C1424':'#f2f5fa';
+              var c=JSON.parse(localStorage.getItem('portal-theme-colors')||'null');
+              if(c){
+                if(c.primaryDark)d.style.setProperty('--brand-navy',c.primaryDark);
+                if(c.primaryMid)d.style.setProperty('--brand-navy-mid',c.primaryMid);
+                if(c.primaryLight)d.style.setProperty('--brand-navy-light',c.primaryLight);
+                if(c.accent){d.style.setProperty('--brand-accent',c.accent);var m=/^#?([0-9a-f]{6})$/i.exec(String(c.accent).trim());if(m){var v=parseInt(m[1],16);d.style.setProperty('--brand-accent-rgb',((v>>16)&255)+' '+((v>>8)&255)+' '+(v&255));}}
+              }
+            }catch(e){}})();`,
+          }}
+        />
       </head>
       <body className="antialiased">
         {children}

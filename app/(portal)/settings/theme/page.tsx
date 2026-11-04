@@ -180,6 +180,8 @@ function MiniPreview({ colors }: { colors: ThemeColors }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ThemeSettingsPage() {
   const [colors, setColors] = useState<ThemeColors>(DEFAULT_COLORS)
+  // Don't push the default colours onto the page before the saved theme has loaded (that flashed the default theme).
+  const [ready, setReady] = useState(false)
   const [copied, setCopied] = useState(false)
   const [toast, setToast]   = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -211,17 +213,19 @@ export default function ThemeSettingsPage() {
         }
       })
       .catch(() => { /* keep localStorage / default values */ })
+      .finally(() => setReady(true))
   }, [])
 
   // Apply colors to document root for live preview of the whole portal
   useEffect(() => {
+    if (!ready) return
     const root = document.documentElement
     root.style.setProperty("--brand-navy",       colors.primaryDark)
     root.style.setProperty("--brand-navy-mid",   colors.primaryMid)
     root.style.setProperty("--brand-navy-light",  colors.primaryLight)
     root.style.setProperty("--brand-accent",      colors.accent)
     root.style.setProperty("--brand-accent-hover", lighten(colors.accent, -0.1))
-  }, [colors])
+  }, [colors, ready])
 
   function updateColor(key: keyof ThemeColors, value: string) {
     setColors((prev) => {

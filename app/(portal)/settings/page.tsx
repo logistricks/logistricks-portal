@@ -375,6 +375,8 @@ function SettingsInner() {
   const [activePreset, setActivePreset] = useState<string>("Navy & Orange")
   const [copied, setCopied]             = useState(false)
   const [themeToast, setThemeToast]     = useState<string | null>(null)
+  // Brand colours are only written to the page once the saved theme has loaded; applying the defaults first made the whole portal flash to the default theme.
+  const [themeReady, setThemeReady]     = useState(false)
 
   useEffect(() => {
     const cc = sessionStorage.getItem("portal_client_code") ?? ""
@@ -435,6 +437,7 @@ function SettingsInner() {
             }
           } catch {}
         }
+        setThemeReady(true)
       })
       .catch(() => {
         try {
@@ -444,18 +447,20 @@ function SettingsInner() {
             setThemeColors(lsParsed)
           }
         } catch {}
+        setThemeReady(true)
       })
   }, [])
 
   // Apply theme colors to document root whenever they change
   useEffect(() => {
+    if (!themeReady) return
     const root = document.documentElement
     root.style.setProperty("--brand-navy",        themeColors.primaryDark)
     root.style.setProperty("--brand-navy-mid",    themeColors.primaryMid)
     root.style.setProperty("--brand-navy-light",  themeColors.primaryLight)
     root.style.setProperty("--brand-accent",      themeColors.accent)
     root.style.setProperty("--brand-accent-hover", lighten(themeColors.accent, -0.1))
-  }, [themeColors])
+  }, [themeColors, themeReady])
 
   // Email actions
   async function emailApi(method: "POST" | "PATCH" | "DELETE", body: object) {
