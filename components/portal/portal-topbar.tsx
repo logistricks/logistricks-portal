@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"
+import { ListChecks, LogOut } from "lucide-react"
 import { Suspense, useEffect, useRef, useState } from "react"
 import { ThemeToggle } from "@/components/portal/theme-toggle"
 import { useBranding } from "@/lib/use-branding"
@@ -68,7 +68,7 @@ export function PortalTopbar() {
   return (
     <>
       <header
-        className="sticky top-0 z-40 grid h-[68px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 sm:grid-cols-[1fr_auto_1fr] md:px-7"
+        className="sticky top-0 z-40 grid h-[68px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:grid-cols-[1fr_auto_1fr] md:px-7"
         style={{
           background: "linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 60%, var(--brand-navy-light) 100%)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -106,11 +106,12 @@ export function PortalTopbar() {
 
         {/* Right actions */}
         <div className="flex shrink-0 items-center gap-2 justify-self-end">
-          <Link href="/tasks" className="flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-bold transition-colors"
+          <Link href="/tasks" className="flex h-10 items-center gap-2 rounded-full px-3 text-[14px] font-bold sm:px-4 transition-colors"
             style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.16)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}>
-            Tasks
+            <ListChecks className="h-4 w-4 sm:hidden" aria-hidden />
+            <span className="max-sm:sr-only">Tasks</span>
             {taskCount.actionable > 0 && (
               <span className="min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11.5px] font-extrabold"
                 style={taskCount.overdue > 0 ? { background: "#ef4444", color: "#fff" } : { background: "var(--brand-accent)", color: "var(--brand-navy)" }}>

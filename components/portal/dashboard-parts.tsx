@@ -151,7 +151,7 @@ export function KpiTile({ label, kpi, format, spark, color = "var(--brand-accent
         )}
       </div>
       <div className="mt-3">{!loading && kpi && <Delta cur={kpi.value} prev={kpi.prev} lowerIsBetter={lowerIsBetter} />}</div>
-      <div className="mt-3 flex justify-center">{!loading && spark && <Spark values={spark} color={color} />}</div>
+      <div className="mt-3 flex justify-center">{!loading && spark && spark.some((v) => v > 0) && <Spark values={spark} color={color} />}</div>
   </>)
   if (href) return <Link href={href} {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`${cls} kpi-link`} title={hint}>{body}</Link>
   return <div className={cls} title={hint}>{body}</div>

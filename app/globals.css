@@ -695,6 +695,10 @@ select.ds-input, input.ds-input, textarea.ds-input { font-family: var(--font-san
 .range-seg-btn { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:9px 18px; border:0; cursor:pointer;
   font: 700 13.5px var(--font-display), var(--font-sans), system-ui, sans-serif; letter-spacing:.01em;
   color: rgba(255,255,255,.72); background: transparent; transition: background .15s, color .15s; white-space:nowrap; }
+@media (max-width: 480px) {
+  .range-seg { max-width: 100%; gap: 2px; padding: 4px; }
+  .range-seg-btn { padding: 8px 11px; font-size: 12.5px; gap: 4px; }
+}
 .range-seg-btn:hover { background: rgba(255,255,255,.12); color:#fff; }
 .range-seg-btn.is-on { background: var(--brand-accent); color: var(--brand-navy); box-shadow: 0 6px 14px -6px rgb(var(--brand-accent-rgb) / .7); }
 .range-seg-btn.is-on:hover { filter: brightness(.94); }

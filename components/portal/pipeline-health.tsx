@@ -86,6 +86,7 @@ export function PipelineHealth({ range }: { range: DashRange }) {
 
   const delta = data && data.score !== null && data.prevScore !== null ? data.score - data.prevScore : null
   const card = "ds-card mx-auto w-full p-6 md:p-7"
+  const empty = !!data && data.score === null && data.parts.every((p) => p.pct === null)
 
   return (
     <div className={card}>
@@ -103,7 +104,11 @@ export function PipelineHealth({ range }: { range: DashRange }) {
       {!data && busy && <div className="flex justify-center py-14"><Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--text-muted)" }} /></div>}
       {!data && !busy && err && <p className="py-10 text-center text-[13.5px]" style={{ color: "#dc2626" }}>Could not work out the score: {err}</p>}
 
-      {data && (
+      {data && empty && (
+        <p className="py-10 text-center text-[14px]" style={{ color: "var(--text-muted)" }}>Nothing to measure in this period yet. Scores appear once tasks fall due.</p>
+      )}
+
+      {data && !empty && (
         <>
           <div className="mt-5 grid items-center gap-6 lg:grid-cols-[230px_1fr_1fr]">
             {/* score */}

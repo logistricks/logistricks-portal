@@ -91,7 +91,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
   return (
     <div onMouseLeave={leave} className="contents">
       {/* ── Section buttons ── */}
-      <nav ref={navRef} aria-label="Main" className="relative flex min-w-0 items-center justify-center gap-0.5 sm:gap-1.5">
+      <nav ref={navRef} aria-label="Main" className="relative flex min-w-0 items-center justify-center gap-0.5 max-sm:justify-start max-sm:overflow-x-auto max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden sm:gap-1.5">
         <span aria-hidden className="pointer-events-none absolute bottom-0 top-0 rounded-full"
           style={{
             left: pill.left, width: pill.width, background: "rgba(255,255,255,0.14)", opacity: pill.show ? 1 : 0,
@@ -101,7 +101,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
           href={HOME_HREF}
           onClick={() => setPin(false)}
           aria-current={pathname === HOME_HREF && !pinned ? "page" : undefined}
-          className="relative flex items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
+          className="relative flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
           style={{
             color: pathname === HOME_HREF && !pinned ? "#ffffff" : "rgba(255,255,255,0.72)",
             fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif",
@@ -110,7 +110,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
         >
           <span>Home</span>
           {pathname === HOME_HREF && !pinned && (
-            <span aria-hidden className="absolute -bottom-[11px] left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
+            <span aria-hidden className="absolute -bottom-[11px] max-sm:bottom-0 left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
           )}
         </Link>
         {NAV.map((s) => {
@@ -126,7 +126,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
               onMouseEnter={() => enter(s.key)}
               onFocus={() => enter(s.key)}
               aria-current={isCurrent ? "page" : undefined}
-              className="relative flex items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
+              className="relative flex shrink-0 items-center gap-2 rounded-full px-3 py-2.5 text-[14px] font-bold sm:px-6 sm:text-[15.5px]"
               style={{
                 color: isCurrent || isShown ? "#ffffff" : "rgba(255,255,255,0.72)",
                 fontFamily: "var(--font-display), var(--font-sans), system-ui, sans-serif",
@@ -147,7 +147,7 @@ export function PortalNav({ counts, onPinned }: { counts: NavCounts; onPinned?: 
                 </>
               )}
               {isCurrent && (
-                <span aria-hidden className="absolute -bottom-[11px] left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
+                <span aria-hidden className="absolute -bottom-[11px] max-sm:bottom-0 left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full" style={{ background: "var(--brand-accent)" }} />
               )}
             </Link>
           )

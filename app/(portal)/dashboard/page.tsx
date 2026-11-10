@@ -21,7 +21,7 @@ import { BigDashboard, KpiTile, MainCharts, RangeFilter, SalesResults, useDashbo
 import { makeRange, money, hours, type DashRange } from "@/lib/dashboard-range"
 import { PipelineHealth } from "@/components/portal/pipeline-health"
 import { CHART_COLORS } from "@/components/portal/charts"
-import { HeroChecklist, HeroChip, PageHero } from "@/components/portal/page-hero"
+import { HeroChip, PageHero } from "@/components/portal/page-hero"
 
 interface ActivityItem {
   id: number
@@ -132,33 +132,25 @@ export default function DashboardPage() {
             <Link href="/requests" className="hero-chip-link"><HeroChip>{Math.round(dash.kpis.active.value ?? 0)} open right now</HeroChip></Link>
           </>
         ) : null}
-        aside={
-          <HeroChecklist
-            title="This period"
-            items={dash ? [
-              <><b>{Math.round(dash.kpis.requests.value ?? 0).toLocaleString("en-US")}</b> requests received</>,
-              <><b>{Math.round(dash.kpis.carrierQuotes.value ?? 0).toLocaleString("en-US")}</b> carrier quotes in</>,
-              <><b>{money(dash.kpis.quotedValue.value ?? 0)}</b> quoted</>,
-            ] : ["Loading…"]}
-          />
-        }
       />
 
       {/* Range and actions */}
-      <div className="flex flex-wrap items-center justify-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
         <RangeFilter range={range} onChange={setRange} compact />
+        <div className="flex items-center gap-3">
         <button type="button" onClick={() => setBig(true)}
-          className="flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-bold transition"
+          className="flex h-11 items-center gap-2 rounded-xl px-5 text-[14px] font-bold transition"
           style={{ background: "var(--brand-accent)", color: "var(--brand-navy)", boxShadow: "0 12px 24px -12px rgb(var(--brand-accent-rgb) / .7)" }}>
           <Maximize2 className="h-3.5 w-3.5" />
           Full dashboard
         </button>
         <button type="button" onClick={exportCsv}
-          className="flex items-center gap-2 rounded-xl border-[1.5px] px-6 py-3 text-[14px] font-bold transition"
+          className="flex h-11 items-center gap-2 rounded-xl border-[1.5px] px-5 text-[14px] font-bold transition"
           style={{ borderColor: "var(--text-secondary)", color: "var(--text-primary)", background: "var(--card-bg)" }}>
           <Download className="h-3.5 w-3.5" />
           Export
         </button>
+        </div>
       </div>
 
       {/* KPI row */}
