@@ -29,7 +29,7 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
   if (left || right) {
     return (
       <section
-        className="relative mb-4 overflow-hidden rounded-[22px] px-6 py-4 sm:px-8"
+        className="relative mb-5 overflow-hidden rounded-[22px] px-6 py-4 sm:px-8"
         style={{
           background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)",
           boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)",
@@ -61,7 +61,7 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
   }
   return (
     <section
-      className="relative mb-6 overflow-hidden rounded-[22px] px-6 py-6 sm:px-9 sm:py-8"
+      className="relative mb-5 overflow-hidden rounded-[22px] px-6 py-5 sm:px-9 sm:py-6"
       style={{
         background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)",
         boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)",
@@ -70,12 +70,12 @@ export function PageHero({ eyebrow, title, chips, aside, floatAside, actions, le
       <div className="relative flex flex-wrap items-center justify-center gap-6 text-center">
         <div className="min-w-0 flex-1" style={{ flexBasis: 320 }}>
           {eyebrow && (
-            <div className="mb-3 flex items-center justify-center gap-2 font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>
+            <div className="mb-2 flex items-center justify-center gap-2 font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--brand-accent)" }}>
               {eyebrow}
             </div>
           )}
-          <h1 className="text-[32px] font-extrabold leading-[1.08] text-white sm:text-[42px]">{title}</h1>
-          {chips && <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{chips}</div>}
+          <h1 className="text-[30px] font-extrabold leading-[1.08] text-white sm:text-[36px]">{title}</h1>
+          {chips && <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{chips}</div>}
           {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">{actions}</div>}
         </div>
         {floatAside ? <div className="md:absolute md:right-9 md:top-1/2 md:-translate-y-1/2">{aside}</div> : aside}

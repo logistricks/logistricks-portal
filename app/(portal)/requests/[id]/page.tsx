@@ -488,7 +488,7 @@ export default function RequestDetailPage() {
     <div className="portal-page flex flex-col" style={{ minHeight: "100vh" }}>
 
       {/* ── Back bar + header ────────────────────────────────────────────── */}
-      <div className="relative mx-6 mt-4 w-[calc(100%-3rem)] overflow-hidden rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
+      <div className="relative mx-4 mt-4 w-[calc(100%-2rem)] overflow-hidden sm:mx-6 sm:w-[calc(100%-3rem)] rounded-[22px] pb-0" style={{ background: "radial-gradient(900px 320px at 92% -30%, rgb(var(--brand-accent-rgb) / 0.30), transparent 60%), linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-mid) 100%)", boxShadow: "0 24px 48px -28px rgba(15,30,54,0.55)" }}>
         {/* back: arrow only, top left */}
         <Link href="/requests" aria-label="Back to requests" title="Back to requests"
           className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full text-white transition-all hover:brightness-90"
@@ -500,7 +500,7 @@ export default function RequestDetailPage() {
           {/* left: route */}
           <div className="flex flex-col items-center gap-1.5 lg:items-start lg:pl-14">
             <div className="flex flex-col items-center gap-1 lg:items-start">
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-row flex-wrap justify-center gap-x-8 gap-y-2 lg:flex-col lg:justify-start lg:gap-2.5">
                 <div>
                   <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/45">{seaOnly ? "Origin · POL" : "Origin"}</p>
                   <p className="font-display text-[20px] font-extrabold leading-tight text-white">{request.originFlag} {fieldValues.originCity ?? request.originCity}</p>
@@ -560,7 +560,7 @@ export default function RequestDetailPage() {
                 ["Intake", request.intakeSource === "manual" ? "Manual" : "Automatic"],
                 ["File", request.intakeFilename || "—"],
               ] as [string, string][]).map(([k, v], i) => (
-                <div key={k} className="min-w-0 px-3 py-2.5" style={{ borderLeft: i % 3 ? "1px solid rgba(255,255,255,0.1)" : "none", borderTop: i >= 3 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                <div key={k} className="min-w-0 px-2 py-2 sm:px-3 sm:py-2.5" style={{ borderLeft: i % 3 ? "1px solid rgba(255,255,255,0.1)" : "none", borderTop: i >= 3 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
                   <dt className="font-semibold uppercase tracking-wider text-white/50" style={{ fontSize: 9.5 }}>{k}</dt>
                   <dd className="mt-0.5 truncate text-[12.5px] font-semibold text-white" title={v}>{v}</dd>
                 </div>
@@ -888,7 +888,7 @@ export default function RequestDetailPage() {
       </div>
 
       {/* ── Floating action buttons: centred, always visible, no bar behind them ── */}
-      <div className="pointer-events-none sticky bottom-4 z-30 flex shrink-0 flex-wrap items-center justify-center gap-3 px-6 py-3">
+      <div className="pointer-events-none sticky bottom-0 z-30 flex shrink-0 flex-wrap items-center justify-center gap-3 px-4 pb-4 pt-10 sm:px-6" style={{ background: "linear-gradient(to top, var(--page-bg) 45%, transparent)" }}>
         {activeTab === "quotes" ? (
           <button
             onClick={() => setFwdOpen(true)}
@@ -919,7 +919,7 @@ export default function RequestDetailPage() {
           className="pointer-events-auto inline-flex h-8 items-center gap-1.5 rounded-full px-4 text-xs font-bold transition-all"
           style={{ border: "1px solid var(--card-border)", color: "var(--text-primary)", background: "var(--card-bg)", boxShadow: "0 6px 16px -6px rgba(0,0,0,0.35), 0 0 18px rgb(var(--brand-accent-rgb) / 0.12)" }}>
           <Reply className="h-3.5 w-3.5" />
-          Reply to {request.senderName}
+          <span className="max-w-[46vw] truncate sm:max-w-none">Reply to {request.senderName}</span>
           {missingCount > 0 && (
             <span className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ background: "#ef4444" }}>
               {missingCount}

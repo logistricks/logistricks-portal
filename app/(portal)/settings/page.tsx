@@ -782,12 +782,12 @@ function SettingsInner() {
                 checked={autoSend} busy={autoSendBusy} onToggle={toggleAutoSend}
               />
               <div className="rounded-xl border p-4" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Requests with several destinations</p>
                     <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>When a request asks for a price to more than one destination, send the carrier a separate email for each destination, or a single email that lists them all. Separate emails keep each carrier reply tied to its destination.</p>
                   </div>
-                  <select className="lt-select shrink-0" value={optionsMode} onChange={(e) => void changeOptionsMode(e.target.value === "one" ? "one" : "separate")} aria-label="Emails for several destinations">
+                  <select className="lt-select w-full sm:w-auto sm:shrink-0" value={optionsMode} onChange={(e) => void changeOptionsMode(e.target.value === "one" ? "one" : "separate")} aria-label="Emails for several destinations">
                     <option value="separate">Separate emails (one per destination)</option>
                     <option value="one">One email for all destinations</option>
                   </select>

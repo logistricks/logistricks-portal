@@ -24,11 +24,11 @@ export default function ReportsPage() {
         return (
           <section key={cat}>
             <h3 className="mb-4 text-center font-display text-[24px] font-extrabold" style={{ color: "var(--text-primary)" }}>{cat}</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="flex flex-wrap justify-center gap-4">
               {list.map((r) => {
                 const Icon = ICONS[r.icon]
                 return (
-                  <button key={r.id} type="button" onClick={() => setOpen(r)} className="ds-card group flex flex-col items-center gap-3 p-6 text-center transition">
+                  <button key={r.id} type="button" onClick={() => setOpen(r)} className="ds-card group flex w-full flex-col items-center gap-3 p-6 text-center transition sm:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.7rem)]">
                     <div className="flex items-start justify-between">
                       <div className="flex h-10 w-10 items-center justify-center rounded-[10px]" style={{ background: "var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .14))" }}>
                         <Icon className="h-5 w-5" style={{ color: "var(--brand-accent)" }} />

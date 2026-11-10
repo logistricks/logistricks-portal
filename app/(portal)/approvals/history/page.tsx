@@ -339,7 +339,7 @@ export default function ApprovalHistoryPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20 md:pb-0">
+    <div className="portal-page space-y-6 p-6 pb-20 md:pb-0">
       {/* Header */}
       <div className="page-band flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -383,7 +383,7 @@ export default function ApprovalHistoryPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Filter className="h-4 w-4 text-[var(--text-muted)] ml-1.5 shrink-0" />
           {(
             [
@@ -396,7 +396,7 @@ export default function ApprovalHistoryPage() {
             <button
               key={val}
               onClick={() => setFilterStatus(val)}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium transition-colors ${
                 filterStatus === val
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"

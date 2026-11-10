@@ -153,8 +153,8 @@ export function ActivityPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="page-band flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-[28px] font-extrabold leading-tight text-[var(--text-primary)]" style={{ letterSpacing: "-0.01em" }}>Activity Log</h2>
           {!loading && (
             <span className="rounded-full bg-[#F0F4F8] px-2.5 py-1 text-xs font-medium text-[#64748B] dark:bg-[#1E3A5F] dark:text-[var(--text-muted)]">
@@ -172,9 +172,11 @@ export function ActivityPanel() {
             </button>
           )}
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-lg border border-[#E2E8F0] bg-white p-0.5 dark:border-[#1E3A5F] dark:bg-[#111E33]">
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex max-w-full overflow-x-auto rounded-lg border border-[#E2E8F0] bg-white p-0.5 dark:border-[#1E3A5F] dark:bg-[#111E33]">
             {CATEGORIES.map((c) => (
               <button
                 key={c}

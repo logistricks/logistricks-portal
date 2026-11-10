@@ -509,35 +509,18 @@ function UsersInner() {
 
         {/* Stats */}
         {!loading && (
-          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="ds-card p-[18px]">
-              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(37,99,235,0.1)" }}>
-                <Users className="h-[18px] w-[18px]" style={{ color: "#2563eb" }} />
+          <div className="ds-card mb-5 grid grid-cols-2 overflow-hidden sm:grid-cols-4">
+            {([
+              ["Total users", list.length],
+              ["Active", activeCount],
+              ["Admins", adminCount],
+              ["Inactive", inactiveCount],
+            ] as [string, number][]).map(([label, n], idx) => (
+              <div key={label} className={`px-5 py-4 text-center ${idx > 0 ? "sm:border-l" : ""} ${idx % 2 ? "max-sm:border-l" : ""} ${idx >= 2 ? "max-sm:border-t" : ""}`} style={{ borderColor: "var(--divider)" }}>
+                <p className="text-[28px] font-bold leading-none tabular-nums" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{n}</p>
+                <p className="mt-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{label}</p>
               </div>
-              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{list.length}</p>
-              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Total Users</p>
-            </div>
-            <div className="ds-card p-[18px]">
-              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(22,163,74,0.1)" }}>
-                <UserCheck className="h-[18px] w-[18px]" style={{ color: "#16a34a" }} />
-              </div>
-              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{activeCount}</p>
-              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Active</p>
-            </div>
-            <div className="ds-card p-[18px]">
-              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgb(var(--brand-accent-rgb) / 0.12)" }}>
-                <ShieldCheck className="h-[18px] w-[18px]" style={{ color: "var(--brand-accent)" }} />
-              </div>
-              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{adminCount}</p>
-              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Admins</p>
-            </div>
-            <div className="ds-card p-[18px]">
-              <div className="mb-3 flex h-[38px] w-[38px] items-center justify-center rounded-[9px]" style={{ background: "rgba(220,38,38,0.08)" }}>
-                <UserMinus className="h-[18px] w-[18px]" style={{ color: "#dc2626" }} />
-              </div>
-              <p className="text-[28px] font-bold" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{inactiveCount}</p>
-              <p className="mt-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Inactive</p>
-            </div>
+            ))}
           </div>
         )}
 

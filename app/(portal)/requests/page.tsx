@@ -612,8 +612,8 @@ export default function RequestsPage() {
                   })()}
                   <div className="flex items-center justify-center gap-2 px-4 py-3" style={{ borderTop: "1px solid var(--card-border)", background: "color-mix(in srgb, var(--text-primary) 3%, var(--card-bg))" }} onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setActive(r)} title="Quick preview" aria-label={`Quick preview of ${r.requestRef ?? r.senderName}`}
-                      className="rq-preview inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-bold shadow-sm" style={{ background: "var(--brand-accent)", color: "var(--brand-navy)" }}>
-                      <Eye className="h-4 w-4" /> Preview
+                      className="rq-preview rq-preview-ghost inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-bold" style={{ background: "var(--card-bg)", color: "var(--text-primary)", border: "1.5px solid rgb(var(--brand-accent-rgb) / 0.55)" }}>
+                      <Eye className="h-4 w-4" style={{ color: "var(--brand-accent)" }} /> Preview
                     </button>
                     <a href={`/requests/${r.id}`} target="_blank" rel="noopener" title="Open full page in a new tab" aria-label="Open full page in a new tab"
                       className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ border: "1px solid var(--card-border)", color: "var(--text-secondary)", background: "var(--card-bg)" }}>

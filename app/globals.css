@@ -108,7 +108,7 @@
   --card-shadow:       0 1px 2px rgba(15,30,54,0.04), 0 8px 24px -10px rgba(15,30,54,0.10);
   --text-primary:      #0f1e36;
   --text-secondary:    #56667e;
-  --text-muted:        #8a9ab0;
+  --text-muted:        #66788f;
   --divider:           #e6ebf3;
   --table-header-bg:   #f7f8fa;
   --input-bg:          #ffffff;
@@ -521,6 +521,9 @@ button:focus-visible, a[href]:focus-visible, [role="button"]:focus-visible, summ
 .rq-chip-btn { transition: background .15s, color .15s, border-color .15s, box-shadow .15s; }
 .rq-chip-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-accent-ring, rgb(var(--brand-accent-rgb) / .18)); }
 .rq-preview { animation: lt-ring-in 1.8s ease-out 2; }
+.rq-preview-ghost { transition: background .15s, color .15s; }
+.rq-preview-ghost:hover { background: var(--brand-accent) !important; color: var(--brand-navy) !important; }
+.rq-preview-ghost:hover svg { color: var(--brand-navy) !important; }
 
 
 /* ── Trial-page look: one focus ring for every field in the portal ── */
