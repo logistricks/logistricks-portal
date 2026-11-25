@@ -23,7 +23,7 @@ async function verifySession(cookie: string): Promise<Verdict> {
     const payload = cookie.slice(0, dotIndex)
     const sig = cookie.slice(dotIndex + 1)
 
-    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const secret = process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!secret) return { ok: false, reason: "no-secret" }
 
     const enc = new TextEncoder()

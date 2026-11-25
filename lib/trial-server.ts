@@ -2,6 +2,7 @@
 import { createHash, createHmac, randomInt, timingSafeEqual } from "crypto"
 import type { NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
+import { sessionSecret } from "@/lib/session-secret"
 import { TYPE_LABEL, isShipmentType, quotableCheck, type ShipmentType } from "@/lib/shipment-types"
 import { toStringList } from "@/lib/special"
 
@@ -10,7 +11,7 @@ export const RETENTION_DAYS = 5
 export const RESUME_HOURS = 48
 const SESSION_HOURS = 12
 
-const secret = () => "trial:" + process.env.SUPABASE_SERVICE_ROLE_KEY!
+const secret = () => "trial:" + sessionSecret()
 const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("base64url")
 
 export function signTrial(leadId: string): string {

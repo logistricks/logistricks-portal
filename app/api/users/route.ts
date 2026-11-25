@@ -7,7 +7,9 @@
 
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient }                    from "@supabase/supabase-js"
-import { createHash, createHmac }          from "crypto"
+import { createHmac }                    from "crypto"
+import { hashPassword }                  from "@/lib/password"
+import { safeEqual, sessionSecret }      from "@/lib/session-secret"
 import { logActivity }                     from "@/lib/log-activity"
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
@@ -18,10 +20,10 @@ function getSession(cookie: string): { username: string; clientCode: string } | 
     if (dotIndex === -1) return null
     const payload  = cookie.slice(0, dotIndex)
     const sig      = cookie.slice(dotIndex + 1)
-    const expected = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const expected = createHmac("sha256", sessionSecret())
       .update(payload)
       .digest("base64url")
-    if (expected !== sig) return null
+    if (!safeEqual(expected, sig)) return null
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"))
     if (!data.username || !data.clientCode || !data.exp) return null
     if (Date.now() > data.exp) return null
@@ -45,9 +47,6 @@ function auth(req: NextRequest): { username: string; clientCode: string } | null
   return getSession(cookie)
 }
 
-function hashPassword(p: string): string {
-  return createHash("sha256").update(p).digest("hex")
-}
 
 function validRole(r: unknown): r is "admin" | "operator" | "viewer" {
   return r === "admin" || r === "operator" || r === "viewer"
@@ -108,8 +107,8 @@ export async function POST(req: NextRequest) {
 
   if (!username || username.length > 15)
     return NextResponse.json({ error: "username required (max 15 chars)" }, { status: 400 })
-  if (!password || password.length < 6)
-    return NextResponse.json({ error: "password must be at least 6 characters" }, { status: 400 })
+  if (!password || password.length < 8)
+    return NextResponse.json({ error: "password must be at least 8 characters" }, { status: 400 })
 
   const { error } = await db.from("portal_users").insert({
     client_code:      session.clientCode,
@@ -120,7 +119,7 @@ export async function POST(req: NextRequest) {
     is_active:        true,
     allowed_carriers,
     allowed_modes,
-    password_hash:    hashPassword(password),
+    password_hash:    await hashPassword(password),
   })
 
   if (error) {
@@ -173,9 +172,9 @@ export async function PATCH(req: NextRequest) {
   if (isAdmin && Array.isArray(body.allowed_modes))    patch.allowed_modes     = body.allowed_modes
 
   if (body.password !== undefined) {
-    if ((body.password as string).length < 6)
-      return NextResponse.json({ error: "password must be at least 6 characters" }, { status: 400 })
-    patch.password_hash = hashPassword(body.password as string)
+    if ((body.password as string).length < 8)
+      return NextResponse.json({ error: "password must be at least 8 characters" }, { status: 400 })
+    patch.password_hash = await hashPassword(body.password as string)
   }
 
   if (Object.keys(patch).length === 0)

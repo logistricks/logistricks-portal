@@ -3,6 +3,7 @@ import { adminOnly } from "@/lib/api-admin"
 import { reinsertRows, restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { createClient } from "@supabase/supabase-js"
 import { createHmac } from "crypto"
+import { safeEqual, sessionSecret } from "@/lib/session-secret"
 
 function getSession(cookie: string) {
   try {
@@ -10,9 +11,9 @@ function getSession(cookie: string) {
     if (dotIndex === -1) return null
     const payload  = cookie.slice(0, dotIndex)
     const sig      = cookie.slice(dotIndex + 1)
-    const expected = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const expected = createHmac("sha256", sessionSecret())
       .update(payload).digest("base64url")
-    if (expected !== sig) return null
+    if (!safeEqual(expected, sig)) return null
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"))
     if (!data.username || !data.clientCode || !data.exp) return null
     if (Date.now() > data.exp) return null

@@ -15,6 +15,7 @@ import { restoreRows, saveUndo, snapshot } from "@/lib/undo"
 import { typedMissing } from "@/lib/shipment-types"
 import { loadCriticalConfig } from "@/lib/critical-config"
 import { chargeableWeight } from "@/lib/shipment-calc"
+import { safeEqual, sessionSecret } from "@/lib/session-secret"
 
 function getSession(cookie: string): { username: string; clientCode: string } | null {
   try {
@@ -22,10 +23,10 @@ function getSession(cookie: string): { username: string; clientCode: string } | 
     if (dotIndex === -1) return null
     const payload = cookie.slice(0, dotIndex)
     const sig = cookie.slice(dotIndex + 1)
-    const expected = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const expected = createHmac("sha256", sessionSecret())
       .update(payload)
       .digest("base64url")
-    if (expected !== sig) return null
+    if (!safeEqual(expected, sig)) return null
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"))
     if (!data.username || !data.clientCode || !data.exp) return null
     if (Date.now() > data.exp) return null
