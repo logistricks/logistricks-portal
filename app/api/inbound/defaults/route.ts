@@ -4,13 +4,14 @@ import { adminClient } from "@/lib/api-session"
 import { flatDefaults, loadDefaults } from "@/lib/default-locations"
 import { loadCriticalConfig } from "@/lib/critical-config"
 import { SHIPMENT_TYPES, criticalFor, criticalText } from "@/lib/shipment-types"
+import { safeEqual } from "@/lib/session-secret"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 async function handle(req: NextRequest, cc: string | null) {
   const secret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!secret || req.headers.get("x-portal-secret") !== secret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!secret || !safeEqual(req.headers.get("x-portal-secret") ?? "", secret)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   if (!cc) return NextResponse.json({ error: "client_code required" }, { status: 400 })
   const admin = adminClient()
   const crit = await loadCriticalConfig(admin, cc)

@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sessionWithRole } from "@/lib/api-admin"
 import { clientFromWorkflowName, logEvent } from "@/lib/system-events"
+import { safeEqual } from "@/lib/session-secret"
 
 export const dynamic = "force-dynamic"
 
@@ -46,7 +47,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const secret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!secret || req.headers.get("x-portal-secret") !== secret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!secret || !safeEqual(req.headers.get("x-portal-secret") ?? "", secret)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const b = await req.json().catch(() => null)
   if (!b || typeof b !== "object") return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   const admin = adminClient()

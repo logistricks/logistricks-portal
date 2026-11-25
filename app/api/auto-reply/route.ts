@@ -33,6 +33,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sendClientMail } from "@/lib/mailer"
 import { htmlToPlainText } from "@/lib/quotation-render"
+import { safeEqual } from "@/lib/session-secret"
 
 type VarMap = Record<string, string>
 
@@ -104,7 +105,7 @@ function wrapHtml(_subject: string, bodyContent: string): string {
 export async function POST(req: NextRequest) {
   const secret = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || secret !== envSecret) {
+  if (!envSecret || !safeEqual(secret ?? "", envSecret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

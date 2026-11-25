@@ -31,6 +31,7 @@ import { NextResponse, after, type NextRequest } from "next/server"
 import { notify, requestValues } from "@/lib/notify"
 import { adminClient } from "@/lib/api-session"
 import { logActivity } from "@/lib/log-activity"
+import { safeEqual } from "@/lib/session-secret"
 
 const UPDATABLE_FIELDS = [
   "cargo_type", "weight", "quantity", "dimensions",
@@ -44,7 +45,7 @@ export async function POST(
 ) {
   const secret = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || secret !== envSecret) {
+  if (!envSecret || !safeEqual(secret ?? "", envSecret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

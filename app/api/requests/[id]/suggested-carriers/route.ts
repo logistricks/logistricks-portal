@@ -24,6 +24,7 @@ import { toCountryCode } from "@/lib/countries"
 import { defaultTemplateFor } from "@/lib/template-defaults"
 import { loadCarrierContacts, renderRfqDraft } from "@/lib/rfq-send"
 import { extraLegs, isAltLeg } from "@/lib/shipment-types"
+import { safeEqual } from "@/lib/session-secret"
 
 export const dynamic = "force-dynamic"
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (cookie) clientCode = getSession(cookie)?.clientCode ?? null
   if (!clientCode) {
     const secret = process.env.PORTAL_WEBHOOK_SECRET
-    if (secret && req.headers.get("x-portal-secret") === secret) clientCode = req.nextUrl.searchParams.get("client_code")
+    if (secret && safeEqual(req.headers.get("x-portal-secret") ?? "", secret)) clientCode = req.nextUrl.searchParams.get("client_code")
   }
   if (!clientCode) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 

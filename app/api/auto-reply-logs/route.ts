@@ -71,7 +71,7 @@ const VALID_TYPES = new Set(["acknowledgement", "missing_fields", "carrier", "qu
 export async function POST(req: NextRequest) {
   const secret    = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || secret !== envSecret)
+  if (!envSecret || !safeEqual(secret ?? "", envSecret))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   let body: Record<string, unknown>

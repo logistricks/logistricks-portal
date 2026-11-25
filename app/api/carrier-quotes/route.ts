@@ -72,6 +72,7 @@ import { syncRequestStatus } from "@/lib/request-status"
 import { normId } from "@/lib/inbound-match"
 import { resolveCarrierPk } from "@/lib/quote-suggest"
 import { allLegs, destinationOf, rowForLeg } from "@/lib/shipment-types"
+import { safeEqual } from "@/lib/session-secret"
 
 /**
  * Which destination option a quote is for. The extraction may give `leg_index` (0 = option 1) or the destination as the carrier
@@ -114,7 +115,7 @@ type Match = { id: number; freight_request_id: string; carrier_id: number; leg_i
 export async function POST(req: NextRequest) {
   const secret    = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || secret !== envSecret) {
+  if (!envSecret || !safeEqual(secret ?? "", envSecret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

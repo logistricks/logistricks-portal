@@ -57,7 +57,7 @@ export async function POST(
   // Auth — n8n calls this with the portal_session cookie OR an API secret header
   // For simplicity we accept either the session cookie or X-Portal-Secret header
   const secret = req.headers.get("x-portal-secret")
-  const validSecret = secret && secret === process.env.PORTAL_WEBHOOK_SECRET
+  const validSecret = secret && safeEqual(secret, process.env.PORTAL_WEBHOOK_SECRET ?? "")
   const cookie  = req.cookies.get("portal_session")?.value
   const session = cookie ? getSession(cookie) : null
 

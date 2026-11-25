@@ -5,6 +5,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { addrs, mailboxClient, normId, normSubject, parseIds } from "@/lib/inbound-match"
+import { safeEqual } from "@/lib/session-secret"
 
 export const runtime = "nodejs"
 const KINDS = ["request", "requester_reply", "carrier_reply", "other"]
@@ -12,7 +13,7 @@ const t = (v: unknown, max: number) => { const s = String(v ?? "").trim(); retur
 
 export async function POST(req: NextRequest) {
   const secret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!secret || req.headers.get("x-portal-secret") !== secret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!secret || !safeEqual(req.headers.get("x-portal-secret") ?? "", secret)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const b = await req.json().catch(() => null)
   if (!b) return NextResponse.json({ error: "Bad request" }, { status: 400 })
   const admin = adminClient()

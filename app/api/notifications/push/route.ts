@@ -12,12 +12,13 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { sendPushNotification } from "@/lib/web-push"
+import { safeEqual } from "@/lib/session-secret"
 
 export async function POST(req: NextRequest) {
   // Auth: X-Portal-Secret header
   const secret = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || secret !== envSecret) {
+  if (!envSecret || !safeEqual(secret ?? "", envSecret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

@@ -13,6 +13,7 @@ import { adminClient } from "@/lib/api-session"
 import { notify, requestValues } from "@/lib/notify"
 import { detectFlags } from "@/lib/aog-dgr-detector"
 import { isExw, hasText } from "@/lib/shipment-labels"
+import { safeEqual } from "@/lib/session-secret"
 
 export const runtime = "nodejs"
 
@@ -28,7 +29,7 @@ const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).
 
 export async function POST(req: NextRequest) {
   const secret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!secret || req.headers.get("x-portal-secret") !== secret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!secret || !safeEqual(req.headers.get("x-portal-secret") ?? "", secret)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const b = await req.json().catch(() => null)
   if (!b || typeof b.client_code !== "string" || !b.client_code.trim()) return NextResponse.json({ error: "client_code required" }, { status: 400 })
 

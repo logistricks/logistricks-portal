@@ -12,13 +12,14 @@ import { NextResponse, type NextRequest } from "next/server"
 import { adminClient } from "@/lib/api-session"
 import { fetchNew, imapError, imapPassword, ensureReceiverEmail, type ImapSource } from "@/lib/imap"
 import { encryptSecret } from "@/lib/secret-box"
+import { safeEqual } from "@/lib/session-secret"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || req.headers.get("x-portal-secret") !== envSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!envSecret || !safeEqual(req.headers.get("x-portal-secret") ?? "", envSecret)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json().catch(() => ({})) as Record<string, unknown>
   const admin = adminClient()
 

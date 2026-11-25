@@ -28,6 +28,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSession, adminClient } from "@/lib/api-session"
 import { randomBytes } from "crypto"
+import { safeEqual } from "@/lib/session-secret"
 
 function resolveClientCode(req: NextRequest, body: Record<string, unknown>): string | null {
   const cookie = req.cookies.get("portal_session")?.value
@@ -37,7 +38,7 @@ function resolveClientCode(req: NextRequest, body: Record<string, unknown>): str
   }
   const secret    = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (envSecret && secret === envSecret && typeof body.client_code === "string") {
+  if (envSecret && safeEqual(secret ?? "", envSecret) && typeof body.client_code === "string") {
     return body.client_code
   }
   return null
@@ -104,7 +105,7 @@ export async function PATCH(req: NextRequest) {
 
   const secret    = req.headers.get("x-portal-secret")
   const envSecret = process.env.PORTAL_WEBHOOK_SECRET
-  if (!envSecret || secret !== envSecret) {
+  if (!envSecret || !safeEqual(secret ?? "", envSecret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
