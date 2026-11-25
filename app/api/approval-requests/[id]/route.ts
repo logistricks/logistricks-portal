@@ -343,6 +343,7 @@ export async function PATCH(
       await admin.from("freight_requests")
         .update({ status: approvedStatus })
         .eq("id", requestId)
+        .ilike("client_code", session.clientCode)
 
       await admin.from("notifications").insert({
         client_code: session.clientCode,
@@ -423,6 +424,7 @@ export async function PATCH(
     await admin.from("freight_requests")
       .update({ status: "Rejected" })
       .eq("id", requestId)
+      .ilike("client_code", session.clientCode)
 
     await admin.from("notifications").insert({
       client_code: session.clientCode,

@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Update freight request status to "In Review"
-  await admin.from("freight_requests").update({ status: "Waiting for Approval" }).eq("id", request_id)
+  await admin.from("freight_requests").update({ status: "Waiting for Approval" }).eq("id", request_id).ilike("client_code", session.clientCode)
 
   // Save the email the submitter composed as the initial draft for step 1
   const firstStepRow = inserted?.[0] as any
