@@ -11,6 +11,7 @@ import { sanitizeQuotationHtml } from "@/lib/quotation-html"
 import { htmlToPlainText, renderTemplate, fmtDate, type RenderCtx } from "@/lib/quotation-render"
 import { mapDbToRequest } from "@/lib/supabase-queries"
 import { EVENT_BY_KEY, emailDocument, normalizeRecipients, type NotificationEvent } from "@/lib/notification-events"
+import { blockedHost } from "@/lib/net-guard"
 
 export interface SmtpConfig {
   host: string; port: number; security: "ssl" | "starttls" | "none"
@@ -63,6 +64,8 @@ async function microsoftToken(cfg: SmtpConfig): Promise<string> {
 }
 
 export async function transport(cfg: SmtpConfig) {
+  const blocked = await blockedHost(cfg.host)
+  if (blocked) throw Object.assign(new Error(blocked), { code: "EHOSTBLOCKED" })
   const oauth = cfg.auth_method === "oauth2_microsoft"
   return nodemailer.createTransport({
     host: cfg.host, port: cfg.port,

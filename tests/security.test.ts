@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { createHash, createHmac } from "node:crypto"
 import { burnVerify, hashPassword, verifyPassword } from "../lib/password"
 import { safeEqual, sessionSecret } from "../lib/session-secret"
+import { blockedHost, isPrivateIp } from "../lib/net-guard"
 import { clearFailures, failureCount, recordFailure } from "../lib/rate-limit"
 
 let failed = 0
@@ -67,6 +68,11 @@ async function main() {
     assert.equal(await failureCount(db, "login:test:other", 60_000), 0)
     await clearFailures(db, key)
     assert.equal(await failureCount(db, key, 60_000), 0)
+  })
+  await t("net-guard blocks loopback, private, metadata and bad host names", async () => {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "192.168.0.5", "172.16.0.1", "169.254.169.254", "::1", "fd00::1", "::ffff:10.0.0.1", "0.0.0.0"]) assert.equal(isPrivateIp(ip), true, ip)
+    for (const ip of ["8.8.8.8", "1.1.1.1"]) assert.equal(isPrivateIp(ip), false, ip)
+    for (const h of ["localhost", "127.0.0.1", "169.254.169.254", "foo.internal", "a b", "", "x@y"]) assert.ok(await blockedHost(h), h)
   })
   if (failed) { console.log(`\n${failed} test(s) failed`); process.exit(1) }
   console.log("\nall security tests passed")

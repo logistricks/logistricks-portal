@@ -5,6 +5,7 @@
 import { ImapFlow } from "imapflow"
 import { simpleParser } from "mailparser"
 import { decryptSecret } from "@/lib/secret-box"
+import { blockedHost } from "@/lib/net-guard"
 
 export interface ImapSource {
   id: string; client_code: string; name: string
@@ -41,6 +42,8 @@ export function imapError(e: unknown): string {
 
 export async function testImap(c: ImapCreds): Promise<{ ok: true; messages: number } | { ok: false; error: string }> {
   if (!c.host || !c.user || !c.pass) return { ok: false, error: "Host, username and password are required." }
+  const blocked = await blockedHost(c.host)
+  if (blocked) return { ok: false, error: blocked }
   const cl = client(c)
   cl.on("error", () => {})
   try {
@@ -65,7 +68,10 @@ export interface FetchResult { baselined: boolean; items: Record<string, unknown
  * The cursor is NOT advanced here: the caller acknowledges each uid after the workflow handled it.
  */
 export async function fetchNew(s: ImapSource, limits = { maxEmails: 10, maxBytes: 3_000_000 }): Promise<FetchResult> {
-  const cl = client(credsOf(s))
+  const creds = credsOf(s)
+  const blocked = await blockedHost(creds.host)
+  if (blocked) throw new Error(blocked)
+  const cl = client(creds)
   cl.on("error", () => {})
   await cl.connect()
   const lock = await cl.getMailboxLock("INBOX", { readOnly: true })
