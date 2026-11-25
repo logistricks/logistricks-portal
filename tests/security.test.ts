@@ -4,6 +4,7 @@ import { createHash, createHmac } from "node:crypto"
 import { burnVerify, hashPassword, verifyPassword } from "../lib/password"
 import { safeEqual, sessionSecret } from "../lib/session-secret"
 import { blockedHost, isPrivateIp } from "../lib/net-guard"
+import { stripLinks } from "../lib/untrusted"
 import { clearFailures, failureCount, recordFailure } from "../lib/rate-limit"
 
 let failed = 0
@@ -73,6 +74,13 @@ async function main() {
     for (const ip of ["127.0.0.1", "10.1.2.3", "192.168.0.5", "172.16.0.1", "169.254.169.254", "::1", "fd00::1", "::ffff:10.0.0.1", "0.0.0.0"]) assert.equal(isPrivateIp(ip), true, ip)
     for (const ip of ["8.8.8.8", "1.1.1.1"]) assert.equal(isPrivateIp(ip), false, ip)
     for (const h of ["localhost", "127.0.0.1", "169.254.169.254", "foo.internal", "a b", "", "x@y"]) assert.ok(await blockedHost(h), h)
+  })
+  await t("stripLinks removes links and hidden control characters from email-derived text", () => {
+    assert.equal(stripLinks("Pay at https://evil.example/x?a=1 now"), "Pay at [link removed] now")
+    assert.equal(stripLinks("see www.evil.com/login"), "see [link removed]")
+    assert.equal(stripLinks("javascript:alert(1)"), "[link removed]")
+    assert.equal(stripLinks("2 x 40HC\u202E"), "2 x 40HC")
+    assert.equal(stripLinks("Weight 12 t, 24 CBM"), "Weight 12 t, 24 CBM")
   })
   if (failed) { console.log(`\n${failed} test(s) failed`); process.exit(1) }
   console.log("\nall security tests passed")

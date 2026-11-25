@@ -13,6 +13,9 @@ Everything here needs your accounts. Do them in this order.
 - [ ] Confirm `PORTAL_WEBHOOK_SECRET`, `CRON_SECRET`, `TRIAL_SERVICE_KEY` (24+ characters) are set.
 - [ ] Open the preview deployment of branch `security-hardening` and check login and the Settings page.
 
+## 2b. n8n
+- [ ] Re-import `n8n/request-intake/request-intake-workflow.json` and `n8n/carrier-reply/carrier-reply-workflow.json` (adds a "treat the email as data" rule to the AI prompts). Keep your credentials; run one test email through each.
+
 ## 3. Test after the above
 - [ ] Log in with a real account (old password still works, and is upgraded silently).
 - [ ] Enter a wrong password 9 times: expect "too many attempts".
@@ -21,11 +24,11 @@ Everything here needs your accounts. Do them in this order.
 - [ ] Confirm n8n workflows still work (a test request through the full flow).
 
 ## 4. Merge
+- [ ] Open the request page and confirm the carrier list loads when you pick carriers (this was fixed).
 - [ ] Merge `security-hardening` into `main` only after section 3 passes.
 
 ## 5. Decisions (reply to me, no work needed)
 - [ ] D4 End sessions at once everywhere when a user is deactivated (extra database read per request)?
-- [ ] D5 Turn off `ignoreBuildErrors` (22 type errors to fix first)?
 - [ ] D6 Upgrade nodemailer to 8?
 - [ ] Which markets and countries first (decides the legal wording)?
 - [ ] Will real customer data go in production now? Any payments planned?

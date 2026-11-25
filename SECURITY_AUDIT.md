@@ -16,11 +16,12 @@ Branch `security-hardening`. Scope: this repo only. Everything below was checked
 | S8 | Medium | Settings → WhatsApp numbers | Browser used the anon Supabase client directly. | Moved to the session-checked API `/api/settings/numbers`. | Fixed |
 | S9 | Medium | Email-source and SMTP hosts | Admin-supplied hosts let the server connect to internal addresses (SSRF). | `lib/net-guard.ts` blocks loopback, private, link-local and metadata ranges, checked after DNS lookup, in IMAP test and fetch and in SMTP send. | Fixed |
 | S10 | Medium | All responses | No security headers. | HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, a conservative CSP (no framing, objects, base or foreign forms). Script CSP not enforced: Next inline bootstrap needs nonces. | Fixed (partial CSP) |
-| S11 | Low | `next.config.mjs` | `typescript.ignoreBuildErrors: true` hides 22 type errors. Two config files existed. | Duplicate `next.config.ts` removed. Flag left on (D5). | Partly fixed |
+| S11 | Low | `next.config.mjs` | `typescript.ignoreBuildErrors: true` hid 22 type errors. Two config files existed. | All 22 errors fixed (they included a stale carrier list on the request page, now working again), flag removed, duplicate config removed, `npm run typecheck` added. | Fixed |
 | S12 | Low | Anon policies 011, 012, 010 | `anon_lookup` on receiver emails and WhatsApp numbers and the `active_client_by_email` view are readable by anon. n8n may rely on them. | Left commented in 078. | Open: D2 |
 | S13 | Low | `nodemailer` 6.10.1 | Two advisories (envelope.size SMTP injection, domain interpretation). The portal never passes user input as `envelope.size`. Upgrading to 8 added 6 type errors. | Not changed. | Open: D6 |
 | S14 | Low | `next` (via postcss), `exceljs` (uuid) | Remaining audit items are moderate and fix only with breaking changes. | Not changed. | Open |
-| S15 | Info | Tenancy | Isolation is per-query `.eq("client_code", …)` because the service role bypasses RLS. Triaged the id-only updates: approval-cycles, undo, carrier-quotes (disregard, move) all check ownership first. No cross-tenant hole found in what was read. About 80 other scan hits were **not individually reviewed**. | None. Recommend a second pass. | Partial |
+| S16 | Medium | Email to AI to outgoing RFQ | A crafted request email could make the AI copy attacker text or links into fields that are re-sent to carriers. The AI only returns schema fields (no free-written email), which limits the damage. | Rule added to both extraction prompts (email is data, not instructions, no links). Server removes links and hidden characters from extracted fields (`lib/untrusted.ts`). The n8n workflows must be re-imported to get the prompt change. | Fixed in code, needs n8n re-import |
+| S15 | Info | Tenancy | Isolation is per-query `.eq("client_code", …)` because the service role bypasses RLS. Second pass done: all 87 scan hits were read. Every one sits after an ownership check on the parent request, quote or step, or is behind the n8n shared secret. No cross-tenant hole found. Three status updates got an extra `client_code` condition as defence in depth. | Done | Closed |
 
 ## Checked, no issue found
 - Secrets: no `.env`, keys or tokens in the tree or the last 200 commits (patterns for JWTs, `sk-`, Google, GitHub, AWS, Slack, private keys). `service_role` hits are RLS policy names.
@@ -31,7 +32,7 @@ Branch `security-hardening`. Scope: this repo only. Everything below was checked
 ## Not done or not testable here
 - `next build` fails in the sandbox only because Google Fonts cannot be fetched. Type check was used instead (22 errors, same as before).
 - No live test of login, lockout, RLS or n8n flows.
-- LLM and prompt-injection exposure (n8n, Gemini) was not reviewed in depth.
+- Prompt injection: reviewed the request-intake and carrier-reply extraction (structured output only, approval steps stay in place) and the trial keyword guard (fails closed). The Gemini nodes themselves and n8n credentials were not inspected. The quotation check and fix prompts take only portal-generated text.
 - Inbound webhook payloads (`/api/inbound/*`) trust `client_code` from the n8n caller, by design, behind the shared secret.
 - Rate limits on public endpoints other than login and trial login were not added.
 
@@ -40,7 +41,6 @@ Branch `security-hardening`. Scope: this repo only. Everything below was checked
 - **D2** Does n8n use the anon key for receiver emails, WhatsApp numbers or `active_client_by_email`? If not, uncomment those lines in 078.
 - **D3** Set `SESSION_SECRET` in Vercel (long random string). All users are signed out once.
 - **D4** Should deactivation or role change end sessions at once on every route (adds a database read per request)?
-- **D5** Turn off `ignoreBuildErrors` after fixing the 22 type errors?
 - **D6** Upgrade nodemailer to 8 (needs small type fixes and a send test).
 
 ## Manual follow-ups
