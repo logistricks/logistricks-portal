@@ -396,8 +396,9 @@ function SettingsInner() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setEmailsLoading(false))
 
-    supabase.from("client_whatsapp_numbers").select("id, number, active, label").eq("client_code", cc).order("created_at")
-      .then(({ data }) => { setNumbers(data ?? []); setNumsLoading(false) })
+    fetch("/api/settings/numbers", { cache: "no-store" }).then((r) => (r.ok ? r.json() : []))
+      .then((data) => { setNumbers(Array.isArray(data) ? data : []); setNumsLoading(false) })
+      .catch(() => setNumsLoading(false))
 
     fetch("/api/settings").then((r) => r.json()).then((data) => {
       if (data && !data.error) {
@@ -513,23 +514,26 @@ function SettingsInner() {
   // WhatsApp actions
   async function toggleNumber(row: WhatsappNumber) {
     setNumBusy(row.id); const next = !row.active
-    const { error } = await supabase.from("client_whatsapp_numbers").update({ active: next }).eq("id", row.id)
+    const res = await fetch("/api/settings/numbers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, active: next }) })
+    const error = res.ok ? null : { message: (await res.json().catch(() => ({})))?.error ?? "Could not update the number" }
     if (error) setError(error.message)
     else setNumbers((p) => p.map((n) => n.id === row.id ? { ...n, active: next } : n))
     setNumBusy(null)
   }
   async function deleteNumber(id: string) {
     setNumBusy(id)
-    const { error } = await supabase.from("client_whatsapp_numbers").delete().eq("id", id)
+    const res = await fetch("/api/settings/numbers", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+    const error = res.ok ? null : { message: (await res.json().catch(() => ({})))?.error ?? "Could not delete the number" }
     if (error) setError(error.message)
     else setNumbers((p) => p.filter((n) => n.id !== id))
     setNumBusy(null)
   }
   async function addNumber() {
     if (!newNum.trim()) return; setAddingNum(true)
-    const { data, error } = await supabase.from("client_whatsapp_numbers")
-      .insert({ client_code: clientCode, number: newNum.trim(), label: newNumLabel.trim() || null, active: true })
-      .select("id, number, active, label").single()
+    const res = await fetch("/api/settings/numbers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: newNum.trim(), label: newNumLabel.trim() || null }) })
+    const out = await res.json().catch(() => ({}))
+    const data = res.ok ? out : null
+    const error = res.ok ? null : { message: out?.error ?? "Could not add the number" }
     if (error) setError(error.message)
     else { setNumbers((p) => [...p, data]); setNewNum(""); setNewNumLabel("") }
     setAddingNum(false)
