@@ -6,7 +6,9 @@ export async function sessionWithRole(req: NextRequest): Promise<{ session: Sess
   const cookie = req.cookies.get("portal_session")?.value
   const session = cookie ? getSession(cookie) : null
   if (!session) return null
-  const { data } = await adminClient().from("portal_users").select("role, auth_email").eq("id", session.userId).maybeSingle()
+  const { data } = await adminClient().from("portal_users").select("role, auth_email, is_active").eq("id", session.userId).maybeSingle()
+  // A deactivated or deleted user loses access immediately, not when the 8-hour cookie runs out.
+  if (!data || data.is_active === false) return null
   return { session, role: String(data?.role ?? "viewer"), email: data?.auth_email ?? null }
 }
 
