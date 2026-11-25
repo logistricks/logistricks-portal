@@ -7,6 +7,9 @@
 import { createClient } from "@supabase/supabase-js"
 
 export type ActivityEventType =
+  | "user_created"
+  | "user_updated"
+  | "user_deactivated"
   | "request_received"
   | "request_status_changed"
   | "request_field_edited"

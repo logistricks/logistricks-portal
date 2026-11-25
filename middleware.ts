@@ -36,7 +36,7 @@ async function verifySession(cookie: string): Promise<Verdict> {
     )
 
     const sigBytes = await base64urlDecode(sig)
-    const valid = await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(payload))
+    const valid = await crypto.subtle.verify("HMAC", key, sigBytes as unknown as BufferSource, enc.encode(payload))
     if (!valid) return { ok: false, reason: "bad-signature" }
 
     const json = new TextDecoder().decode(await base64urlDecode(payload))

@@ -61,14 +61,13 @@ import {
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function groupCarrierRows(rows: CarrierRow[]): Carrier[] {
+type CarrierApiRow = Carrier & { id: number; is_cc?: boolean }
+function groupCarrierRows(rows: CarrierApiRow[]): Carrier[] {
+  // /api/carriers returns one row per contact; copy rows (is_cc) only add cc addresses to their carrier
+  const list = Array.isArray(rows) ? rows : []
   const map = new Map<number, Carrier>()
-  for (const row of rows) {
-    if (!map.has(row.carrier_id)) {
-      map.set(row.carrier_id, { carrier_id: row.carrier_id, name: row.name, contacts: [] })
-    }
-    map.get(row.carrier_id)!.contacts.push({ contact_id: row.contact_id, name: row.contact_name, email: row.email, phone: row.phone ?? "" })
-  }
+  for (const r of list) if (!r.is_cc) map.set(r.carrier_id, { ...r, row_id: r.id, countries: r.countries ?? [], cc_emails: [] })
+  for (const r of list) if (r.is_cc && r.email) map.get(r.carrier_id)?.cc_emails.push(r.email)
   return Array.from(map.values())
 }
 
@@ -112,7 +111,7 @@ function renderTemplateBody(tId: string, req: FreightRequest, carrier: Carrier |
     equipment: parseArrayField(req.equipment), incoterm: req.incoterm ?? "", pickup_address: req.pickupAddress ?? "",
     bl_type: req.blType ?? "", preferred_carrier: req.preferredCarrier ?? "", request_ref: req.requestRef ?? "", dgr: req.dgr ? "Yes" : "", aog: req.aog ? "Yes" : "",
     special_requirements: list(req.specialRequirements), availability_questions: list(req.availabilityQuestions),
-    carrier_name: carrier?.name ?? "", contact_name: carrier?.name ? "" : (req.senderName ?? ""),
+    carrier_name: carrier?.carrier_name ?? "", contact_name: carrier?.carrier_name ? "" : (req.senderName ?? ""),
     missing_fields: (req.missingFields ?? []).join(", ") || (req.suggestedReply ?? ""),
   }
   return applyTemplate(t.body, map, { keepUnknown: true })
@@ -393,7 +392,7 @@ export default function RequestDetailPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    fetch("/api/carriers").then((r) => r.json()).then((rows: CarrierRow[]) => setCarriers(groupCarrierRows(rows))).catch(() => {})
+    fetch("/api/carriers").then((r) => r.json()).then((rows: CarrierApiRow[]) => setCarriers(groupCarrierRows(rows))).catch(() => {})
     fetch("/api/templates").then((r) => r.json()).then((rows: TemplateRow[]) => setTemplates(rows.map(rowToTemplate))).catch(() => {})
   }, [])
 

@@ -23,6 +23,7 @@ interface HistoryRow {
   sort_order: number
   step_status: "waiting" | "active" | "approved" | "rejected" | "skipped"
   assigned_to: string
+  assigned_usernames?: string[] | null
   required: boolean
   notes: string | null
   decided_at: string | null
@@ -45,6 +46,7 @@ interface HistoryRow {
     sort_order: number
     step_status: string
     assigned_to: string
+    assigned_usernames?: string[] | null
     notes: string | null
     decided_at: string | null
   }>
